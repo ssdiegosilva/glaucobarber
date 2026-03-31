@@ -1,15 +1,19 @@
 import Stripe from "stripe";
 
 // ── Platform Stripe client ─────────────────────────────────
-// Used for SaaS subscription billing (charging barbershops for the platform)
+// Lazy init: only instantiated on first use, not at build time
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("STRIPE_SECRET_KEY is not set");
-}
+let _stripe: Stripe | null = null;
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-01-27.acacia",
-  typescript: true,
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    if (!_stripe) {
+      const key = process.env.STRIPE_SECRET_KEY;
+      if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
+      _stripe = new Stripe(key, { apiVersion: "2025-01-27.acacia", typescript: true });
+    }
+    return (_stripe as never)[prop];
+  },
 });
 
 // ── Plan definitions ───────────────────────────────────────
@@ -18,7 +22,7 @@ export const PLANS = {
     name:        "Starter",
     description: "Para barbearias que estão começando",
     priceId:     process.env.STRIPE_PRICE_STARTER_MONTHLY ?? "",
-    monthlyBRL:  9700, // R$97 in cents
+    monthlyBRL:  9700,
     features: [
       "Sync com Trinks",
       "Dashboard diário",
@@ -31,7 +35,7 @@ export const PLANS = {
     name:        "Pro",
     description: "Para barbearias que querem crescer",
     priceId:     process.env.STRIPE_PRICE_PRO_MONTHLY ?? "",
-    monthlyBRL:  19700, // R$197
+    monthlyBRL:  19700,
     features: [
       "Tudo do Starter",
       "Sugestões de IA ilimitadas",
@@ -46,7 +50,7 @@ export const PLANS = {
     name:        "Enterprise",
     description: "Para redes e barbearias premium",
     priceId:     process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ?? "",
-    monthlyBRL:  39700, // R$397
+    monthlyBRL:  39700,
     features: [
       "Tudo do Pro",
       "Multi-unidade",
