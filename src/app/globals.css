@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   GlaucoBarber Design System – CSS Variables
+   Dark premium barbershop aesthetic with gold accent
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* Dark theme (default) */
+    --background: 240 11% 7%;          /* #0f0f14 */
+    --foreground: 240 5% 96%;          /* #f4f4f7 */
+
+    --card: 240 10% 11%;               /* #171720 */
+    --card-foreground: 240 5% 96%;
+
+    --popover: 240 10% 11%;
+    --popover-foreground: 240 5% 96%;
+
+    --primary: 43 52% 55%;             /* #C9A84C – gold */
+    --primary-foreground: 240 11% 7%;
+
+    --secondary: 240 6% 17%;           /* #252530 */
+    --secondary-foreground: 240 5% 70%;
+
+    --muted: 240 6% 17%;
+    --muted-foreground: 240 5% 50%;
+
+    --accent: 240 6% 20%;
+    --accent-foreground: 240 5% 96%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 240 5% 96%;
+
+    --border: 240 6% 20%;              /* subtle border */
+    --input: 240 6% 20%;
+    --ring: 43 52% 55%;                /* gold focus ring */
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Premium scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-600;
+  }
+}
+
+@layer utilities {
+  /* Gold gradient text */
+  .text-gold-gradient {
+    @apply bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent;
+  }
+
+  /* Gold shimmer border */
+  .border-gold {
+    border-color: theme('colors.gold.500');
+  }
+
+  /* Premium card variant */
+  .card-premium {
+    @apply bg-card border border-gold-500/20 shadow-gold-sm;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    @apply relative overflow-hidden bg-surface-800 rounded;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 content-[''];
+    background: linear-gradient(90deg, transparent 0%, rgba(201,168,76,.08) 50%, transparent 100%);
+    animation: shimmer 1.5s infinite;
+  }
+}

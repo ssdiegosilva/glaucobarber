@@ -1,0 +1,49 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { Header } from "@/components/layout/header";
+import { IntegrationsClient } from "./integrations-client";
+
+export default async function IntegrationsPage() {
+  const session = await auth();
+  if (!session?.user?.barbershopId) redirect("/onboarding");
+
+  const [integration, syncRuns] = await Promise.all([
+    prisma.integration.findUnique({
+      where:  { barbershopId: session.user.barbershopId },
+      select: { status: true, lastSyncAt: true, errorMsg: true, configJson: true },
+    }),
+    prisma.syncRun.findMany({
+      where:   { barbershopId: session.user.barbershopId },
+      orderBy: { startedAt: "desc" },
+      take:    10,
+      select: {
+        id: true, status: true, triggeredBy: true,
+        customersUpserted: true, servicesUpserted: true, appointmentsUpserted: true,
+        errorsCount: true, durationMs: true, startedAt: true,
+      },
+    }),
+  ]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <Header
+        title="Integrações"
+        subtitle="Configuração e sincronização com a Trinks"
+        userName={session.user.name}
+      />
+      <IntegrationsClient
+        integration={integration ? {
+          status:    integration.status,
+          lastSyncAt: integration.lastSyncAt?.toISOString() ?? null,
+          errorMsg:  integration.errorMsg,
+          configured: !!integration.configJson,
+        } : null}
+        syncRuns={syncRuns.map((r) => ({
+          ...r,
+          startedAt: r.startedAt.toISOString(),
+        }))}
+      />
+    </div>
+  );
+}

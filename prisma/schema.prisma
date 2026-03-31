@@ -1,0 +1,582 @@
+// ============================================================
+// GlaucoBarber – Prisma Schema
+// Multi-tenant SaaS for barbershops
+// Trinks = operational backend | This app = intelligence layer
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+
+  accounts  Account[]
+  sessions  Session[]
+  memberships Membership[]
+  auditLogs   AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================================
+// MULTI-TENANT CORE
+// ============================================================
+
+model Barbershop {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  city        String?
+  state       String?
+  logoUrl     String?
+  websiteUrl  String?
+  description String?
+
+  // Trinks: the operational source of truth
+  trinksConfigured Boolean @default(false)
+
+  // Platform subscription (SaaS billing)
+  stripeCustomerId String? @unique
+  subscription     PlatformSubscription?
+
+  // Relations
+  memberships   Membership[]
+  integration   Integration?
+  syncRuns      SyncRun[]
+  customers     Customer[]
+  services      Service[]
+  appointments  Appointment[]
+  offers        Offer[]
+  campaigns     Campaign[]
+  suggestions   Suggestion[]
+  payments      Payment[]
+  auditLogs     AuditLog[]
+  featureFlags  FeatureFlag[]
+  goals         Goal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("barbershops")
+}
+
+enum MembershipRole {
+  PLATFORM_ADMIN
+  OWNER
+  BARBER
+  STAFF
+}
+
+model Membership {
+  id           String         @id @default(cuid())
+  userId       String
+  barbershopId String
+  role         MembershipRole @default(BARBER)
+  active       Boolean        @default(true)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, barbershopId])
+  @@map("memberships")
+}
+
+// ============================================================
+// TRINKS INTEGRATION
+// ============================================================
+
+enum IntegrationStatus {
+  UNCONFIGURED
+  ACTIVE
+  ERROR
+  PAUSED
+}
+
+model Integration {
+  id           String            @id @default(cuid())
+  barbershopId String            @unique
+  provider     String            @default("trinks")
+  status       IntegrationStatus @default(UNCONFIGURED)
+
+  // Credentials stored encrypted (use env for encryption key)
+  // IMPORTANT: These fields hold provider-specific config.
+  // For Trinks: apiKey, companyId, etc.
+  // Exact field names depend on Trinks API documentation.
+  // See lib/integrations/trinks/types.ts for contract.
+  configJson String? // JSON blob, encrypted at app layer
+
+  lastSyncAt DateTime?
+  errorMsg   String?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  syncRuns   SyncRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("integrations")
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+model SyncRun {
+  id           String     @id @default(cuid())
+  barbershopId String
+  integrationId String?
+  status       SyncStatus @default(RUNNING)
+  triggeredBy  String?    // userId or "cron"
+
+  // Metrics
+  customersUpserted    Int @default(0)
+  servicesUpserted     Int @default(0)
+  appointmentsUpserted Int @default(0)
+  errorsCount          Int @default(0)
+
+  errorDetails String? // JSON array of errors
+  durationMs   Int?
+  startedAt    DateTime @default(now())
+  finishedAt   DateTime?
+
+  barbershop  Barbershop   @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  integration Integration? @relation(fields: [integrationId], references: [id])
+
+  @@map("sync_runs")
+}
+
+// ============================================================
+// OPERATIONAL DATA (synced from Trinks)
+// ============================================================
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  VIP
+  BLOCKED
+}
+
+model Customer {
+  id           String         @id @default(cuid())
+  barbershopId String
+  trinksId     String?        // external ID from Trinks
+  name         String
+  phone        String?
+  email        String?
+  birthDate    DateTime?
+  notes        String?
+  tags         String[]       @default([])
+  status       CustomerStatus @default(ACTIVE)
+  avatarUrl    String?
+
+  // Computed/cached fields (refreshed on sync)
+  totalVisits   Int      @default(0)
+  totalSpent    Decimal  @default(0) @db.Decimal(10, 2)
+  lastVisitAt   DateTime?
+  firstVisitAt  DateTime?
+  avgTicket     Decimal  @default(0) @db.Decimal(10, 2)
+
+  // Source tracking
+  syncedFromTrinks Boolean  @default(false)
+  lastSyncedAt     DateTime?
+
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  payments     Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barbershopId, trinksId])
+  @@map("customers")
+}
+
+enum ServiceCategory {
+  HAIRCUT
+  BEARD
+  COMBO
+  TREATMENT
+  OTHER
+}
+
+model Service {
+  id           String          @id @default(cuid())
+  barbershopId String
+  trinksId     String?
+  name         String
+  description  String?
+  category     ServiceCategory @default(HAIRCUT)
+  price        Decimal         @db.Decimal(10, 2)
+  durationMin  Int             @default(30)
+  active       Boolean         @default(true)
+  visible      Boolean         @default(true)
+
+  syncedFromTrinks Boolean  @default(false)
+  lastSyncedAt     DateTime?
+
+  barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barbershopId, trinksId])
+  @@map("services")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  barbershopId String
+  trinksId     String?
+  customerId   String?
+  serviceId    String?
+  barberId     String?           // userId of barber
+
+  scheduledAt DateTime
+  durationMin Int              @default(30)
+  status      AppointmentStatus @default(SCHEDULED)
+  price       Decimal?          @db.Decimal(10, 2)
+  notes       String?
+
+  syncedFromTrinks Boolean  @default(false)
+  lastSyncedAt     DateTime?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+  service    Service?   @relation(fields: [serviceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barbershopId, trinksId])
+  @@map("appointments")
+}
+
+// ============================================================
+// COMMERCIAL / OFFERS
+// ============================================================
+
+enum OfferType {
+  PACKAGE      // N cortes antecipados
+  COMBO        // corte + barba
+  SUBSCRIPTION // VIP recorrente
+  FLASH_PROMO  // promoção relâmpago
+  PREPAID      // crédito pré-pago
+}
+
+enum OfferStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  EXPIRED
+  ARCHIVED
+}
+
+model Offer {
+  id           String      @id @default(cuid())
+  barbershopId String
+  type         OfferType
+  status       OfferStatus @default(DRAFT)
+  title        String
+  description  String?
+  originalPrice Decimal    @db.Decimal(10, 2)
+  salePrice    Decimal     @db.Decimal(10, 2)
+  credits      Int?        // number of sessions in package
+  validUntil   DateTime?
+  maxRedemptions Int?
+  redemptionsCount Int     @default(0)
+
+  // Stripe integration (future: barbershop selling to clients)
+  stripeProductId String?
+  stripePriceId   String?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  payments   Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("offers")
+}
+
+// ============================================================
+// AI SUGGESTIONS & CAMPAIGNS
+// ============================================================
+
+enum SuggestionType {
+  COMMERCIAL_INSIGHT   // visão do dia
+  CAMPAIGN_TEXT        // texto de campanha
+  CLIENT_MESSAGE       // mensagem para cliente inativo
+  SOCIAL_POST          // post para redes sociais
+  PROMO_BRIEFING       // briefing para arte promocional
+  OFFER_OPPORTUNITY    // oportunidade de vender pacote
+}
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  DISMISSED
+  PUBLISHED
+}
+
+model Suggestion {
+  id           String           @id @default(cuid())
+  barbershopId String
+  type         SuggestionType
+  status       SuggestionStatus @default(PENDING)
+
+  title   String
+  content String   // main generated text
+  reason  String   // why this suggestion was generated
+  context String?  // serialized JSON: occupancy, slots, date, etc.
+
+  // If approved, optional action taken
+  actionTakenAt DateTime?
+  actionNotes   String?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  campaign   Campaign?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("suggestions")
+}
+
+enum CampaignStatus {
+  DRAFT
+  APPROVED
+  DISMISSED
+  SCHEDULED
+  PUBLISHED
+}
+
+model Campaign {
+  id           String         @id @default(cuid())
+  barbershopId String
+  suggestionId String?        @unique
+  status       CampaignStatus @default(DRAFT)
+
+  title       String
+  objective   String
+  text        String          // campaign copy
+  artBriefing String?         // briefing for visual art
+  channel     String?         // whatsapp | instagram | both
+  scheduledAt DateTime?
+  publishedAt DateTime?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  suggestion Suggestion? @relation(fields: [suggestionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("campaigns")
+}
+
+// ============================================================
+// BILLING (Platform SaaS via Stripe)
+// ============================================================
+
+enum PlanTier {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
+model PlatformSubscription {
+  id           String             @id @default(cuid())
+  barbershopId String             @unique
+  stripeSubId  String             @unique
+  stripePriceId String
+  planTier     PlanTier           @default(STARTER)
+  status       SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean     @default(false)
+  trialEndsAt        DateTime?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_subscriptions")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentDomain {
+  PLATFORM_SUBSCRIPTION  // SaaS fee
+  SHOP_OFFER             // barbershop selling to client
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  barbershopId String
+  customerId   String?       // barbershop's customer (for shop offers)
+  offerId      String?
+  domain       PaymentDomain
+  status       PaymentStatus @default(PENDING)
+  amount       Decimal       @db.Decimal(10, 2)
+  currency     String        @default("BRL")
+  description  String?
+
+  // Stripe refs
+  stripePaymentIntentId String?
+  stripeChargeId        String?
+
+  paidAt DateTime?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+  offer      Offer?     @relation(fields: [offerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payments")
+}
+
+// ============================================================
+// GOALS & FEATURE FLAGS
+// ============================================================
+
+model Goal {
+  id           String @id @default(cuid())
+  barbershopId String
+  month        Int    // 1-12
+  year         Int
+  revenueTarget Decimal? @db.Decimal(10, 2)
+  appointmentTarget Int?
+  notes        String?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barbershopId, month, year])
+  @@map("goals")
+}
+
+model FeatureFlag {
+  id           String  @id @default(cuid())
+  barbershopId String
+  flag         String
+  enabled      Boolean @default(false)
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  @@unique([barbershopId, flag])
+  @@map("feature_flags")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id           String  @id @default(cuid())
+  barbershopId String?
+  userId       String?
+  action       String  // e.g. "suggestion.approved", "sync.triggered"
+  entity       String? // e.g. "Suggestion", "Campaign"
+  entityId     String?
+  metadata     String? // JSON
+
+  barbershop Barbershop? @relation(fields: [barbershopId], references: [id])
+  user       User?       @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
