@@ -70,25 +70,30 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Field label="Nome" value={values.name} onChange={(v) => onChange("name", v)} readOnly={!editing} required />
-          <Field label="Slug" value={values.slug} onChange={(v) => onChange("slug", v)} readOnly={!editing} required helper="usado em links, só letras/números" />
-          <Field label="Email" value={values.email ?? ""} onChange={(v) => onChange("email", v)} readOnly={!editing} />
-          <Field label="Telefone" value={values.phone ?? ""} onChange={(v) => onChange("phone", v)} readOnly={!editing} />
-          <Field label="Cidade" value={values.city ?? ""} onChange={(v) => onChange("city", v)} readOnly={!editing} />
-          <Field label="Estado" value={values.state ?? ""} onChange={(v) => onChange("state", v)} readOnly={!editing} />
-          <Field label="Endereço" value={values.address ?? ""} onChange={(v) => onChange("address", v)} readOnly={!editing} />
-          <Field label="Site" value={values.websiteUrl ?? ""} onChange={(v) => onChange("websiteUrl", v)} readOnly={!editing} />
-          <Field label="Logo (URL)" value={values.logoUrl ?? ""} onChange={(v) => onChange("logoUrl", v)} readOnly={!editing} />
+          <Field label="Nome" value={values.name} onChange={(v) => onChange("name", v)} editing={editing} required />
+          <Field label="Slug" value={values.slug} onChange={(v) => onChange("slug", v)} editing={editing} required helper="usado em links, só letras/números" />
+          <Field label="Email" value={values.email ?? ""} onChange={(v) => onChange("email", v)} editing={editing} />
+          <Field label="Telefone" value={values.phone ?? ""} onChange={(v) => onChange("phone", v)} editing={editing} />
+          <Field label="Cidade" value={values.city ?? ""} onChange={(v) => onChange("city", v)} editing={editing} />
+          <Field label="Estado" value={values.state ?? ""} onChange={(v) => onChange("state", v)} editing={editing} />
+          <Field label="Endereço" value={values.address ?? ""} onChange={(v) => onChange("address", v)} editing={editing} />
+          <Field label="Site" value={values.websiteUrl ?? ""} onChange={(v) => onChange("websiteUrl", v)} editing={editing} />
+          <Field label="Logo (URL)" value={values.logoUrl ?? ""} onChange={(v) => onChange("logoUrl", v)} editing={editing} />
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Descrição</label>
-          <textarea
-            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-            value={values.description ?? ""}
-            onChange={(e) => onChange("description", e.target.value)}
-            readOnly={!editing}
-            rows={3}
-          />
+          {editing ? (
+            <textarea
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+              value={values.description ?? ""}
+              onChange={(e) => onChange("description", e.target.value)}
+              rows={3}
+            />
+          ) : (
+            <div className="w-full rounded-md border border-border/40 bg-surface-900 px-3 py-2 text-xs text-foreground min-h-[64px]">
+              {(values.description ?? "").trim() || "—"}
+            </div>
+          )}
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex flex-wrap gap-2 justify-end pt-1">
@@ -113,11 +118,11 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
   );
 }
 
-function Field({ label, value, onChange, readOnly, required, helper }: {
+function Field({ label, value, onChange, editing, required, helper }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  readOnly: boolean;
+  editing: boolean;
   required?: boolean;
   helper?: string;
 }) {
@@ -127,12 +132,17 @@ function Field({ label, value, onChange, readOnly, required, helper }: {
         <label className="text-xs text-muted-foreground">{label}{required ? " *" : ""}</label>
         {helper && <span className="text-[10px] text-muted-foreground">{helper}</span>}
       </div>
-      <input
-        value={value}
-        readOnly={readOnly}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground ${readOnly ? "opacity-80" : "focus:outline-none focus:ring-2 focus:ring-ring"}`}
-      />
+      {editing ? (
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      ) : (
+        <div className="w-full rounded-md border border-border/40 bg-surface-900 px-3 py-2 text-xs text-foreground min-h-[38px] flex items-center">
+          {value?.trim() || "—"}
+        </div>
+      )}
     </div>
   );
 }
