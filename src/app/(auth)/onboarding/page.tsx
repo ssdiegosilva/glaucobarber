@@ -1,65 +1,94 @@
-import { Scissors, Plug, Sparkles, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+"use client";
 
-const STEPS = [
-  {
-    icon: Scissors,
-    title: "Crie sua barbearia",
-    desc:  "Nome, endereço e dados básicos",
-  },
-  {
-    icon: Plug,
-    title: "Conecte a Trinks",
-    desc:  "Importe agenda, clientes e serviços automaticamente",
-  },
-  {
-    icon: Sparkles,
-    title: "Ative a IA",
-    desc:  "Sugestões diárias de crescimento e automação",
-  },
-];
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Scissors, Loader2 } from "lucide-react";
 
 export default function OnboardingPage() {
+  const router = useRouter();
+  const [name,    setName]    = useState("");
+  const [slug,    setSlug]    = useState("");
+  const [error,   setError]   = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function handleNameChange(value: string) {
+    setName(value);
+    // Auto-generate slug from name
+    setSlug(value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const res = await fetch("/api/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, slug }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error ?? "Erro ao criar barbearia.");
+      setLoading(false);
+      return;
+    }
+
+    router.push("/dashboard");
+    router.refresh();
+  }
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="text-center space-y-2">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 border border-gold-500/30 mb-4">
-          <Scissors className="h-6 w-6 text-gold-400" />
+    <div className="space-y-6 animate-fade-in">
+      <div className="space-y-1 text-center">
+        <div className="flex items-center justify-center mb-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/15 border border-gold-500/30">
+            <Scissors className="h-6 w-6 text-gold-400" />
+          </div>
         </div>
         <h1 className="text-2xl font-bold text-foreground">Bem-vindo!</h1>
-        <p className="text-sm text-muted-foreground">
-          Vamos configurar seu copiloto em 3 passos simples
-        </p>
+        <p className="text-sm text-muted-foreground">Crie sua barbearia para começar</p>
       </div>
 
-      <div className="space-y-3">
-        {STEPS.map((step, i) => (
-          <div key={i} className="flex items-start gap-4 rounded-lg border border-border bg-card p-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-500/10 border border-gold-500/20 shrink-0">
-              <step.icon className="h-4 w-4 text-gold-400" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">{step.title}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
-            </div>
-            <div className="ml-auto">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-xs text-muted-foreground font-bold">
-                {i + 1}
-              </div>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-foreground">Nome da barbearia</label>
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="Art Shave Barbearia"
+            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-foreground">URL da barbearia</label>
+          <div className="flex items-center rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm">
+            <span className="text-muted-foreground shrink-0">glaucobarber.com/</span>
+            <input
+              type="text"
+              required
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              placeholder="art-shave"
+              className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none ml-1"
+            />
           </div>
-        ))}
-      </div>
+        </div>
 
-      <Button className="w-full" asChild>
-        <Link href="/dashboard">Começar configuração</Link>
-      </Button>
+        {error && (
+          <p className="text-xs text-red-400 rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2">{error}</p>
+        )}
 
-      <p className="text-center text-xs text-muted-foreground">
-        Você pode configurar a Trinks depois em{" "}
-        <Link href="/integrations" className="text-gold-400 hover:underline">Integrações</Link>
-      </p>
+        <Button type="submit" className="w-full" disabled={loading || !name || !slug}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar barbearia e entrar"}
+        </Button>
+      </form>
     </div>
   );
 }
