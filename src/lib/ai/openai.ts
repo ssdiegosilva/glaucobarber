@@ -3,7 +3,14 @@
 // ============================================================
 
 import OpenAI from "openai";
-import type { AIProvider, AISuggestionRequest, AISuggestion } from "./types";
+import type {
+  AIProvider,
+  AISuggestionRequest,
+  AISuggestion,
+  CopilotContext,
+  CopilotResponse,
+  CopilotActionSuggestion,
+} from "./types";
 
 const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
 
@@ -86,6 +93,38 @@ export class OpenAIProvider implements AIProvider {
 
     return completion.choices[0]?.message?.content ?? "";
   }
+
+  async generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse> {
+    const completion = await this.client.chat.completions.create({
+      model: MODEL,
+      max_tokens: 800,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é o CEO Copilot de uma barbearia premium. Responda curto, em PT-BR, com visão executiva e ações práticas. Nunca execute nada; apenas sugira e peça aprovação. Responda em JSON.",
+        },
+        {
+          role: "user",
+          content: buildCopilotPrompt(context, question),
+        },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    try {
+      const parsed = JSON.parse(raw);
+      const actions: CopilotActionSuggestion[] = Array.isArray(parsed.actions) ? parsed.actions : [];
+      return {
+        answer: parsed.answer ?? "",
+        actions,
+        requireApproval: parsed.requireApproval !== false,
+      };
+    } catch {
+      return { answer: "Não consegui gerar uma resposta agora.", actions: [], requireApproval: true };
+    }
+  }
 }
 
 function buildSuggestionsPrompt(ctx: AISuggestionRequest): string {
@@ -103,4 +142,26 @@ ${ctx.recentCampaigns.length > 0 ? `- Campanhas recentes: ${ctx.recentCampaigns.
 Gere até 3 sugestões acionáveis para hoje. Foque no que gera resultado imediato.
 
 Retorne JSON: { "suggestions": [ { "type": "COMMERCIAL_INSIGHT|CAMPAIGN_TEXT|CLIENT_MESSAGE|SOCIAL_POST|OFFER_OPPORTUNITY", "title": "título (máx 60 chars)", "content": "texto pronto para usar", "reason": "motivo em 1 frase" } ] }`;
+}
+
+function buildCopilotPrompt(ctx: CopilotContext, question: string): string {
+  return `Contexto atual da barbearia ${ctx.barbershopName}
+- Data: ${ctx.dayOfWeek}, ${ctx.date}
+- Ocupação hoje: ${Math.round(ctx.occupancyRate * 100)}% (${ctx.bookedSlots}/${ctx.totalSlots})
+- Horários livres: ${ctx.freeWindows.join(", ") || "—"}
+- Receita prevista: R$ ${ctx.projectedRevenue.toFixed(2)} | Realizada: R$ ${ctx.completedRevenue.toFixed(2)} | Meta mês: ${ctx.revenueGoal ?? "—"}
+- Meta semana: ${ctx.weekGoal ?? "—"}; progresso: ${ctx.weekProgress ? Math.round(ctx.weekProgress * 100) + "%" : "—"}
+- Serviços mais vendidos hoje: ${ctx.topServices.join(", ") || "—"}
+- Clientes inativos (+30d): ${ctx.inactiveClients}
+- Campanhas ativas/aprovadas: ${ctx.campaigns.join(", ") || "—"}
+
+Pergunta do usuário: ${question}
+
+Responda em JSON:
+{
+  "answer": "resposta executiva em 2-4 frases",
+  "actions": [ { "title": "", "description": "", "type": "campaign|follow_up|agenda|crm|meta|pricing", "reason": "por quê", "payload": {"dados": "opc"} } ],
+  "requireApproval": true
+}
+Nunca confirme execução. Sempre deixe requireApproval true.`;
 }

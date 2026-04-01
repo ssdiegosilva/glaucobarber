@@ -8,20 +8,20 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const suggestion = await prisma.suggestion.findUnique({ where: { id: params.id } });
-  if (!suggestion || suggestion.barbershopId !== session.user.barbershopId) {
+  const action = await prisma.action.findUnique({ where: { id: params.id } });
+  if (!action || action.barbershopId !== session.user.barbershopId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  await prisma.suggestion.update({ where: { id: params.id }, data: { status: "DISMISSED" } });
+  await prisma.action.update({ where: { id: params.id }, data: { status: "DISMISSED" } });
 
   await prisma.auditLog.create({
     data: {
-      barbershopId: suggestion.barbershopId,
+      barbershopId: action.barbershopId,
       userId: session.user.id,
-      action: "suggestion.dismissed",
-      entity: "Suggestion",
-      entityId: suggestion.id,
+      action: "action.dismissed",
+      entity: "Action",
+      entityId: action.id,
     },
   });
 

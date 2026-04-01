@@ -30,4 +30,40 @@ export interface AIProvider {
   generateSuggestions(context: AISuggestionRequest): Promise<AISuggestion[]>;
   generateCampaignText(objective: string, context: string): Promise<{ text: string; artBriefing: string }>;
   generateClientMessage(clientName: string, daysSinceVisit: number, services: string[]): Promise<string>;
+  generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;
+}
+
+// ── Copilot types ─────────────────────────────────────────
+
+export interface CopilotContext {
+  barbershopName: string;
+  date: string;
+  dayOfWeek: string;
+  occupancyRate: number;
+  totalSlots: number;
+  bookedSlots: number;
+  freeSlots: number;
+  freeWindows: string[];
+  projectedRevenue: number;
+  completedRevenue: number;
+  revenueGoal?: number | null;
+  topServices: string[];
+  inactiveClients: number;
+  campaigns: string[];
+  weekGoal?: number | null;
+  weekProgress?: number | null;
+}
+
+export interface CopilotActionSuggestion {
+  title: string;
+  description?: string;
+  type: string;
+  reason?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface CopilotResponse {
+  answer: string;
+  actions: CopilotActionSuggestion[];
+  requireApproval: boolean;
 }

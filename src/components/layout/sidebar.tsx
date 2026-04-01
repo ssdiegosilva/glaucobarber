@@ -20,6 +20,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const NAV = [
   { href: "/dashboard",    label: "Dashboard",   icon: LayoutDashboard },
+  { href: "/copilot",      label: "Copilot",     icon: Sparkles },
   { href: "/clients",      label: "Clientes",    icon: Users },
   { href: "/services",     label: "Serviços",    icon: Scissors },
   { href: "/offers",       label: "Ofertas",     icon: Tag },

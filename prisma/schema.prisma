@@ -392,6 +392,7 @@ enum SuggestionStatus {
   APPROVED
   DISMISSED
   PUBLISHED
+  EXECUTED
 }
 
 model Suggestion {
@@ -447,6 +448,84 @@ model Campaign {
   updatedAt DateTime @updatedAt
 
   @@map("campaigns")
+}
+
+// ============================================================
+// COPILOT & ACTIONS
+// ============================================================
+
+enum ActionStatus {
+  DRAFT
+  APPROVED
+  EDITED
+  DISMISSED
+  EXECUTED
+}
+
+model Action {
+  id            String       @id @default(cuid())
+  barbershopId  String
+  suggestionId  String?
+  title         String
+  description   String?
+  type          String      // e.g. "campaign", "follow_up", "pricing"
+  payload       Json?
+  status        ActionStatus @default(DRAFT)
+  source        String       @default("ai") // ai | manual
+  createdBy     String?
+  approvedBy    String?
+  executedBy    String?
+  executedAt    DateTime?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  suggestion Suggestion? @relation(fields: [suggestionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("actions")
+}
+
+enum CopilotThreadStatus {
+  OPEN
+  ARCHIVED
+}
+
+model CopilotThread {
+  id             String               @id @default(cuid())
+  barbershopId   String
+  title          String?
+  createdBy      String?
+  status         CopilotThreadStatus  @default(OPEN)
+  lastMessageAt  DateTime             @default(now())
+
+  barbershop     Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  messages       CopilotMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("copilot_threads")
+}
+
+enum CopilotMessageRole {
+  USER
+  ASSISTANT
+  ACTION
+}
+
+model CopilotMessage {
+  id         String             @id @default(cuid())
+  threadId   String
+  role       CopilotMessageRole
+  content    String
+  actionsJson Json?
+
+  thread CopilotThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("copilot_messages")
 }
 
 // ============================================================
