@@ -75,6 +75,7 @@ export default async function ClientsPage({
               <thead>
                 <tr className="border-b border-border bg-surface-800/50">
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Cliente</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Telefone</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Visitas</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Total gasto</th>
@@ -92,9 +93,11 @@ export default async function ClientsPage({
                         </div>
                         <div>
                           <p className="font-medium text-foreground">{c.name}</p>
-                          {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {c.phone ?? "—"}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={STATUS_VARIANT[c.status] as never}>
