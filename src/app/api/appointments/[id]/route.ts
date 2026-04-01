@@ -11,12 +11,13 @@ function calcTotals(items: { totalPrice: any }[], appointmentPrice?: any, discou
   return { subtotal, discount, total, paid, remaining };
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { id } = await params;
   const appointment = await prisma.appointment.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       items: true,
       payments: { where: { domain: "BARBERSHOP_SERVICE" }, orderBy: { createdAt: "desc" } },

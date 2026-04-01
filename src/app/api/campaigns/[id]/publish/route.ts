@@ -25,11 +25,12 @@ async function publishToInstagram(token: string, businessId: string, imageUrl: s
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const campaign = await prisma.campaign.findUnique({ where: { id: params.id } });
+  const { id } = await params;
+  const campaign = await prisma.campaign.findUnique({ where: { id } });
   if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (campaign.status !== "APPROVED") return NextResponse.json({ error: "Apenas campanhas aprovadas" }, { status: 400 });
   if (!campaign.imageUrl) return NextResponse.json({ error: "Campanha precisa de imagem" }, { status: 400 });
