@@ -10,14 +10,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { name, quantity = 1, unitPrice, serviceId } = await req.json();
   if (!name || unitPrice === undefined) return NextResponse.json({ error: "Nome e preço são obrigatórios" }, { status: 400 });
 
-  const appointment = await prisma.appointment.findUnique({ where: { id } });
-  if (!appointment || appointment.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const appointment = await prisma.appointment.findFirst({
+    where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
+  });
+  if (!appointment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const totalPrice = Number(unitPrice) * Number(quantity ?? 1);
 
   const item = await prisma.appointmentItem.create({
     data: {
-      appointmentId: id,
+      appointmentId: appointment.id,
       serviceId,
       name,
       quantity: Number(quantity ?? 1),

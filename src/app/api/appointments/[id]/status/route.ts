@@ -13,8 +13,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { status } = await req.json();
   if (!allowed.includes(status)) return NextResponse.json({ error: "Status inválido" }, { status: 400 });
 
-  const appointment = await prisma.appointment.findUnique({ where: { id } });
-  if (!appointment || appointment.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const appointment = await prisma.appointment.findFirst({
+    where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
+  });
+  if (!appointment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const data: any = { status };
   const now = new Date();
@@ -22,6 +24,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (status === "COMPLETED") data.completedAt = now;
   if (status === "NO_SHOW") data.noShowAt = now;
 
-  await prisma.appointment.update({ where: { id }, data });
+  await prisma.appointment.update({ where: { id: appointment.id }, data });
   return NextResponse.json({ ok: true });
 }
