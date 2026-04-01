@@ -1,6 +1,6 @@
 // ============================================================
 // Trinks → App Data Mappers
-// Transforms raw Trinks API shapes into Prisma-ready objects
+// Field names confirmed via live API call on 2026-03-31
 // ============================================================
 
 import type { TrinksCustomer, TrinksService, TrinksAppointment } from "./types";
@@ -12,15 +12,18 @@ export function mapTrinksCustomer(
   raw: TrinksCustomer,
   barbershopId: string
 ): Prisma.CustomerUpsertArgs["create"] {
+  const phone = raw.telefones?.[0]?.numero ?? null;
+  const tags  = raw.etiquetas?.map((e) => e.nome) ?? [];
+
   return {
     barbershopId,
-    trinksId:         raw.id,
-    name:             raw.name,
-    phone:            raw.phone ?? null,
+    trinksId:         String(raw.id),
+    name:             raw.nome,
+    phone,
     email:            raw.email ?? null,
-    birthDate:        raw.birthDate ? parseTrinksDate(raw.birthDate) : null,
-    notes:            raw.notes ?? null,
-    tags:             normalizeTags(raw.tags),
+    birthDate:        raw.dataNascimento ? new Date(raw.dataNascimento) : null,
+    notes:            raw.observacao ?? null,
+    tags,
     syncedFromTrinks: true,
     lastSyncedAt:     new Date(),
   };
@@ -34,44 +37,37 @@ export function mapTrinksService(
 ): Prisma.ServiceUpsertArgs["create"] {
   return {
     barbershopId,
-    trinksId:         raw.id,
-    name:             raw.name,
-    description:      raw.description ?? null,
-    price:            normalizePriceToBRL(raw.price),
-    durationMin:      raw.duration ?? 30,
-    category:         mapServiceCategory(raw.category),
-    active:           raw.active ?? true,
+    trinksId:         String(raw.id),
+    name:             raw.nome,
+    description:      raw.descricao ?? null,
+    price:            raw.preco,
+    durationMin:      raw.duracao ?? 30,
+    category:         mapServiceCategory(raw.categoria),
+    active:           raw.ativo ?? true,
     syncedFromTrinks: true,
     lastSyncedAt:     new Date(),
   };
 }
 
 // ── Appointment ──────────────────────────────────────────────
+// Uses real field names: dataHoraInicio, duracaoEmMinutos, valor
 
 export function mapTrinksAppointment(
   raw: TrinksAppointment,
-  barbershopId: string,
-  customerIdMap: Map<string, string>,  // trinksId → internal id
+  barbershopId:  string,
+  customerIdMap: Map<string, string>, // trinksId → internal id
   serviceIdMap:  Map<string, string>
 ): Prisma.AppointmentUpsertArgs["create"] {
-  const scheduledAt = new Date(raw.startTime);
-  let durationMin = 30;
-
-  if (raw.endTime) {
-    const end   = new Date(raw.endTime);
-    durationMin = Math.round((end.getTime() - scheduledAt.getTime()) / 60_000);
-  }
-
   return {
     barbershopId,
-    trinksId:         raw.id,
-    customerId:       raw.clientId  ? (customerIdMap.get(raw.clientId)  ?? null) : null,
-    serviceId:        raw.serviceId ? (serviceIdMap.get(raw.serviceId)  ?? null) : null,
-    scheduledAt,
-    durationMin,
-    status:           mapAppointmentStatus(raw.status),
-    price:            raw.price != null ? normalizePriceToBRL(raw.price) : null,
-    notes:            raw.notes ?? null,
+    trinksId:         String(raw.id),
+    customerId:       raw.cliente?.id ? (customerIdMap.get(String(raw.cliente.id)) ?? null) : null,
+    serviceId:        raw.servico?.id ? (serviceIdMap.get(String(raw.servico.id))  ?? null) : null,
+    scheduledAt:      new Date(raw.dataHoraInicio),
+    durationMin:      raw.duracaoEmMinutos ?? 30,
+    status:           mapAppointmentStatus(raw.status?.nome ?? ""),
+    price:            raw.valor ?? null,
+    notes:            raw.observacoesDoCliente ?? raw.observacoesDoEstabelecimento ?? null,
     syncedFromTrinks: true,
     lastSyncedAt:     new Date(),
   };
@@ -79,52 +75,22 @@ export function mapTrinksAppointment(
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function parseTrinksDate(raw: string): Date | null {
-  // Handle "dd/MM/yyyy" or ISO formats
-  if (raw.includes("/")) {
-    const [d, m, y] = raw.split("/");
-    return new Date(`${y}-${m}-${d}`);
-  }
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function normalizeTags(tags?: string[] | string): string[] {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags;
-  return tags.split(",").map((t) => t.trim()).filter(Boolean);
-}
-
-function normalizePriceToBRL(price: number): number {
-  // [VERIFY] If Trinks returns prices in cents, divide by 100.
-  // If it returns as float BRL, return as-is.
-  // Assuming float BRL for now (e.g. 45.00):
-  return price;
-}
-
 function mapServiceCategory(raw?: string): ServiceCategory {
-  const map: Record<string, ServiceCategory> = {
-    corte:      "HAIRCUT",
-    haircut:    "HAIRCUT",
-    barba:      "BEARD",
-    beard:      "BEARD",
-    combo:      "COMBO",
-    tratamento: "TREATMENT",
-    treatment:  "TREATMENT",
-  };
-  return map[raw?.toLowerCase() ?? ""] ?? "OTHER";
+  if (!raw) return "OTHER";
+  const lower = raw.toLowerCase();
+  if (lower.includes("corte"))      return "HAIRCUT";
+  if (lower.includes("barba"))      return "BEARD";
+  if (lower.includes("combo"))      return "COMBO";
+  if (lower.includes("tratamento")) return "TREATMENT";
+  return "OTHER";
 }
 
 function mapAppointmentStatus(raw: string): AppointmentStatus {
   const map: Record<string, AppointmentStatus> = {
-    scheduled:    "SCHEDULED",
-    confirmed:    "CONFIRMED",
-    in_progress:  "IN_PROGRESS",
-    done:         "COMPLETED",
-    completed:    "COMPLETED",
-    canceled:     "CANCELLED",
-    cancelled:    "CANCELLED",
-    no_show:      "NO_SHOW",
+    agendado:   "SCHEDULED",
+    confirmado: "CONFIRMED",
+    finalizado: "COMPLETED",
+    cancelado:  "CANCELLED",
   };
   return map[raw?.toLowerCase()] ?? "SCHEDULED";
 }

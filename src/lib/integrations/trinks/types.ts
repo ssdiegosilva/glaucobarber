@@ -1,70 +1,92 @@
 // ============================================================
 // Trinks Integration – Type Contracts
-//
-// IMPORTANT: These types define the expected shape of data
-// from the Trinks API. They are based on publicly known
-// patterns of the Trinks platform and may need adjustment
-// once you obtain official API documentation/access.
-//
-// Fields marked [VERIFY] need confirmation against real docs.
+// Base URL: https://api.trinks.com
+// Auth: header "X-Api-Key" + header "estabelecimentoId"
+// Docs: https://trinks.readme.io/reference/introducao
 // ============================================================
 
-// ── Credentials stored in Integration.configJson ──────────
-
 export interface TrinksConfig {
-  apiKey:     string;     // [VERIFY] Trinks API key or token
-  companyId:  string;     // [VERIFY] Trinks company/tenant ID
-  baseUrl?:   string;     // Optional override; defaults to TRINKS_API_BASE_URL
+  apiKey:            string; // X-Api-Key header
+  estabelecimentoId: string; // required on all requests (numeric ID as string)
+  baseUrl?:          string; // defaults to https://api.trinks.com
 }
 
-// ── Raw API response shapes ────────────────────────────────
-// These represent what the Trinks API returns.
-// Adjust field names once you have real API access.
+// ── Pagination ─────────────────────────────────────────────
+// Real response: { data: [], page, pageSize, totalPages, totalRecords }
+
+export interface TrinksPage<T> {
+  data:         T[];
+  page:         number;
+  pageSize:     number;
+  totalPages:   number;
+  totalRecords: number;
+}
+
+// ── Establishment ─────────────────────────────────────────
+
+export interface TrinksEstabelecimento {
+  id:   number;
+  nome: string;
+  cnpj: string;
+}
+
+// ── Customer ───────────────────────────────────────────────
 
 export interface TrinksCustomer {
-  id:         string;       // [VERIFY] Trinks client ID
-  name:       string;
-  phone?:     string;
-  email?:     string;
-  birthDate?: string;       // [VERIFY] ISO date or "dd/MM/yyyy"
-  tags?:      string[];     // [VERIFY] may be string csv
-  notes?:     string;
-  createdAt?: string;
-  updatedAt?: string;
+  id:             number;
+  nome:           string;
+  email?:         string;
+  cpf?:           string;
+  dataNascimento?: string;
+  observacao?:    string;
+  telefones?:     { numero: string; tipo?: string }[];
+  etiquetas?:     { id: number; nome: string }[];
+  dataCadastro?:  string;
+  dataAlteracao?: string;
 }
+
+// ── Service ────────────────────────────────────────────────
 
 export interface TrinksService {
-  id:           string;
-  name:         string;
-  description?: string;
-  price:        number;     // [VERIFY] cents or float BRL
-  duration:     number;     // [VERIFY] minutes
-  category?:    string;     // [VERIFY] category label
-  active?:      boolean;
+  id:        number;
+  nome:      string;
+  descricao?: string;
+  preco:     number;   // BRL float e.g. 100.00
+  duracao:   number;   // minutes
+  categoria?: string;
+  ativo?:    boolean;
 }
+
+// ── Appointment ────────────────────────────────────────────
+// Real field names from API (confirmed via live call)
 
 export interface TrinksAppointment {
-  id:          string;
-  clientId?:   string;      // [VERIFY] maps to TrinksCustomer.id
-  serviceId?:  string;
-  barberId?:   string;
-  startTime:   string;      // [VERIFY] ISO datetime
-  endTime?:    string;
-  status:      string;      // [VERIFY] e.g. "scheduled" | "done" | "canceled"
-  price?:      number;
-  notes?:      string;
-}
-
-// ── Pagination wrapper (assumed) ───────────────────────────
-export interface TrinksPage<T> {
-  data:        T[];
-  total:       number;
-  page:        number;
-  perPage:     number;
-  totalPages:  number;
+  id:              number;
+  status: {
+    id:   number;
+    nome: string; // "Confirmado" | "Finalizado" | "Cancelado" | "Agendado"
+  };
+  cliente?: {
+    id:   number;
+    nome: string;
+  };
+  servico?: {
+    id:   number;
+    nome: string;
+  };
+  profissional?: {
+    id:   number;
+    nome: string;
+  };
+  dataHoraInicio:              string;  // ISO datetime
+  duracaoEmMinutos:            number;
+  valor:                       number;  // BRL float
+  observacoesDoEstabelecimento?: string | null;
+  observacoesDoCliente?:         string | null;
 }
 
 // ── Sync result ────────────────────────────────────────────
+
 export interface SyncResult {
   customersUpserted:    number;
   servicesUpserted:     number;

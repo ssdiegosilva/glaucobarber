@@ -1,44 +1,40 @@
 // ============================================================
 // Trinks API Client
-//
-// This is a typed HTTP adapter around the Trinks API.
-// All external HTTP calls are isolated here.
-//
-// IMPORTANT: The base URL and exact endpoint paths must be
-// confirmed against official Trinks API documentation.
-// Endpoints marked [VERIFY] are educated guesses based on
-// common REST patterns.
+// Base URL: https://api.trinks.com
+// Auth: header "X-Api-Key" + header "estabelecimentoId"
+// Docs: https://trinks.readme.io/reference/introducao
 // ============================================================
 
 import type {
   TrinksConfig,
   TrinksCustomer,
+  TrinksEstabelecimento,
   TrinksService,
   TrinksAppointment,
   TrinksPage,
 } from "./types";
 
-const DEFAULT_BASE_URL = "https://api.trinks.com"; // [VERIFY]
-const DEFAULT_TIMEOUT  = 10_000;
+const DEFAULT_BASE_URL = "https://api.trinks.com";
+const DEFAULT_TIMEOUT  = 15_000;
 
 export class TrinksClient {
-  private readonly baseUrl: string;
-  private readonly apiKey:  string;
-  private readonly companyId: string;
+  private readonly baseUrl:            string;
+  private readonly apiKey:             string;
+  private readonly estabelecimentoId:  string;
 
   constructor(config: TrinksConfig) {
-    this.apiKey    = config.apiKey;
-    this.companyId = config.companyId;
-    this.baseUrl   = config.baseUrl ?? process.env.TRINKS_API_BASE_URL ?? DEFAULT_BASE_URL;
+    this.apiKey            = config.apiKey;
+    this.estabelecimentoId = config.estabelecimentoId;
+    this.baseUrl           = config.baseUrl ?? DEFAULT_BASE_URL;
   }
 
   // ── Private HTTP helper ──────────────────────────────────
 
   private async request<T>(
-    method: "GET" | "POST" | "PUT" | "PATCH",
-    path: string,
+    method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+    path:   string,
     options?: {
-      params?: Record<string, string | number>;
+      params?: Record<string, string | number | boolean>;
       body?:   unknown;
     }
   ): Promise<T> {
@@ -51,17 +47,16 @@ export class TrinksClient {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    const timeout    = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
     try {
       const res = await fetch(url.toString(), {
         method,
         signal: controller.signal,
         headers: {
-          "Content-Type": "application/json",
-          // [VERIFY] Auth header format – adjust to what Trinks actually uses
-          "Authorization": `Bearer ${this.apiKey}`,
-          "X-Company-Id":  this.companyId,
+          "Content-Type":    "application/json",
+          "X-Api-Key":       this.apiKey,
+          "estabelecimentoId": this.estabelecimentoId,
         },
         body: options?.body ? JSON.stringify(options.body) : undefined,
       });
@@ -69,7 +64,7 @@ export class TrinksClient {
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         throw new TrinksApiError(
-          `Trinks API error: ${res.status} ${res.statusText}`,
+          `Trinks API ${res.status} ${res.statusText}: ${path}`,
           res.status,
           text
         );
@@ -81,54 +76,71 @@ export class TrinksClient {
     }
   }
 
-  // ── Customers ────────────────────────────────────────────
+  // ── Establishments ───────────────────────────────────────
 
-  async getCustomers(page = 1, perPage = 100): Promise<TrinksPage<TrinksCustomer>> {
-    // [VERIFY] endpoint path
-    return this.request("GET", "/v1/clients", { params: { page, per_page: perPage } });
+  async getEstabelecimentos(): Promise<TrinksPage<TrinksEstabelecimento>> {
+    // No estabelecimentoId header needed for this endpoint
+    const url = new URL(`${this.baseUrl}/v1/estabelecimentos`);
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    try {
+      const res = await fetch(url.toString(), {
+        headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
+        signal: controller.signal,
+      });
+      return res.json();
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
-  async getCustomer(id: string): Promise<TrinksCustomer> {
-    return this.request("GET", `/v1/clients/${id}`);
+  // ── Customers ────────────────────────────────────────────
+
+  async getCustomers(page = 1, pageSize = 100): Promise<TrinksPage<TrinksCustomer>> {
+    return this.request("GET", "/v1/clientes", {
+      params: { page, pageSize, incluirDetalhes: true },
+    });
   }
 
   // ── Services ─────────────────────────────────────────────
 
-  async getServices(): Promise<TrinksPage<TrinksService>> {
-    // [VERIFY] endpoint path
-    return this.request("GET", "/v1/services", { params: { page: 1, per_page: 200 } });
+  async getServices(page = 1, pageSize = 200): Promise<TrinksPage<TrinksService>> {
+    return this.request("GET", "/v1/servicos", { params: { page, pageSize } });
   }
 
   // ── Appointments ─────────────────────────────────────────
 
   async getAppointments(opts: {
-    dateFrom: string; // ISO date "YYYY-MM-DD"
-    dateTo:   string;
-    page?:    number;
-    perPage?: number;
+    dataInicio: string; // ISO datetime "YYYY-MM-DDTHH:mm:ss"
+    dataFim:    string;
+    page?:      number;
+    pageSize?:  number;
   }): Promise<TrinksPage<TrinksAppointment>> {
-    // [VERIFY] endpoint path and param names
-    return this.request("GET", "/v1/appointments", {
+    return this.request("GET", "/v1/agendamentos", {
       params: {
-        date_from: opts.dateFrom,
-        date_to:   opts.dateTo,
-        page:      opts.page ?? 1,
-        per_page:  opts.perPage ?? 100,
+        dataInicio: opts.dataInicio,
+        dataFim:    opts.dataFim,
+        page:       opts.page ?? 1,
+        pageSize:   opts.pageSize ?? 100,
       },
     });
   }
 
   async getTodayAppointments(): Promise<TrinksPage<TrinksAppointment>> {
-    const today = new Date().toISOString().split("T")[0];
-    return this.getAppointments({ dateFrom: today, dateTo: today });
+    const now   = new Date();
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const end   = new Date(now); end.setHours(23, 59, 59, 999);
+    return this.getAppointments({
+      dataInicio: start.toISOString().slice(0, 19),
+      dataFim:    end.toISOString().slice(0, 19),
+    });
   }
 
   // ── Health check ─────────────────────────────────────────
 
   async ping(): Promise<boolean> {
     try {
-      // [VERIFY] Use a lightweight endpoint to test connectivity
-      await this.request("GET", "/v1/ping");
+      await this.request("GET", "/v1/clientes", { params: { page: 1, pageSize: 1 } });
       return true;
     } catch {
       return false;
@@ -136,20 +148,20 @@ export class TrinksClient {
   }
 }
 
-// ── Error class ──────────────────────────────────────────────
+// ── Error ────────────────────────────────────────────────────
 
 export class TrinksApiError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
-    public readonly body: string
+    public readonly body:       string
   ) {
     super(message);
     this.name = "TrinksApiError";
   }
 }
 
-// ── Factory: builds client from stored Integration config ───
+// ── Factory ──────────────────────────────────────────────────
 
 export function buildTrinksClient(configJson: string): TrinksClient {
   const config = JSON.parse(configJson) as TrinksConfig;
