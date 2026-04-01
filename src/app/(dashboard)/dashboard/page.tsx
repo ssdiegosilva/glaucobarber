@@ -3,23 +3,29 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { DashboardClient } from "./dashboard-client";
-import { getLiveDayStats } from "@/lib/integrations/trinks/live";
-import { format, getDay } from "date-fns";
+import { getLiveDayStats, getPeriodStats } from "@/lib/integrations/trinks/live";
+import { format, getDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
   const barbershopId = session.user.barbershopId;
   const now          = new Date();
 
+  const { view: viewParam } = await searchParams;
+  const view = viewParam === "week" || viewParam === "month" ? viewParam : "today";
+
   // Fetch in parallel: live Trinks data + local DB data
   const [liveDay, barbershop, pendingSuggestions, recentCampaign, goal, inactiveCount] =
     await Promise.all([
-      // Live from Trinks: today's agenda
       getLiveDayStats(barbershopId),
 
       prisma.barbershop.findUnique({
@@ -27,25 +33,21 @@ export default async function DashboardPage() {
         select: { name: true, trinksConfigured: true },
       }),
 
-      // Local DB: AI suggestions
       prisma.suggestion.findMany({
         where:   { barbershopId, status: "PENDING" },
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
 
-      // Local DB: latest approved campaign
       prisma.campaign.findFirst({
         where:   { barbershopId, status: "APPROVED" },
         orderBy: { createdAt: "desc" },
       }),
 
-      // Local DB: monthly goal
       prisma.goal.findFirst({
         where: { barbershopId, month: now.getMonth() + 1, year: now.getFullYear() },
       }),
 
-      // Local DB: inactive clients count
       prisma.customer.count({
         where: {
           barbershopId,
@@ -54,6 +56,21 @@ export default async function DashboardPage() {
         },
       }),
     ]);
+
+  // Period stats for week / month views
+  const revenueGoal = goal?.revenueTarget ? Number(goal.revenueTarget) : null;
+
+  const periodStats =
+    view === "week"
+      ? await getPeriodStats(
+          barbershopId,
+          startOfWeek(now, { weekStartsOn: 1 }),
+          endOfWeek(now, { weekStartsOn: 1 }),
+          revenueGoal,
+        )
+      : view === "month"
+      ? await getPeriodStats(barbershopId, startOfMonth(now), endOfMonth(now), revenueGoal)
+      : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -64,6 +81,7 @@ export default async function DashboardPage() {
       />
 
       <DashboardClient
+        view={view}
         barbershopName={barbershop?.name ?? ""}
         trinksConfigured={barbershop?.trinksConfigured ?? false}
         liveError={liveDay.error}
@@ -74,7 +92,7 @@ export default async function DashboardPage() {
           occupancyRate:    liveDay.occupancyRate,
           completedRevenue: liveDay.completedRevenue,
           projectedRevenue: liveDay.projectedRevenue,
-          revenueGoal:      goal?.revenueTarget ? Number(goal.revenueTarget) : null,
+          revenueGoal,
           inactiveClients:  inactiveCount,
         }}
         appointments={liveDay.appointments.map((a) => ({
@@ -99,6 +117,14 @@ export default async function DashboardPage() {
           title:   recentCampaign.title,
           text:    recentCampaign.text,
           channel: recentCampaign.channel ?? "",
+        } : null}
+        periodStats={periodStats ? {
+          totalAppointments: periodStats.totalAppointments,
+          completedCount:    periodStats.completedCount,
+          completedRevenue:  periodStats.completedRevenue,
+          avgTicket:         periodStats.avgTicket,
+          goalProgress:      periodStats.goalProgress,
+          dailyRevenue:      periodStats.dailyRevenue,
         } : null}
       />
     </div>

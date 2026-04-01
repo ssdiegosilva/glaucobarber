@@ -8,7 +8,7 @@ import { formatBRL, formatTime } from "@/lib/utils";
 import {
   Calendar, Clock, TrendingUp, Users, Sparkles,
   CheckCircle2, XCircle, Megaphone, AlertTriangle,
-  RefreshCw, ChevronRight, ArrowUpRight
+  RefreshCw, ChevronRight, ArrowUpRight, BarChart3,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -51,7 +51,17 @@ interface Campaign {
   channel: string;
 }
 
+interface PeriodStats {
+  totalAppointments: number;
+  completedCount:    number;
+  completedRevenue:  number;
+  avgTicket:         number;
+  goalProgress:      number | null;
+  dailyRevenue:      { day: string; revenue: number; count: number }[];
+}
+
 interface Props {
+  view:             "today" | "week" | "month";
   barbershopName:   string;
   trinksConfigured: boolean;
   liveError?:       string;
@@ -59,6 +69,7 @@ interface Props {
   appointments:     Appointment[];
   suggestions:      Suggestion[];
   campaign:         Campaign | null;
+  periodStats:      PeriodStats | null;
 }
 
 // ── Status helpers ───────────────────────────────────────────
@@ -83,12 +94,27 @@ const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "destru
 
 // ── Main Component ───────────────────────────────────────────
 
-export function DashboardClient({ barbershopName, trinksConfigured, liveError, stats, appointments, suggestions, campaign }: Props) {
+export function DashboardClient({
+  view,
+  barbershopName,
+  trinksConfigured,
+  liveError,
+  stats,
+  appointments,
+  suggestions,
+  campaign,
+  periodStats,
+}: Props) {
   const [localSuggestions, setLocalSuggestions] = useState(suggestions);
   const [approving, setApproving]   = useState<string | null>(null);
   const [syncing, setSyncing]       = useState(false);
 
-  const occupancyColor = stats.occupancyRate >= 0.8 ? "text-green-400" : stats.occupancyRate >= 0.5 ? "text-yellow-400" : "text-red-400";
+  const occupancyColor =
+    stats.occupancyRate >= 0.8
+      ? "text-green-400"
+      : stats.occupancyRate >= 0.5
+      ? "text-yellow-400"
+      : "text-red-400";
 
   async function handleApproveSuggestion(id: string) {
     setApproving(id);
@@ -129,6 +155,36 @@ export function DashboardClient({ barbershopName, trinksConfigured, liveError, s
   return (
     <div className="p-6 space-y-6 animate-fade-in">
 
+      {/* ── View Tabs ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1 rounded-lg border border-border bg-surface-800/50 p-1">
+          {[
+            { key: "today", label: "Hoje" },
+            { key: "week",  label: "Esta semana" },
+            { key: "month", label: "Este mês" },
+          ].map(({ key, label }) => (
+            <a
+              key={key}
+              href={`?view=${key}`}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                view === key
+                  ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+
+        {view === "today" && (
+          <Button variant="ghost" size="sm" onClick={handleSync} disabled={syncing} className="text-xs h-7">
+            <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
+            Sync Trinks
+          </Button>
+        )}
+      </div>
+
       {/* Trinks warnings */}
       {!trinksConfigured && (
         <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/8 px-4 py-3">
@@ -139,92 +195,161 @@ export function DashboardClient({ barbershopName, trinksConfigured, liveError, s
           </p>
         </div>
       )}
-      {liveError && (
+      {liveError && view === "today" && (
         <div className="flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/8 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
           <p className="text-sm text-red-300">{liveError}</p>
         </div>
       )}
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Ocupação hoje"
-          value={`${Math.round(stats.occupancyRate * 100)}%`}
-          subValue={`${stats.bookedSlots}/${stats.totalSlots} slots`}
-          icon={<Calendar className="h-4 w-4" />}
-          valueClass={occupancyColor}
-        />
-        <KpiCard
-          label="Horários livres"
-          value={String(stats.freeSlots)}
-          subValue="disponíveis hoje"
-          icon={<Clock className="h-4 w-4" />}
-          valueClass={stats.freeSlots > 3 ? "text-red-400" : "text-green-400"}
-        />
-        <KpiCard
-          label="Faturamento previsto"
-          value={formatBRL(stats.projectedRevenue)}
-          subValue={stats.revenueGoal ? `Meta: ${formatBRL(stats.revenueGoal / 30)}` : "sem meta definida"}
-          icon={<TrendingUp className="h-4 w-4" />}
-        />
-        <KpiCard
-          label="Clientes inativos"
-          value={String(stats.inactiveClients)}
-          subValue="+30 dias sem vir"
-          icon={<Users className="h-4 w-4" />}
-          valueClass={stats.inactiveClients > 0 ? "text-yellow-400" : "text-green-400"}
-        />
-      </div>
+      {/* ── KPI Grid ──────────────────────────────────────── */}
+      {view === "today" ? (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <KpiCard
+            label="Ocupação hoje"
+            value={`${Math.round(stats.occupancyRate * 100)}%`}
+            subValue={`${stats.bookedSlots}/${stats.totalSlots} slots`}
+            icon={<Calendar className="h-4 w-4" />}
+            valueClass={occupancyColor}
+          />
+          <KpiCard
+            label="Horários livres"
+            value={String(stats.freeSlots)}
+            subValue="disponíveis hoje"
+            icon={<Clock className="h-4 w-4" />}
+            valueClass={stats.freeSlots > 3 ? "text-red-400" : "text-green-400"}
+          />
+          <KpiCard
+            label="Faturamento previsto"
+            value={formatBRL(stats.projectedRevenue)}
+            subValue={stats.revenueGoal ? `Meta: ${formatBRL(stats.revenueGoal / 30)}` : "sem meta definida"}
+            icon={<TrendingUp className="h-4 w-4" />}
+          />
+          <KpiCard
+            label="Clientes inativos"
+            value={String(stats.inactiveClients)}
+            subValue="+30 dias sem vir"
+            icon={<Users className="h-4 w-4" />}
+            valueClass={stats.inactiveClients > 0 ? "text-yellow-400" : "text-green-400"}
+          />
+        </div>
+      ) : periodStats ? (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <KpiCard
+            label="Agendamentos"
+            value={String(periodStats.totalAppointments)}
+            subValue="não cancelados"
+            icon={<Calendar className="h-4 w-4" />}
+          />
+          <KpiCard
+            label="Receita realizada"
+            value={formatBRL(periodStats.completedRevenue)}
+            subValue={`${periodStats.completedCount} finalizados`}
+            icon={<TrendingUp className="h-4 w-4" />}
+          />
+          <KpiCard
+            label="Ticket médio"
+            value={periodStats.completedCount > 0 ? formatBRL(periodStats.avgTicket) : "—"}
+            subValue="por serviço concluído"
+            icon={<BarChart3 className="h-4 w-4" />}
+          />
+          {view === "month" && periodStats.goalProgress !== null ? (
+            <KpiCard
+              label="Meta do mês"
+              value={`${Math.round(periodStats.goalProgress * 100)}%`}
+              subValue="da meta atingida"
+              icon={<Users className="h-4 w-4" />}
+              valueClass={
+                periodStats.goalProgress >= 0.8
+                  ? "text-green-400"
+                  : periodStats.goalProgress >= 0.5
+                  ? "text-yellow-400"
+                  : "text-red-400"
+              }
+            />
+          ) : (
+            <KpiCard
+              label="Clientes inativos"
+              value={String(stats.inactiveClients)}
+              subValue="+30 dias sem vir"
+              icon={<Users className="h-4 w-4" />}
+              valueClass={stats.inactiveClients > 0 ? "text-yellow-400" : "text-green-400"}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          Sem dados para o período. Faça um sync para carregar os agendamentos.
+        </div>
+      )}
 
-      {/* Main 2-col layout */}
+      {/* ── Main 2-col layout ─────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-        {/* Agenda do dia */}
+        {/* Left column — agenda (today) or chart (week/month) */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gold-400" />
-              Agenda de hoje
-            </h2>
-            <Button variant="ghost" size="sm" onClick={handleSync} disabled={syncing} className="text-xs h-7">
-              <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
-              Sync Trinks
-            </Button>
-          </div>
-
-          <Card>
-            <CardContent className="p-0">
-              {appointments.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground text-sm">
-                  Nenhum agendamento para hoje
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {appointments.map((apt) => (
-                    <div key={apt.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-800/50 transition-colors">
-                      <div className="w-12 text-center shrink-0">
-                        <p className="text-sm font-bold text-foreground">{formatTime(apt.scheduledAt)}</p>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{apt.customerName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{apt.serviceName}</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs font-medium text-foreground">{formatBRL(apt.price)}</span>
-                        <Badge variant={STATUS_VARIANT[apt.status] as never}>
-                          {apt.statusLabel ?? STATUS_LABEL[apt.status] ?? apt.status}
-                        </Badge>
-                      </div>
+          {view === "today" ? (
+            <>
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gold-400" />
+                Agenda de hoje
+              </h2>
+              <Card>
+                <CardContent className="p-0">
+                  {appointments.length === 0 ? (
+                    <div className="py-12 text-center text-muted-foreground text-sm">
+                      Nenhum agendamento para hoje
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {appointments.map((apt) => (
+                        <div
+                          key={apt.id}
+                          className="flex items-center gap-4 px-4 py-3 hover:bg-surface-800/50 transition-colors"
+                        >
+                          <div className="w-12 text-center shrink-0">
+                            <p className="text-sm font-bold text-foreground">{formatTime(apt.scheduledAt)}</p>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{apt.customerName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{apt.serviceName}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-medium text-foreground">{formatBRL(apt.price)}</span>
+                            <Badge variant={STATUS_VARIANT[apt.status] as never}>
+                              {apt.statusLabel ?? STATUS_LABEL[apt.status] ?? apt.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-gold-400" />
+                Receita por dia
+              </h2>
+              <Card>
+                <CardContent className="p-4">
+                  {periodStats && periodStats.dailyRevenue.length > 0 ? (
+                    <RevenueBarChart data={periodStats.dailyRevenue} />
+                  ) : (
+                    <div className="py-12 text-center text-muted-foreground text-sm">
+                      Sem agendamentos concluídos no período.{" "}
+                      <a href="/integrations" className="text-gold-400 underline">Sincronize a Trinks</a> para atualizar.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
-        {/* IA Suggestions */}
+        {/* Right column — IA Suggestions (all views) */}
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-gold-400" />
@@ -251,7 +376,6 @@ export function DashboardClient({ barbershopName, trinksConfigured, liveError, s
             </div>
           )}
 
-          {/* Campaign card */}
           {campaign && (
             <Card className="border-gold-500/20">
               <CardHeader className="pb-2">
@@ -299,6 +423,42 @@ function KpiCard({
   );
 }
 
+function RevenueBarChart({ data }: { data: { day: string; revenue: number; count: number }[] }) {
+  const maxRevenue = Math.max(...data.map((d) => d.revenue), 1);
+  return (
+    <div className="space-y-3">
+      <div className="flex items-end gap-1.5 h-32">
+        {data.map((d) => (
+          <div key={d.day} className="group flex-1 flex flex-col items-center gap-1">
+            <div className="relative w-full flex flex-col items-center justify-end" style={{ height: "100px" }}>
+              {d.revenue > 0 && (
+                <div
+                  className="absolute bottom-0 w-full rounded-t-md bg-gold-500/40 group-hover:bg-gold-500/60 transition-colors"
+                  style={{ height: `${Math.max((d.revenue / maxRevenue) * 100, 8)}%` }}
+                />
+              )}
+              {d.count > 0 && d.revenue === 0 && (
+                <div className="absolute bottom-0 w-full rounded-t-md bg-surface-700" style={{ height: "8%" }} />
+              )}
+            </div>
+            <p className="text-[9px] text-muted-foreground truncate w-full text-center">{d.day}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-4 text-[10px] text-muted-foreground border-t border-border pt-2">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-sm bg-gold-500/40" />
+          Receita realizada
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-sm bg-surface-700" />
+          Agendado (sem conclusão)
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function SuggestionCard({
   suggestion, onApprove, onDismiss, approving,
 }: {
@@ -319,7 +479,9 @@ function SuggestionCard({
     <Card className="border-gold-500/15 hover:border-gold-500/30 transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start gap-2 mb-2">
-          <span className="mt-0.5 text-gold-400 shrink-0">{ICONS[suggestion.type] ?? <Sparkles className="h-3.5 w-3.5" />}</span>
+          <span className="mt-0.5 text-gold-400 shrink-0">
+            {ICONS[suggestion.type] ?? <Sparkles className="h-3.5 w-3.5" />}
+          </span>
           <div className="min-w-0">
             <p className="text-xs font-semibold text-foreground leading-snug">{suggestion.title}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{suggestion.reason}</p>

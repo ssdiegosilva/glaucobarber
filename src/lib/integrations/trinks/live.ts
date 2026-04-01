@@ -5,6 +5,7 @@
 // NOT used for: customers, services (those come from local DB).
 // ============================================================
 
+import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { buildTrinksClient } from "./client";
 import type { TrinksAppointment } from "./types";
@@ -95,4 +96,72 @@ export async function getLiveDayStats(barbershopId: string): Promise<LiveDayStat
     console.error("Trinks live fetch error:", err);
     return { ...empty, error: "Erro ao conectar com a Trinks. Dados podem estar desatualizados." };
   }
+}
+
+// ── Period Stats (week / month) — queries local DB ──────────
+
+export interface PeriodStats {
+  totalAppointments: number;
+  completedCount:    number;
+  completedRevenue:  number;
+  avgTicket:         number;
+  goalProgress:      number | null; // 0–1
+  dailyRevenue:      { day: string; revenue: number; count: number }[];
+}
+
+export async function getPeriodStats(
+  barbershopId: string,
+  start:        Date,
+  end:          Date,
+  revenueGoal:  number | null,
+): Promise<PeriodStats> {
+  const [total, aggregate, rawAppointments] = await Promise.all([
+    prisma.appointment.count({
+      where: {
+        barbershopId,
+        scheduledAt: { gte: start, lte: end },
+        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+      },
+    }),
+    prisma.appointment.aggregate({
+      where: {
+        barbershopId,
+        scheduledAt: { gte: start, lte: end },
+        status: "COMPLETED",
+      },
+      _sum:   { price: true },
+      _count: { _all: true },
+    }),
+    prisma.appointment.findMany({
+      where: {
+        barbershopId,
+        scheduledAt: { gte: start, lte: end },
+        status: { notIn: ["CANCELLED"] },
+      },
+      select: { scheduledAt: true, price: true, status: true },
+      orderBy: { scheduledAt: "asc" },
+    }),
+  ]);
+
+  const completedRevenue = Number(aggregate._sum.price ?? 0);
+  const completedCount   = aggregate._count._all;
+  const avgTicket        = completedCount > 0 ? completedRevenue / completedCount : 0;
+
+  // Daily breakdown
+  const dailyMap = new Map<string, { revenue: number; count: number }>();
+  for (const apt of rawAppointments) {
+    const day  = format(apt.scheduledAt, "dd/MM");
+    const curr = dailyMap.get(day) ?? { revenue: 0, count: 0 };
+    curr.count++;
+    if (apt.status === "COMPLETED") curr.revenue += Number(apt.price ?? 0);
+    dailyMap.set(day, curr);
+  }
+  const dailyRevenue = Array.from(dailyMap.entries()).map(([day, data]) => ({ day, ...data }));
+
+  const goalProgress =
+    revenueGoal && revenueGoal > 0
+      ? Math.min(completedRevenue / revenueGoal, 1)
+      : null;
+
+  return { totalAppointments: total, completedCount, completedRevenue, avgTicket, goalProgress, dailyRevenue };
 }
