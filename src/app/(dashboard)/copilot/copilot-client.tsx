@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, CheckCircle2, XCircle, Play, MessageSquare, Sparkles } from "lucide-react";
+import { Loader2, Send, CheckCircle2, XCircle, Play, MessageSquare, Sparkles, PanelsTopLeft } from "lucide-react";
 
 type Thread = {
   id: string;
@@ -45,6 +45,7 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
   const [activeThreadId, setActiveThreadId] = useState<string | null>(initialThreadId);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showActionsMobile, setShowActionsMobile] = useState(false);
 
   async function sendMessage() {
     if (!input.trim() || loading) return;
@@ -101,7 +102,7 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <div className="w-64 border-r border-border bg-surface-900/50 p-4 space-y-3">
+      <div className="w-64 border-r border-border bg-surface-900/50 p-4 space-y-3 hidden md:block">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-muted-foreground">Conversas</p>
           <Button size="icon" variant="ghost" onClick={() => { setActiveThreadId(null); setMessages([]); }}>
@@ -128,8 +129,19 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-6">
-        <div className="lg:col-span-2 flex flex-col h-full">
+      <div className="flex-1 p-4 md:p-6 space-y-3">
+        {/* mobile header for actions toggle */}
+        <div className="md:hidden flex gap-2">
+          <Button variant={showActionsMobile ? "outline" : "default"} size="sm" className="flex-1" onClick={() => setShowActionsMobile(false)}>
+            <MessageSquare className="h-4 w-4 mr-1" /> Chat
+          </Button>
+          <Button variant={showActionsMobile ? "default" : "outline"} size="sm" className="flex-1" onClick={() => setShowActionsMobile(true)}>
+            <PanelsTopLeft className="h-4 w-4 mr-1" /> Ações
+          </Button>
+        </div>
+
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-4 ${showActionsMobile ? "md:grid" : ""}`}>
+          <div className={`flex flex-col h-full ${showActionsMobile ? "hidden md:flex" : "col-span-2 lg:col-span-2"}`}>
           <Card className="flex-1 flex flex-col">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
@@ -177,42 +189,43 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
               </div>
             </CardContent>
           </Card>
-        </div>
+          </div>
 
-        {/* Actions column */}
-        <div className="flex flex-col gap-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm">Ações sugeridas</CardTitle>
-                <Badge variant="outline">{actions.length}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {actions.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma ação pendente</p>}
-              {actions.map((a) => (
-                <div key={a.id} className="rounded-md border border-border p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-foreground">{a.title}</p>
-                    <Badge variant={badgeVariant(a.status)} className="text-[10px]">{a.status}</Badge>
-                  </div>
-                  {a.description && <p className="text-xs text-muted-foreground line-clamp-3">{a.description}</p>}
-                  <p className="text-[10px] text-muted-foreground">Tipo: {a.type}</p>
-                  <div className="flex gap-2 pt-1">
-                    <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "approve")} title="Aprovar">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "execute")} title="Executar">
-                      <Play className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon-sm" variant="ghost" onClick={() => updateAction(a.id, "dismiss")} title="Dispensar">
-                      <XCircle className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+          {/* Actions column */}
+          <div className={`flex flex-col gap-3 ${showActionsMobile ? "block" : "hidden md:flex"}`}>
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2 justify-between">
+                  <CardTitle className="text-sm">Ações sugeridas</CardTitle>
+                  <Badge variant="outline">{actions.length}</Badge>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {actions.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma ação pendente</p>}
+                {actions.map((a) => (
+                  <div key={a.id} className="rounded-md border border-border p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground">{a.title}</p>
+                      <Badge variant={badgeVariant(a.status)} className="text-[10px]">{a.status}</Badge>
+                    </div>
+                    {a.description && <p className="text-xs text-muted-foreground line-clamp-3">{a.description}</p>}
+                    <p className="text-[10px] text-muted-foreground">Tipo: {a.type}</p>
+                    <div className="flex gap-2 pt-1">
+                      <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "approve")} title="Aprovar">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "execute")} title="Executar">
+                        <Play className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon-sm" variant="ghost" onClick={() => updateAction(a.id, "dismiss")} title="Dispensar">
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
