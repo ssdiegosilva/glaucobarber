@@ -36,6 +36,33 @@ interface Appointment {
   profissional?: string;
 }
 
+interface AppointmentItemDto {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+interface AppointmentDetail {
+  appointment: Appointment & {
+    price?: number | null;
+  };
+  items: AppointmentItemDto[];
+  payment?: {
+    id: string;
+    paidValue: number | null;
+    discountValue: number | null;
+  } | null;
+  totals: {
+    subtotal: number;
+    discount: number;
+    total: number;
+    paid: number;
+    remaining: number;
+  };
+}
+
 interface Suggestion {
   id:      string;
   type:    string;
@@ -112,6 +139,12 @@ export function DashboardClient({
   const [approving, setApproving]   = useState<string | null>(null);
   const [syncing, setSyncing]       = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [expanded, setExpanded]     = useState<string | null>(null);
+  const [details, setDetails]       = useState<Record<string, AppointmentDetail | null>>({});
+  const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
+  const [savingPayment, setSavingPayment] = useState<string | null>(null);
+  const [statusLoading, setStatusLoading] = useState<string | null>(null);
+  const [savingItem, setSavingItem] = useState<string | null>(null);
 
   const occupancyColor =
     stats.occupancyRate >= 0.8
@@ -131,6 +164,161 @@ export function DashboardClient({
       toast({ title: "Erro ao aprovar", variant: "destructive" });
     } finally {
       setApproving(null);
+    }
+  }
+
+  async function loadDetail(id: string) {
+    setLoadingDetail(id);
+    try {
+      const res = await fetch(`/api/appointments/${id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao carregar");
+      setDetails((prev) => ({
+        ...prev,
+        [id]: {
+          appointment: {
+            ...appointments.find((a) => a.id === id)!,
+            price: data.appointment.price ? Number(data.appointment.price) : null,
+          },
+          items: data.appointment.items?.map((it: any) => ({
+            id: it.id,
+            name: it.name,
+            quantity: Number(it.quantity),
+            unitPrice: Number(it.unitPrice),
+            totalPrice: Number(it.totalPrice),
+          })) ?? [],
+          payment: data.payment
+            ? {
+                id: data.payment.id,
+                paidValue: data.payment.paidValue ? Number(data.payment.paidValue) : null,
+                discountValue: data.payment.discountValue ? Number(data.payment.discountValue) : null,
+              }
+            : null,
+          totals: {
+            subtotal: Number(data.totals.subtotal ?? 0),
+            discount: Number(data.totals.discount ?? 0),
+            total: Number(data.totals.total ?? 0),
+            paid: Number(data.totals.paid ?? 0),
+            remaining: Number(data.totals.remaining ?? 0),
+          },
+        } as AppointmentDetail,
+      }));
+    } catch (e) {
+      toast({ title: "Erro ao carregar agendamento", description: String(e), variant: "destructive" });
+    } finally {
+      setLoadingDetail(null);
+    }
+  }
+
+  function toggleExpand(id: string) {
+    const next = expanded === id ? null : id;
+    setExpanded(next);
+    if (next && !details[next]) {
+      void loadDetail(next);
+    }
+  }
+
+  async function updateStatus(id: string, status: string) {
+    setStatusLoading(id);
+    try {
+      const res = await fetch(`/api/appointments/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao atualizar status");
+      setDetails((prev) => {
+        if (!prev[id]) return prev;
+        return { ...prev, [id]: { ...prev[id]!, appointment: { ...prev[id]!.appointment, status } } };
+      });
+      toast({ title: "Status atualizado", description: status });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setStatusLoading(null);
+    }
+  }
+
+  async function addItem(id: string, item: { name: string; quantity: number; unitPrice: number; serviceId?: string }) {
+    setSavingItem(id);
+    try {
+      const res = await fetch(`/api/appointments/${id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao adicionar item");
+      setDetails((prev) => {
+        const det = prev[id];
+        if (!det) return prev;
+        const items = [...det.items, data.item].map((it: any) => ({ ...it, totalPrice: Number(it.totalPrice), unitPrice: Number(it.unitPrice), quantity: Number(it.quantity) }));
+        const subtotal = items.reduce((acc, it) => acc + Number(it.totalPrice), 0);
+        const discount = det.totals.discount;
+        const total = Math.max(subtotal - discount, 0);
+        return { ...prev, [id]: { ...det, items, totals: { ...det.totals, subtotal, total, remaining: Math.max(total - det.totals.paid, 0) } } };
+      });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingItem(null);
+    }
+  }
+
+  async function removeItem(appointmentId: string, itemId: string) {
+    setSavingItem(appointmentId);
+    try {
+      const res = await fetch(`/api/appointments/${appointmentId}/items/${itemId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao remover item");
+      setDetails((prev) => {
+        const det = prev[appointmentId];
+        if (!det) return prev;
+        const items = det.items.filter((it) => it.id !== itemId);
+        const subtotal = items.reduce((acc, it) => acc + Number(it.totalPrice), 0);
+        const discount = det.totals.discount;
+        const total = Math.max(subtotal - discount, 0);
+        return { ...prev, [appointmentId]: { ...det, items, totals: { ...det.totals, subtotal, total, remaining: Math.max(total - det.totals.paid, 0) } } };
+      });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingItem(null);
+    }
+  }
+
+  async function savePayment(id: string, paidValue: number | null, discountValue: number | null, note?: string) {
+    setSavingPayment(id);
+    try {
+      const res = await fetch(`/api/appointments/${id}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paidValue, discountValue, note }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar pagamento");
+      setDetails((prev) => {
+        const det = prev[id];
+        if (!det) return prev;
+        const discount = Number(discountValue ?? det.totals.discount ?? 0);
+        const paid = Number(paidValue ?? det.totals.paid ?? 0);
+        const subtotal = det.items.reduce((acc, it) => acc + Number(it.totalPrice), 0) || Number(det.appointment.price ?? 0);
+        const total = Math.max(subtotal - discount, 0);
+        return {
+          ...prev,
+          [id]: {
+            ...det,
+            payment: { id: data.payment.id, paidValue, discountValue },
+            totals: { subtotal, discount, total, paid, remaining: Math.max(total - paid, 0) },
+          },
+        };
+      });
+      toast({ title: "Pagamento salvo" });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingPayment(null);
     }
   }
 
@@ -328,28 +516,48 @@ export function DashboardClient({
                     </div>
                   ) : (
                     <div className="divide-y divide-border">
-                      {appointments.map((apt) => (
-                        <div
-                          key={apt.id}
-                          className="flex items-center gap-4 px-4 py-3 hover:bg-surface-800/50 transition-colors"
-                        >
-                          <div className="w-12 text-center shrink-0">
-                            <p className="text-sm font-bold text-foreground">{formatTime(apt.scheduledAt)}</p>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{apt.customerName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{apt.serviceName}</p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs font-medium text-foreground">{formatBRL(apt.price)}</span>
-                            <Badge variant={STATUS_VARIANT[apt.status] as never}>
-                              {apt.statusLabel ?? STATUS_LABEL[apt.status] ?? apt.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+          {appointments.map((apt) => (
+            <div
+              key={apt.id}
+              className="px-4 py-3 hover:bg-surface-800/50 transition-colors border-b border-border"
+              onClick={() => toggleExpand(apt.id)}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 text-center shrink-0">
+                  <p className="text-sm font-bold text-foreground">{formatTime(apt.scheduledAt)}</p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{apt.customerName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{apt.serviceName}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-medium text-foreground">{formatBRL(apt.price)}</span>
+                  <Badge variant={STATUS_VARIANT[apt.status] as never}>
+                    {apt.statusLabel ?? STATUS_LABEL[apt.status] ?? apt.status}
+                  </Badge>
+                </div>
+              </div>
+              {expanded === apt.id && (
+                <div className="mt-3 rounded-md border border-border bg-surface-900 p-3 space-y-3">
+                  {loadingDetail === apt.id && <p className="text-xs text-muted-foreground">Carregando...</p>}
+                  {details[apt.id] && (
+                    <AppointmentPanel
+                      detail={details[apt.id]!}
+                      onStatus={(s) => updateStatus(apt.id, s)}
+                      statusLoading={statusLoading === apt.id}
+                      onAddItem={(item) => addItem(apt.id, item)}
+                      onRemoveItem={(itemId) => removeItem(apt.id, itemId)}
+                      savingItem={savingItem === apt.id}
+                      onSavePayment={(paid, discount) => savePayment(apt.id, paid, discount)}
+                      savingPayment={savingPayment === apt.id}
+                    />
                   )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
                 </CardContent>
               </Card>
             </>
@@ -477,6 +685,161 @@ function KpiCard({
         <p className="text-xs text-muted-foreground mt-1">{subValue}</p>
       </CardContent>
     </Card>
+  );
+}
+
+// Inline panel for appointment actions
+function AppointmentPanel({
+  detail,
+  onStatus,
+  statusLoading,
+  onAddItem,
+  onRemoveItem,
+  savingItem,
+  onSavePayment,
+  savingPayment,
+}: {
+  detail: AppointmentDetail;
+  onStatus: (status: string) => void;
+  statusLoading: boolean;
+  onAddItem: (item: { name: string; quantity: number; unitPrice: number; serviceId?: string }) => void;
+  onRemoveItem: (itemId: string) => void;
+  savingItem: boolean;
+  onSavePayment: (paid: number | null, discount: number | null) => void;
+  savingPayment: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [qty, setQty] = useState("1");
+  const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
+  const [discount, setDiscount] = useState(detail.totals.discount ? String(detail.totals.discount) : "");
+
+  return (
+    <div className="space-y-3 text-xs">
+      <div className="flex flex-wrap gap-2">
+        {["CONFIRMED", "IN_PROGRESS", "COMPLETED", "NO_SHOW", "CANCELLED"].map((s) => (
+          <Button
+            key={s}
+            size="sm"
+            variant="outline"
+            className="h-7 text-[11px]"
+            onClick={(e) => { e.stopPropagation(); onStatus(s); }}
+            disabled={statusLoading}
+          >
+            {statusLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : STATUS_LABEL[s] ?? s}
+          </Button>
+        ))}
+      </div>
+
+      <div className="border border-border rounded-md">
+        <div className="flex items-center justify-between px-3 py-2 bg-surface-800/60">
+          <span className="text-[11px] font-semibold">Serviços</span>
+          <span className="text-[11px] text-muted-foreground">Subtotal {formatBRL(detail.totals.subtotal)}</span>
+        </div>
+        <div className="divide-y divide-border">
+          {detail.items.length === 0 && (
+            <p className="px-3 py-2 text-muted-foreground">Sem itens. Adicione um serviço.</p>
+          )}
+          {detail.items.map((it) => (
+            <div key={it.id} className="px-3 py-2 flex items-center justify-between gap-2">
+              <div>
+                <p className="font-medium text-foreground">{it.name}</p>
+                <p className="text-muted-foreground text-[11px]">Qtd {it.quantity} · {formatBRL(it.unitPrice)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{formatBRL(it.totalPrice)}</span>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={(e) => { e.stopPropagation(); onRemoveItem(it.id); }}
+                  disabled={savingItem}
+                  title="Remover"
+                >
+                  <XCircle className="h-3.5 w-3.5 text-red-400" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-3 py-2 bg-surface-900 flex flex-col md:flex-row gap-2">
+          <input
+            placeholder="Serviço"
+            className="rounded-md border border-border bg-surface-800 px-2 py-1 text-xs flex-1"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="Qtd"
+            className="rounded-md border border-border bg-surface-800 px-2 py-1 text-xs w-16"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+          />
+          <input
+            type="number"
+            step="0.01"
+            placeholder="Preço"
+            className="rounded-md border border-border bg-surface-800 px-2 py-1 text-xs w-24"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+          />
+          <Button
+            size="sm"
+            className="text-[11px]"
+            disabled={!name || !price || savingItem}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddItem({ name, quantity: Number(qty || "1"), unitPrice: Number(price) });
+              setName(""); setPrice(""); setQty("1");
+            }}
+          >
+            {savingItem ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Adicionar"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-[11px] text-muted-foreground">Desconto</label>
+          <input
+            type="number"
+            step="0.01"
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
+            className="w-full rounded-md border border-border bg-surface-800 px-2 py-1 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[11px] text-muted-foreground">Valor pago</label>
+          <input
+            type="number"
+            step="0.01"
+            value={paid}
+            onChange={(e) => setPaid(e.target.value)}
+            className="w-full rounded-md border border-border bg-surface-800 px-2 py-1 text-xs"
+          />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[11px] space-x-2">
+          <span>Subtotal {formatBRL(detail.totals.subtotal)}</span>
+          <span>Desconto {formatBRL(Number(discount || detail.totals.discount || 0))}</span>
+          <span>Total {formatBRL(detail.totals.total)}</span>
+          <span>Restante {formatBRL(detail.totals.remaining)}</span>
+        </div>
+        <Button
+          size="sm"
+          className="text-[11px]"
+          disabled={savingPayment}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSavePayment(paid ? Number(paid) : null, discount ? Number(discount) : null);
+          }}
+        >
+          {savingPayment ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar pagamento"}
+        </Button>
+      </div>
+    </div>
   );
 }
 

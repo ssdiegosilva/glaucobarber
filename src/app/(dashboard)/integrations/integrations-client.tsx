@@ -44,6 +44,10 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [estabs,     setEstabs]     = useState<{ id: string; nome: string }[]>([]);
   const [loadingEstab, setLoadingEstab] = useState(false);
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
+  const [igToken,    setIgToken]    = useState("");
+  const [igBizId,    setIgBizId]    = useState("");
+  const [igPageId,   setIgPageId]   = useState("");
+  const [savingIg,   setSavingIg]   = useState(false);
 
   async function handleSave() {
     setFormError("");
@@ -100,6 +104,24 @@ export function IntegrationsClient({ integration, syncRuns }: {
       toast({ title: "Erro no sync", description: String(e), variant: "destructive" });
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleSaveInstagram() {
+    setSavingIg(true);
+    try {
+      const res = await fetch("/api/integrations/instagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: igToken, businessId: igBizId, pageId: igPageId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar Instagram");
+      toast({ title: "Instagram conectado", description: "Dados salvos com sucesso." });
+    } catch (e) {
+      toast({ title: "Erro ao salvar Instagram", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingIg(false);
     }
   }
 
@@ -228,6 +250,61 @@ export function IntegrationsClient({ integration, syncRuns }: {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Instagram Integration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                <Plug className="h-5 w-5 text-indigo-300" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Instagram</CardTitle>
+                <p className="text-xs text-muted-foreground">Necessário para publicar campanhas</p>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-xs">Canal de campanhas</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Page Access Token</label>
+              <input
+                value={igToken}
+                onChange={(e) => setIgToken(e.target.value)}
+                placeholder="EAAG..."
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Instagram Business ID</label>
+              <input
+                value={igBizId}
+                onChange={(e) => setIgBizId(e.target.value)}
+                placeholder="ex: 1784..."
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Page ID (opcional)</label>
+              <input
+                value={igPageId}
+                onChange={(e) => setIgPageId(e.target.value)}
+                placeholder="ID da página do Facebook"
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs">
+              {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar Instagram"}
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Para publicar campanhas no Instagram, informe o Page Access Token e o Instagram Business ID.</p>
         </CardContent>
       </Card>
 

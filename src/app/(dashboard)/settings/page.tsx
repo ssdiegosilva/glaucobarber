@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
 import { PLANS } from "@/lib/stripe";
-import { CreditCard, Building2, CheckCircle2 } from "lucide-react";
+import { CreditCard, CheckCircle2 } from "lucide-react";
+import { BarbershopCard } from "./barbershop-card";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -26,20 +27,23 @@ export default async function SettingsPage() {
 
       <div className="p-6 space-y-6 max-w-3xl">
         {/* Barbershop info */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-gold-400" />
-              <CardTitle className="text-base">Dados da Barbearia</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <Row label="Nome"     value={barbershop?.name ?? "—"} />
-            <Row label="Email"    value={barbershop?.email ?? "—"} />
-            <Row label="Telefone" value={barbershop?.phone ?? "—"} />
-            <Row label="Cidade"   value={barbershop?.city ? `${barbershop.city} / ${barbershop.state}` : "—"} />
-          </CardContent>
-        </Card>
+        {barbershop && (
+          <BarbershopCard
+            barbershop={{
+              id: barbershop.id,
+              name: barbershop.name,
+              email: barbershop.email,
+              phone: barbershop.phone,
+              city: barbershop.city,
+              state: barbershop.state,
+              address: barbershop.address,
+              websiteUrl: barbershop.websiteUrl,
+              description: barbershop.description,
+              slug: barbershop.slug,
+              logoUrl: barbershop.logoUrl,
+            }}
+          />
+        )}
 
         {/* Subscription / Billing */}
         <Card>
@@ -103,15 +107,6 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <span className="text-foreground font-medium">{value}</span>
     </div>
   );
 }

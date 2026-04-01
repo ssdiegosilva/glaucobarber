@@ -115,6 +115,7 @@ model Barbershop {
   copilotThreads CopilotThread[]
   featureFlags  FeatureFlag[]
   goals         Goal[]
+  templates     Template[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -170,6 +171,11 @@ model Integration {
   // See lib/integrations/trinks/types.ts for contract.
   configJson String? // JSON blob, encrypted at app layer
 
+  // Instagram (opcional, para campanhas)
+  instagramPageAccessToken String?
+  instagramBusinessId      String?
+  instagramPageId          String?
+
   lastSyncAt DateTime?
   errorMsg   String?
 
@@ -180,6 +186,28 @@ model Integration {
   updatedAt DateTime @updatedAt
 
   @@map("integrations")
+}
+
+// ============================================================
+// CAMPAIGN TEMPLATES
+// ============================================================
+
+model Template {
+  id           String  @id @default(cuid())
+  barbershopId String
+  name         String
+  type         String   @default("post") // post | story
+  imageUrl     String
+  thumbUrl     String?
+  isGlobal     Boolean  @default(false)
+
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  campaigns    Campaign[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("templates")
 }
 
 enum SyncStatus {
@@ -284,6 +312,7 @@ model Service {
 
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+  appointmentItems AppointmentItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -314,6 +343,9 @@ model Appointment {
   status      AppointmentStatus @default(SCHEDULED)
   price       Decimal?          @db.Decimal(10, 2)
   notes       String?
+  confirmedAt DateTime?
+  completedAt DateTime?
+  noShowAt    DateTime?
 
   syncedFromTrinks Boolean  @default(false)
   lastSyncedAt     DateTime?
@@ -321,12 +353,32 @@ model Appointment {
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id])
   service    Service?   @relation(fields: [serviceId], references: [id])
+  items      AppointmentItem[]
+  payments   Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([barbershopId, trinksId])
   @@map("appointments")
+}
+
+model AppointmentItem {
+  id             String   @id @default(cuid())
+  appointmentId  String
+  serviceId      String?
+  name           String
+  quantity       Int      @default(1)
+  unitPrice      Decimal  @db.Decimal(10, 2)
+  totalPrice     Decimal  @db.Decimal(10, 2)
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  service     Service?    @relation(fields: [serviceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("appointment_items")
 }
 
 // ============================================================
@@ -440,12 +492,16 @@ model Campaign {
   objective   String
   text        String          // campaign copy
   artBriefing String?         // briefing for visual art
-  channel     String?         // whatsapp | instagram | both
+  channel     String?         @default("instagram")
+  templateId  String?
+  imageUrl    String?
+  instagramPostId String?
   scheduledAt DateTime?
   publishedAt DateTime?
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   suggestion Suggestion? @relation(fields: [suggestionId], references: [id])
+  template   Template?   @relation(fields: [templateId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -580,6 +636,7 @@ enum PaymentStatus {
 enum PaymentDomain {
   PLATFORM_SUBSCRIPTION  // SaaS fee
   SHOP_OFFER             // barbershop selling to client
+  BARBERSHOP_SERVICE     // serviços de agenda
 }
 
 model Payment {
@@ -587,11 +644,14 @@ model Payment {
   barbershopId String
   customerId   String?       // barbershop's customer (for shop offers)
   offerId      String?
+  appointmentId String?
   domain       PaymentDomain
   status       PaymentStatus @default(PENDING)
   amount       Decimal       @db.Decimal(10, 2)
   currency     String        @default("BRL")
   description  String?
+  discountValue Decimal?     @db.Decimal(10, 2)
+  paidValue     Decimal?     @db.Decimal(10, 2)
 
   // Stripe refs
   stripePaymentIntentId String?
@@ -602,6 +662,7 @@ model Payment {
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id])
   offer      Offer?     @relation(fields: [offerId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

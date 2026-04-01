@@ -1,0 +1,32 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { PaymentStatus } from "@prisma/client";
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { paidValue, discountValue, note } = await req.json();
+  const appointment = await prisma.appointment.findUnique({ where: { id: params.id } });
+  if (!appointment || appointment.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const data = {
+    barbershopId: session.user.barbershopId,
+    appointmentId: params.id,
+    domain: "BARBERSHOP_SERVICE" as const,
+    status: paidValue ? PaymentStatus.PAID : PaymentStatus.PENDING,
+    amount: paidValue ?? 0,
+    paidValue: paidValue ?? null,
+    discountValue: discountValue ?? null,
+    description: note ?? null,
+    paidAt: paidValue ? new Date() : null,
+  };
+
+  const existing = await prisma.payment.findFirst({ where: { appointmentId: params.id, domain: "BARBERSHOP_SERVICE" } });
+  const payment = existing
+    ? await prisma.payment.update({ where: { id: existing.id }, data })
+    : await prisma.payment.create({ data });
+
+  return NextResponse.json({ payment });
+}
