@@ -1,14 +1,15 @@
-import { NextRequest, NextResponse, type RouteHandlerContext } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: NextRequest, { params }: RouteHandlerContext<{ id: string }>) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user?.barbershopId || !session.user.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const action = await prisma.action.findUnique({ where: { id: params.id } });
+  const action = await prisma.action.findUnique({ where: { id } });
   if (!action || action.barbershopId !== session.user.barbershopId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: RouteHandlerContext<{ i
   const body = await req.json();
 
   await prisma.action.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       title: body.title ?? action.title,
       description: body.description ?? action.description,

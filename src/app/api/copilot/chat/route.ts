@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { buildCopilotContext, getAIProvider } from "@/lib/ai/provider";
 
 export async function POST(req: NextRequest) {
@@ -14,20 +15,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mensagem vazia" }, { status: 400 });
   }
 
+  const barbershopId = session.user.barbershopId!;
+  const userId = session.user.id;
+
   let thread = threadId
     ? await prisma.copilotThread.findUnique({ where: { id: threadId } })
     : null;
 
-  if (thread && thread.barbershopId !== session.user.barbershopId) {
+  if (thread && thread.barbershopId !== barbershopId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   if (!thread) {
     thread = await prisma.copilotThread.create({
       data: {
-        barbershopId: session.user.barbershopId,
+        barbershopId,
         title: message.slice(0, 60),
-        createdBy: session.user.id,
+        createdBy: userId,
       },
     });
   }
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const context = await buildCopilotContext(session.user.barbershopId);
+  const context = await buildCopilotContext(barbershopId);
   const provider = getAIProvider();
   const reply = await provider.generateCopilotResponse(context, message);
 
@@ -49,7 +53,9 @@ export async function POST(req: NextRequest) {
       threadId: thread.id,
       role: "ASSISTANT",
       content: reply.answer,
-      actionsJson: reply.actions.length ? reply.actions : undefined,
+      actionsJson: reply.actions.length
+        ? (reply.actions as unknown as Prisma.InputJsonValue)
+        : undefined,
     },
   });
 
@@ -57,14 +63,15 @@ export async function POST(req: NextRequest) {
     reply.actions.map((a) =>
       prisma.action.create({
         data: {
-          barbershopId: session.user.barbershopId,
+          barbershopId,
+          suggestionId: null,
           title: a.title,
-          description: a.description,
+          description: a.description ?? null,
           type: a.type ?? "general",
-          payload: a.payload ?? null,
+          payload: a.payload ? (a.payload as Prisma.InputJsonValue) : Prisma.JsonNull,
           status: "DRAFT",
           source: "ai",
-          createdBy: session.user.id,
+          createdBy: userId,
         },
       })
     )

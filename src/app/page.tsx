@@ -285,7 +285,7 @@ export default async function RootPage() {
         <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
           <div className="relative rounded-3xl border border-gold-500/20 bg-gradient-to-b from-gold-500/6 to-transparent p-10 lg:p-16">
             {/* decorative quotes */}
-            <span className="absolute top-8 left-8 text-7xl font-serif text-gold-500/15 leading-none select-none">"</span>
+            <span className="absolute top-8 left-8 text-7xl font-serif text-gold-500/15 leading-none select-none">&quot;</span>
 
             <div className="relative">
               <p className="text-xl lg:text-2xl font-medium text-foreground leading-relaxed mb-8">

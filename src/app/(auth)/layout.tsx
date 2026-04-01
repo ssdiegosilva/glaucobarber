@@ -22,8 +22,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="relative">
           <blockquote className="space-y-4">
             <p className="text-2xl font-light text-foreground/80 leading-relaxed">
-              "Abri o app de manhã, a IA já tinha sugerido o post, a mensagem pro cliente que sumiu e a promoção da tarde.
-              Só precisei aprovar."
+              &quot;Abri o app de manhã, a IA já tinha sugerido o post, a mensagem pro cliente que sumiu e a promoção da tarde.
+              Só precisei aprovar.&quot;
             </p>
             <footer className="text-sm text-muted-foreground">
               — Glauco Silva, <cite className="not-italic text-gold-400">Art Shave Barbearia</cite>

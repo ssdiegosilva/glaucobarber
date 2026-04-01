@@ -13,6 +13,13 @@ export default async function CopilotPage() {
     orderBy: { lastMessageAt: "desc" },
   });
 
+  const threadDtos = threads.map((t) => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    lastMessageAt: t.lastMessageAt.toISOString(),
+  }));
+
   const activeThread = threads[0] ?? null;
 
   const [messages, actions] = activeThread
@@ -29,13 +36,31 @@ export default async function CopilotPage() {
       ])
     : [[], []];
 
+  const messageDtos = messages.map((m) => ({
+    id: m.id,
+    threadId: m.threadId,
+    role: m.role,
+    content: m.content,
+    actionsJson: m.actionsJson as any,
+    createdAt: m.createdAt.toISOString(),
+  }));
+
+  const actionDtos = actions.map((a) => ({
+    id: a.id,
+    title: a.title,
+    description: a.description,
+    type: a.type,
+    status: a.status,
+    createdAt: a.createdAt.toISOString(),
+  }));
+
   return (
     <div className="flex flex-col h-full">
       <Header title="CEO Copilot" subtitle="Pergunte qualquer coisa sobre o dia e aprove ações" userName={session.user.name} />
       <CopilotClient
-        initialThreads={threads}
-        initialMessages={messages}
-        initialActions={actions}
+        initialThreads={threadDtos}
+        initialMessages={messageDtos}
+        initialActions={actionDtos}
         initialThreadId={activeThread?.id ?? null}
       />
     </div>
