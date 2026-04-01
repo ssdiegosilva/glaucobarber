@@ -29,28 +29,22 @@ export interface CampaignDto {
   channel: string | null;
   createdAt: string | Date;
   imageUrl: string | null;
-  templateId: string | null;
-}
-export interface TemplateDto {
-  id: string;
-  name: string;
-  type: string;
-  imageUrl: string;
 }
 
-export function CampaignsClient({ campaigns: initial, templates, instagramConfigured }: {
+export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
   campaigns: CampaignDto[];
-  templates: TemplateDto[];
   instagramConfigured: boolean;
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [theme, setTheme] = useState("");
   const [objective, setObjective] = useState("");
-  const [templateId, setTemplateId] = useState("");
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
-  const [savingImage, setSavingImage] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+  const [editingImage, setEditingImage] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [imagePrompt, setImagePrompt] = useState<Record<string, string>>({});
 
   async function createCampaign() {
     setLoadingCreate(true);
@@ -58,15 +52,14 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
       const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, objective, templateId: templateId || undefined, channel: "instagram" }),
+        body: JSON.stringify({ theme, objective, channel: "instagram" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar campanha");
       setCampaigns([data.campaign, ...campaigns]);
       setTheme("");
       setObjective("");
-      setTemplateId("");
-      toast({ title: "Campanha criada", description: "Rascunho gerado pela IA" });
+      toast({ title: "Campanha criada", description: "Texto e arte gerados pela IA" });
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally {
@@ -86,7 +79,7 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
     try {
       const campaign = campaigns.find((c) => c.id === id);
       if (!campaign?.imageUrl?.trim()) {
-        toast({ title: "Falta a arte", description: "Cole a URL da imagem e salve antes de publicar.", variant: "destructive" });
+        toast({ title: "Falta a arte", description: "Envie ou gere uma imagem antes de publicar.", variant: "destructive" });
         return;
       }
       const res = await fetch(`/api/campaigns/${id}/publish`, {
@@ -110,8 +103,7 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
     }
   }
 
-  async function saveImage(id: string, imageUrl: string) {
-    setSavingImage(id);
+  async function saveImage(id: string, imageUrl: string, opts?: { silent?: boolean }) {
     try {
       const res = await fetch(`/api/campaigns/${id}`, {
         method: "POST",
@@ -121,22 +113,48 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar imagem");
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl } : c)));
-      toast({ title: "Imagem salva", description: "Arte anexada à campanha." });
+      if (!opts?.silent) toast({ title: "Imagem salva", description: "Arte anexada à campanha." });
     } catch (e) {
       toast({ title: "Erro ao salvar imagem", description: String(e), variant: "destructive" });
-    } finally {
-      setSavingImage(null);
     }
   }
 
-  async function generateImage(id: string) {
+  async function uploadImage(id: string, file: File) {
+    setUploadingImage(id);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("campaignId", id);
+
+      const res = await fetch("/api/uploads/campaign-image", {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Não foi possível enviar a imagem");
+
+      await saveImage(id, data.url, { silent: true });
+      toast({ title: "Imagem enviada", description: "Arte anexada à campanha." });
+    } catch (e) {
+      toast({ title: "Erro ao enviar imagem", description: String(e), variant: "destructive" });
+    } finally {
+      setUploadingImage(null);
+    }
+  }
+
+  async function generateImage(id: string, promptOverride?: string) {
     setGeneratingImage(id);
     try {
-      const res = await fetch(`/api/campaigns/${id}/image`, { method: "POST" });
+      const res = await fetch(`/api/campaigns/${id}/image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promptOverride: promptOverride || undefined }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar imagem");
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl: data.url } : c)));
       toast({ title: "Imagem gerada", description: "Arte criada via IA." });
+      setEditingImage(null);
     } catch (e) {
       toast({ title: "Erro ao gerar imagem", description: String(e), variant: "destructive" });
     } finally {
@@ -145,10 +163,21 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
   }
 
   async function remove(id: string) {
-    const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) { toast({ title: "Erro", description: data.error ?? "Não foi possível deletar" }); return; }
-    setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "Erro", description: data.error ?? "Não foi possível deletar" , variant: "destructive"});
+        return;
+      }
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      toast({ title: "Campanha deletada", description: "Removida com sucesso." });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -157,21 +186,14 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-gold-400" /> Nova campanha manual</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
+        <CardContent className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1">
             <label className="text-[11px] text-muted-foreground">Tema</label>
             <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Ex: Tarde cheia" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs" />
           </div>
-          <div className="space-y-1 md:col-span-2">
+          <div className="space-y-1 md:col-span-1">
             <label className="text-[11px] text-muted-foreground">Objetivo</label>
             <input value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Ex: Preencher buracos das 14h-16h" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[11px] text-muted-foreground">Template de arte</label>
-            <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs">
-              <option value="">Selecionar (opcional)</option>
-              {templates.map((t) => (<option key={t.id} value={t.id}>{t.name} ({t.type})</option>))}
-            </select>
           </div>
           <div className="flex items-end">
             <Button size="sm" onClick={createCampaign} disabled={!theme || !objective || loadingCreate} className="text-xs">
@@ -218,38 +240,105 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
                     <p className="text-xs text-muted-foreground leading-relaxed">{c.artBriefing}</p>
                   </div>
                 )}
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2">
-                    {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
-                    <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <input
-                        placeholder="URL da imagem"
-                        className="rounded-md border border-border bg-surface-800 px-2 py-1 text-[11px] w-48"
-                        value={c.imageUrl ?? ""}
-                        onChange={(e) => setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, imageUrl: e.target.value } : x)))}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px]"
-                        disabled={savingImage === c.id || !(c.imageUrl ?? "").trim()}
-                        onClick={(e) => { e.stopPropagation(); saveImage(c.id, c.imageUrl ?? ""); }}
-                      >
-                        {savingImage === c.id ? "Salvando..." : "Salvar imagem"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-[11px]"
-                        disabled={generatingImage === c.id}
-                        onClick={(e) => { e.stopPropagation(); generateImage(c.id); }}
-                      >
-                        {generatingImage === c.id ? "Gerando..." : "Gerar imagem"}
-                      </Button>
+                <div className="space-y-3">
+                  {(() => {
+                    const openEditor = !c.imageUrl || editingImage === c.id;
+                    return (
+                      <div className="rounded-lg border border-dashed border-gold-500/30 bg-surface-900">
+                        <div className="flex items-center justify-between px-3 py-2">
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Arte</p>
+                            <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {c.imageUrl && <Badge variant="outline" className="text-[10px]">Pronto para aprovar</Badge>}
+                            {c.imageUrl && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-[11px]"
+                                onClick={(e) => { e.stopPropagation(); setEditingImage(openEditor ? null : c.id); }}
+                              >
+                                {openEditor ? "Fechar" : "Mudar imagem"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="bg-surface-800">
+                          {c.imageUrl ? (
+                            <img src={c.imageUrl} alt={`Arte da campanha ${c.title}`} className="w-full h-60 object-cover" />
+                          ) : (
+                            <div className="h-60 flex items-center justify-center text-[11px] text-muted-foreground">Nenhuma imagem ainda</div>
+                          )}
+                        </div>
+                        {c.imageUrl && (
+                          <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
+                            <span>Prévia renderizada</span>
+                            <a
+                              href={c.imageUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-gold-400 hover:text-gold-300 underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Abrir em nova aba
+                            </a>
+                          </div>
+                        )}
+
+                        {(openEditor) && (
+                          <div className="space-y-2 px-3 py-3 border-t border-border/40">
+                            <label className="text-[11px] text-muted-foreground">Texto para gerar a arte (opcional)</label>
+                            <input
+                              value={imagePrompt[c.id] ?? ""}
+                              onChange={(e) => setImagePrompt((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                              placeholder="Ex: corte premium com iluminação dramática"
+                              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <input
+                                id={`upload-${c.id}`}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) uploadImage(c.id, file);
+                                  e.target.value = "";
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-[11px]"
+                                onClick={(e) => { e.stopPropagation(); document.getElementById(`upload-${c.id}`)?.click(); }}
+                                disabled={uploadingImage === c.id}
+                              >
+                                {uploadingImage === c.id ? "Enviando..." : "Enviar do celular"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 text-[11px]"
+                                disabled={generatingImage === c.id}
+                                onClick={(e) => { e.stopPropagation(); generateImage(c.id, imagePrompt[c.id]); }}
+                              >
+                                {generatingImage === c.id ? "Gerando..." : "Gerar nova"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
+                      <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
                     </div>
                     <div className="flex gap-2">
                       {c.status === "DRAFT" && (
@@ -261,7 +350,15 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
                         </Button>
                       )}
                       {c.status !== "PUBLISHED" && (
-                        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); remove(c.id); }}>Deletar</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px]"
+                          onClick={(e) => { e.stopPropagation(); remove(c.id); }}
+                          disabled={deletingId === c.id}
+                        >
+                          {deletingId === c.id ? "Deletando..." : "Deletar"}
+                        </Button>
                       )}
                     </div>
                   </div>

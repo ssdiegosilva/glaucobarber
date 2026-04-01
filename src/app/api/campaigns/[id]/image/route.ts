@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
+import { uploadCampaignImageFromUrl } from "@/lib/storage";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -28,8 +29,14 @@ Use cores e estética premium, legível e moderna.`;
   const provider = getAIProvider();
   try {
     const img = await provider.generateCampaignImage({ prompt, styleHint });
-    await prisma.campaign.update({ where: { id }, data: { imageUrl: img.url } });
-    return NextResponse.json({ url: img.url });
+    const stored = await uploadCampaignImageFromUrl({
+      barbershopId: campaign.barbershopId,
+      campaignId: campaign.id,
+      sourceUrl: img.url,
+    });
+
+    await prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } });
+    return NextResponse.json({ url: stored.url });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
