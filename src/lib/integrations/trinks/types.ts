@@ -91,6 +91,7 @@ export interface SyncResult {
   customersUpserted:    number;
   servicesUpserted:     number;
   appointmentsUpserted: number;
+  customersUpdatedStats?: number;
   errors:               SyncError[];
   durationMs:           number;
 }

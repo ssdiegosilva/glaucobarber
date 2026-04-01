@@ -18,6 +18,7 @@ export async function syncBarbershop(
   let customersUpserted    = 0;
   let servicesUpserted     = 0;
   let appointmentsUpserted = 0;
+  let customersUpdatedStats = 0;
 
   const integration = await prisma.integration.findUnique({ where: { barbershopId } });
 
@@ -113,6 +114,36 @@ export async function syncBarbershop(
       errors.push({ entity: "Appointments (bulk)", message: String(err) });
     }
 
+    // ── 4. Atualiza métricas agregadas dos clientes ───────
+    try {
+      const aggregates = await prisma.appointment.groupBy({
+        by: ["customerId"],
+        where: {
+          barbershopId,
+          customerId: { not: null },
+          status: { in: ["COMPLETED"] },
+        },
+        _count: { _all: true },
+        _sum:   { price: true },
+        _max:   { scheduledAt: true },
+      });
+
+      for (const agg of aggregates) {
+        if (!agg.customerId) continue;
+        await prisma.customer.update({
+          where: { id: agg.customerId },
+          data: {
+            totalVisits: agg._count._all,
+            totalSpent:  agg._sum.price ?? 0,
+            lastVisitAt: agg._max.scheduledAt ?? null,
+          },
+        });
+        customersUpdatedStats++;
+      }
+    } catch (err) {
+      errors.push({ entity: "CustomerStats", message: String(err) });
+    }
+
     const durationMs = Date.now() - startedAt;
     const status     = errors.length === 0 ? "SUCCESS" : "PARTIAL";
 
@@ -126,7 +157,7 @@ export async function syncBarbershop(
       data: { lastSyncAt: new Date(), status: "ACTIVE", errorMsg: null },
     });
 
-    return { customersUpserted, servicesUpserted, appointmentsUpserted, errors, durationMs };
+    return { customersUpserted, servicesUpserted, appointmentsUpserted, customersUpdatedStats, errors, durationMs };
 
   } catch (globalErr) {
     const durationMs = Date.now() - startedAt;
