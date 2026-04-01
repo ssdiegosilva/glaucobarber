@@ -4,40 +4,69 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { Badge } from "@/components/ui/badge";
 import { formatBRL, relativeTime, getInitials } from "@/lib/utils";
-import { Users, Star, Clock, TrendingUp } from "lucide-react";
+import { Users, Star, Clock } from "lucide-react";
+import Link from "next/link";
 
-const STATUS_LABEL = { ACTIVE: "Ativo", INACTIVE: "Inativo", VIP: "VIP", BLOCKED: "Bloqueado" };
+const STATUS_LABEL   = { ACTIVE: "Ativo", INACTIVE: "Inativo", VIP: "VIP", BLOCKED: "Bloqueado" };
 const STATUS_VARIANT = { ACTIVE: "success", INACTIVE: "warning", VIP: "default", BLOCKED: "destructive" } as const;
 
-export default async function ClientsPage() {
+const PAGE_SIZE = 100;
+
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const customers = await prisma.customer.findMany({
-    where:   { barbershopId: session.user.barbershopId },
-    orderBy: [{ status: "asc" }, { lastVisitAt: "desc" }],
-    take:    100,
-  });
+  const { page: pageParam, q } = await searchParams;
+  const page  = Math.max(1, parseInt(pageParam ?? "1"));
+  const skip  = (page - 1) * PAGE_SIZE;
+  const where = {
+    barbershopId: session.user.barbershopId,
+    ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+  };
 
-  const vipCount      = customers.filter((c) => c.status === "VIP").length;
-  const inactiveCount = customers.filter((c) => c.status === "INACTIVE").length;
-  const totalRevenue  = customers.reduce((s, c) => s + Number(c.totalSpent), 0);
+  const [customers, total] = await Promise.all([
+    prisma.customer.findMany({
+      where,
+      orderBy: [{ status: "asc" }, { lastVisitAt: "desc" }],
+      take:    PAGE_SIZE,
+      skip,
+    }),
+    prisma.customer.count({ where }),
+  ]);
+
+  const totalPages    = Math.ceil(total / PAGE_SIZE);
+  const vipCount      = await prisma.customer.count({ where: { barbershopId: session.user.barbershopId, status: "VIP" } });
+  const inactiveCount = await prisma.customer.count({ where: { barbershopId: session.user.barbershopId, status: "INACTIVE" } });
 
   return (
     <div className="flex flex-col h-full">
       <Header
         title="Clientes"
-        subtitle={`${customers.length} clientes sincronizados da Trinks`}
+        subtitle={`${total} clientes sincronizados da Trinks`}
         userName={session.user.name}
       />
 
       <div className="p-6 space-y-6">
         {/* Summary */}
         <div className="grid grid-cols-3 gap-4">
-          <StatCard icon={<Users />}     label="Total"    value={customers.length} />
-          <StatCard icon={<Star />}      label="VIP"      value={vipCount} />
-          <StatCard icon={<Clock />}     label="Inativos" value={inactiveCount} valueClass="text-yellow-400" />
+          <StatCard icon={<Users />} label="Total"    value={total} />
+          <StatCard icon={<Star />}  label="VIP"      value={vipCount} />
+          <StatCard icon={<Clock />} label="Inativos" value={inactiveCount} valueClass="text-yellow-400" />
         </div>
+
+        {/* Search */}
+        <form method="GET">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar por nome..."
+            className="w-full max-w-sm rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </form>
 
         {/* Table */}
         <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -91,6 +120,33 @@ export default async function ClientsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-border px-4 py-3">
+              <p className="text-xs text-muted-foreground">
+                {skip + 1}–{Math.min(skip + PAGE_SIZE, total)} de {total}
+              </p>
+              <div className="flex gap-2">
+                {page > 1 && (
+                  <Link
+                    href={`?page=${page - 1}${q ? `&q=${q}` : ""}`}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors"
+                  >
+                    Anterior
+                  </Link>
+                )}
+                {page < totalPages && (
+                  <Link
+                    href={`?page=${page + 1}${q ? `&q=${q}` : ""}`}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors"
+                  >
+                    Próxima
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
