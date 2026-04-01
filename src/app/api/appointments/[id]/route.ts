@@ -58,12 +58,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           });
         }
       }
-    } catch {
-      // Fallthrough to 404 if Trinks unreachable
+    } catch (err) {
+      console.error("[appointments/[id]] lazy upsert failed:", err);
     }
   }
 
   if (!appointment) {
+    console.error("[appointments/[id]] not found in DB, id:", id, "barbershopId:", barbershopId);
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
