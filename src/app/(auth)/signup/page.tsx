@@ -4,17 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
+import { Scissors, Loader2, Eye, EyeOff, Mail } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
   const router = useRouter();
-  const [name,     setName]     = useState("");
-  const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
-  const [showPwd,  setShowPwd]  = useState(false);
-  const [error,    setError]    = useState("");
-  const [loading,  setLoading]  = useState(false);
+  const [name,      setName]      = useState("");
+  const [email,     setEmail]     = useState("");
+  const [password,  setPassword]  = useState("");
+  const [showPwd,   setShowPwd]   = useState(false);
+  const [error,     setError]     = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,7 +29,7 @@ export default function SignupPage() {
     setLoading(true);
 
     const supabase = getSupabaseBrowserClient();
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: name } },
@@ -43,17 +44,40 @@ export default function SignupPage() {
       return;
     }
 
-    // Sign in immediately after signup
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError("Conta criada! Faça login para continuar.");
+    // If session is null, email confirmation is required
+    if (!data.session) {
+      setConfirmed(true);
       setLoading(false);
-      router.push("/login");
       return;
     }
 
     router.push("/onboarding");
     router.refresh();
+  }
+
+  if (confirmed) {
+    return (
+      <div className="space-y-6 animate-fade-in text-center">
+        <div className="flex items-center justify-center mb-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gold-500/15 border border-gold-500/30">
+            <Mail className="h-7 w-7 text-gold-400" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">Verifique seu email</h1>
+          <p className="text-sm text-muted-foreground">
+            Enviamos um link de confirmação para <span className="text-foreground font-medium">{email}</span>.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Clique no link para ativar sua conta e fazer login.
+          </p>
+        </div>
+        <p className="text-center text-xs text-muted-foreground">
+          Já confirmou?{" "}
+          <Link href="/login" className="text-gold-400 hover:underline font-medium">Entrar</Link>
+        </p>
+      </div>
+    );
   }
 
   return (
