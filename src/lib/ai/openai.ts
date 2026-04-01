@@ -77,14 +77,21 @@ export class OpenAIProvider implements AIProvider {
 
   async generateCampaignImage(input: { prompt: string; styleHint?: string }): Promise<{ url: string }> {
     const prompt = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
-    const img = await this.client.images.generate({
-      model: "gpt-image-1",
-      prompt,
-      size: "1024x1024",
-    });
-    const url = img.data?.[0]?.url;
-    if (!url) throw new Error("Falha ao gerar imagem");
-    return { url };
+    const model = process.env.IMAGE_MODEL ?? "dall-e-3";
+
+    try {
+      const img = await this.client.images.generate({
+        model,
+        prompt,
+        size: "1024x1024",
+        n: 1,
+      });
+      const url = img.data?.[0]?.url;
+      if (!url) throw new Error("Falha ao gerar imagem");
+      return { url };
+    } catch (err) {
+      throw new Error(`Erro ao gerar imagem (${model}): ${String((err as any)?.message ?? err)}`);
+    }
   }
 
   async generateClientMessage(
