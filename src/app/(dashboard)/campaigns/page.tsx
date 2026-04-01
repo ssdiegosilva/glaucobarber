@@ -13,10 +13,6 @@ export default async function CampaignsPage() {
     orderBy: { createdAt: "desc" },
     include: { suggestion: { select: { type: true } } },
   });
-  const templates = await prisma.template.findMany({
-    where: { OR: [{ barbershopId: session.user.barbershopId }, { isGlobal: true }] },
-    orderBy: { createdAt: "desc" },
-  });
   const integration = await prisma.integration.findUnique({ where: { barbershopId: session.user.barbershopId } });
 
   return (
@@ -30,7 +26,6 @@ export default async function CampaignsPage() {
       <div className="p-6 space-y-4">
         <CampaignsClient
           campaigns={campaigns.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() }))}
-          templates={templates}
           instagramConfigured={!!(integration?.instagramPageAccessToken && integration.instagramBusinessId)}
         />
       </div>
