@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback", "/api/stripe/webhook", "/api/cron"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback", "/api/stripe/webhook", "/api/cron"];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
