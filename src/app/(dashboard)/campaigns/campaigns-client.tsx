@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
-import { CheckCircle2, ChevronDown, ChevronRight, Clock, ExternalLink, Megaphone, Send, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Clock, ExternalLink, Megaphone, Send, Wand2, Sparkles, XCircle } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
 const STATUS_VARIANT: Record<string, string> = { DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
@@ -188,27 +188,65 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
 
   return (
     <div className="space-y-4">
-      <Card className="border-dashed border-gold-500/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-gold-400" /> Nova campanha manual</CardTitle>
+      <Card className="border-gold-500/20 bg-gradient-to-br from-surface-900 to-surface-800/60">
+        <CardHeader className="pb-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-gold-500/10 border border-gold-500/20 p-2 shrink-0">
+              <Wand2 className="h-4 w-4 text-gold-400" />
+            </div>
+            <div>
+              <CardTitle className="text-sm text-foreground">Criar campanha com IA</CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                A IA escreve o texto da campanha, sugere a arte e prepara tudo para publicar no Instagram. Você só precisa dizer o tema e o objetivo — ela cuida do resto.
+              </p>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1">
-            <label className="text-[11px] text-muted-foreground">Tema</label>
-            <input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Ex: Tarde cheia" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs" />
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground font-medium">Tema</label>
+              <input
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                placeholder="Ex: Tarde com horários livres"
+                className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs placeholder:text-muted-foreground/60"
+                disabled={loadingCreate}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground font-medium">Objetivo</label>
+              <input
+                value={objective}
+                onChange={(e) => setObjective(e.target.value)}
+                placeholder="Ex: Preencher buracos das 14h–16h"
+                className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs placeholder:text-muted-foreground/60"
+                disabled={loadingCreate}
+              />
+            </div>
           </div>
-          <div className="space-y-1 md:col-span-1">
-            <label className="text-[11px] text-muted-foreground">Objetivo</label>
-            <input value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Ex: Preencher buracos das 14h-16h" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs" />
-          </div>
-          <div className="flex items-end">
-            <Button size="sm" onClick={createCampaign} disabled={!theme || !objective || loadingCreate} className="text-xs">
-              {loadingCreate ? "Gerando..." : "Gerar com IA"}
+          <div className="flex items-center justify-between">
+            <Button
+              onClick={createCampaign}
+              disabled={!theme || !objective || loadingCreate}
+              className="text-xs gap-2 bg-gold-500/90 hover:bg-gold-500 text-black font-semibold"
+            >
+              {loadingCreate ? (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                  Criando campanha... pode demorar um pouco
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-3.5 w-3.5" />
+                  Gerar campanha com IA
+                </>
+              )}
             </Button>
+            {!instagramConfigured && (
+              <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/integrations" className="underline">configurar</a></p>
+            )}
           </div>
-          {!instagramConfigured && (
-            <p className="text-[11px] text-amber-300 md:col-span-2">Para publicar, conecte o Instagram em Integrações.</p>
-          )}
         </CardContent>
       </Card>
 
