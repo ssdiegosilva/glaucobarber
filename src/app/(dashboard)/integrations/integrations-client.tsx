@@ -232,8 +232,8 @@ export function IntegrationsClient({ integration, syncRuns }: {
       </Card>
 
       {/* Sync History */}
-      <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Clock className="h-4 w-4 text-gold-400" />
           Histórico de sincronizações
         </h2>
@@ -241,53 +241,82 @@ export function IntegrationsClient({ integration, syncRuns }: {
         {runs.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhum sync realizado ainda</p>
         ) : (
-          <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-800/50">
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Clientes</th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Serviços</th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Agendamentos</th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Erros</th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Duração</th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Origem</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {runs.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="hover:bg-surface-800/30 cursor-pointer"
-                    onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
-                  >
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{relativeTime(r.startedAt)}</td>
-                    <td className="px-4 py-2.5">
-                      <Badge variant={RUN_STATUS_VARIANT[r.status as keyof typeof RUN_STATUS_VARIANT] as never} className="text-[10px]">
-                        {RUN_STATUS_LABEL[r.status as keyof typeof RUN_STATUS_LABEL] ?? r.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs tabular-nums">{r.customersUpserted}</td>
-                    <td className="px-4 py-2.5 text-xs tabular-nums">{r.servicesUpserted}</td>
-                    <td className="px-4 py-2.5 text-xs tabular-nums">{r.appointmentsUpserted}</td>
-                    <td className="px-4 py-2.5 text-xs">
-                      {r.errorsCount > 0 ? (
-                        <span className="text-red-400">{r.errorsCount}</span>
-                      ) : <span className="text-green-400">0</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {r.durationMs ? `${(r.durationMs / 1000).toFixed(1)}s` : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground flex items-center gap-1">
-                      {r.triggeredBy ?? "auto"}
-                      <ChevronDown className={`h-3 w-3 transition-transform ${expandedRun === r.id ? "rotate-180" : ""}`} />
-                    </td>
+          <>
+            {/* Desktop table */}
+            <div className="rounded-lg border border-border bg-card overflow-hidden hidden md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-surface-800/50">
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Data</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Clientes</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Serviços</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Agendamentos</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Erros</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Duração</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Origem</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {runs.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="hover:bg-surface-800/30 cursor-pointer"
+                      onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
+                    >
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{relativeTime(r.startedAt)}</td>
+                      <td className="px-4 py-2.5">
+                        <Badge variant={RUN_STATUS_VARIANT[r.status as keyof typeof RUN_STATUS_VARIANT] as never} className="text-[10px]">
+                          {RUN_STATUS_LABEL[r.status as keyof typeof RUN_STATUS_LABEL] ?? r.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs tabular-nums">{r.customersUpserted}</td>
+                      <td className="px-4 py-2.5 text-xs tabular-nums">{r.servicesUpserted}</td>
+                      <td className="px-4 py-2.5 text-xs tabular-nums">{r.appointmentsUpserted}</td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {r.errorsCount > 0 ? (
+                          <span className="text-red-400">{r.errorsCount}</span>
+                        ) : <span className="text-green-400">0</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                        {r.durationMs ? `${(r.durationMs / 1000).toFixed(1)}s` : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground flex items-center gap-1">
+                        {r.triggeredBy ?? "auto"}
+                        <ChevronDown className={`h-3 w-3 transition-transform ${expandedRun === r.id ? "rotate-180" : ""}`} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="space-y-2 md:hidden">
+              {runs.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
+                  className="w-full text-left rounded-lg border border-border bg-surface-900 p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{relativeTime(r.startedAt)}</span>
+                    <Badge variant={RUN_STATUS_VARIANT[r.status as keyof typeof RUN_STATUS_VARIANT] as never} className="text-[10px]">
+                      {RUN_STATUS_LABEL[r.status as keyof typeof RUN_STATUS_LABEL] ?? r.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-foreground/90">
+                    <span>Clientes: {r.customersUpserted}</span>
+                    <span>Serviços: {r.servicesUpserted}</span>
+                    <span>Agends: {r.appointmentsUpserted}</span>
+                    <span className={r.errorsCount > 0 ? "text-red-400" : "text-green-400"}>Erros: {r.errorsCount}</span>
+                    <span>Duração: {r.durationMs ? `${(r.durationMs / 1000).toFixed(1)}s` : "—"}</span>
+                    <span>Origem: {r.triggeredBy ?? "auto"}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
