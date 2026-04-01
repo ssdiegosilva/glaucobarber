@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, type RouteHandlerContext } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: RouteHandlerContext<{ id: string }>) {
   const session = await auth();
   if (!session?.user?.barbershopId || !session.user.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
