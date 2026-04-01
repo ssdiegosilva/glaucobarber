@@ -43,6 +43,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [editingImage, setEditingImage] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [imagePrompt, setImagePrompt] = useState<Record<string, string>>({});
 
   async function createCampaign() {
@@ -162,10 +163,21 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
   }
 
   async function remove(id: string) {
-    const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) { toast({ title: "Erro", description: data.error ?? "Não foi possível deletar" }); return; }
-    setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "Erro", description: data.error ?? "Não foi possível deletar" , variant: "destructive"});
+        return;
+      }
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      toast({ title: "Campanha deletada", description: "Removida com sucesso." });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -338,7 +350,15 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
                         </Button>
                       )}
                       {c.status !== "PUBLISHED" && (
-                        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); remove(c.id); }}>Deletar</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px]"
+                          onClick={(e) => { e.stopPropagation(); remove(c.id); }}
+                          disabled={deletingId === c.id}
+                        >
+                          {deletingId === c.id ? "Deletando..." : "Deletar"}
+                        </Button>
                       )}
                     </div>
                   </div>

@@ -16,14 +16,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const appointment = await prisma.appointment.findUnique({
-    where: { id },
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      OR: [{ id }, { trinksId: id }],
+      barbershopId: session.user.barbershopId,
+    },
     include: {
       items: true,
       payments: { where: { domain: "BARBERSHOP_SERVICE" }, orderBy: { createdAt: "desc" } },
     },
   });
-  if (!appointment || appointment.barbershopId !== session.user.barbershopId) {
+  if (!appointment) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

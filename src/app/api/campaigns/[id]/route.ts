@@ -2,17 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await params;
-  const campaign = await prisma.campaign.findUnique({ where: { id } });
-  if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (campaign.status === "PUBLISHED") return NextResponse.json({ error: "Não é possível excluir publicada" }, { status: 400 });
+  try {
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: params.id, barbershopId: session.user.barbershopId },
+    });
+    if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (campaign.status === "PUBLISHED") return NextResponse.json({ error: "Não é possível excluir publicada" }, { status: 400 });
 
-  await prisma.campaign.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+    await prisma.campaign.delete({ where: { id: params.id } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Erro ao deletar campanha", err);
+    return NextResponse.json({ error: "Erro ao deletar campanha" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

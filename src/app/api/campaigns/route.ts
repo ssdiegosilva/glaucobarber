@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
+import { uploadCampaignImageFromUrl } from "@/lib/storage";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -38,8 +39,14 @@ export async function POST(req: NextRequest) {
 Use cores e estética premium, legível e moderna.`;
 
     const img = await provider.generateCampaignImage({ prompt });
-    await prisma.campaign.update({ where: { id: campaign.id }, data: { imageUrl: img.url } });
-    campaign.imageUrl = img.url;
+    const stored = await uploadCampaignImageFromUrl({
+      barbershopId: session.user.barbershopId,
+      campaignId: campaign.id,
+      sourceUrl: img.url,
+    });
+
+    await prisma.campaign.update({ where: { id: campaign.id }, data: { imageUrl: stored.url } });
+    campaign.imageUrl = stored.url;
   } catch (err) {
     console.error("Erro ao gerar imagem da campanha", err);
   }
