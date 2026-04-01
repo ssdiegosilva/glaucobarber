@@ -145,7 +145,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
                   type="text"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Oaglcn3psd862U9kFYaeR6ofPzAg..."
+                  placeholder="Cole sua API Key da Trinks aqui"
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -155,7 +155,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
                   type="text"
                   value={estabId}
                   onChange={(e) => setEstabId(e.target.value)}
-                  placeholder="214935"
+                  placeholder="Ex: 123456"
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
