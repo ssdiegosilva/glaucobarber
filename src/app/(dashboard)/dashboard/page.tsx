@@ -3,7 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { DashboardClient } from "./dashboard-client";
-import { startOfDay, endOfDay, format, getDay } from "date-fns";
+import { getLiveDayStats } from "@/lib/integrations/trinks/live";
+import { format, getDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -13,37 +15,37 @@ export default async function DashboardPage() {
 
   const barbershopId = session.user.barbershopId;
   const now          = new Date();
-  const start        = startOfDay(now);
-  const end          = endOfDay(now);
 
-  const [barbershop, todayAppointments, pendingSuggestions, recentCampaign, goal, inactiveCount] =
+  // Fetch in parallel: live Trinks data + local DB data
+  const [liveDay, barbershop, pendingSuggestions, recentCampaign, goal, inactiveCount] =
     await Promise.all([
+      // Live from Trinks: today's agenda
+      getLiveDayStats(barbershopId),
+
       prisma.barbershop.findUnique({
         where:  { id: barbershopId },
         select: { name: true, trinksConfigured: true },
       }),
 
-      prisma.appointment.findMany({
-        where:   { barbershopId, scheduledAt: { gte: start, lte: end } },
-        orderBy: { scheduledAt: "asc" },
-        include: { customer: { select: { name: true } }, service: { select: { name: true, price: true } } },
-      }),
-
+      // Local DB: AI suggestions
       prisma.suggestion.findMany({
         where:   { barbershopId, status: "PENDING" },
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
 
+      // Local DB: latest approved campaign
       prisma.campaign.findFirst({
         where:   { barbershopId, status: "APPROVED" },
         orderBy: { createdAt: "desc" },
       }),
 
+      // Local DB: monthly goal
       prisma.goal.findFirst({
         where: { barbershopId, month: now.getMonth() + 1, year: now.getFullYear() },
       }),
 
+      // Local DB: inactive clients count
       prisma.customer.count({
         where: {
           barbershopId,
@@ -53,43 +55,37 @@ export default async function DashboardPage() {
       }),
     ]);
 
-  const TOTAL_SLOTS   = 20;
-  const bookedSlots   = todayAppointments.filter((a) => a.status !== "CANCELLED" && a.status !== "NO_SHOW").length;
-  const completedRev  = todayAppointments
-    .filter((a) => a.status === "COMPLETED")
-    .reduce((s, a) => s + Number(a.service?.price ?? a.price ?? 0), 0);
-  const projectedRev  = todayAppointments
-    .filter((a) => a.status !== "CANCELLED" && a.status !== "NO_SHOW")
-    .reduce((s, a) => s + Number(a.service?.price ?? a.price ?? 0), 0);
-
   return (
     <div className="flex flex-col h-full">
       <Header
         title="Dashboard"
-        subtitle={`${DAY_NAMES[getDay(now)]}, ${format(now, "d 'de' MMMM")}`}
+        subtitle={`${DAY_NAMES[getDay(now)]}, ${format(now, "d 'de' MMMM", { locale: ptBR })}`}
         userName={session.user.name}
       />
 
       <DashboardClient
         barbershopName={barbershop?.name ?? ""}
         trinksConfigured={barbershop?.trinksConfigured ?? false}
+        liveError={liveDay.error}
         stats={{
-          totalSlots:   TOTAL_SLOTS,
-          bookedSlots,
-          freeSlots:    TOTAL_SLOTS - bookedSlots,
-          occupancyRate: bookedSlots / TOTAL_SLOTS,
-          completedRevenue: completedRev,
-          projectedRevenue: projectedRev,
-          revenueGoal:  goal?.revenueTarget ? Number(goal.revenueTarget) : null,
-          inactiveClients: inactiveCount,
+          totalSlots:       liveDay.totalSlots,
+          bookedSlots:      liveDay.bookedSlots,
+          freeSlots:        liveDay.freeSlots,
+          occupancyRate:    liveDay.occupancyRate,
+          completedRevenue: liveDay.completedRevenue,
+          projectedRevenue: liveDay.projectedRevenue,
+          revenueGoal:      goal?.revenueTarget ? Number(goal.revenueTarget) : null,
+          inactiveClients:  inactiveCount,
         }}
-        appointments={todayAppointments.map((a) => ({
-          id:          a.id,
-          customerName: a.customer?.name ?? "—",
-          serviceName:  a.service?.name ?? "—",
+        appointments={liveDay.appointments.map((a) => ({
+          id:           a.id,
+          customerName: a.customerName,
+          serviceName:  a.serviceName,
           scheduledAt:  a.scheduledAt.toISOString(),
           status:       a.status,
-          price:        Number(a.service?.price ?? a.price ?? 0),
+          statusLabel:  a.statusLabel,
+          price:        a.price,
+          profissional: a.profissional,
         }))}
         suggestions={pendingSuggestions.map((s) => ({
           id:      s.id,
@@ -99,10 +95,10 @@ export default async function DashboardPage() {
           reason:  s.reason,
         }))}
         campaign={recentCampaign ? {
-          id:        recentCampaign.id,
-          title:     recentCampaign.title,
-          text:      recentCampaign.text,
-          channel:   recentCampaign.channel ?? "",
+          id:      recentCampaign.id,
+          title:   recentCampaign.title,
+          text:    recentCampaign.text,
+          channel: recentCampaign.channel ?? "",
         } : null}
       />
     </div>

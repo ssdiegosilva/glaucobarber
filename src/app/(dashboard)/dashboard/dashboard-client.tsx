@@ -26,12 +26,14 @@ interface Stats {
 }
 
 interface Appointment {
-  id:           string;
-  customerName: string;
-  serviceName:  string;
-  scheduledAt:  string;
-  status:       string;
-  price:        number;
+  id:            string;
+  customerName:  string;
+  serviceName:   string;
+  scheduledAt:   string;
+  status:        string;
+  statusLabel:   string;
+  price:         number;
+  profissional?: string;
 }
 
 interface Suggestion {
@@ -52,6 +54,7 @@ interface Campaign {
 interface Props {
   barbershopName:   string;
   trinksConfigured: boolean;
+  liveError?:       string;
   stats:            Stats;
   appointments:     Appointment[];
   suggestions:      Suggestion[];
@@ -80,7 +83,7 @@ const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "destru
 
 // ── Main Component ───────────────────────────────────────────
 
-export function DashboardClient({ barbershopName, trinksConfigured, stats, appointments, suggestions, campaign }: Props) {
+export function DashboardClient({ barbershopName, trinksConfigured, liveError, stats, appointments, suggestions, campaign }: Props) {
   const [localSuggestions, setLocalSuggestions] = useState(suggestions);
   const [approving, setApproving]   = useState<string | null>(null);
   const [syncing, setSyncing]       = useState(false);
@@ -126,14 +129,20 @@ export function DashboardClient({ barbershopName, trinksConfigured, stats, appoi
   return (
     <div className="p-6 space-y-6 animate-fade-in">
 
-      {/* Trinks warning */}
+      {/* Trinks warnings */}
       {!trinksConfigured && (
         <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/8 px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
           <p className="text-sm text-yellow-300">
             Trinks não configurada.{" "}
-            <a href="/integrations" className="font-semibold underline">Configure agora</a> para importar agenda e clientes.
+            <a href="/integrations" className="font-semibold underline">Configure agora</a> para ver a agenda ao vivo.
           </p>
+        </div>
+      )}
+      {liveError && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/8 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+          <p className="text-sm text-red-300">{liveError}</p>
         </div>
       )}
 
@@ -204,7 +213,7 @@ export function DashboardClient({ barbershopName, trinksConfigured, stats, appoi
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs font-medium text-foreground">{formatBRL(apt.price)}</span>
                         <Badge variant={STATUS_VARIANT[apt.status] as never}>
-                          {STATUS_LABEL[apt.status] ?? apt.status}
+                          {apt.statusLabel ?? STATUS_LABEL[apt.status] ?? apt.status}
                         </Badge>
                       </div>
                     </div>
