@@ -24,7 +24,7 @@ export default async function DashboardPage({
   const view = viewParam === "week" || viewParam === "month" ? viewParam : "today";
 
   // Fetch in parallel: live Trinks data + local DB data
-  const [liveDay, barbershop, pendingSuggestions, recentCampaign, goal, inactiveCount] =
+  const [liveDay, barbershop, pendingSuggestions, approvedSuggestions, recentCampaign, goal, inactiveCount] =
     await Promise.all([
       getLiveDayStats(barbershopId),
 
@@ -35,6 +35,12 @@ export default async function DashboardPage({
 
       prisma.suggestion.findMany({
         where:   { barbershopId, status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+
+      prisma.suggestion.findMany({
+        where:   { barbershopId, status: { in: ["APPROVED", "EXECUTED"] } },
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
@@ -106,6 +112,13 @@ export default async function DashboardPage({
           profissional: a.profissional,
         }))}
         suggestions={pendingSuggestions.map((s) => ({
+          id:      s.id,
+          type:    s.type,
+          title:   s.title,
+          content: s.content,
+          reason:  s.reason,
+        }))}
+        approvedSuggestions={approvedSuggestions.map((s) => ({
           id:      s.id,
           type:    s.type,
           title:   s.title,

@@ -61,15 +61,16 @@ interface PeriodStats {
 }
 
 interface Props {
-  view:             "today" | "week" | "month";
-  barbershopName:   string;
-  trinksConfigured: boolean;
-  liveError?:       string;
-  stats:            Stats;
-  appointments:     Appointment[];
-  suggestions:      Suggestion[];
-  campaign:         Campaign | null;
-  periodStats:      PeriodStats | null;
+  view:                  "today" | "week" | "month";
+  barbershopName:        string;
+  trinksConfigured:      boolean;
+  liveError?:            string;
+  stats:                 Stats;
+  appointments:          Appointment[];
+  suggestions:           Suggestion[];
+  approvedSuggestions?:  Suggestion[];
+  campaign:              Campaign | null;
+  periodStats:           PeriodStats | null;
 }
 
 // ── Status helpers ───────────────────────────────────────────
@@ -102,12 +103,15 @@ export function DashboardClient({
   stats,
   appointments,
   suggestions,
+  approvedSuggestions = [],
   campaign,
   periodStats,
 }: Props) {
   const [localSuggestions, setLocalSuggestions] = useState(suggestions);
+  const [localApproved] = useState(approvedSuggestions);
   const [approving, setApproving]   = useState<string | null>(null);
   const [syncing, setSyncing]       = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const occupancyColor =
     stats.occupancyRate >= 0.8
@@ -136,6 +140,28 @@ export function DashboardClient({
       setLocalSuggestions((prev) => prev.filter((s) => s.id !== id));
     } catch {
       toast({ title: "Erro ao dispensar", variant: "destructive" });
+    }
+  }
+
+  async function handleGenerate() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/ai/suggestions", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao gerar sugestões");
+      const newOnes = (data.suggestions ?? []).map((s: any) => ({
+        id: s.id ?? crypto.randomUUID(),
+        type: s.type ?? "COMMERCIAL_INSIGHT",
+        title: s.title ?? "Sugestão",
+        content: s.content ?? "",
+        reason: s.reason ?? "",
+      }));
+      setLocalSuggestions((prev) => [...newOnes, ...prev]);
+      toast({ title: "Sugestões geradas", description: `${newOnes.length} novas ideias da IA.` });
+    } catch (err) {
+      toast({ title: "Erro ao gerar", description: String(err), variant: "destructive" });
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -356,6 +382,18 @@ export function DashboardClient({
             Sugestões da IA
           </h2>
 
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={handleGenerate} disabled={generating}>
+              {generating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Gerar novas
+            </Button>
+            {localApproved.length > 0 && (
+              <Button size="sm" variant="outline" asChild>
+                <a href="#approved-suggestions">Ver aprovadas</a>
+              </Button>
+            )}
+          </div>
+
           {localSuggestions.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground text-sm">
@@ -395,6 +433,25 @@ export function DashboardClient({
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {localApproved.length > 0 && (
+            <div className="space-y-2" id="approved-suggestions">
+              <h3 className="text-xs font-semibold text-foreground/80">Sugestões aprovadas</h3>
+              <div className="grid gap-2">
+                {localApproved.map((s) => (
+                  <Card key={s.id} className="border-gold-500/15">
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-semibold text-foreground leading-snug">{s.title}</p>
+                        <Badge variant="outline" className="text-[10px]">{s.type}</Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-3">{s.content}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
