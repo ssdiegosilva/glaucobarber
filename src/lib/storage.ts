@@ -19,14 +19,12 @@ export async function uploadCampaignImage({
   fileName,
   buffer,
   contentType,
-  expiresSeconds = 60 * 60 * 24 * 365, // 1 ano para evitar expiração curta
 }: {
   barbershopId: string;
   campaignId: string;
   fileName: string;
   buffer: Buffer;
   contentType?: string;
-  expiresSeconds?: number;
 }): Promise<{ path: string; url: string }> {
   const client = getServiceClient();
   const ext = fileName.includes(".") ? fileName.split(".").pop() : "jpg";
@@ -39,10 +37,8 @@ export async function uploadCampaignImage({
   });
   if (error) throw new Error(error.message);
 
-  const { data, error: signError } = await client.storage.from(bucket).createSignedUrl(key, expiresSeconds);
-  if (signError || !data?.signedUrl) throw new Error(signError?.message || "Não foi possível gerar URL assinada");
-
-  return { path: key, url: data.signedUrl };
+  const { data } = client.storage.from(bucket).getPublicUrl(key);
+  return { path: key, url: data.publicUrl };
 }
 
 export async function uploadCampaignImageFromUrl({
@@ -80,10 +76,25 @@ export async function uploadCampaignImageFromUrl({
   });
 }
 
-export async function signCampaignImage(path: string, expiresSeconds = 60 * 60 * 24): Promise<string | null> {
-  if (!path || path.startsWith("http")) return path;
+export async function signCampaignImage(path: string): Promise<string | null> {
+  if (!path) return null;
+  // Extract storage key from any Supabase URL, or use as-is if it's already a plain key
+  const storagePath = extractSupabasePath(path) ?? (path.startsWith("http") ? null : path);
+  if (!storagePath) return path; // external URL, return as-is
   const client = getServiceClient();
-  const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresSeconds);
-  if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
+  const { data } = client.storage.from(bucket).getPublicUrl(storagePath);
+  return data.publicUrl;
+}
+
+// Extracts the storage key from a Supabase signed or public URL
+// e.g. https://<ref>.supabase.co/storage/v1/object/sign/<bucket>/<key>?token=...
+//   or https://<ref>.supabase.co/storage/v1/object/public/<bucket>/<key>
+function extractSupabasePath(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const match = u.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/[^/]+\/(.+)/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
 }

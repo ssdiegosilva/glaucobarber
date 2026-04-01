@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { signCampaignImage } from "@/lib/storage";
 
 async function waitForMediaReady(containerId: string, token: string, maxWaitMs = 30_000): Promise<void> {
   const interval = 2_000;
@@ -55,6 +56,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     imageUrl = tpl?.imageUrl ?? null;
   }
   if (!imageUrl) return NextResponse.json({ error: "Campanha precisa de imagem" }, { status: 400 });
+
+  // Ensure URL is public (converts old signed URLs to public URLs)
+  const freshUrl = await signCampaignImage(imageUrl);
+  if (freshUrl) imageUrl = freshUrl;
 
   const integration = await prisma.integration.findFirst({ where: { barbershopId: session.user.barbershopId, provider: "trinks" } });
   // NOTE: instagram fields estão na mesma tabela
