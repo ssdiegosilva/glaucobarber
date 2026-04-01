@@ -1,28 +1,10 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import { authConfig } from "./auth.config";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/onboarding", "/api/auth", "/api/stripe/webhook"];
-
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
-
-  // Allow public paths
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
-
-  // Allow cron (verified by CRON_SECRET in handler)
-  if (pathname.startsWith("/api/cron")) {
-    return NextResponse.next();
-  }
-
-  // Require auth for everything else
-  if (!req.auth) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  return NextResponse.next();
-});
+// Lightweight Edge middleware — uses JWT only, no Prisma.
+// Full auth config (with PrismaAdapter) lives in lib/auth.ts and is
+// used only in server-side route handlers.
+export default NextAuth(authConfig).auth;
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)"],
