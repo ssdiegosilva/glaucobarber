@@ -71,16 +71,16 @@ export default async function ClientsPage({
         {/* Table */}
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-border bg-surface-800/50">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Cliente</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Telefone</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Visitas</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Total gasto</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Última visita</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[52%]">Cliente</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[18%]">Telefone</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[10%]">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[8%]">Visitas</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[12%]">Total gasto</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[12%]">Última visita</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[20%]">Tags</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -91,13 +91,15 @@ export default async function ClientsPage({
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 border border-gold-500/20 text-xs font-bold text-gold-400 shrink-0">
                           {getInitials(c.name)}
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">{c.name}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate max-w-[170px] sm:max-w-[220px] md:max-w-[260px] lg:max-w-[320px]">
+                            {c.name}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {c.phone ?? "—"}
+                      <span className="block truncate max-w-[120px]">{c.phone ?? "—"}</span>
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={STATUS_VARIANT[c.status] as never}>
