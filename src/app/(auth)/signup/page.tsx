@@ -1,10 +1,61 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Scissors } from "lucide-react";
+import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
+  const router = useRouter();
+  const [name,     setName]     = useState("");
+  const [email,    setEmail]    = useState("");
+  const [password, setPassword] = useState("");
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (password.length < 6) {
+      setError("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setLoading(true);
+
+    const supabase = getSupabaseBrowserClient();
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+
+    if (signUpError) {
+      setError(signUpError.message.includes("already registered")
+        ? "Este email já está cadastrado. Faça login."
+        : "Erro ao criar conta. Tente novamente."
+      );
+      setLoading(false);
+      return;
+    }
+
+    // Sign in immediately after signup
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError("Conta criada! Faça login para continuar.");
+      setLoading(false);
+      router.push("/login");
+      return;
+    }
+
+    router.push("/onboarding");
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="space-y-1 text-center">
@@ -17,42 +68,65 @@ export default function SignupPage() {
         <p className="text-sm text-muted-foreground">Comece gratuitamente por 14 dias</p>
       </div>
 
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Nome</label>
-            <input type="text" placeholder="Glauco" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Sobrenome</label>
-            <input type="text" placeholder="Silva" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">Email</label>
-          <input type="email" placeholder="glauco@artshave.com.br" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">Nome da barbearia</label>
-          <input type="text" placeholder="Art Shave Barbearia" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">Senha</label>
-          <input type="password" placeholder="••••••••" className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          <label className="text-xs font-medium text-foreground">Nome completo</label>
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Glauco Silva"
+            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
         </div>
 
-        <Button type="submit" className="w-full">
-          Criar conta — 14 dias grátis
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-foreground">Email</label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="glauco@artshave.com.br"
+            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-foreground">Senha</label>
+          <div className="relative">
+            <input
+              type={showPwd ? "text" : "password"}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPwd(!showPwd)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Mínimo 6 caracteres.</p>
+        </div>
+
+        {error && (
+          <p className="text-xs text-red-400 rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2">{error}</p>
+        )}
+
+        <Button type="submit" className="w-full" disabled={loading || !name || !email || !password}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar conta — 14 dias grátis"}
         </Button>
       </form>
 
       <p className="text-center text-xs text-muted-foreground">
         Já tem conta?{" "}
         <Link href="/login" className="text-gold-400 hover:underline font-medium">Entrar</Link>
-      </p>
-
-      <p className="text-[10px] text-center text-muted-foreground/50">
-        Ao criar, você concorda com os termos de serviço.
       </p>
     </div>
   );
