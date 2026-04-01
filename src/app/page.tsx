@@ -78,6 +78,15 @@ export default async function RootPage() {
               entenda cada cliente e deixe a IA sugerir o próximo movimento.
             </p>
 
+            <div className="mb-10 space-y-2 text-sm text-foreground/90">
+              <p className="font-semibold text-gold-400">
+                +15% a +25% de faturamento no 1º mês* com follow-up automático e ofertas guiadas pela agenda.
+              </p>
+              <p className="text-muted-foreground text-xs">
+                Teste sem risco: use, comprove resultado; se não curtir, não paga nada.
+              </p>
+            </div>
+
             <div className="flex flex-wrap gap-4 mb-12">
               <Link
                 href="/signup"
