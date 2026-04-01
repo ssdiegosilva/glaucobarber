@@ -141,6 +141,7 @@ export function DashboardClient({
   const [generating, setGenerating] = useState(false);
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [details, setDetails]       = useState<Record<string, AppointmentDetail | null>>({});
+  const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
   const [savingPayment, setSavingPayment] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState<string | null>(null);
@@ -228,6 +229,7 @@ export function DashboardClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao atualizar status");
+      setLocalStatuses((prev) => ({ ...prev, [id]: status }));
       setDetails((prev) => {
         if (!prev[id]) return prev;
         return { ...prev, [id]: { ...prev[id]!, appointment: { ...prev[id]!.appointment, status } } };
@@ -532,9 +534,14 @@ export function DashboardClient({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs font-medium text-foreground">{formatBRL(apt.price)}</span>
-                  <Badge variant={STATUS_VARIANT[apt.status] as never}>
-                    {apt.statusLabel ?? STATUS_LABEL[apt.status] ?? apt.status}
-                  </Badge>
+                  {(() => {
+                    const s = localStatuses[apt.id] ?? apt.status;
+                    return (
+                      <Badge variant={STATUS_VARIANT[s] as never}>
+                        {STATUS_LABEL[s] ?? s}
+                      </Badge>
+                    );
+                  })()}
                 </div>
               </div>
               {expanded === apt.id && (
@@ -689,6 +696,14 @@ function KpiCard({
 }
 
 // Inline panel for appointment actions
+const STATUS_BUTTON_CLASS: Record<string, string> = {
+  CONFIRMED:   "border-blue-500/40 text-blue-400 hover:bg-blue-500/10",
+  IN_PROGRESS: "border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10",
+  COMPLETED:   "border-green-500/40 text-green-400 hover:bg-green-500/10",
+  NO_SHOW:     "border-orange-500/40 text-orange-400 hover:bg-orange-500/10",
+  CANCELLED:   "border-red-500/40 text-red-400 hover:bg-red-500/10",
+};
+
 function AppointmentPanel({
   detail,
   onStatus,
@@ -714,6 +729,17 @@ function AppointmentPanel({
   const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
   const [discount, setDiscount] = useState(detail.totals.discount ? String(detail.totals.discount) : "");
 
+  const baseService = detail.appointment.serviceName && detail.appointment.price
+    ? { name: detail.appointment.serviceName, price: Number(detail.appointment.price) }
+    : null;
+
+  const itemsSubtotal = detail.items.reduce((acc, it) => acc + Number(it.totalPrice), 0);
+  const subtotal = itemsSubtotal > 0 ? itemsSubtotal + (baseService?.price ?? 0) : (baseService?.price ?? detail.totals.subtotal);
+  const discountVal = Number(discount || 0);
+  const total = Math.max(subtotal - discountVal, 0);
+  const paidVal = Number(paid || 0);
+  const remaining = Math.max(total - paidVal, 0);
+
   return (
     <div className="space-y-3 text-xs">
       <div className="flex flex-wrap gap-2">
@@ -722,7 +748,7 @@ function AppointmentPanel({
             key={s}
             size="sm"
             variant="outline"
-            className="h-7 text-[11px]"
+            className={`h-7 text-[11px] ${STATUS_BUTTON_CLASS[s] ?? ""}`}
             onClick={(e) => { e.stopPropagation(); onStatus(s); }}
             disabled={statusLoading}
           >
@@ -734,10 +760,19 @@ function AppointmentPanel({
       <div className="border border-border rounded-md">
         <div className="flex items-center justify-between px-3 py-2 bg-surface-800/60">
           <span className="text-[11px] font-semibold">Serviços</span>
-          <span className="text-[11px] text-muted-foreground">Subtotal {formatBRL(detail.totals.subtotal)}</span>
+          <span className="text-[11px] text-muted-foreground">Subtotal {formatBRL(subtotal)}</span>
         </div>
         <div className="divide-y divide-border">
-          {detail.items.length === 0 && (
+          {baseService && (
+            <div className="px-3 py-2 flex items-center justify-between gap-2 bg-surface-800/30">
+              <div>
+                <p className="font-medium text-foreground">{baseService.name}</p>
+                <p className="text-muted-foreground text-[11px]">Agendado</p>
+              </div>
+              <span className="font-semibold">{formatBRL(baseService.price)}</span>
+            </div>
+          )}
+          {detail.items.length === 0 && !baseService && (
             <p className="px-3 py-2 text-muted-foreground">Sem itens. Adicione um serviço.</p>
           )}
           {detail.items.map((it) => (
@@ -822,10 +857,10 @@ function AppointmentPanel({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[11px] space-x-2">
-          <span>Subtotal {formatBRL(detail.totals.subtotal)}</span>
-          <span>Desconto {formatBRL(Number(discount || detail.totals.discount || 0))}</span>
-          <span>Total {formatBRL(detail.totals.total)}</span>
-          <span>Restante {formatBRL(detail.totals.remaining)}</span>
+          <span>Subtotal {formatBRL(subtotal)}</span>
+          <span>Desconto {formatBRL(discountVal)}</span>
+          <span>Total {formatBRL(total)}</span>
+          <span className={remaining > 0 ? "text-yellow-400" : "text-green-400"}>Restante {formatBRL(remaining)}</span>
         </div>
         <Button
           size="sm"
