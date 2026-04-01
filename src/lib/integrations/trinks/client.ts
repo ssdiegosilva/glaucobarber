@@ -136,6 +136,15 @@ export class TrinksClient {
     });
   }
 
+  // ── Appointment status update ────────────────────────────
+
+  async updateAppointmentStatus(
+    agendamentoId: string | number,
+    status: "confirmado" | "cancelado" | "finalizado" | "clientefaltou" | "ematendimento"
+  ): Promise<void> {
+    await this.request("PATCH", `/v1/agendamentos/${agendamentoId}/status/${status}`);
+  }
+
   // ── Health check ─────────────────────────────────────────
 
   async ping(): Promise<boolean> {

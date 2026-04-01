@@ -9,6 +9,7 @@ import {
   Calendar, Clock, TrendingUp, Users, Sparkles,
   CheckCircle2, XCircle, Megaphone, AlertTriangle,
   RefreshCw, ChevronRight, ArrowUpRight, BarChart3,
+  Scissors, CreditCard, Plus, Trash2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -142,6 +143,7 @@ export function DashboardClient({
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [details, setDetails]       = useState<Record<string, AppointmentDetail | null>>({});
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
+  const [serviceOptions, setServiceOptions] = useState<{ id: string; name: string; price: number }[]>([]);
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
   const [savingPayment, setSavingPayment] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState<string | null>(null);
@@ -170,6 +172,11 @@ export function DashboardClient({
 
   async function loadDetail(id: string) {
     setLoadingDetail(id);
+    if (serviceOptions.length === 0) {
+      fetch("/api/services").then((r) => r.json()).then((d) => {
+        if (d.services) setServiceOptions(d.services);
+      }).catch(() => null);
+    }
     try {
       const res = await fetch(`/api/appointments/${id}`);
       const data = await res.json();
@@ -550,12 +557,13 @@ export function DashboardClient({
                   {details[apt.id] && (
                     <AppointmentPanel
                       detail={details[apt.id]!}
+                      serviceOptions={serviceOptions}
                       onStatus={(s) => updateStatus(apt.id, s)}
                       statusLoading={statusLoading === apt.id}
                       onAddItem={(item) => addItem(apt.id, item)}
                       onRemoveItem={(itemId) => removeItem(apt.id, itemId)}
                       savingItem={savingItem === apt.id}
-                      onSavePayment={(paid, discount) => savePayment(apt.id, paid, discount)}
+                      onSavePayment={(paid) => savePayment(apt.id, paid, null)}
                       savingPayment={savingPayment === apt.id}
                     />
                   )}
@@ -706,6 +714,7 @@ const STATUS_BUTTON_CLASS: Record<string, string> = {
 
 function AppointmentPanel({
   detail,
+  serviceOptions,
   onStatus,
   statusLoading,
   onAddItem,
@@ -715,33 +724,35 @@ function AppointmentPanel({
   savingPayment,
 }: {
   detail: AppointmentDetail;
+  serviceOptions: { id: string; name: string; price: number }[];
   onStatus: (status: string) => void;
   statusLoading: boolean;
   onAddItem: (item: { name: string; quantity: number; unitPrice: number; serviceId?: string }) => void;
   onRemoveItem: (itemId: string) => void;
   savingItem: boolean;
-  onSavePayment: (paid: number | null, discount: number | null) => void;
+  onSavePayment: (paid: number | null) => void;
   savingPayment: boolean;
 }) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
   const [qty, setQty] = useState("1");
   const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
-  const [discount, setDiscount] = useState(detail.totals.discount ? String(detail.totals.discount) : "");
 
-  const baseService = detail.appointment.serviceName && detail.appointment.price
+  const selectedSvc = serviceOptions.find((s) => s.id === selectedServiceId);
+
+  // Base service (from Trinks) shown only when no items yet
+  const baseService = detail.items.length === 0 && detail.appointment.serviceName && detail.appointment.price
     ? { name: detail.appointment.serviceName, price: Number(detail.appointment.price) }
     : null;
 
   const itemsSubtotal = detail.items.reduce((acc, it) => acc + Number(it.totalPrice), 0);
-  const subtotal = itemsSubtotal > 0 ? itemsSubtotal + (baseService?.price ?? 0) : (baseService?.price ?? detail.totals.subtotal);
-  const discountVal = Number(discount || 0);
-  const total = Math.max(subtotal - discountVal, 0);
-  const paidVal = Number(paid || 0);
-  const remaining = Math.max(total - paidVal, 0);
+  const subtotal = detail.items.length > 0 ? itemsSubtotal : (baseService?.price ?? detail.totals.subtotal);
+  const paidVal  = Number(paid || 0);
+  const discount = Math.max(subtotal - paidVal, 0);
+  const remaining = discount;
 
   return (
-    <div className="space-y-3 text-xs">
+    <div className="space-y-4 text-xs">
+      {/* Status buttons */}
       <div className="flex flex-wrap gap-2">
         {["CONFIRMED", "IN_PROGRESS", "COMPLETED", "NO_SHOW", "CANCELLED"].map((s) => (
           <Button
@@ -757,122 +768,123 @@ function AppointmentPanel({
         ))}
       </div>
 
-      <div className="border border-border rounded-md">
+      {/* Services */}
+      <div className="rounded-md border border-border overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 bg-surface-800/60">
-          <span className="text-[11px] font-semibold">Serviços</span>
-          <span className="text-[11px] text-muted-foreground">Subtotal {formatBRL(subtotal)}</span>
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold">
+            <Scissors className="h-3.5 w-3.5 text-gold-400" /> Serviços
+          </span>
+          <span className="text-[11px] text-muted-foreground">{formatBRL(subtotal)}</span>
         </div>
+
         <div className="divide-y divide-border">
           {baseService && (
-            <div className="px-3 py-2 flex items-center justify-between gap-2 bg-surface-800/30">
+            <div className="px-3 py-2.5 flex items-center justify-between bg-surface-800/20">
               <div>
                 <p className="font-medium text-foreground">{baseService.name}</p>
-                <p className="text-muted-foreground text-[11px]">Agendado</p>
+                <p className="text-[11px] text-muted-foreground">Agendado via Trinks</p>
               </div>
-              <span className="font-semibold">{formatBRL(baseService.price)}</span>
+              <span className="font-semibold text-foreground">{formatBRL(baseService.price)}</span>
             </div>
           )}
           {detail.items.length === 0 && !baseService && (
-            <p className="px-3 py-2 text-muted-foreground">Sem itens. Adicione um serviço.</p>
+            <p className="px-3 py-3 text-muted-foreground italic">Nenhum serviço adicionado.</p>
           )}
           {detail.items.map((it) => (
-            <div key={it.id} className="px-3 py-2 flex items-center justify-between gap-2">
+            <div key={it.id} className="px-3 py-2.5 flex items-center justify-between gap-2">
               <div>
                 <p className="font-medium text-foreground">{it.name}</p>
-                <p className="text-muted-foreground text-[11px]">Qtd {it.quantity} · {formatBRL(it.unitPrice)}</p>
+                <p className="text-[11px] text-muted-foreground">Qtd {it.quantity} · {formatBRL(it.unitPrice)}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-semibold">{formatBRL(it.totalPrice)}</span>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
+                <button
                   onClick={(e) => { e.stopPropagation(); onRemoveItem(it.id); }}
                   disabled={savingItem}
-                  title="Remover"
+                  className="text-red-400/70 hover:text-red-400 transition-colors"
                 >
-                  <XCircle className="h-3.5 w-3.5 text-red-400" />
-                </Button>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
           ))}
         </div>
-        <div className="px-3 py-2 bg-surface-900 flex flex-col md:flex-row gap-2">
-          <input
-            placeholder="Serviço"
-            className="rounded-md border border-border bg-surface-800 px-2 py-1 text-xs flex-1"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+
+        {/* Add service row */}
+        <div className="px-3 py-2.5 bg-surface-900 border-t border-border flex gap-2 items-center">
+          <select
+            value={selectedServiceId}
+            onChange={(e) => setSelectedServiceId(e.target.value)}
+            className="flex-1 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="">Selecionar serviço...</option>
+            {serviceOptions.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} — {formatBRL(s.price)}</option>
+            ))}
+          </select>
           <input
             type="number"
-            placeholder="Qtd"
-            className="rounded-md border border-border bg-surface-800 px-2 py-1 text-xs w-16"
+            min="1"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Preço"
-            className="rounded-md border border-border bg-surface-800 px-2 py-1 text-xs w-24"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            className="w-14 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs text-center"
           />
           <Button
             size="sm"
-            className="text-[11px]"
-            disabled={!name || !price || savingItem}
+            className="h-7 text-[11px] shrink-0"
+            disabled={!selectedSvc || savingItem}
             onClick={(e) => {
               e.stopPropagation();
-              onAddItem({ name, quantity: Number(qty || "1"), unitPrice: Number(price) });
-              setName(""); setPrice(""); setQty("1");
+              if (!selectedSvc) return;
+              onAddItem({ name: selectedSvc.name, quantity: Number(qty || 1), unitPrice: selectedSvc.price, serviceId: selectedSvc.id });
+              setSelectedServiceId(""); setQty("1");
             }}
           >
-            {savingItem ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Adicionar"}
+            {savingItem ? <RefreshCw className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" />Adicionar</>}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-[11px] text-muted-foreground">Desconto</label>
-          <input
-            type="number"
-            step="0.01"
-            value={discount}
-            onChange={(e) => setDiscount(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface-800 px-2 py-1 text-xs"
-          />
+      {/* Payment */}
+      <div className="rounded-md border border-border overflow-hidden">
+        <div className="flex items-center gap-1.5 px-3 py-2 bg-surface-800/60">
+          <CreditCard className="h-3.5 w-3.5 text-gold-400" />
+          <span className="text-[11px] font-semibold">Pagamento</span>
         </div>
-        <div className="space-y-1">
-          <label className="text-[11px] text-muted-foreground">Valor pago</label>
-          <input
-            type="number"
-            step="0.01"
-            value={paid}
-            onChange={(e) => setPaid(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface-800 px-2 py-1 text-xs"
-          />
+        <div className="px-3 py-3 space-y-3">
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground">Valor recebido</label>
+            <input
+              type="number"
+              step="0.01"
+              placeholder={formatBRL(subtotal)}
+              value={paid}
+              onChange={(e) => setPaid(e.target.value)}
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-1.5 text-xs"
+            />
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <div className="space-y-0.5">
+              <div className="flex gap-4">
+                <span className="text-muted-foreground">Total: <span className="text-foreground font-medium">{formatBRL(subtotal)}</span></span>
+                {discount > 0 && <span className="text-muted-foreground">Desconto: <span className="text-yellow-400 font-medium">-{formatBRL(discount)}</span></span>}
+              </div>
+              <div>
+                <span className={remaining > 0 ? "text-yellow-400 font-semibold" : "text-green-400 font-semibold"}>
+                  {remaining > 0 ? `Restante: ${formatBRL(remaining)}` : paidVal > 0 ? "Pago ✓" : "Sem pagamento"}
+                </span>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="text-[11px] h-8"
+              disabled={savingPayment}
+              onClick={(e) => { e.stopPropagation(); onSavePayment(paidVal > 0 ? paidVal : null); }}
+            >
+              {savingPayment ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar"}
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[11px] space-x-2">
-          <span>Subtotal {formatBRL(subtotal)}</span>
-          <span>Desconto {formatBRL(discountVal)}</span>
-          <span>Total {formatBRL(total)}</span>
-          <span className={remaining > 0 ? "text-yellow-400" : "text-green-400"}>Restante {formatBRL(remaining)}</span>
-        </div>
-        <Button
-          size="sm"
-          className="text-[11px]"
-          disabled={savingPayment}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSavePayment(paid ? Number(paid) : null, discount ? Number(discount) : null);
-          }}
-        >
-          {savingPayment ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar pagamento"}
-        </Button>
       </div>
     </div>
   );

@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppointmentStatus } from "@prisma/client";
+import { buildTrinksClient } from "@/lib/integrations/trinks/client";
 
 const allowed: AppointmentStatus[] = ["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
+
+const TRINKS_STATUS_MAP: Partial<Record<AppointmentStatus, "confirmado" | "cancelado" | "finalizado" | "clientefaltou" | "ematendimento">> = {
+  CONFIRMED:   "confirmado",
+  IN_PROGRESS: "ematendimento",
+  COMPLETED:   "finalizado",
+  CANCELLED:   "cancelado",
+  NO_SHOW:     "clientefaltou",
+};
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -20,10 +29,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const data: any = { status };
   const now = new Date();
-  if (status === "CONFIRMED") data.confirmedAt = now;
-  if (status === "COMPLETED") data.completedAt = now;
-  if (status === "NO_SHOW") data.noShowAt = now;
+  if (status === "CONFIRMED")   data.confirmedAt = now;
+  if (status === "COMPLETED")   data.completedAt = now;
+  if (status === "NO_SHOW")     data.noShowAt    = now;
 
   await prisma.appointment.update({ where: { id: appointment.id }, data });
+
+  // Mirror status to Trinks (best-effort, don't fail if Trinks is down)
+  const trinksStatus = TRINKS_STATUS_MAP[status as AppointmentStatus];
+  if (trinksStatus && appointment.trinksId) {
+    try {
+      const integration = await prisma.integration.findUnique({ where: { barbershopId: session.user.barbershopId } });
+      if (integration?.configJson) {
+        const client = buildTrinksClient(integration.configJson);
+        await client.updateAppointmentStatus(appointment.trinksId, trinksStatus);
+      }
+    } catch (err) {
+      console.error("[status] failed to sync to Trinks:", err);
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
