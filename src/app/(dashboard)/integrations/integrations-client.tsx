@@ -40,6 +40,8 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [estabId,    setEstabId]    = useState("");
   const [saving,     setSaving]     = useState(false);
   const [formError,  setFormError]  = useState("");
+  const [estabs,     setEstabs]     = useState<{ id: string; nome: string }[]>([]);
+  const [loadingEstab, setLoadingEstab] = useState(false);
 
   async function handleSave() {
     setFormError("");
@@ -58,6 +60,25 @@ export function IntegrationsClient({ integration, syncRuns }: {
       setFormError("Erro de conexão. Tente novamente.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleFetchEstabs() {
+    setFormError("");
+    setLoadingEstab(true);
+    try {
+      const res = await fetch("/api/trinks/estabelecimentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao buscar estabelecimentos");
+      setEstabs((data.items ?? []).map((e: any) => ({ id: String(e.id), nome: e.nome })));
+    } catch (e) {
+      setFormError(String(e));
+    } finally {
+      setLoadingEstab(false);
     }
   }
 
@@ -150,14 +171,39 @@ export function IntegrationsClient({ integration, syncRuns }: {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">ID do Estabelecimento</label>
-                <input
-                  type="text"
-                  value={estabId}
-                  onChange={(e) => setEstabId(e.target.value)}
-                  placeholder="Ex: 123456"
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground">ID do Estabelecimento</label>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    className="text-[11px]"
+                    onClick={handleFetchEstabs}
+                    disabled={!apiKey || loadingEstab}
+                    title="Buscar lista com a API Key"
+                  >
+                    {loadingEstab ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  </Button>
+                </div>
+                {estabs.length > 0 ? (
+                  <select
+                    value={estabId}
+                    onChange={(e) => setEstabId(e.target.value)}
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Selecione</option>
+                    {estabs.map((e) => (
+                      <option key={e.id} value={e.id}>{e.nome} (ID {e.id})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={estabId}
+                    onChange={(e) => setEstabId(e.target.value)}
+                    placeholder="Ex: 123456"
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                )}
               </div>
               {formError && (
                 <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{formError}</p>

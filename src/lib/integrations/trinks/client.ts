@@ -24,7 +24,7 @@ export class TrinksClient {
 
   constructor(config: TrinksConfig) {
     this.apiKey            = config.apiKey;
-    this.estabelecimentoId = config.estabelecimentoId;
+    this.estabelecimentoId = config.estabelecimentoId ?? "";
     this.baseUrl           = config.baseUrl ?? DEFAULT_BASE_URL;
   }
 
