@@ -360,7 +360,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
                   {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar Instagram"}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">Cole o token e clique em "Buscar contas" para detectar automaticamente o Instagram Business ID.</p>
+              <p className="text-[11px] text-muted-foreground">Cole o token e clique em &quot;Buscar contas&quot; para detectar automaticamente o Instagram Business ID.</p>
             </>
           ) : (
             <div className="rounded-md border border-border bg-surface-900 px-3 py-3 flex items-start justify-between gap-3">
