@@ -84,6 +84,10 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
     setPublishingId(id);
     try {
       const campaign = campaigns.find((c) => c.id === id);
+      if (!campaign?.imageUrl?.trim()) {
+        toast({ title: "Falta a arte", description: "Cole a URL da imagem e salve antes de publicar.", variant: "destructive" });
+        return;
+      }
       const res = await fetch(`/api/campaigns/${id}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,7 +98,12 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: "PUBLISHED" } : c)));
       toast({ title: "Publicado", description: "Campanha enviada ao Instagram" });
     } catch (e) {
-      toast({ title: "Erro ao publicar", description: String(e), variant: "destructive" });
+      const msg = String(e);
+      if (msg.includes("Instagram não configurado") || msg.includes("IG_NOT_CONFIGURED")) {
+        toast({ title: "Configure o Instagram", description: "Salve o Page Access Token e o Instagram Business ID na aba Integrações.", variant: "destructive" });
+      } else {
+        toast({ title: "Erro ao publicar", description: msg, variant: "destructive" });
+      }
     } finally {
       setPublishingId(null);
     }
