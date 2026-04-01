@@ -50,6 +50,8 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [igBizId,    setIgBizId]    = useState("");
   const [igPageId,   setIgPageId]   = useState("");
   const [savingIg,   setSavingIg]   = useState(false);
+  const [discovering, setDiscovering] = useState(false);
+  const [igAccounts,  setIgAccounts]  = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
 
   async function handleSave() {
     setFormError("");
@@ -106,6 +108,30 @@ export function IntegrationsClient({ integration, syncRuns }: {
       toast({ title: "Erro no sync", description: String(e), variant: "destructive" });
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleDiscoverInstagram() {
+    setDiscovering(true);
+    setIgAccounts([]);
+    try {
+      const res = await fetch("/api/integrations/instagram/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: igToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao buscar contas");
+      setIgAccounts(data.accounts ?? []);
+      if (data.accounts?.length === 1) {
+        setIgBizId(data.accounts[0].instagramId);
+        setIgPageId(data.accounts[0].pageId);
+      }
+      toast({ title: `${data.accounts.length} conta(s) encontrada(s)`, description: "Selecione a conta para publicar." });
+    } catch (e) {
+      toast({ title: "Erro ao buscar contas", description: String(e), variant: "destructive" });
+    } finally {
+      setDiscovering(false);
     }
   }
 
@@ -275,41 +301,66 @@ export function IntegrationsClient({ integration, syncRuns }: {
         <CardContent className="space-y-3">
           {(!integration?.instagramPageAccessToken || !integration.instagramBusinessId || showForm) ? (
             <>
-              <div className="grid md:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Page Access Token</label>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Page Access Token</label>
+                <div className="flex gap-2">
                   <input
                     value={igToken}
-                    onChange={(e) => setIgToken(e.target.value)}
+                    onChange={(e) => { setIgToken(e.target.value); setIgAccounts([]); }}
                     placeholder="EAAG..."
                     className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Instagram Business ID</label>
-                  <input
-                    value={igBizId}
-                    onChange={(e) => setIgBizId(e.target.value)}
-                    placeholder="ex: 1784..."
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Page ID (opcional)</label>
-                  <input
-                    value={igPageId}
-                    onChange={(e) => setIgPageId(e.target.value)}
-                    placeholder="ID da página do Facebook"
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                  />
+                  <Button size="sm" variant="outline" onClick={handleDiscoverInstagram} disabled={!igToken || discovering} className="text-xs shrink-0">
+                    {discovering ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Buscar contas"}
+                  </Button>
                 </div>
               </div>
+              {igAccounts.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Conta do Instagram</label>
+                  <div className="space-y-1">
+                    {igAccounts.map((acc) => (
+                      <button
+                        key={acc.instagramId}
+                        type="button"
+                        onClick={() => { setIgBizId(acc.instagramId); setIgPageId(acc.pageId); }}
+                        className={`w-full text-left rounded-md border px-3 py-2 text-xs transition-colors ${igBizId === acc.instagramId ? "border-gold-500/60 bg-gold-500/10 text-foreground" : "border-border bg-surface-800 text-muted-foreground hover:text-foreground"}`}
+                      >
+                        <span className="font-medium">@{acc.instagramName}</span>
+                        <span className="ml-2 text-[11px] opacity-60">via {acc.pageName} · ID: {acc.instagramId}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {igAccounts.length === 0 && igBizId && (
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Instagram Business ID</label>
+                    <input
+                      value={igBizId}
+                      onChange={(e) => setIgBizId(e.target.value)}
+                      placeholder="ex: 1784..."
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Page ID (opcional)</label>
+                    <input
+                      value={igPageId}
+                      onChange={(e) => setIgPageId(e.target.value)}
+                      placeholder="ID da página do Facebook"
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end">
                 <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs">
                   {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar Instagram"}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">Para publicar campanhas no Instagram, informe o Page Access Token e o Instagram Business ID.</p>
+              <p className="text-[11px] text-muted-foreground">Cole o token e clique em "Buscar contas" para detectar automaticamente o Instagram Business ID.</p>
             </>
           ) : (
             <div className="rounded-md border border-border bg-surface-900 px-3 py-3 flex items-start justify-between gap-3">
