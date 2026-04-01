@@ -44,9 +44,9 @@ npm run dev
 
 Abra: http://localhost:3000
 
-**Login demo:**
+**Login demo (Supabase magic link):**
 - Email: `glauco@artshave.com.br`
-- Senha: `demo1234`
+- Envie o link na página de login; em dev use o link que aparece no terminal (`npm run dev`)
 
 ---
 

@@ -15,7 +15,8 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const NAV = [
   { href: "/dashboard",    label: "Dashboard",   icon: LayoutDashboard },
@@ -33,6 +34,8 @@ interface SidebarProps {
 
 export function Sidebar({ barbershopName }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = getSupabaseBrowserClient();
 
   return (
     <aside className="flex h-screen w-60 flex-col border-r border-border bg-card">
@@ -91,7 +94,10 @@ export function Sidebar({ barbershopName }: SidebarProps) {
       {/* Footer */}
       <div className="border-t border-border p-3">
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={async () => {
+            await supabase.auth.signOut();
+            router.push("/login");
+          }}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-all"
         >
           <LogOut className="h-4 w-4" />
