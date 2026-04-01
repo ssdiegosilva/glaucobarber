@@ -229,12 +229,16 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
             <Button
               onClick={createCampaign}
               disabled={!theme || !objective || loadingCreate}
-              className="text-xs gap-2 bg-gold-500/90 hover:bg-gold-500 text-black font-semibold"
+              className={`text-xs gap-2 text-black font-semibold transition-all duration-300 ${
+                loadingCreate
+                  ? "bg-gold-500 animate-pulse shadow-[0_0_20px_4px_rgba(234,179,8,0.4)] scale-[1.02] cursor-wait"
+                  : "bg-gold-500/90 hover:bg-gold-500"
+              }`}
             >
               {loadingCreate ? (
                 <>
-                  <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-                  Criando campanha... pode demorar um pouco
+                  <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                  Criando campanha...
                 </>
               ) : (
                 <>
@@ -243,6 +247,9 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
                 </>
               )}
             </Button>
+            {loadingCreate && (
+              <p className="text-[11px] text-gold-400/70 animate-pulse">Pode demorar alguns segundos ✨</p>
+            )}
             {!instagramConfigured && (
               <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/integrations" className="underline">configurar</a></p>
             )}
