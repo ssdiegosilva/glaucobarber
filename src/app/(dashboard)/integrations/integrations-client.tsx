@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
-import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Plug, Clock } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Plug, Clock, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface IntegrationInfo {
@@ -33,8 +33,33 @@ export function IntegrationsClient({ integration, syncRuns }: {
   integration: IntegrationInfo | null;
   syncRuns:    SyncRunInfo[];
 }) {
-  const [syncing, setSyncing] = useState(false);
-  const [runs, setRuns]       = useState(syncRuns);
+  const [syncing,    setSyncing]    = useState(false);
+  const [runs,       setRuns]       = useState(syncRuns);
+  const [showForm,   setShowForm]   = useState(!integration?.configured);
+  const [apiKey,     setApiKey]     = useState("");
+  const [estabId,    setEstabId]    = useState("");
+  const [saving,     setSaving]     = useState(false);
+  const [formError,  setFormError]  = useState("");
+
+  async function handleSave() {
+    setFormError("");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/trinks/configure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey, estabelecimentoId: estabId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setFormError(data.error ?? "Erro ao salvar"); return; }
+      toast({ title: "Trinks configurada!", description: "Credenciais salvas e validadas." });
+      window.location.reload();
+    } catch {
+      setFormError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSync() {
     setSyncing(true);
@@ -110,13 +135,51 @@ export function IntegrationsClient({ integration, syncRuns }: {
             </div>
           )}
 
-          <div className="mt-4 rounded-md bg-surface-800 p-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">Nota:</strong> A Trinks é a fonte operacional principal.
-              Os dados de agenda, clientes e serviços são importados dela e usados para gerar inteligência neste painel.
-              As credenciais de API são configuradas no banco de dados via painel de administração.
-            </p>
-          </div>
+          {/* Config form */}
+          {showForm ? (
+            <div className="mt-4 space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
+              <p className="text-xs font-semibold text-foreground">Configurar credenciais da Trinks</p>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">API Key</label>
+                <input
+                  type="text"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Oaglcn3psd862U9kFYaeR6ofPzAg..."
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">ID do Estabelecimento</label>
+                <input
+                  type="text"
+                  value={estabId}
+                  onChange={(e) => setEstabId(e.target.value)}
+                  placeholder="214935"
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              {formError && (
+                <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{formError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" className="text-xs" onClick={handleSave} disabled={saving || !apiKey || !estabId}>
+                  {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar e validar"}
+                </Button>
+                {integration?.configured && (
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowForm(false)}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex justify-end">
+              <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => setShowForm(true)}>
+                <Settings className="h-3.5 w-3.5" /> Reconfigurar
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
