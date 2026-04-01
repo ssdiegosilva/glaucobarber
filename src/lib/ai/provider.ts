@@ -4,7 +4,7 @@
 // ============================================================
 
 import type { AIProvider } from "./types";
-import { AnthropicProvider } from "./anthropic";
+import { OpenAIProvider } from "./openai";
 
 export { type AIProvider, type AISuggestionRequest, type AISuggestion } from "./types";
 
@@ -13,18 +13,17 @@ let _provider: AIProvider | null = null;
 export function getAIProvider(): AIProvider {
   if (_provider) return _provider;
 
-  const name = process.env.AI_PROVIDER ?? "anthropic";
+  const name = process.env.AI_PROVIDER ?? "openai";
 
   switch (name) {
-    case "anthropic":
-      _provider = new AnthropicProvider();
+    case "openai":
+      _provider = new OpenAIProvider();
       break;
     // Future adapters:
-    // case "openai": _provider = new OpenAIProvider(); break;
-    // case "groq":   _provider = new GroqProvider(); break;
-    // case "local":  _provider = new LocalProvider(); break;
+    // case "anthropic": _provider = new AnthropicProvider(); break;
+    // case "groq":      _provider = new GroqProvider(); break;
     default:
-      _provider = new AnthropicProvider();
+      _provider = new OpenAIProvider();
   }
 
   return _provider;
