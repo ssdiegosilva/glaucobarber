@@ -50,6 +50,7 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [savingImage, setSavingImage] = useState<string | null>(null);
+  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
 
   async function createCampaign() {
     setLoadingCreate(true);
@@ -125,6 +126,21 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
       toast({ title: "Erro ao salvar imagem", description: String(e), variant: "destructive" });
     } finally {
       setSavingImage(null);
+    }
+  }
+
+  async function generateImage(id: string) {
+    setGeneratingImage(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}/image`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao gerar imagem");
+      setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl: data.url } : c)));
+      toast({ title: "Imagem gerada", description: "Arte criada via IA." });
+    } catch (e) {
+      toast({ title: "Erro ao gerar imagem", description: String(e), variant: "destructive" });
+    } finally {
+      setGeneratingImage(null);
     }
   }
 
@@ -208,7 +224,7 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
                     <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <input
                         placeholder="URL da imagem"
                         className="rounded-md border border-border bg-surface-800 px-2 py-1 text-[11px] w-48"
@@ -224,6 +240,15 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
                         onClick={(e) => { e.stopPropagation(); saveImage(c.id, c.imageUrl ?? ""); }}
                       >
                         {savingImage === c.id ? "Salvando..." : "Salvar imagem"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-[11px]"
+                        disabled={generatingImage === c.id}
+                        onClick={(e) => { e.stopPropagation(); generateImage(c.id); }}
+                      >
+                        {generatingImage === c.id ? "Gerando..." : "Gerar imagem"}
                       </Button>
                     </div>
                     <div className="flex gap-2">

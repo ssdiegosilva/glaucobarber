@@ -29,6 +29,10 @@ export interface AIProvider {
   name: string;
   generateSuggestions(context: AISuggestionRequest): Promise<AISuggestion[]>;
   generateCampaignText(objective: string, context: string): Promise<{ text: string; artBriefing: string }>;
+  generateCampaignImage(input: {
+    prompt: string;
+    styleHint?: string;
+  }): Promise<{ url: string }>;
   generateClientMessage(clientName: string, daysSinceVisit: number, services: string[]): Promise<string>;
   generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;
 }
