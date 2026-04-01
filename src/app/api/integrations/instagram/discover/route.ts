@@ -9,7 +9,7 @@ async function fetchAllPages(accessToken: string): Promise<FbPage[]> {
     `https://graph.facebook.com/v21.0/me/accounts?access_token=${accessToken}&fields=id,name,access_token&limit=100`;
 
   while (url) {
-    const res = await fetch(url);
+    const res: Response = await fetch(url);
     const json = await res.json();
     if (!res.ok || json.error) throw new Error(json.error?.message ?? "Token inválido");
     pages.push(...(json.data ?? []));
