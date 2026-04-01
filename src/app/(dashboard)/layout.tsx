@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { prisma } from "@/lib/prisma";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -22,8 +23,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar barbershopName={barbershopName} />
+      <Sidebar barbershopName={barbershopName} className="hidden md:flex" />
       <main className="flex-1 overflow-y-auto">
+        <MobileNav barbershopName={barbershopName} />
         {children}
       </main>
     </div>

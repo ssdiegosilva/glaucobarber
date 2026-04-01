@@ -18,7 +18,7 @@ import {
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const NAV = [
+export const NAV = [
   { href: "/dashboard",    label: "Dashboard",   icon: LayoutDashboard },
   { href: "/copilot",      label: "Copilot",     icon: Sparkles },
   { href: "/clients",      label: "Clientes",    icon: Users },
@@ -31,15 +31,16 @@ const NAV = [
 
 interface SidebarProps {
   barbershopName?: string | null;
+  className?: string;
 }
 
-export function Sidebar({ barbershopName }: SidebarProps) {
+export function Sidebar({ barbershopName, className }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
 
   return (
-    <aside className="flex h-screen w-60 flex-col border-r border-border bg-card">
+    <aside className={cn("flex h-screen w-60 flex-col border-r border-border bg-card", className)}>
       {/* Logo / Brand */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold-500/15 border border-gold-500/30">
