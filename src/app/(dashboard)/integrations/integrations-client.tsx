@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
-import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Plug, Clock, Settings } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Plug, Clock, Settings, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface IntegrationInfo {
@@ -24,6 +24,7 @@ interface SyncRunInfo {
   errorsCount:         number;
   durationMs:          number | null;
   startedAt:           string;
+  errorDetails?:       string | null;
 }
 
 const RUN_STATUS_VARIANT = { RUNNING: "warning", SUCCESS: "success", PARTIAL: "warning", FAILED: "destructive" } as const;
@@ -42,6 +43,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [formError,  setFormError]  = useState("");
   const [estabs,     setEstabs]     = useState<{ id: string; nome: string }[]>([]);
   const [loadingEstab, setLoadingEstab] = useState(false);
+  const [expandedRun, setExpandedRun] = useState<string | null>(null);
 
   async function handleSave() {
     setFormError("");
@@ -255,7 +257,11 @@ export function IntegrationsClient({ integration, syncRuns }: {
               </thead>
               <tbody className="divide-y divide-border">
                 {runs.map((r) => (
-                  <tr key={r.id} className="hover:bg-surface-800/30">
+                  <tr
+                    key={r.id}
+                    className="hover:bg-surface-800/30 cursor-pointer"
+                    onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
+                  >
                     <td className="px-4 py-2.5 text-xs text-muted-foreground">{relativeTime(r.startedAt)}</td>
                     <td className="px-4 py-2.5">
                       <Badge variant={RUN_STATUS_VARIANT[r.status as keyof typeof RUN_STATUS_VARIANT] as never} className="text-[10px]">
@@ -273,7 +279,10 @@ export function IntegrationsClient({ integration, syncRuns }: {
                     <td className="px-4 py-2.5 text-xs text-muted-foreground">
                       {r.durationMs ? `${(r.durationMs / 1000).toFixed(1)}s` : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{r.triggeredBy ?? "auto"}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground flex items-center gap-1">
+                      {r.triggeredBy ?? "auto"}
+                      <ChevronDown className={`h-3 w-3 transition-transform ${expandedRun === r.id ? "rotate-180" : ""}`} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -281,6 +290,35 @@ export function IntegrationsClient({ integration, syncRuns }: {
           </div>
         )}
       </div>
+
+      {expandedRun && (() => {
+        const run = runs.find((r) => r.id === expandedRun);
+        if (!run) return null;
+        const details = run.errorsCount > 0 && run.errorDetails ? (() => {
+          try { return JSON.parse(run.errorDetails); } catch { return run.errorDetails; }
+        })() : null;
+        return (
+          <div className="rounded-lg border border-border bg-surface-900 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Detalhes do sync</p>
+              <Badge variant={RUN_STATUS_VARIANT[run.status as keyof typeof RUN_STATUS_VARIANT] as never}>{RUN_STATUS_LABEL[run.status as keyof typeof RUN_STATUS_LABEL]}</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">ID: {run.id}</p>
+            <p className="text-xs text-muted-foreground">Erros: {run.errorsCount}</p>
+            {details && Array.isArray(details) ? (
+              <div className="bg-surface-800 rounded-md border border-border p-3 space-y-1">
+                {details.map((d: any, idx: number) => (
+                  <p key={idx} className="text-xs text-red-300">• {d.entity ?? "?"}: {d.message ?? JSON.stringify(d)}</p>
+                ))}
+              </div>
+            ) : details ? (
+              <p className="text-xs text-red-300">{String(details)}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Sem detalhes adicionais.</p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
