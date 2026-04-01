@@ -30,17 +30,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const body = (await req.json().catch(() => ({}))) as { imageUrl?: string | null };
   const campaign = await prisma.campaign.findUnique({ where: { id } });
   if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (campaign.status !== "APPROVED") return NextResponse.json({ error: "Apenas campanhas aprovadas" }, { status: 400 });
 
-  let imageUrl = campaign.imageUrl;
+  let imageUrl = body.imageUrl ?? campaign.imageUrl;
   if (!imageUrl && campaign.templateId) {
     const tpl = await prisma.template.findUnique({ where: { id: campaign.templateId } });
     imageUrl = tpl?.imageUrl ?? null;
-    if (tpl?.imageUrl) {
-      await prisma.campaign.update({ where: { id }, data: { imageUrl: tpl.imageUrl } });
-    }
   }
   if (!imageUrl) return NextResponse.json({ error: "Campanha precisa de imagem" }, { status: 400 });
 
@@ -60,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     await prisma.campaign.update({
       where: { id: campaign.id },
-      data: { status: "PUBLISHED", publishedAt: new Date(), instagramPostId: postId },
+      data: { status: "PUBLISHED", publishedAt: new Date(), instagramPostId: postId, imageUrl },
     });
 
     return NextResponse.json({ ok: true, postId });

@@ -83,7 +83,12 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
   async function publish(id: string) {
     setPublishingId(id);
     try {
-      const res = await fetch(`/api/campaigns/${id}/publish`, { method: "POST" });
+      const campaign = campaigns.find((c) => c.id === id);
+      const res = await fetch(`/api/campaigns/${id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: campaign?.imageUrl ?? null }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao publicar");
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: "PUBLISHED" } : c)));
