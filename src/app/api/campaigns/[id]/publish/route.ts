@@ -33,7 +33,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const campaign = await prisma.campaign.findUnique({ where: { id } });
   if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (campaign.status !== "APPROVED") return NextResponse.json({ error: "Apenas campanhas aprovadas" }, { status: 400 });
-  if (!campaign.imageUrl) return NextResponse.json({ error: "Campanha precisa de imagem" }, { status: 400 });
+
+  let imageUrl = campaign.imageUrl;
+  if (!imageUrl && campaign.templateId) {
+    const tpl = await prisma.template.findUnique({ where: { id: campaign.templateId } });
+    imageUrl = tpl?.imageUrl ?? null;
+    if (tpl?.imageUrl) {
+      await prisma.campaign.update({ where: { id }, data: { imageUrl: tpl.imageUrl } });
+    }
+  }
+  if (!imageUrl) return NextResponse.json({ error: "Campanha precisa de imagem" }, { status: 400 });
 
   const integration = await prisma.integration.findFirst({ where: { barbershopId: session.user.barbershopId, provider: "trinks" } });
   // NOTE: instagram fields estão na mesma tabela
@@ -45,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const postId = await publishToInstagram(
       integration.instagramPageAccessToken,
       integration.instagramBusinessId,
-      campaign.imageUrl,
+      imageUrl,
       campaign.text,
     );
 

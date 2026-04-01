@@ -49,6 +49,7 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
   const [templateId, setTemplateId] = useState("");
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [savingImage, setSavingImage] = useState<string | null>(null);
 
   async function createCampaign() {
     setLoadingCreate(true);
@@ -91,6 +92,25 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
       toast({ title: "Erro ao publicar", description: String(e), variant: "destructive" });
     } finally {
       setPublishingId(null);
+    }
+  }
+
+  async function saveImage(id: string, imageUrl: string) {
+    setSavingImage(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar imagem");
+      setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl } : c)));
+      toast({ title: "Imagem salva", description: "Arte anexada à campanha." });
+    } catch (e) {
+      toast({ title: "Erro ao salvar imagem", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingImage(null);
     }
   }
 
@@ -173,18 +193,38 @@ export function CampaignsClient({ campaigns: initial, templates, instagramConfig
                     {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
                     <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
                   </div>
-                  <div className="flex gap-2">
-                    {c.status === "DRAFT" && (
-                      <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setStatus(c.id, "APPROVED")}>Aprovar</Button>
-                    )}
-                    {c.status === "APPROVED" && (
-                      <Button size="sm" variant="default" className="h-7 text-[11px]" onClick={() => publish(c.id)} disabled={!instagramConfigured || publishingId === c.id}>
-                        {publishingId === c.id ? "Publicando..." : "Publicar"}
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        placeholder="URL da imagem"
+                        className="rounded-md border border-border bg-surface-800 px-2 py-1 text-[11px] w-48"
+                        value={c.imageUrl ?? ""}
+                        onChange={(e) => setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, imageUrl: e.target.value } : x)))}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                        disabled={savingImage === c.id || !(c.imageUrl ?? "").trim()}
+                        onClick={(e) => { e.stopPropagation(); saveImage(c.id, c.imageUrl ?? ""); }}
+                      >
+                        {savingImage === c.id ? "Salvando..." : "Salvar imagem"}
                       </Button>
-                    )}
-                    {c.status !== "PUBLISHED" && (
-                      <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => remove(c.id)}>Deletar</Button>
-                    )}
+                    </div>
+                    <div className="flex gap-2">
+                      {c.status === "DRAFT" && (
+                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); setStatus(c.id, "APPROVED"); }}>Aprovar</Button>
+                      )}
+                      {c.status === "APPROVED" && (
+                        <Button size="sm" variant="default" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); publish(c.id); }} disabled={!instagramConfigured || publishingId === c.id}>
+                          {publishingId === c.id ? "Publicando..." : "Publicar"}
+                        </Button>
+                      )}
+                      {c.status !== "PUBLISHED" && (
+                        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); remove(c.id); }}>Deletar</Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
