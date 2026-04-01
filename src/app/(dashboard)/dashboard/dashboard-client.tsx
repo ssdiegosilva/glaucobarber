@@ -538,7 +538,7 @@ export function DashboardClient({
                 </div>
               </div>
               {expanded === apt.id && (
-                <div className="mt-3 rounded-md border border-border bg-surface-900 p-3 space-y-3">
+                <div className="mt-3 rounded-md border border-border bg-surface-900 p-3 space-y-3" onClick={(e) => e.stopPropagation()}>
                   {loadingDetail === apt.id && <p className="text-xs text-muted-foreground">Carregando...</p>}
                   {details[apt.id] && (
                     <AppointmentPanel
