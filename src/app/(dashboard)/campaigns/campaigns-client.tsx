@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
-import { CheckCircle2, Clock, Megaphone, Send, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Clock, ExternalLink, Megaphone, Send, XCircle } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
 const STATUS_VARIANT: Record<string, string> = { DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
@@ -28,7 +28,9 @@ export interface CampaignDto {
   status: string;
   channel: string | null;
   createdAt: string | Date;
+  publishedAt: string | Date | null;
   imageUrl: string | null;
+  instagramPermalink: string | null;
 }
 
 export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
@@ -36,6 +38,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
   instagramConfigured: boolean;
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
+  const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
   const [theme, setTheme] = useState("");
   const [objective, setObjective] = useState("");
   const [loadingCreate, setLoadingCreate] = useState(false);
@@ -89,8 +92,11 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao publicar");
-      setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: "PUBLISHED" } : c)));
-      toast({ title: "Publicado", description: "Campanha enviada ao Instagram" });
+      setCampaigns((prev) => prev.map((c) => c.id === id
+        ? { ...c, status: "PUBLISHED", imageUrl: null, publishedAt: new Date().toISOString(), instagramPermalink: data.permalink ?? null }
+        : c
+      ));
+      toast({ title: "Publicado no Instagram!", description: "Campanha enviada com sucesso." });
     } catch (e) {
       const msg = String(e);
       if (msg.includes("Instagram não configurado") || msg.includes("IG_NOT_CONFIGURED")) {
@@ -206,15 +212,67 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
         </CardContent>
       </Card>
 
-      {campaigns.length === 0 ? (
+      {/* Published campaigns table */}
+      {campaigns.some((c) => c.status === "PUBLISHED") && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Send className="h-4 w-4 text-green-400" /> Publicadas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {campaigns.filter((c) => c.status === "PUBLISHED").map((c) => (
+                <div key={c.id}>
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-800/50 transition-colors"
+                    onClick={() => setExpandedPublished(expandedPublished === c.id ? null : c.id)}
+                  >
+                    {expandedPublished === c.id
+                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                    <span className="text-xs text-muted-foreground w-24 shrink-0">
+                      {c.publishedAt ? new Date(c.publishedAt).toLocaleDateString("pt-BR") : relativeTime(c.createdAt)}
+                    </span>
+                    <span className="text-xs font-medium text-foreground flex-1 truncate">{c.objective}</span>
+                    {c.channel && <Badge variant="outline" className="text-[10px] shrink-0">{c.channel}</Badge>}
+                  </button>
+                  {expandedPublished === c.id && (
+                    <div className="px-10 pb-4 space-y-2">
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Título</p>
+                      <p className="text-xs text-foreground">{c.title}</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider mt-2">Texto</p>
+                      <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">{c.text}</p>
+                      {c.instagramPermalink && (
+                        <a
+                          href={c.instagramPermalink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-gold-400 hover:text-gold-300 mt-2"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Ver post no Instagram
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {campaigns.filter((c) => c.status !== "PUBLISHED").length === 0 && !campaigns.some((c) => c.status === "PUBLISHED") ? (
         <div className="rounded-xl border border-dashed border-gold-500/20 bg-card p-12 text-center">
           <Megaphone className="h-8 w-8 text-gold-400/50 mx-auto mb-3" />
           <h3 className="font-semibold text-foreground mb-1">Nenhuma campanha ainda</h3>
           <p className="text-sm text-muted-foreground">Crie uma campanha manual ou aprove uma sugestão da IA.</p>
         </div>
-      ) : (
+      ) : campaigns.filter((c) => c.status !== "PUBLISHED").length === 0 ? null : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {campaigns.map((c) => (
+          {campaigns.filter((c) => c.status !== "PUBLISHED").map((c) => (
             <Card key={c.id} className={c.status === "APPROVED" ? "border-gold-500/25" : ""}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">

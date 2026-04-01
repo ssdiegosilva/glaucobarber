@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { signCampaignImage } from "@/lib/storage";
+import { signCampaignImage, deleteCampaignImage } from "@/lib/storage";
 
 async function waitForMediaReady(containerId: string, token: string, maxWaitMs = 30_000): Promise<void> {
   const interval = 2_000;
@@ -40,6 +40,16 @@ async function publishToInstagram(token: string, businessId: string, imageUrl: s
   return publishJson.id as string;
 }
 
+async function fetchPermalink(postId: string, token: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/v21.0/${postId}?fields=permalink&access_token=${token}`);
+    const json = await res.json();
+    return json.permalink ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -57,12 +67,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   if (!imageUrl) return NextResponse.json({ error: "Campanha precisa de imagem" }, { status: 400 });
 
-  // Ensure URL is public (converts old signed URLs to public URLs)
   const freshUrl = await signCampaignImage(imageUrl);
   if (freshUrl) imageUrl = freshUrl;
 
   const integration = await prisma.integration.findFirst({ where: { barbershopId: session.user.barbershopId, provider: "trinks" } });
-  // NOTE: instagram fields estão na mesma tabela
   if (!integration?.instagramPageAccessToken || !integration.instagramBusinessId) {
     return NextResponse.json({ error: "Instagram não configurado" }, { status: 400, code: "IG_NOT_CONFIGURED" } as any);
   }
@@ -75,12 +83,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       campaign.text,
     );
 
+    const permalink = await fetchPermalink(postId, integration.instagramPageAccessToken);
+
+    // Delete image from storage to free space
+    if (campaign.imageUrl) {
+      await deleteCampaignImage(campaign.imageUrl).catch(() => null);
+    }
+
     await prisma.campaign.update({
       where: { id: campaign.id },
-      data: { status: "PUBLISHED", publishedAt: new Date(), instagramPostId: postId, imageUrl },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+        instagramPostId: postId,
+        instagramPermalink: permalink,
+        imageUrl: null, // cleared after publish
+      },
     });
 
-    return NextResponse.json({ ok: true, postId });
+    return NextResponse.json({ ok: true, postId, permalink });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

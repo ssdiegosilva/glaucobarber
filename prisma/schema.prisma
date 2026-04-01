@@ -495,7 +495,8 @@ model Campaign {
   channel     String?         @default("instagram")
   templateId  String?
   imageUrl    String?
-  instagramPostId String?
+  instagramPostId    String?
+  instagramPermalink String?
   scheduledAt DateTime?
   publishedAt DateTime?
 

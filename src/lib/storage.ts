@@ -86,6 +86,13 @@ export async function signCampaignImage(path: string): Promise<string | null> {
   return data.publicUrl;
 }
 
+export async function deleteCampaignImage(imageUrl: string): Promise<void> {
+  const path = extractSupabasePath(imageUrl) ?? (imageUrl.startsWith("http") ? null : imageUrl);
+  if (!path) return;
+  const client = getServiceClient();
+  await client.storage.from(bucket).remove([path]);
+}
+
 // Extracts the storage key from a Supabase signed or public URL
 // e.g. https://<ref>.supabase.co/storage/v1/object/sign/<bucket>/<key>?token=...
 //   or https://<ref>.supabase.co/storage/v1/object/public/<bucket>/<key>
