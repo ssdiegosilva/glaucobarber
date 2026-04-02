@@ -19,31 +19,32 @@ import {
 // ── Status config ─────────────────────────────────────────────────────────────
 
 interface ActionConfig {
-  id:    string;
-  label: string;
-  type:  string;  // maps to generate-message types
-  icon:  React.ComponentType<{ className?: string }>;
+  id:        string;
+  label:     string;
+  type:      string;  // maps to generate-message types
+  icon:      React.ComponentType<{ className?: string }>;
+  scheduled?: boolean;  // true = shows date picker and queues instead of sending immediately
 }
 
 const STATUS_ACTIONS: Record<PostSaleStatus, ActionConfig[]> = {
   RECENTE: [
     { id: "review",   label: "Pedir avaliação Google", type: "post_sale_review",   icon: MessageCircle },
-    { id: "followup", label: "Agendar mensagem",        type: "post_sale_followup", icon: Calendar },
+    { id: "followup", label: "Agendar mensagem",        type: "post_sale_followup", icon: Calendar, scheduled: true },
   ],
   EM_RISCO: [
     { id: "reactivation", label: "Mensagem de reativação", type: "reactivation",       icon: MessageCircle },
     { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: MessageCircle },
-    { id: "schedule",     label: "Agendar mensagem",        type: "reactivation",       icon: Calendar },
+    { id: "schedule",     label: "Agendar mensagem",        type: "reactivation",       icon: Calendar, scheduled: true },
   ],
   INATIVO: [
     { id: "reactivation", label: "Mensagem de reativação", type: "reactivation",       icon: MessageCircle },
     { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: MessageCircle },
-    { id: "schedule",     label: "Agendar mensagem",        type: "reactivation",       icon: Calendar },
+    { id: "schedule",     label: "Agendar mensagem",        type: "reactivation",       icon: Calendar, scheduled: true },
   ],
   REATIVADO: [
     { id: "followup", label: "Mensagem de acompanhamento", type: "post_sale_followup", icon: MessageCircle },
     { id: "review",   label: "Pedir avaliação Google",     type: "post_sale_review",   icon: MessageCircle },
-    { id: "schedule", label: "Agendar mensagem",            type: "post_sale_followup", icon: Calendar },
+    { id: "schedule", label: "Agendar mensagem",            type: "post_sale_followup", icon: Calendar, scheduled: true },
   ],
   NAO_CONTATAR: [],
 };
@@ -477,7 +478,7 @@ function ScheduleMessageModal({
   onClose:  () => void;
   onSent:   () => void;
 }) {
-  const isScheduled = action.id === "schedule";
+  const isScheduled = !!action.scheduled;
   const todayStr    = new Date().toISOString().slice(0, 10);
 
   const [message,     setMessage]     = useState("");

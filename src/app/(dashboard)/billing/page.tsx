@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { BillingClient } from "./billing-client";
 import { getPlan, checkAiAllowance, PLAN_LIMITS, APPOINTMENT_FEE_CENTS, APPOINTMENT_FEE_CAP_CENTS } from "@/lib/billing";
+import { getFullFeatureMatrix, ALL_FEATURES } from "@/lib/access";
 
 function currentYearMonth() {
   const now  = new Date();
@@ -17,7 +18,7 @@ export default async function BillingPage() {
   const barbershopId = session.user.barbershopId;
   const yearMonth    = currentYearMonth();
 
-  const [plan, allowance, billingStats] = await Promise.all([
+  const [plan, allowance, billingStats, featureMatrix] = await Promise.all([
     getPlan(barbershopId),
     checkAiAllowance(barbershopId),
     prisma.billingEvent.aggregate({
@@ -25,6 +26,7 @@ export default async function BillingPage() {
       _sum:   { amountCents: true },
       _count: { _all: true },
     }),
+    getFullFeatureMatrix(),
   ]);
 
   const appointmentCount  = billingStats._count._all;
@@ -51,6 +53,8 @@ export default async function BillingPage() {
         hasAppointmentFee={limits.appointmentFee}
         yearMonth={yearMonth}
         stripeCustomerId={plan.stripeCustomerId}
+        featureMatrix={featureMatrix}
+        allFeatures={ALL_FEATURES.map((f) => ({ key: f.key, label: f.label }))}
       />
     </div>
   );

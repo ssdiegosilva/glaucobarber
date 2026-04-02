@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// PATCH /api/whatsapp/messages/[id]  — update status (SENT | FAILED)
+// PATCH /api/whatsapp/messages/[id]
+// Body may contain: status, message (text), scheduledFor (ISO string | null)
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { status } = await req.json();
-  if (!["SENT", "FAILED", "QUEUED"].includes(status)) {
+  const body = await req.json();
+  const { status, message, scheduledFor } = body;
+
+  if (status && !["SENT", "FAILED", "QUEUED"].includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
@@ -21,8 +24,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await prisma.whatsappMessage.update({
     where: { id },
     data: {
-      status,
-      sentAt: status === "SENT" ? new Date() : undefined,
+      ...(status && { status, sentAt: status === "SENT" ? new Date() : undefined }),
+      ...(message !== undefined && { message }),
+      ...(scheduledFor !== undefined && {
+        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+      }),
     },
   });
 

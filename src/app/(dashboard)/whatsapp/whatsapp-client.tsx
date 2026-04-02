@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
-  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2,
+  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2, Pencil, X,
 } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 
@@ -78,6 +78,95 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
   );
 }
 
+// ── Edit modal for queued messages ───────────────────────────
+
+function EditMessageModal({
+  msg,
+  onClose,
+  onSaved,
+}: {
+  msg:     WaMessage;
+  onClose: () => void;
+  onSaved: (updated: WaMessage) => void;
+}) {
+  const [text,         setText]         = useState(msg.message);
+  const [scheduledFor, setScheduledFor] = useState(
+    msg.scheduledFor ? msg.scheduledFor.slice(0, 10) : ""
+  );
+  const [saving, setSaving] = useState(false);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/whatsapp/messages/${msg.id}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          message:      text.trim(),
+          scheduledFor: scheduledFor || null,
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      onSaved(data.message);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[60] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Editar mensagem</h3>
+            <p className="text-xs text-muted-foreground">{msg.customerName} · {msg.phone}</p>
+          </div>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {msg.scheduledFor && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Data de envio</label>
+            <input
+              type="date"
+              value={scheduledFor}
+              min={todayStr}
+              onChange={(e) => setScheduledFor(e.target.value)}
+              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Mensagem</label>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={5}
+            className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button className="flex-1" onClick={save} disabled={saving || !text.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            Salvar
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Message row ───────────────────────────────────────────────
 
 function MessageRow({
@@ -86,56 +175,42 @@ function MessageRow({
   onSent,
   onFailed,
   onDelete,
+  onEdit,
 }: {
   msg:        WaMessage;
   showActions?: boolean;
   onSent?:    (id: string) => void;
   onFailed?:  (id: string) => void;
   onDelete?:  (id: string) => void;
+  onEdit?:    (updated: WaMessage) => void;
 }) {
-  const [loading, setLoading] = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [showEdit,  setShowEdit]  = useState(false);
+  const [localMsg,  setLocalMsg]  = useState(msg);
 
   async function send() {
     setLoading(true);
     try {
-      // Recria a mensagem sem scheduledFor para envio imediato via Meta API
       const res = await fetch("/api/whatsapp/messages", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
-          customerId:   msg.customerId ?? undefined,
-          customerName: msg.customerName,
-          phone:        msg.phone,
-          message:      msg.message,
-          type:         msg.type,
+          customerId:   localMsg.customerId ?? undefined,
+          customerName: localMsg.customerName,
+          phone:        localMsg.phone,
+          message:      localMsg.message,
+          type:         localMsg.type,
         }),
       });
       if (!res.ok) return;
       const data = await res.json();
       if (data.message?.status === "SENT") {
-        onSent?.(msg.id);
-        // Remove da fila (a mensagem original ainda fica como QUEUED, mas foi substituída)
-        onDelete?.(msg.id);
-        await fetch(`/api/whatsapp/messages/${msg.id}`, { method: "DELETE" });
+        onSent?.(localMsg.id);
+        onDelete?.(localMsg.id);
+        await fetch(`/api/whatsapp/messages/${localMsg.id}`, { method: "DELETE" });
       } else {
-        onFailed?.(msg.id);
+        onFailed?.(localMsg.id);
       }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function patch(status: string) {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/whatsapp/messages/${msg.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) return;
-      if (status === "SENT") onSent?.(msg.id);
-      if (status === "FAILED") onFailed?.(msg.id);
     } finally {
       setLoading(false);
     }
@@ -144,65 +219,83 @@ function MessageRow({
   async function remove() {
     setLoading(true);
     try {
-      await fetch(`/api/whatsapp/messages/${msg.id}`, { method: "DELETE" });
-      onDelete?.(msg.id);
+      await fetch(`/api/whatsapp/messages/${localMsg.id}`, { method: "DELETE" });
+      onDelete?.(localMsg.id);
     } finally {
       setLoading(false);
     }
   }
 
+  function handleSaved(updated: WaMessage) {
+    setLocalMsg(updated);
+    onEdit?.(updated);
+  }
+
   return (
-    <div className="rounded-lg border border-border bg-surface-800/60 p-3 space-y-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-semibold text-foreground truncate">{msg.customerName}</span>
-          <span className="text-xs text-muted-foreground shrink-0">{msg.phone}</span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-            {typeIcon(msg.type)}{typeLabel(msg.type)}
-          </span>
-          {msg.status === "SENT"   && <CheckCircle2 className="h-4 w-4 text-green-400" />}
-          {msg.status === "FAILED" && <XCircle      className="h-4 w-4 text-red-400"   />}
-          {msg.status === "QUEUED" && <Clock        className="h-4 w-4 text-yellow-400" />}
-        </div>
-      </div>
-
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{msg.message}</p>
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-muted-foreground">
-          {msg.sentAt
-            ? `Enviado ${formatDate(msg.sentAt)}`
-            : msg.scheduledFor
-            ? `Agendado para ${formatDate(msg.scheduledFor)}`
-            : formatDate(msg.createdAt)}
-        </span>
-
-        {showActions && msg.status === "QUEUED" && (
-          <div className="flex gap-1.5">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={send}
-              disabled={loading}
-              className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors h-auto"
-            >
-              {loading
-                ? <Loader2 className="h-3 w-3 animate-spin" />
-                : <Send className="h-3 w-3" />}
-              Enviar
-            </Button>
-            <Button size="icon-sm" variant="ghost" onClick={() => patch("FAILED")} disabled={loading} title="Marcar como falha">
-              <XCircle className="h-3.5 w-3.5 text-red-400" />
-            </Button>
-            <Button size="icon-sm" variant="ghost" onClick={remove} disabled={loading} title="Remover">
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
+    <>
+      <div className="rounded-lg border border-border bg-surface-800/60 p-3 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-semibold text-foreground truncate">{localMsg.customerName}</span>
+            <span className="text-xs text-muted-foreground shrink-0">{localMsg.phone}</span>
           </div>
-        )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+              {typeIcon(localMsg.type)}{typeLabel(localMsg.type)}
+            </span>
+            {localMsg.status === "SENT"   && <CheckCircle2 className="h-4 w-4 text-green-400" />}
+            {localMsg.status === "FAILED" && <XCircle      className="h-4 w-4 text-red-400"   />}
+            {localMsg.status === "QUEUED" && <Clock        className="h-4 w-4 text-yellow-400" />}
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{localMsg.message}</p>
+
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {localMsg.sentAt
+              ? `Enviado ${formatDate(localMsg.sentAt)}`
+              : localMsg.scheduledFor
+              ? `Agendado para ${formatDate(localMsg.scheduledFor)}`
+              : formatDate(localMsg.createdAt)}
+          </span>
+
+          {showActions && localMsg.status === "QUEUED" && (
+            <div className="flex gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={send}
+                disabled={loading}
+                className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors h-auto"
+              >
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                Enviar
+              </Button>
+              <Button
+                size="icon-sm" variant="ghost"
+                onClick={() => setShowEdit(true)}
+                disabled={loading}
+                title="Editar mensagem"
+              >
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+              <Button size="icon-sm" variant="ghost" onClick={remove} disabled={loading} title="Remover da fila">
+                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {showEdit && (
+        <EditMessageModal
+          msg={localMsg}
+          onClose={() => setShowEdit(false)}
+          onSaved={handleSaved}
+        />
+      )}
+    </>
   );
 }
 
@@ -251,6 +344,14 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
     setQueue((prev) => prev.filter((m) => m.id !== id));
     setToday((prev) => prev.filter((m) => m.id !== id));
     setScheduled((prev) => prev.filter((m) => m.id !== id));
+  }
+
+  function updateMessage(updated: WaMessage) {
+    const apply = (list: WaMessage[]) =>
+      list.map((m) => m.id === updated.id ? updated : m);
+    setQueue(apply);
+    setScheduled(apply);
+    setToday(apply);
   }
 
   const sentToday   = today.filter((m) => m.status === "SENT").length;
@@ -351,6 +452,7 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
                   onSent={markSent}
                   onFailed={markFailed}
                   onDelete={removeFromQueue}
+                  onEdit={updateMessage}
                 />
               ))}
             </>
@@ -380,6 +482,7 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
                   onSent={markSent}
                   onFailed={markFailed}
                   onDelete={removeFromQueue}
+                  onEdit={updateMessage}
                 />
               ))}
             </>

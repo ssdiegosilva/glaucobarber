@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap, CheckCircle2, Lock, TrendingUp, CreditCard, Loader2 } from "lucide-react";
+import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2 } from "lucide-react";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan display config ──────────────────────────────────────────────────────
@@ -44,6 +44,8 @@ interface Props {
   hasAppointmentFee:  boolean;
   yearMonth:          string;
   stripeCustomerId:   string | null;
+  featureMatrix:      Record<string, Record<string, boolean>>;
+  allFeatures:        { key: string; label: string }[];
 }
 
 function formatBRL(cents: number) {
@@ -58,6 +60,14 @@ function formatYearMonth(ym: string) {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
+const COMPARISON_TIERS: PlanTier[] = ["FREE", "STARTER", "PRO"];
+
+const TIER_STYLE: Record<string, { label: string; badge: string; highlight: boolean }> = {
+  FREE:    { label: "Free",  badge: "text-muted-foreground border-border/60", highlight: false },
+  STARTER: { label: "Start", badge: "text-blue-400 border-blue-400/30",       highlight: false },
+  PRO:     { label: "Pro",   badge: "text-gold-400 border-gold-500/30",        highlight: true  },
+};
+
 export function BillingClient({
   planTier,
   planStatus,
@@ -71,6 +81,8 @@ export function BillingClient({
   hasAppointmentFee,
   yearMonth,
   stripeCustomerId,
+  featureMatrix,
+  allFeatures,
 }: Props) {
   const [loadingCredits, setLoadingCredits] = useState(false);
   const [loadingPortal,  setLoadingPortal]  = useState(false);
@@ -137,18 +149,6 @@ export function BillingClient({
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span>{PLAN_AI_LABEL[planTier]} de IA</span>
           </div>
-          {planTier === "STARTER" && (
-            <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span>Gestão financeira bloqueada (disponível no Pro)</span>
-            </div>
-          )}
-          {planTier === "FREE" && (
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Todos os recursos desbloqueados no trial</span>
-            </div>
-          )}
           {hasAppointmentFee && (
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-gold-400 shrink-0" />
@@ -224,6 +224,57 @@ export function BillingClient({
           {loadingCredits ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 text-gold-400" />}
           Comprar pacote de créditos — R$29 (+60 chamadas)
         </Button>
+      </div>
+
+      {/* Plan comparison */}
+      <div className="rounded-xl border border-border/60 bg-surface-900 overflow-hidden">
+        <div className="px-5 py-4 border-b border-border/40">
+          <p className="text-sm font-medium text-foreground">Comparativo de planos</p>
+          <p className="text-xs text-muted-foreground mt-0.5">O que está incluso em cada plano</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/30">
+                <th className="text-left px-5 py-3 font-medium text-muted-foreground w-44">Funcionalidade</th>
+                {COMPARISON_TIERS.map((tier) => (
+                  <th key={tier} className="text-center px-4 py-3">
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] ${TIER_STYLE[tier].badge} ${planTier === tier ? "ring-1 ring-offset-1 ring-current" : ""}`}
+                    >
+                      {TIER_STYLE[tier].label}
+                    </Badge>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allFeatures
+                .filter((f) => !["billing", "settings"].includes(f.key))
+                .map((f, i) => (
+                  <tr
+                    key={f.key}
+                    className={`border-b border-border/20 last:border-0 ${i % 2 === 0 ? "" : "bg-surface-800/20"}`}
+                  >
+                    <td className="px-5 py-2.5 text-muted-foreground">{f.label}</td>
+                    {COMPARISON_TIERS.map((tier) => {
+                      const enabled = featureMatrix[f.key]?.[tier] ?? true;
+                      return (
+                        <td key={tier} className="text-center px-4 py-2.5">
+                          {enabled ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Appointment billing (PRO only) */}
