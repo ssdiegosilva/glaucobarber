@@ -30,7 +30,7 @@ export default async function DashboardPage({
 
       prisma.barbershop.findUnique({
         where:  { id: barbershopId },
-        select: { name: true, trinksConfigured: true },
+        select: { name: true, trinksConfigured: true, lastDailyGiftAt: true },
       }),
 
       prisma.suggestion.findMany({
@@ -114,6 +114,7 @@ export default async function DashboardPage({
         view={view}
         barbershopName={barbershop?.name ?? ""}
         trinksConfigured={barbershop?.trinksConfigured ?? false}
+        dailyGiftAvailable={!barbershop?.lastDailyGiftAt || barbershop.lastDailyGiftAt < startOfDay(now)}
         liveError={liveDay.error}
         isOffDay={isOffDay}
         stats={{

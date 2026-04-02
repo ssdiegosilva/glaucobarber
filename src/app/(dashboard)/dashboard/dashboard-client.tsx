@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,7 @@ interface Props {
   approvedSuggestions?:  Suggestion[];
   campaign:              Campaign | null;
   periodStats:           PeriodStats | null;
+  dailyGiftAvailable?:   boolean;
 }
 
 // ── Status helpers ───────────────────────────────────────────
@@ -156,6 +157,7 @@ export function DashboardClient({
   approvedSuggestions = [],
   campaign,
   periodStats,
+  dailyGiftAvailable = false,
 }: Props) {
   const [localSuggestions, setLocalSuggestions] = useState(suggestions);
   const [localApproved] = useState(approvedSuggestions);
@@ -183,6 +185,31 @@ export function DashboardClient({
 
   // Track post-approval state per suggestion (id → whatsappQueued)
   const [approvedMap, setApprovedMap] = useState<Record<string, boolean>>({});
+
+  // Daily gift: auto-generate suggestions on first access of the day (free, no credit deducted)
+  useEffect(() => {
+    if (!dailyGiftAvailable) return;
+    setGenerating(true);
+    fetch("/api/ai/suggestions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gift: true }) })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.suggestions?.length) {
+          const newOnes = data.suggestions.map((s: any) => ({
+            id: s.id ?? crypto.randomUUID(),
+            type: s.type ?? "COMMERCIAL_INSIGHT",
+            title: s.title ?? "Sugestão",
+            content: s.content ?? "",
+            reason: s.reason ?? "",
+          }));
+          setLocalSuggestions((prev) => [...newOnes, ...prev]);
+          toast({ title: "✨ Sugestões do dia geradas!", description: `${newOnes.length} ideias prontas para você — presente diário da IA.` });
+          window.dispatchEvent(new Event("ai-used"));
+        }
+      })
+      .catch(() => { /* silently ignore — not critical */ })
+      .finally(() => setGenerating(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleApproveSuggestion(id: string) {
     setApproving(id);

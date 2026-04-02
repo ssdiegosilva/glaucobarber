@@ -96,6 +96,9 @@ model Barbershop {
   // Trinks: the operational source of truth
   trinksConfigured Boolean @default(false)
 
+  // Daily gift: first AI suggestion generation of the day is free
+  lastDailyGiftAt  DateTime?
+
   // Agenda display settings
   agendaStartHour Int @default(6)   // 0–23
   agendaEndHour   Int @default(24)  // 1–24 (exclusive upper bound)
