@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
+  CalendarDays,
   Users,
   Scissors,
   Tag,
@@ -20,6 +21,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export const NAV = [
   { href: "/dashboard",    label: "Dashboard",   icon: LayoutDashboard },
+  { href: "/agenda",       label: "Agenda",      icon: CalendarDays },
   { href: "/copilot",      label: "Copilot",     icon: Sparkles },
   { href: "/clients",      label: "Clientes",    icon: Users },
   { href: "/services",     label: "Serviços",    icon: Scissors },

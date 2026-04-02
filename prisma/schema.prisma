@@ -302,6 +302,15 @@ model Customer {
   firstVisitAt  DateTime?
   avgTicket     Decimal  @default(0) @db.Decimal(10, 2)
 
+  // Last visit summary (refreshed on COMPLETED or sync)
+  lastServiceSummary  String?
+  lastSpentAmount     Decimal? @db.Decimal(10, 2)
+
+  // Rolling 60-day window (refreshed on COMPLETED or sync)
+  totalSpentLast60d   Decimal? @db.Decimal(10, 2)
+  visitsLast60d       Int?
+  avgTicketLast60d    Decimal? @db.Decimal(10, 2)
+
   // Source tracking
   syncedFromTrinks Boolean  @default(false)
   lastSyncedAt     DateTime?

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppointmentStatus } from "@prisma/client";
 import { buildTrinksClient } from "@/lib/integrations/trinks/client";
-import { refreshPostSaleStatus } from "@/modules/post-sale/service";
+import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
 
 const allowed: AppointmentStatus[] = ["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
 
@@ -39,10 +39,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Atualiza campos de pós-venda no cliente imediatamente (sem esperar o sync)
   if (appointment.customerId) {
     if (status === "COMPLETED") {
+      // Busca serviço do agendamento para preencher lastServiceSummary
+      const apptWithService = await prisma.appointment.findUnique({
+        where:   { id: appointment.id },
+        include: { service: { select: { name: true } }, items: { select: { name: true } } },
+      });
+      const serviceName = apptWithService?.service?.name
+        ?? apptWithService?.items.map((i) => i.name).join(", ")
+        ?? null;
+
       await prisma.customer.update({
         where: { id: appointment.customerId },
-        data:  { lastCompletedAppointmentAt: now },
+        data: {
+          lastCompletedAppointmentAt: now,
+          lastServiceSummary: serviceName,
+          lastSpentAmount:    appointment.price,
+        },
       });
+
+      // Atualiza rolling 60d (fire-and-forget)
+      refreshCustomer60dStats(appointment.customerId).catch(() => null);
     }
     if (status === "SCHEDULED" || status === "CONFIRMED") {
       // Garante que nextAppointmentAt reflete este agendamento se for o mais próximo

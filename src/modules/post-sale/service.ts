@@ -10,6 +10,30 @@ function daysAgo(days: number) {
   return d;
 }
 
+// Refreshes the rolling 60-day cached stats for a single customer
+export async function refreshCustomer60dStats(customerId: string) {
+  const since60 = daysAgo(60);
+
+  const agg = await prisma.appointment.aggregate({
+    where: { customerId, status: "COMPLETED", scheduledAt: { gte: since60 } },
+    _count: { _all: true },
+    _sum:   { price: true },
+  });
+
+  const visits = agg._count._all;
+  const total  = Number(agg._sum.price ?? 0);
+  const avg    = visits > 0 ? total / visits : 0;
+
+  await prisma.customer.update({
+    where: { id: customerId },
+    data: {
+      visitsLast60d:     visits,
+      totalSpentLast60d: total,
+      avgTicketLast60d:  avg,
+    },
+  });
+}
+
 // Status refresh used by cron or on-demand
 export async function refreshPostSaleStatus(barbershopId: string) {
   const now = new Date();

@@ -8,7 +8,7 @@ import { buildTrinksClient } from "./client";
 import { mapTrinksCustomer, mapTrinksService, mapTrinksAppointment } from "./mappers";
 import type { SyncResult, SyncError } from "./types";
 import { subDays, addDays, format } from "date-fns";
-import { refreshPostSaleStatus } from "@/modules/post-sale/service";
+import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
 
 export async function syncBarbershop(
   barbershopId: string,
@@ -129,8 +129,34 @@ export async function syncBarbershop(
         _max:   { scheduledAt: true },
       });
 
+      // Fetch last completed appointment per customer for lastServiceSummary + lastSpentAmount
+      const lastCompletedMap = new Map<string, { price: any; serviceName: string | null }>();
+      const lastAppointments = await prisma.appointment.findMany({
+        where: { barbershopId, customerId: { not: null }, status: "COMPLETED" },
+        select: { customerId: true, scheduledAt: true, price: true, service: { select: { name: true } } },
+        orderBy: { scheduledAt: "desc" },
+      });
+      for (const a of lastAppointments) {
+        if (!a.customerId || lastCompletedMap.has(a.customerId)) continue;
+        lastCompletedMap.set(a.customerId, { price: a.price, serviceName: a.service?.name ?? null });
+      }
+
+      const since60 = new Date(Date.now() - 60 * 86400_000);
+      const agg60 = await prisma.appointment.groupBy({
+        by: ["customerId"],
+        where: { barbershopId, customerId: { not: null }, status: "COMPLETED", scheduledAt: { gte: since60 } },
+        _count: { _all: true },
+        _sum:   { price: true },
+      });
+      const agg60Map = new Map(agg60.map((a) => [a.customerId!, a]));
+
       for (const agg of aggregates) {
         if (!agg.customerId) continue;
+        const last = lastCompletedMap.get(agg.customerId);
+        const w60  = agg60Map.get(agg.customerId);
+        const visits60 = w60?._count._all ?? 0;
+        const spent60  = Number(w60?._sum.price ?? 0);
+
         await prisma.customer.update({
           where: { id: agg.customerId },
           data: {
@@ -138,6 +164,11 @@ export async function syncBarbershop(
             totalSpent:                 agg._sum.price ?? 0,
             lastVisitAt:                agg._max.scheduledAt ?? null,
             lastCompletedAppointmentAt: agg._max.scheduledAt ?? null,
+            lastServiceSummary:         last?.serviceName ?? null,
+            lastSpentAmount:            last?.price ?? null,
+            visitsLast60d:              visits60,
+            totalSpentLast60d:          spent60,
+            avgTicketLast60d:           visits60 > 0 ? spent60 / visits60 : null,
           },
         });
         customersUpdatedStats++;
