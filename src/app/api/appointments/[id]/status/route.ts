@@ -36,6 +36,42 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   await prisma.appointment.update({ where: { id: appointment.id }, data });
 
+  // Atualiza campos de pós-venda no cliente imediatamente (sem esperar o sync)
+  if (appointment.customerId) {
+    if (status === "COMPLETED") {
+      await prisma.customer.update({
+        where: { id: appointment.customerId },
+        data:  { lastCompletedAppointmentAt: now },
+      });
+    }
+    if (status === "SCHEDULED" || status === "CONFIRMED") {
+      // Garante que nextAppointmentAt reflete este agendamento se for o mais próximo
+      const existing = await prisma.customer.findUnique({
+        where:  { id: appointment.customerId },
+        select: { nextAppointmentAt: true },
+      });
+      if (!existing?.nextAppointmentAt || appointment.scheduledAt < existing.nextAppointmentAt) {
+        await prisma.customer.update({
+          where: { id: appointment.customerId },
+          data:  { nextAppointmentAt: appointment.scheduledAt },
+        });
+      }
+    }
+    if (status === "CANCELLED" || status === "NO_SHOW") {
+      // Remove nextAppointmentAt se era este agendamento
+      const existing = await prisma.customer.findUnique({
+        where:  { id: appointment.customerId },
+        select: { nextAppointmentAt: true },
+      });
+      if (existing?.nextAppointmentAt?.getTime() === appointment.scheduledAt.getTime()) {
+        await prisma.customer.update({
+          where: { id: appointment.customerId },
+          data:  { nextAppointmentAt: null },
+        });
+      }
+    }
+  }
+
   // Mirror status to Trinks (best-effort, don't fail if Trinks is down)
   const trinksStatus = TRINKS_STATUS_MAP[status as AppointmentStatus];
   if (trinksStatus && appointment.trinksId) {

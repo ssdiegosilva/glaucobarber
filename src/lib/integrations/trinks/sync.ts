@@ -134,15 +134,56 @@ export async function syncBarbershop(
         await prisma.customer.update({
           where: { id: agg.customerId },
           data: {
-            totalVisits: agg._count._all,
-            totalSpent:  agg._sum.price ?? 0,
-            lastVisitAt: agg._max.scheduledAt ?? null,
+            totalVisits:                agg._count._all,
+            totalSpent:                 agg._sum.price ?? 0,
+            lastVisitAt:                agg._max.scheduledAt ?? null,
+            lastCompletedAppointmentAt: agg._max.scheduledAt ?? null,
           },
         });
         customersUpdatedStats++;
       }
     } catch (err) {
       errors.push({ entity: "CustomerStats", message: String(err) });
+    }
+
+    // ── 5. Atualiza nextAppointmentAt ─────────────────────
+    try {
+      const nowTs = new Date();
+
+      // Encontra o próximo agendamento futuro de cada cliente
+      const upcoming = await prisma.appointment.findMany({
+        where: {
+          barbershopId,
+          customerId:  { not: null },
+          status:      { in: ["SCHEDULED", "CONFIRMED"] },
+          scheduledAt: { gte: nowTs },
+        },
+        select:  { customerId: true, scheduledAt: true },
+        orderBy: { scheduledAt: "asc" },
+      });
+
+      // Mapa: customerId → data mais próxima
+      const nextMap = new Map<string, Date>();
+      for (const a of upcoming) {
+        if (!a.customerId || nextMap.has(a.customerId)) continue;
+        nextMap.set(a.customerId, a.scheduledAt);
+      }
+
+      // Limpa nextAppointmentAt de todos (para remover agendamentos cancelados/passados)
+      await prisma.customer.updateMany({
+        where: { barbershopId },
+        data:  { nextAppointmentAt: null },
+      });
+
+      // Reaplica apenas os que têm agendamento futuro real
+      for (const [customerId, scheduledAt] of nextMap) {
+        await prisma.customer.update({
+          where: { id: customerId },
+          data:  { nextAppointmentAt: scheduledAt },
+        });
+      }
+    } catch (err) {
+      errors.push({ entity: "NextAppointment", message: String(err) });
     }
 
     const durationMs = Date.now() - startedAt;
