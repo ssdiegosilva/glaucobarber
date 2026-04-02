@@ -41,6 +41,7 @@ export default async function SettingsPage() {
               description: barbershop.description,
               slug: barbershop.slug,
               logoUrl: barbershop.logoUrl,
+              instagramUrl: barbershop.instagramUrl,
             }}
           />
         )}
