@@ -8,22 +8,36 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { theme, objective, channel } = await req.json();
+  const { theme, objective, channel, offerId } = await req.json();
   if (!theme || !objective) return NextResponse.json({ error: "Tema e objetivo são obrigatórios" }, { status: 400 });
 
+  // Build offer context for AI if offer is linked
+  let offerContext = "";
+  if (offerId) {
+    const offer = await prisma.offer.findFirst({
+      where:   { id: offerId, barbershopId: session.user.barbershopId },
+      include: { items: { include: { service: { select: { name: true } } } } },
+    });
+    if (offer) {
+      const serviceNames = offer.items.map((i) => i.service.name).join(", ") || offer.title;
+      offerContext = ` Esta campanha promove a oferta especial "${offer.title}" — ${serviceNames} por R$ ${Number(offer.salePrice).toFixed(2)} (de R$ ${Number(offer.originalPrice).toFixed(2)}). Mencione o valor especial e os serviços incluídos no texto.`;
+    }
+  }
+
   const provider = getAIProvider();
-  const context = `Barbearia: ${session.user.barbershopId}. Tema: ${theme}. Objetivo: ${objective}.`;
+  const context = `Barbearia: ${session.user.barbershopId}. Tema: ${theme}. Objetivo: ${objective}.${offerContext}`;
   const ai = await provider.generateCampaignText(objective, context);
 
   const campaign = await prisma.campaign.create({
     data: {
       barbershopId: session.user.barbershopId,
-      status: "DRAFT",
-      title: theme,
+      status:      "DRAFT",
+      title:       theme,
       objective,
-      text: ai.text || "",
+      text:        ai.text || "",
       artBriefing: ai.artBriefing || "",
-      channel: channel ?? "instagram",
+      channel:     channel ?? "instagram",
+      offerId:     offerId ?? null,
     },
   });
 

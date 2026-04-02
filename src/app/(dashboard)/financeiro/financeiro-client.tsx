@@ -7,16 +7,20 @@ import { formatBRL } from "@/lib/utils";
 import {
   TrendingUp, TrendingDown, Target, Scissors, BarChart3,
   Loader2, Tag, ChevronLeft, ChevronRight, CheckCircle2,
+  Sparkles, X as XIcon, Calendar,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getDaysInMonth } from "date-fns";
 
 // ── Types ─────────────────────────────────────────────────────
 
 interface Goal {
-  id: string;
+  id:                string;
   revenueTarget:     number | null;
   appointmentTarget: number | null;
   notes:             string | null;
+  offDaysOfWeek:     number[];
+  workingDaysCount:  number | null;
 }
 
 interface ServiceRevenue { name: string; category: string; revenue: number; count: number; }
@@ -32,6 +36,8 @@ interface GoalRow {
   id: string; month: number; monthLabel: string;
   revenueTarget: number | null; revenueActual: number;
   isPast: boolean; isCurrent: boolean;
+  offDaysOfWeek:    number[];
+  workingDaysCount: number | null;
 }
 
 interface Props {
@@ -47,6 +53,52 @@ interface Props {
   totalDiscountMonth: number;
   annualMonths: AnnualMonth[];
   allGoals: GoalRow[];
+}
+
+// ── Day helpers ───────────────────────────────────────────────
+
+const DOW_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DOW_FULL   = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+
+/** Mini calendar for a month showing X on off days */
+function WorkingDaysCalendar({ month, year, offDaysOfWeek }: { month: number; year: number; offDaysOfWeek: number[] }) {
+  const daysInMonth = getDaysInMonth(new Date(year, month - 1, 1));
+  const firstDow    = new Date(year, month - 1, 1).getDay(); // 0=Sun
+  const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  // pad to full weeks
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="mt-3">
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {DOW_LABELS.map((d) => (
+          <div key={d} className="text-center text-[9px] font-semibold text-muted-foreground uppercase tracking-wide py-0.5">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />;
+          const dow    = new Date(year, month - 1, day).getDay();
+          const isOff  = offDaysOfWeek.includes(dow);
+          return (
+            <div
+              key={i}
+              className={`flex items-center justify-center rounded text-[10px] h-6 font-medium transition-colors
+                ${isOff
+                  ? "bg-red-500/12 text-red-400 border border-red-500/20"
+                  : "bg-surface-700/50 text-foreground/70"
+                }`}
+            >
+              {isOff ? <XIcon className="h-2.5 w-2.5" /> : day}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-2 text-right">
+        <XIcon className="h-2.5 w-2.5 inline text-red-400 mr-1" />dias de folga
+      </p>
+    </div>
+  );
 }
 
 type Tab = "overview" | "goals" | "services" | "discounts" | "annual";
@@ -73,15 +125,60 @@ export function FinanceiroClient({
   const [goal, setGoal] = useState<Goal | null>(initialGoal);
 
   // Metas tab state
-  const [selectedMonth, setSelectedMonth]           = useState(month);
-  const [revenueTarget, setRevenueTarget]           = useState(initialGoal?.revenueTarget ? String(initialGoal.revenueTarget) : "");
-  const [savingGoal, setSavingGoal]                 = useState(false);
-  const [allGoals, setAllGoals]                     = useState<GoalRow[]>(initialAllGoals);
+  const [selectedMonth, setSelectedMonth] = useState(month);
+  const [revenueTarget, setRevenueTarget] = useState(initialGoal?.revenueTarget ? String(initialGoal.revenueTarget) : "");
+  const [offDaysOfWeek, setOffDaysOfWeek] = useState<number[]>(initialGoal?.offDaysOfWeek ?? []);
+  const [savingGoal, setSavingGoal]       = useState(false);
+  const [allGoals, setAllGoals]           = useState<GoalRow[]>(initialAllGoals);
+
+  // AI wizard state
+  type WizardStep = "idle" | "days" | "hours" | "suggesting" | "review";
+  const [wizardStep,          setWizardStep]          = useState<WizardStep>("idle");
+  const [wizardOffDays,       setWizardOffDays]       = useState<number[]>([]);
+  const [wizardHours,         setWizardHours]         = useState("8");
+  const [wizardApptsPerHour,  setWizardApptsPerHour]  = useState("2");
+  const [aiSuggestion,        setAiSuggestion]        = useState<{ suggestedRevenueTarget: number; workingDaysCount: number; explanation: string } | null>(null);
 
   // Annual tab state
   const [annualYear, setAnnualYear]   = useState(year);
   const [annualData, setAnnualData]   = useState(initialAnnualMonths);
   const [loadingYear, setLoadingYear] = useState(false);
+
+  function toggleWizardDay(dow: number) {
+    setWizardOffDays((prev) => prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow]);
+  }
+
+  async function handleAiSuggest() {
+    setWizardStep("suggesting");
+    try {
+      const res = await fetch("/api/goals/ai-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month: selectedMonth,
+          year,
+          offDaysOfWeek:      wizardOffDays,
+          hoursPerDay:        Number(wizardHours),
+          appointmentsPerHour: Number(wizardApptsPerHour),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao gerar sugestão");
+      setAiSuggestion(data);
+      setWizardStep("review");
+    } catch (e) {
+      toast({ title: "Erro na IA", description: String(e), variant: "destructive" });
+      setWizardStep("hours");
+    }
+  }
+
+  function handleAcceptAiSuggestion() {
+    if (!aiSuggestion) return;
+    setRevenueTarget(String(aiSuggestion.suggestedRevenueTarget));
+    setOffDaysOfWeek(wizardOffDays);
+    setWizardStep("idle");
+    setAiSuggestion(null);
+  }
 
   async function handleSaveGoal() {
     setSavingGoal(true);
@@ -89,19 +186,26 @@ export function FinanceiroClient({
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: selectedMonth, year, revenueTarget: revenueTarget ? Number(revenueTarget) : null }),
+        body: JSON.stringify({
+          month:         selectedMonth,
+          year,
+          revenueTarget: revenueTarget ? Number(revenueTarget) : null,
+          offDaysOfWeek,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar meta");
 
       const saved: GoalRow = {
-        id:            data.goal.id,
-        month:         selectedMonth,
-        monthLabel:    MONTH_NAMES[selectedMonth - 1].slice(0, 3),
-        revenueTarget: data.goal.revenueTarget ? Number(data.goal.revenueTarget) : null,
-        revenueActual: allGoals.find((g) => g.month === selectedMonth)?.revenueActual ?? 0,
-        isPast:        selectedMonth < month,
-        isCurrent:     selectedMonth === month,
+        id:               data.goal.id,
+        month:            selectedMonth,
+        monthLabel:       MONTH_NAMES[selectedMonth - 1].slice(0, 3),
+        revenueTarget:    data.goal.revenueTarget ? Number(data.goal.revenueTarget) : null,
+        revenueActual:    allGoals.find((g) => g.month === selectedMonth)?.revenueActual ?? 0,
+        isPast:           selectedMonth < month,
+        isCurrent:        selectedMonth === month,
+        offDaysOfWeek:    offDaysOfWeek,
+        workingDaysCount: data.goal.workingDaysCount ?? null,
       };
 
       setAllGoals((prev) => {
@@ -110,11 +214,12 @@ export function FinanceiroClient({
       });
 
       if (selectedMonth === month) {
-        setGoal({ id: saved.id, revenueTarget: saved.revenueTarget, appointmentTarget: null, notes: null });
+        setGoal({ id: saved.id, revenueTarget: saved.revenueTarget, appointmentTarget: null, notes: null, offDaysOfWeek, workingDaysCount: data.goal.workingDaysCount ?? null });
       }
 
       toast({ title: `Meta de ${MONTH_NAMES[selectedMonth - 1]} salva!` });
       setRevenueTarget("");
+      setOffDaysOfWeek([]);
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally {
@@ -227,11 +332,128 @@ export function FinanceiroClient({
           {/* Left: define goal */}
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Defina a meta de receita mensal. Você pode cadastrar metas para os próximos meses do ano.
+              Defina a meta de receita e os seus dias de trabalho no mês.
             </p>
 
+            {/* AI Wizard */}
+            {wizardStep === "idle" && (
+              <button
+                onClick={() => { setWizardStep("days"); setWizardOffDays(offDaysOfWeek); }}
+                className="w-full flex items-center gap-3 rounded-lg border border-gold-500/30 bg-gold-500/8 px-4 py-3 text-left hover:bg-gold-500/15 transition-colors"
+              >
+                <Sparkles className="h-4 w-4 text-gold-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-gold-400">Criar meta com IA</p>
+                  <p className="text-xs text-muted-foreground">Responda 2 perguntas e a IA sugere sua meta ideal</p>
+                </div>
+              </button>
+            )}
+
+            {/* Wizard: step days */}
+            {(wizardStep === "days" || wizardStep === "hours" || wizardStep === "suggesting" || wizardStep === "review") && (
+              <div className="rounded-lg border border-gold-500/30 bg-card p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-gold-400" />
+                    <p className="text-sm font-semibold text-foreground">Assistente de metas</p>
+                  </div>
+                  <button onClick={() => { setWizardStep("idle"); setAiSuggestion(null); }} className="text-muted-foreground hover:text-foreground">
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {wizardStep === "days" && (
+                  <>
+                    <p className="text-sm text-foreground">Quais dias da semana você <span className="font-semibold text-red-400">não vai trabalhar</span>?</p>
+                    <div className="flex flex-wrap gap-2">
+                      {DOW_FULL.map((label, dow) => (
+                        <button
+                          key={dow}
+                          type="button"
+                          onClick={() => toggleWizardDay(dow)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+                            ${wizardOffDays.includes(dow)
+                              ? "bg-red-500/15 border-red-500/40 text-red-400"
+                              : "bg-surface-800 border-border text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {wizardOffDays.length === 0
+                        ? "Nenhum dia de folga selecionado"
+                        : `Dias de folga: ${wizardOffDays.map((d) => DOW_FULL[d]).join(", ")}`}
+                    </p>
+                    <Button size="sm" onClick={() => setWizardStep("hours")}>
+                      Próximo →
+                    </Button>
+                  </>
+                )}
+
+                {wizardStep === "hours" && (
+                  <>
+                    <p className="text-sm text-foreground">Quantas horas por dia você vai trabalhar?</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Horas por dia</label>
+                        <input
+                          type="number" min="1" max="16" step="0.5"
+                          value={wizardHours}
+                          onChange={(e) => setWizardHours(e.target.value)}
+                          className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Atendimentos por hora</label>
+                        <input
+                          type="number" min="1" max="10" step="1"
+                          value={wizardApptsPerHour}
+                          onChange={(e) => setWizardApptsPerHour(e.target.value)}
+                          className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setWizardStep("days")}>← Voltar</Button>
+                      <Button size="sm" onClick={handleAiSuggest} disabled={!wizardHours || !wizardApptsPerHour}>
+                        Gerar sugestão com IA
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {wizardStep === "suggesting" && (
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-gold-400" />
+                    <p className="text-sm text-muted-foreground">A IA está calculando sua meta ideal...</p>
+                  </div>
+                )}
+
+                {wizardStep === "review" && aiSuggestion && (
+                  <>
+                    <div className="rounded-lg border border-green-500/30 bg-green-500/8 p-4 space-y-2">
+                      <p className="text-xs font-semibold text-green-400 uppercase tracking-wide">Sugestão da IA</p>
+                      <p className="text-2xl font-bold text-foreground tabular-nums">{formatBRL(aiSuggestion.suggestedRevenueTarget)}</p>
+                      <p className="text-xs text-muted-foreground">{aiSuggestion.explanation}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        <Calendar className="h-3 w-3 inline mr-1" />
+                        {aiSuggestion.workingDaysCount} dias úteis · Meta diária: {formatBRL(aiSuggestion.suggestedRevenueTarget / aiSuggestion.workingDaysCount)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setWizardStep("hours")}>← Ajustar</Button>
+                      <Button size="sm" onClick={handleAcceptAiSuggestion}>
+                        Usar essa meta
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Manual form */}
             <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-              {/* Month selector */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Mês</label>
                 <select
@@ -241,6 +463,7 @@ export function FinanceiroClient({
                     setSelectedMonth(m);
                     const existing = allGoals.find((g) => g.month === m);
                     setRevenueTarget(existing?.revenueTarget ? String(existing.revenueTarget) : "");
+                    setOffDaysOfWeek(existing?.offDaysOfWeek ?? []);
                   }}
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground"
                 >
@@ -252,6 +475,36 @@ export function FinanceiroClient({
                 </select>
               </div>
 
+              {/* Off days selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-foreground">Dias de folga na semana</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DOW_LABELS.map((label, dow) => (
+                    <button
+                      key={dow}
+                      type="button"
+                      onClick={() => setOffDaysOfWeek((prev) => prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow])}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors
+                        ${offDaysOfWeek.includes(dow)
+                          ? "bg-red-500/15 border-red-500/40 text-red-400"
+                          : "bg-surface-800 border-border text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {offDaysOfWeek.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Dias úteis no mês: <span className="font-semibold text-foreground">
+                      {/* count working days inline */}
+                      {Array.from({ length: getDaysInMonth(new Date(year, selectedMonth - 1, 1)) }, (_, i) =>
+                        new Date(year, selectedMonth - 1, i + 1).getDay()
+                      ).filter((d) => !offDaysOfWeek.includes(d)).length}
+                    </span>
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Meta de receita (R$)</label>
                 <input
@@ -261,9 +514,18 @@ export function FinanceiroClient({
                   placeholder="Ex: 15000"
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
+                {revenueTarget && offDaysOfWeek.length > 0 && (() => {
+                  const workDays = Array.from({ length: getDaysInMonth(new Date(year, selectedMonth - 1, 1)) }, (_, i) =>
+                    new Date(year, selectedMonth - 1, i + 1).getDay()
+                  ).filter((d) => !offDaysOfWeek.includes(d)).length;
+                  return (
+                    <p className="text-[11px] text-muted-foreground">
+                      Meta diária: <span className="font-semibold text-gold-400">{formatBRL(Number(revenueTarget) / workDays)}</span>
+                    </p>
+                  );
+                })()}
               </div>
 
-              {/* Progress if current month already has data */}
               {selectedMonth === month && goal?.revenueTarget && (
                 <div className="space-y-1 pt-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -290,16 +552,26 @@ export function FinanceiroClient({
             ) : (
               <div className="space-y-2">
                 {allGoals.map((g) => {
-                  const pct = g.revenueTarget ? Math.min(g.revenueActual / g.revenueTarget, 1) : null;
+                  const pct       = g.revenueTarget ? Math.min(g.revenueActual / g.revenueTarget, 1) : null;
+                  const workDays  = g.workingDaysCount ?? 30;
+                  const dailyGoal = g.revenueTarget ? g.revenueTarget / workDays : null;
                   return (
                     <div key={g.id} className={`rounded-lg border p-3 space-y-2 ${g.isCurrent ? "border-gold-500/30 bg-gold-500/5" : "border-border"}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-foreground">{MONTH_NAMES[g.month - 1]}</span>
                           {g.isCurrent && <Badge variant="outline" className="text-[9px] px-1 py-0">Atual</Badge>}
+                          {g.offDaysOfWeek?.length > 0 && (
+                            <span className="text-[9px] text-muted-foreground border border-border rounded-full px-1.5 py-0.5">
+                              {workDays}d úteis
+                            </span>
+                          )}
                           {g.isPast && pct !== null && pct >= 1 && <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />}
                         </div>
-                        <span className="text-xs font-semibold text-gold-400">{g.revenueTarget ? formatBRL(g.revenueTarget) : "—"}</span>
+                        <div className="text-right">
+                          <span className="text-xs font-semibold text-gold-400">{g.revenueTarget ? formatBRL(g.revenueTarget) : "—"}</span>
+                          {dailyGoal && <p className="text-[10px] text-muted-foreground">{formatBRL(dailyGoal)}/dia</p>}
+                        </div>
                       </div>
                       {g.revenueTarget && (g.isPast || g.isCurrent) && (
                         <div className="space-y-1">
@@ -312,6 +584,9 @@ export function FinanceiroClient({
                       )}
                       {!g.isPast && !g.isCurrent && (
                         <p className="text-[10px] text-muted-foreground">Meta futura — sem dados ainda</p>
+                      )}
+                      {g.offDaysOfWeek?.length > 0 && (
+                        <WorkingDaysCalendar month={g.month} year={year} offDaysOfWeek={g.offDaysOfWeek} />
                       )}
                     </div>
                   );

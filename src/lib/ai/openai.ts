@@ -223,6 +223,16 @@ function buildCopilotPrompt(ctx: CopilotContext, question: string): string {
       ).join("\n")
     : "  • Nenhum cliente elegível no momento";
 
+  // ── Active offers block ───────────────────────────────
+  const offersBlock = ctx.activeOffers.length > 0
+    ? ctx.activeOffers.map((o) => `  • ${o.title} — R$ ${o.salePrice.toFixed(2)} (${o.type})`).join("\n")
+    : "  • Nenhuma oferta ativa no momento";
+
+  // ── Pending service opportunities block ───────────────
+  const opportunitiesBlock = ctx.pendingOpportunities.length > 0
+    ? ctx.pendingOpportunities.map((o) => `  • ${o.name} (${o.category}) — preço sugerido R$ ${o.suggestedPrice.toFixed(2)}`).join("\n")
+    : "  • Nenhuma oportunidade pendente";
+
   // ── Motivational tone hint ─────────────────────────────
   const motivationalHint = (() => {
     if (!ctx.monthGoalSet) return "Incentive o usuário a definir metas — é o primeiro passo para crescer com intenção.";
@@ -256,6 +266,13 @@ ${reactivationBlock}
 
 ### Avaliações Google
 - Pendentes (últimas 48h): ${ctx.pendingGoogleReviews}
+
+### Ofertas ativas
+${offersBlock}
+⚠️ Regra: ao sugerir promos/descontos, NÃO ofereça para clientes RECENTE. Priorize EM_RISCO e INATIVO. Use ofertas existentes antes de criar novas.
+
+### Oportunidades de serviço pendentes de aprovação
+${opportunitiesBlock}
 
 ### Campanhas
 - Ativas/aprovadas: ${ctx.activeCampaigns.join(", ") || "nenhuma"}

@@ -18,14 +18,15 @@ import { toast } from "@/hooks/use-toast";
 // ── Types ────────────────────────────────────────────────────
 
 interface Stats {
-  totalSlots:       number;
-  bookedSlots:      number;
-  freeSlots:        number;
-  occupancyRate:    number;
-  completedRevenue: number;
-  projectedRevenue: number;
-  revenueGoal:      number | null;
-  inactiveClients:  number;
+  totalSlots:        number;
+  bookedSlots:       number;
+  freeSlots:         number;
+  occupancyRate:     number;
+  completedRevenue:  number;
+  projectedRevenue:  number;
+  revenueGoal:       number | null;
+  workingDaysCount:  number | null;
+  inactiveClients:   number;
 }
 
 interface Appointment {
@@ -37,6 +38,7 @@ interface Appointment {
   statusLabel:   string;
   price:         number;
   profissional?: string;
+  offerTitle?:   string | null;
 }
 
 interface AppointmentItemDto {
@@ -95,6 +97,7 @@ interface Props {
   barbershopName:        string;
   trinksConfigured:      boolean;
   liveError?:            string;
+  isOffDay:              boolean;
   stats:                 Stats;
   appointments:          Appointment[];
   suggestions:           Suggestion[];
@@ -146,6 +149,7 @@ export function DashboardClient({
   barbershopName,
   trinksConfigured,
   liveError,
+  isOffDay,
   stats,
   appointments,
   suggestions,
@@ -517,7 +521,20 @@ export function DashboardClient({
       )}
 
       {/* ── KPI Grid ──────────────────────────────────────── */}
-      {view === "today" ? (
+      {view === "today" && isOffDay ? (
+        /* ── Off-day banner ──────────────────────────────── */
+        <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 p-6 flex flex-col items-center text-center gap-3">
+          <div className="text-5xl">☕</div>
+          <h2 className="text-xl font-bold text-foreground">Hoje você está de folga!</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Aproveite para descansar, cuidar de você e recarregar as energias. Amanhã a barbearia volta a todo vapor!
+          </p>
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground border border-border rounded-full px-4 py-1.5">
+            <Scissors className="h-3.5 w-3.5 text-gold-400" />
+            <span>Você configurou este dia como folga na sua meta mensal</span>
+          </div>
+        </div>
+      ) : view === "today" ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Featured: Faturamento (spans 2 on large) */}
           <Card className="hover:border-gold-500/20 transition-colors col-span-2 lg:col-span-2">
@@ -528,13 +545,14 @@ export function DashboardClient({
               </div>
               <p className="text-3xl font-bold tabular-nums text-foreground">{formatBRL(stats.projectedRevenue)}</p>
               {stats.revenueGoal ? (() => {
-                const dailyGoal = stats.revenueGoal / 30;
+                const workDays = stats.workingDaysCount ?? 30;
+                const dailyGoal = stats.revenueGoal / workDays;
                 const pct = Math.min(stats.projectedRevenue / dailyGoal, 1);
                 const color = pct >= 1 ? "bg-green-500" : pct >= 0.6 ? "bg-gold-500" : "bg-red-500";
                 return (
                   <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>Meta diária: {formatBRL(dailyGoal)}</span>
+                      <span>Meta diária: {formatBRL(dailyGoal)} <span className="opacity-60">({workDays} dias úteis)</span></span>
                       <span className={pct >= 1 ? "text-green-400" : ""}>{Math.round(pct * 100)}%</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
@@ -666,7 +684,14 @@ export function DashboardClient({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{apt.customerName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{apt.serviceName}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-muted-foreground truncate">{apt.serviceName}</p>
+                    {apt.offerTitle && (
+                      <span className="shrink-0 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] px-1.5 py-0.5">
+                        🏷 {apt.offerTitle}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs font-medium text-foreground">{formatBRL(apt.price)}</span>

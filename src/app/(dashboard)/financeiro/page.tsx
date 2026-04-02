@@ -136,14 +136,15 @@ export default async function FinanceiroPage() {
   // ── All goals serialized ────────────────────────────────────
   const MONTH_LABELS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const allGoalsSerialized = allGoals.map((g) => ({
-    id:            g.id,
-    month:         g.month,
-    monthLabel:    MONTH_LABELS[g.month - 1] ?? String(g.month),
-    revenueTarget: g.revenueTarget ? Number(g.revenueTarget) : null,
-    // revenue for this month from annualMonths
-    revenueActual: revenueByMonth.get(g.month) ?? 0,
-    isPast:        g.month < month,
-    isCurrent:     g.month === month,
+    id:               g.id,
+    month:            g.month,
+    monthLabel:       MONTH_LABELS[g.month - 1] ?? String(g.month),
+    revenueTarget:    g.revenueTarget ? Number(g.revenueTarget) : null,
+    revenueActual:    revenueByMonth.get(g.month) ?? 0,
+    isPast:           g.month < month,
+    isCurrent:        g.month === month,
+    offDaysOfWeek:    g.offDaysOfWeek ?? [],
+    workingDaysCount: g.workingDaysCount ?? null,
   }));
 
   const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
@@ -165,10 +166,12 @@ export default async function FinanceiroPage() {
           avgTicket={avgTicket}
           avgTicketPrev={avgTicketPrev}
           goal={goal ? {
-            id:               goal.id,
-            revenueTarget:    goal.revenueTarget ? Number(goal.revenueTarget) : null,
+            id:                goal.id,
+            revenueTarget:     goal.revenueTarget ? Number(goal.revenueTarget) : null,
             appointmentTarget: goal.appointmentTarget ?? null,
             notes:             goal.notes ?? null,
+            offDaysOfWeek:     goal.offDaysOfWeek ?? [],
+            workingDaysCount:  goal.workingDaysCount ?? null,
           } : null}
           byService={byServiceSerialized}
           discountByDay={discountByDay}

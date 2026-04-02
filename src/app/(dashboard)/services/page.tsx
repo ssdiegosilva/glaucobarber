@@ -8,14 +8,20 @@ export default async function ServicesPage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const [services, integration] = await Promise.all([
+  const barbershopId = session.user.barbershopId;
+
+  const [services, integration, opportunities] = await Promise.all([
     prisma.service.findMany({
-      where:   { barbershopId: session.user.barbershopId },
+      where:   { barbershopId },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),
     prisma.integration.findUnique({
-      where:  { barbershopId: session.user.barbershopId },
+      where:  { barbershopId },
       select: { status: true },
+    }),
+    prisma.serviceOpportunity.findMany({
+      where:   { barbershopId, status: "PENDING" },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -31,14 +37,22 @@ export default async function ServicesPage() {
       <div className="p-6">
         <ServicesClient
           initialServices={services.map((s) => ({
-            id:              s.id,
-            name:            s.name,
-            description:     s.description,
-            category:        s.category,
-            price:           Number(s.price),
-            durationMin:     s.durationMin,
-            active:          s.active,
+            id:               s.id,
+            name:             s.name,
+            description:      s.description,
+            category:         s.category,
+            price:            Number(s.price),
+            durationMin:      s.durationMin,
+            active:           s.active,
             syncedFromTrinks: s.syncedFromTrinks,
+          }))}
+          initialOpportunities={opportunities.map((o) => ({
+            id:             o.id,
+            name:           o.name,
+            category:       o.category,
+            description:    o.description,
+            suggestedPrice: Number(o.suggestedPrice),
+            rationale:      o.rationale,
           }))}
           hasTrinks={hasTrinks}
         />

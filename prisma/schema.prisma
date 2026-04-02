@@ -123,6 +123,7 @@ model Barbershop {
   templates     Template[]
   postSaleActions PostSaleAction[]
   customerReviews CustomerReview[]
+  serviceOpportunities ServiceOpportunity[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -410,6 +411,7 @@ model Service {
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   appointmentItems AppointmentItem[]
+  offerItems   OfferItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -444,12 +446,14 @@ model Appointment {
   completedAt DateTime?
   noShowAt    DateTime?
 
+  offerId     String?
   syncedFromTrinks Boolean  @default(false)
   lastSyncedAt     DateTime?
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id])
   service    Service?   @relation(fields: [serviceId], references: [id])
+  offer      Offer?     @relation(fields: [offerId], references: [id])
   items      AppointmentItem[]
   payments   Payment[]
   postSaleActions PostSaleAction[]
@@ -518,13 +522,55 @@ model Offer {
   stripeProductId String?
   stripePriceId   String?
 
-  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  payments   Payment[]
+  barbershop   Barbershop   @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+  items        OfferItem[]
+  appointments Appointment[]
+  campaigns    Campaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("offers")
+}
+
+model OfferItem {
+  id          String  @id @default(cuid())
+  offerId     String
+  serviceId   String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  discountPct Int     @default(0)
+
+  offer   Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@map("offer_items")
+}
+
+enum ServiceOpportunityStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ServiceOpportunity {
+  id                String                   @id @default(cuid())
+  barbershopId      String
+  name              String
+  category          ServiceCategory          @default(HAIRCUT)
+  description       String?
+  suggestedPrice    Decimal                  @db.Decimal(10, 2)
+  rationale         String
+  status            ServiceOpportunityStatus @default(PENDING)
+  approvedServiceId String?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("service_opportunities")
 }
 
 // ============================================================
@@ -587,6 +633,7 @@ model Campaign {
   suggestionId String?        @unique
   status       CampaignStatus @default(DRAFT)
 
+  offerId     String?
   title       String
   objective   String
   text        String          // campaign copy
@@ -602,6 +649,7 @@ model Campaign {
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   suggestion Suggestion? @relation(fields: [suggestionId], references: [id])
   template   Template?   @relation(fields: [templateId], references: [id])
+  offer      Offer?      @relation(fields: [offerId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -808,13 +856,15 @@ model Payment {
 // ============================================================
 
 model Goal {
-  id           String @id @default(cuid())
-  barbershopId String
-  month        Int    // 1-12
-  year         Int
-  revenueTarget Decimal? @db.Decimal(10, 2)
+  id                String @id @default(cuid())
+  barbershopId      String
+  month             Int    // 1-12
+  year              Int
+  revenueTarget     Decimal? @db.Decimal(10, 2)
   appointmentTarget Int?
-  notes        String?
+  notes             String?
+  offDaysOfWeek     Int[]    // 0=Dom,1=Seg,...,6=Sab — dias que NÃO trabalha
+  workingDaysCount  Int?     // dias do mês que vai trabalhar (calculado)
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
 

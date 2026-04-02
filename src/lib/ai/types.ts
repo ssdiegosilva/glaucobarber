@@ -103,6 +103,12 @@ export interface CopilotContext {
     startB:             string;
     alternativeHint:    string | null;
   }[];
+
+  // ── Offers & service opportunities ───────────────────────
+  /** Active offers available to use in campaigns or appointments */
+  activeOffers: { title: string; salePrice: number; type: string }[];
+  /** Service opportunities suggested by AI that are pending approval */
+  pendingOpportunities: { name: string; category: string; suggestedPrice: number }[];
 }
 
 export interface CopilotActionSuggestion {

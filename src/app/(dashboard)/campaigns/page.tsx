@@ -8,12 +8,19 @@ export default async function CampaignsPage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const campaigns = await prisma.campaign.findMany({
-    where:   { barbershopId: session.user.barbershopId },
-    orderBy: { createdAt: "desc" },
-    include: { suggestion: { select: { type: true } } },
-  });
-  const integration = await prisma.integration.findUnique({ where: { barbershopId: session.user.barbershopId } });
+  const [campaigns, integration, activeOffers] = await Promise.all([
+    prisma.campaign.findMany({
+      where:   { barbershopId: session.user.barbershopId },
+      orderBy: { createdAt: "desc" },
+      include: { suggestion: { select: { type: true } } },
+    }),
+    prisma.integration.findUnique({ where: { barbershopId: session.user.barbershopId } }),
+    prisma.offer.findMany({
+      where:   { barbershopId: session.user.barbershopId, status: "ACTIVE" },
+      select:  { id: true, title: true, salePrice: true, type: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   return (
     <div className="flex flex-col h-full">
@@ -32,6 +39,7 @@ export default async function CampaignsPage() {
             instagramPermalink: c.instagramPermalink ?? null,
           }))}
           instagramConfigured={!!(integration?.instagramPageAccessToken && integration.instagramBusinessId)}
+          availableOffers={activeOffers.map((o) => ({ id: o.id, title: o.title, salePrice: Number(o.salePrice), type: o.type }))}
         />
       </div>
     </div>

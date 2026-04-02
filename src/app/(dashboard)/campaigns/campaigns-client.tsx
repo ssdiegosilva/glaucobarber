@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
-import { CheckCircle2, ChevronDown, ChevronRight, Clock, ExternalLink, Megaphone, Send, Wand2, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Clock, ExternalLink, Megaphone, Send, Wand2, Sparkles, XCircle, Tag } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
 const STATUS_VARIANT: Record<string, string> = { DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
@@ -18,6 +18,13 @@ const STATUS_ICON: Record<string, React.ReactElement> = {
   SCHEDULED: <Clock className="h-3 w-3" />,
   PUBLISHED: <Send className="h-3 w-3" />,
 };
+
+export interface OfferOption {
+  id:        string;
+  title:     string;
+  salePrice: number;
+  type:      string;
+}
 
 export interface CampaignDto {
   id: string;
@@ -33,14 +40,16 @@ export interface CampaignDto {
   instagramPermalink: string | null;
 }
 
-export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
+export function CampaignsClient({ campaigns: initial, instagramConfigured, availableOffers = [] }: {
   campaigns: CampaignDto[];
   instagramConfigured: boolean;
+  availableOffers?: OfferOption[];
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
   const [theme, setTheme] = useState("");
   const [objective, setObjective] = useState("");
+  const [selectedOfferId, setSelectedOfferId] = useState<string>("");
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
@@ -55,13 +64,14 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
       const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, objective, channel: "instagram" }),
+        body: JSON.stringify({ theme, objective, channel: "instagram", offerId: selectedOfferId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar campanha");
       setCampaigns([data.campaign, ...campaigns]);
       setTheme("");
       setObjective("");
+      setSelectedOfferId("");
       toast({ title: "Campanha criada", description: "Texto e arte gerados pela IA" });
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
@@ -225,6 +235,27 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
               />
             </div>
           </div>
+          {availableOffers.length > 0 && (
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                <Tag className="h-3 w-3 text-amber-400" /> Vincular oferta (opcional)
+              </label>
+              <select
+                value={selectedOfferId}
+                onChange={(e) => setSelectedOfferId(e.target.value)}
+                disabled={loadingCreate}
+                className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">Sem oferta vinculada</option>
+                {availableOffers.map((o) => (
+                  <option key={o.id} value={o.id}>{o.title} — R$ {o.salePrice.toFixed(2)}</option>
+                ))}
+              </select>
+              {selectedOfferId && (
+                <p className="text-[10px] text-amber-400/70">A IA vai mencionar esta oferta no texto da campanha.</p>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <Button
               onClick={createCampaign}
