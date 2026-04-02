@@ -186,6 +186,14 @@ function buildCopilotPrompt(ctx: CopilotContext, question: string): string {
     ? ctx.publishedCampaigns.map((c) => `  • ${c.title}${c.permalink ? ` → ${c.permalink}` : ""}`).join("\n")
     : "  • Nenhuma publicada ainda";
 
+  const overlapsBlock = ctx.overlaps.length > 0
+    ? ctx.overlaps.map((o) => {
+        const pro = o.professionalName ? ` (${o.professionalName})` : "";
+        const alt = o.alternativeHint ? ` — histórico: ${o.alternativeHint}` : "";
+        return `  • ${o.clientA.name} às ${o.startA} x ${o.clientB.name} às ${o.startB}${pro}${alt}`;
+      }).join("\n")
+    : "  • Nenhuma sobreposição detectada";
+
   return `## Contexto atual da ${ctx.barbershopName}
 Data: ${ctx.dayOfWeek}, ${ctx.date}
 
@@ -196,6 +204,9 @@ Data: ${ctx.dayOfWeek}, ${ctx.date}
 - Meta mensal: ${ctx.revenueGoal ? `R$ ${ctx.revenueGoal.toFixed(2)}` : "não definida"}
 - Meta semanal: ${ctx.weekGoal ? `R$ ${ctx.weekGoal.toFixed(2)} (${ctx.weekProgress ? Math.round(ctx.weekProgress * 100) + "% concluída" : "—"})` : "não definida"}
 - Serviços mais vendidos: ${ctx.topServices.join(", ") || "—"}
+
+### Sobreposições de agenda hoje
+${overlapsBlock}
 
 ### Pós-venda
 - Clientes em risco (14–60d sem visita, sem agendamento): ${ctx.clientsAtRisk}
@@ -231,6 +242,7 @@ Tipos de ação disponíveis:
 - post_sale_followup: enviar mensagem de reativação para clientes em risco ou inativos
 - post_sale_review: solicitar avaliação Google para clientes recém-atendidos
 - agenda: ação relacionada a horários livres ou agendamento
+- agenda_conflict: reagendar cliente para resolver sobreposição (inclua no payload: clientName, phone, suggestedDay, suggestedHour)
 - crm: atualização de dados ou segmentação de clientes
 - meta: ajuste de metas de faturamento
 - pricing: sugestão de preço ou pacote

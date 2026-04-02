@@ -66,6 +66,16 @@ export interface CopilotContext {
   publishedCampaigns:  { title: string; permalink?: string | null }[];   // publicados no Instagram
   weekGoal?: number | null;
   weekProgress?: number | null; // 0-1
+  // Overlapping appointments detected today
+  overlaps: {
+    professionalName:   string | null;
+    clientA:            { name: string; phone?: string | null };
+    clientB:            { name: string; phone?: string | null };
+    startA:             string; // HH:mm
+    startB:             string; // HH:mm
+    /** Preferred alternative slots for clientB based on their history (e.g. "segundas às 18:00") */
+    alternativeHint:    string | null;
+  }[];
 }
 
 export interface CopilotActionSuggestion {

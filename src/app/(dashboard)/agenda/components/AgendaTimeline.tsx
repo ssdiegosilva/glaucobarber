@@ -112,13 +112,16 @@ function durationToRowSpan(durationMin: number): number {
 // ── Component ─────────────────────────────────────────────
 
 interface Props {
-  appointments: AgendaAppointment[];
-  onSelect:     (appt: AgendaAppointment) => void;
-  startHour?:   number;
-  endHour?:     number;
+  appointments:  AgendaAppointment[];
+  onSelect:      (appt: AgendaAppointment) => void;
+  onSlotClick?:  (isoTime: string, profissional: string) => void;
+  /** ISO date string YYYY-MM-DD for the currently displayed day */
+  dateIso?:      string;
+  startHour?:    number;
+  endHour?:      number;
 }
 
-export function AgendaTimeline({ appointments, onSelect, startHour = 6, endHour = 24 }: Props) {
+export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, startHour = 6, endHour = 24 }: Props) {
   const { labels: timeLabels, totalRows } = buildTimeLabels(startHour, endHour);
 
   // Group appointments by professional
@@ -187,15 +190,47 @@ export function AgendaTimeline({ appointments, onSelect, startHour = 6, endHour 
             </div>
           ))}
 
-          {/* Grid background lines — one cell per (slot × sub-column) */}
+          {/* Grid background cells — clickable to create new appointments */}
           {Array.from({ length: totalRows }, (_, rowIdx) =>
-            Array.from({ length: totalGridCols - 1 }, (_, colIdx) => (
-              <div
-                key={`bg-${rowIdx}-${colIdx}`}
-                className="border-b border-l border-border/20"
-                style={{ gridColumn: colIdx + 2, gridRow: rowIdx + 1 }}
-              />
-            ))
+            Array.from({ length: totalGridCols - 1 }, (_, colIdx) => {
+              // Map colIdx back to professional name for slot click
+              const proForCol = (() => {
+                let cumulative = 0;
+                for (let p = 0; p < professionals.length; p++) {
+                  const subs = proSubCols[p];
+                  if (colIdx < cumulative + subs) return professionals[p];
+                  cumulative += subs;
+                }
+                return professionals[0] ?? "Sem profissional";
+              })();
+
+              function handleCellClick() {
+                if (!onSlotClick) return;
+                const totalMin = (startHour * 60) + rowIdx * SLOT_MINUTES;
+                const h = Math.floor(totalMin / 60) % 24;
+                const m = totalMin % 60;
+                const hh = h.toString().padStart(2, "0");
+                const mm = m.toString().padStart(2, "0");
+                const day = dateIso ?? new Date().toISOString().split("T")[0];
+                onSlotClick(`${day}T${hh}:${mm}:00.000Z`, proForCol);
+              }
+
+              return (
+                <div
+                  key={`bg-${rowIdx}-${colIdx}`}
+                  onClick={onSlotClick ? handleCellClick : undefined}
+                  className={`border-b border-l border-border/20 group relative
+                    ${onSlotClick ? "cursor-pointer hover:bg-gold-500/5" : ""}`}
+                  style={{ gridColumn: colIdx + 2, gridRow: rowIdx + 1 }}
+                >
+                  {onSlotClick && (
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gold-400/0 group-hover:text-gold-400/50 transition-colors select-none pointer-events-none">
+                      +
+                    </span>
+                  )}
+                </div>
+              );
+            })
           )}
 
           {/* Appointments */}

@@ -73,6 +73,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   const [rescheduling, setRescheduling]   = useState(false);
   const [newDate, setNewDate]             = useState("");
   const [newTime, setNewTime]             = useState("");
+  const todayIso = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     if (!appointment || !open) { setContext(null); return; }
@@ -103,6 +104,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   async function handleReschedule() {
     if (!appointment || !newDate || !newTime) return;
     const scheduledAt = new Date(`${newDate}T${newTime}`).toISOString();
+    if (new Date(scheduledAt) <= new Date()) return; // silently blocked by min attribute
     setUpdatingStatus(true);
     try {
       await fetch(`/api/appointments/${appointment.id}/reschedule`, {
@@ -188,14 +190,17 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
                 <input
                   type="date"
                   value={newDate}
+                  min={todayIso}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="flex-1 rounded border border-border bg-surface-900 px-2 py-1 text-sm text-foreground"
+                  className="flex-1 rounded border border-border bg-surface-900 px-2 py-1 text-sm text-foreground cursor-pointer"
                 />
                 <input
                   type="time"
                   value={newTime}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
                   onChange={(e) => setNewTime(e.target.value)}
-                  className="w-28 rounded border border-border bg-surface-900 px-2 py-1 text-sm text-foreground"
+                  className="w-28 rounded border border-border bg-surface-900 px-2 py-1 text-sm text-foreground cursor-pointer"
                 />
               </div>
               <div className="flex gap-2">

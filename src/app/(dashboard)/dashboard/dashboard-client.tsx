@@ -148,6 +148,9 @@ export function DashboardClient({
   const [savingPayment, setSavingPayment] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState<string | null>(null);
   const [savingItem, setSavingItem] = useState<string | null>(null);
+  // Reschedule animation: cards slide-out then disappear
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [hiddenIds, setHiddenIds]       = useState<Set<string>>(new Set());
 
   const occupancyColor =
     stats.occupancyRate >= 0.8
@@ -227,6 +230,11 @@ export function DashboardClient({
   }
 
   async function rescheduleAppointment(id: string, scheduledAt: string) {
+    const newDate = new Date(scheduledAt);
+    if (newDate <= new Date()) {
+      toast({ title: "Data inválida", description: "Escolha uma data futura.", variant: "destructive" });
+      return;
+    }
     try {
       const res = await fetch(`/api/appointments/${id}/reschedule`, {
         method: "PATCH",
@@ -235,7 +243,14 @@ export function DashboardClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao reagendar");
-      toast({ title: "Reagendado", description: new Date(scheduledAt).toLocaleString("pt-BR") });
+      toast({
+        title: "Reagendado com sucesso",
+        description: `Agendamento movido para ${newDate.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`,
+      });
+      // Animate card out, then remove from DOM
+      setExpanded(null);
+      setDismissedIds((prev) => new Set([...prev, id]));
+      setTimeout(() => setHiddenIds((prev) => new Set([...prev, id])), 380);
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     }
@@ -540,11 +555,12 @@ export function DashboardClient({
                     </div>
                   ) : (
                     <div className="divide-y divide-border">
-          {appointments.map((apt) => (
+          {appointments.filter((apt) => !hiddenIds.has(apt.id)).map((apt) => (
             <div
               key={apt.id}
-              className="px-4 py-3 hover:bg-surface-800/50 transition-colors border-b border-border"
-              onClick={() => toggleExpand(apt.id)}
+              className={`px-4 py-3 hover:bg-surface-800/50 border-b border-border transition-all duration-300 ease-in-out
+                ${dismissedIds.has(apt.id) ? "opacity-0 translate-x-10 pointer-events-none" : "opacity-100 translate-x-0"}`}
+              onClick={() => !dismissedIds.has(apt.id) && toggleExpand(apt.id)}
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 text-center shrink-0">
@@ -819,6 +835,7 @@ function AppointmentPanel({
             <input
               type="date"
               value={rescheduleDate}
+              min={new Date().toISOString().split("T")[0]}
               onChange={(e) => setRescheduleDate(e.target.value)}
               className="rounded border border-border bg-surface-900 px-2 py-1 text-xs text-foreground"
             />

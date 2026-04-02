@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { AgendaKPICards } from "./components/AgendaKPICards";
 import { AgendaTimeline } from "./components/AgendaTimeline";
 import { AppointmentDrawer } from "./components/AppointmentDrawer";
+import { NewAppointmentDrawer } from "./components/NewAppointmentDrawer";
 import { MonthlyOverview } from "./components/MonthlyOverview";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Loader2, Settings2, ChevronLeft, ChevronRight, CalendarDays, BarChart3 } from "lucide-react";
@@ -48,6 +49,7 @@ export function AgendaClient({
   const [appointments, setAppointments] = useState(initial);
   const [selectedAppt, setSelectedAppt] = useState<AgendaAppointment | null>(null);
   const [drawerOpen, setDrawerOpen]     = useState(false);
+  const [newApptSlot, setNewApptSlot]   = useState<{ date: string; time: string; profissional: string } | null>(null);
   const [syncing, startSync]            = useTransition();
   const [startHour, setStartHour]       = useState(initStart);
   const [endHour, setEndHour]           = useState(initEnd);
@@ -90,6 +92,19 @@ export function AgendaClient({
   function handleReschedule(appointmentId: string, scheduledAt: string) {
     setAppointments((prev) => prev.map((a) => (a.id === appointmentId ? { ...a, scheduledAt, status: "SCHEDULED" } : a)));
     setSelectedAppt((prev) => (prev?.id === appointmentId ? { ...prev, scheduledAt, status: "SCHEDULED" } : prev));
+  }
+
+  function handleSlotClick(isoTime: string, profissional: string) {
+    // isoTime is like "2025-04-02T14:00:00.000Z" — parse in local time
+    const d    = new Date(isoTime);
+    const date = dateIso; // use the current agenda date, not UTC
+    const hh   = d.getUTCHours().toString().padStart(2, "0");
+    const mm   = d.getUTCMinutes().toString().padStart(2, "0");
+    setNewApptSlot({ date, time: `${hh}:${mm}`, profissional });
+  }
+
+  function handleNewApptCreated(appt: AgendaAppointment) {
+    setAppointments((prev) => [...prev, appt]);
   }
 
   // ── Sync ─────────────────────────────────────────────
@@ -237,17 +252,19 @@ export function AgendaClient({
 
           <AgendaKPICards kpis={liveKpis} />
 
-          {appointments.length === 0 ? (
-            <div className="rounded-lg border border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-              Nenhum agendamento para este dia.
-            </div>
-          ) : (
-            <AgendaTimeline
-              appointments={appointments}
-              onSelect={openDrawer}
-              startHour={startHour}
-              endHour={endHour}
-            />
+          <AgendaTimeline
+            appointments={appointments}
+            onSelect={openDrawer}
+            onSlotClick={handleSlotClick}
+            dateIso={dateIso}
+            startHour={startHour}
+            endHour={endHour}
+          />
+
+          {appointments.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground -mt-2">
+              Nenhum agendamento para este dia. Clique em um horário para agendar.
+            </p>
           )}
 
           <AppointmentDrawer
@@ -256,6 +273,15 @@ export function AgendaClient({
             onClose={() => setDrawerOpen(false)}
             onStatusChange={handleStatusChange}
             onReschedule={handleReschedule}
+          />
+
+          <NewAppointmentDrawer
+            open={newApptSlot !== null}
+            onClose={() => setNewApptSlot(null)}
+            defaultDate={newApptSlot?.date ?? dateIso}
+            defaultTime={newApptSlot?.time ?? "09:00"}
+            defaultProfissional={newApptSlot?.profissional}
+            onCreated={handleNewApptCreated}
           />
         </>
       )}

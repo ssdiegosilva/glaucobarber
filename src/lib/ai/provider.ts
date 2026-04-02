@@ -206,7 +206,7 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     }),
 
     prisma.goal.findFirst({
-      where: { barbershopId, month: 0, year: 0 },
+      where: { barbershopId, month: 0, year: 0 }, // weekly (month=0 convention)
     }),
   ]);
 
@@ -248,6 +248,67 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
   const weekGoalValue = goalWeek?.revenueTarget ?? goalMonth?.revenueTarget ?? null;
   const weekProgress  = weekGoalValue ? Math.min(weekRevenue / Number(weekGoalValue), 1) : null;
 
+  // ── Overlap detection ──────────────────────────────────
+  // Group active appointments by professional (barberId), sort by time, detect overlaps
+  const withCustomers = await prisma.appointment.findMany({
+    where:   { barbershopId, scheduledAt: { gte: start, lte: end }, status: { notIn: ["CANCELLED", "NO_SHOW"] } },
+    include: { customer: { select: { name: true, phone: true, appointments: {
+      where:  { status: "COMPLETED" },
+      select: { scheduledAt: true },
+      orderBy: { scheduledAt: "desc" },
+      take: 10,
+    } } } },
+    orderBy: { scheduledAt: "asc" },
+  });
+
+  // Group by barberId (null = "unassigned")
+  const byPro = new Map<string, typeof withCustomers>();
+  for (const a of withCustomers) {
+    const key = a.barberId ?? "__none__";
+    if (!byPro.has(key)) byPro.set(key, []);
+    byPro.get(key)!.push(a);
+  }
+
+  const overlaps: CopilotContext["overlaps"] = [];
+  const dayNames = ["domingos", "segundas", "terças", "quartas", "quintas", "sextas", "sábados"];
+
+  for (const [barberId, appts] of byPro) {
+    const sorted = [...appts].sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i];
+      const b = sorted[i + 1];
+      const aEnd = new Date(a.scheduledAt.getTime() + (a.durationMin ?? 30) * 60_000);
+      if (b.scheduledAt < aEnd) {
+        // Compute alternative hint from clientB's historical appointment pattern
+        const hist = b.customer?.appointments ?? [];
+        let alternativeHint: string | null = null;
+        if (hist.length >= 2) {
+          const dayCounts  = new Map<number, number>();
+          const hourCounts = new Map<number, number>();
+          for (const h of hist) {
+            const d = new Date(h.scheduledAt);
+            dayCounts.set(d.getDay(),   (dayCounts.get(d.getDay())   ?? 0) + 1);
+            hourCounts.set(d.getHours(), (hourCounts.get(d.getHours()) ?? 0) + 1);
+          }
+          const bestDay  = [...dayCounts.entries()].sort((x, y) => y[1] - x[1])[0];
+          const bestHour = [...hourCounts.entries()].sort((x, y) => y[1] - x[1])[0];
+          if (bestDay && bestHour) {
+            alternativeHint = `costuma vir nas ${dayNames[bestDay[0]]} às ${bestHour[0].toString().padStart(2, "0")}:00`;
+          }
+        }
+
+        overlaps.push({
+          professionalName: barberId === "__none__" ? null : barberId,
+          clientA: { name: a.customer?.name ?? "—", phone: a.customer?.phone ?? null },
+          clientB: { name: b.customer?.name ?? "—", phone: b.customer?.phone ?? null },
+          startA:  format(a.scheduledAt, "HH:mm"),
+          startB:  format(b.scheduledAt, "HH:mm"),
+          alternativeHint,
+        });
+      }
+    }
+  }
+
   return {
     barbershopName:       barbershop?.name ?? "Barbearia",
     date:                 format(now, "dd/MM/yyyy"),
@@ -269,6 +330,7 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     publishedCampaigns:   publishedCampaignsRaw.map((c) => ({ title: c.title, permalink: c.instagramPermalink })),
     weekGoal:             weekGoalValue ? Number(weekGoalValue) : null,
     weekProgress,
+    overlaps,
   };
 }
 
