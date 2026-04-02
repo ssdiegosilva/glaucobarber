@@ -8,6 +8,7 @@ import { buildTrinksClient } from "./client";
 import { mapTrinksCustomer, mapTrinksService, mapTrinksAppointment } from "./mappers";
 import type { SyncResult, SyncError } from "./types";
 import { subDays, addDays, format } from "date-fns";
+import { refreshPostSaleStatus } from "@/modules/post-sale/service";
 
 export async function syncBarbershop(
   barbershopId: string,
@@ -156,6 +157,13 @@ export async function syncBarbershop(
       where: { id: integration.id },
       data: { lastSyncAt: new Date(), status: "ACTIVE", errorMsg: null },
     });
+
+    // Refresh post-sale status after full sync
+    try {
+      await refreshPostSaleStatus(barbershopId);
+    } catch (err) {
+      errors.push({ entity: "PostSaleStatus", message: String(err) });
+    }
 
     return { customersUpserted, servicesUpserted, appointmentsUpserted, customersUpdatedStats, errors, durationMs };
 

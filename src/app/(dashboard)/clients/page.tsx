@@ -10,6 +10,9 @@ import Link from "next/link";
 const STATUS_LABEL   = { ACTIVE: "Ativo", INACTIVE: "Inativo", VIP: "VIP", BLOCKED: "Bloqueado" };
 const STATUS_VARIANT = { ACTIVE: "success", INACTIVE: "warning", VIP: "default", BLOCKED: "destructive" } as const;
 
+const PS_LABEL:   Record<string, string> = { RECENTE: "Recente", EM_RISCO: "Em risco", INATIVO: "Inativo", REATIVADO: "Reativado", NAO_CONTATAR: "Não contatar" };
+const PS_VARIANT: Record<string, string> = { RECENTE: "success", EM_RISCO: "warning", INATIVO: "destructive", REATIVADO: "default", NAO_CONTATAR: "outline" };
+
 const PAGE_SIZE = 100;
 
 export default async function ClientsPage({
@@ -77,6 +80,7 @@ export default async function ClientsPage({
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[52%]">Cliente</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[18%]">Telefone</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[10%]">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[12%]">Pós-venda</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[8%]">Visitas</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[12%]">Total gasto</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[12%]">Última visita</th>
@@ -105,6 +109,15 @@ export default async function ClientsPage({
                       <Badge variant={STATUS_VARIANT[c.status] as never}>
                         {STATUS_LABEL[c.status]}
                       </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.postSaleStatus ? (
+                        <Badge variant={PS_VARIANT[c.postSaleStatus] as never}>
+                          {PS_LABEL[c.postSaleStatus] ?? c.postSaleStatus}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-foreground font-medium tabular-nums">{c.totalVisits}</td>
                     <td className="px-4 py-3 text-foreground tabular-nums">{formatBRL(Number(c.totalSpent))}</td>

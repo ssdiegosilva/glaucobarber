@@ -1,6 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type React from "react";
 
 export function PostSaleTabs({
@@ -10,8 +11,19 @@ export function PostSaleTabs({
   defaultTab?: string;
   children: React.ReactNode;
 }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const activeTab = searchParams.get("tab") ?? defaultTab ?? "overview";
+
+  function handleTabChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   return (
-    <Tabs defaultValue={defaultTab ?? "overview"} className="w-full">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
       <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-2">
         <TabsTrigger value="overview">Visão Geral</TabsTrigger>
         <TabsTrigger value="risk">Em risco</TabsTrigger>

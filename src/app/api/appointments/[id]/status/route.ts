@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AppointmentStatus } from "@prisma/client";
 import { buildTrinksClient } from "@/lib/integrations/trinks/client";
+import { refreshPostSaleStatus } from "@/modules/post-sale/service";
 
 const allowed: AppointmentStatus[] = ["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
 
@@ -47,6 +48,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } catch (err) {
       console.error("[status] failed to sync to Trinks:", err);
     }
+  }
+
+  // Refresh post-sale status for this customer when appointment is completed
+  if (status === "COMPLETED" && appointment.customerId) {
+    refreshPostSaleStatus(session.user.barbershopId).catch(() => null);
   }
 
   return NextResponse.json({ ok: true });
