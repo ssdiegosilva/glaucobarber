@@ -145,6 +145,17 @@ export class TrinksClient {
     await this.request("PATCH", `/v1/agendamentos/${agendamentoId}/status/${status}`);
   }
 
+  // ── Appointment reschedule ───────────────────────────────
+
+  async rescheduleAppointment(
+    agendamentoId: string | number,
+    newDateTimeIso: string  // ISO datetime "YYYY-MM-DDTHH:mm:ss"
+  ): Promise<void> {
+    await this.request("PATCH", `/v1/agendamentos/${agendamentoId}`, {
+      body: { dataHoraInicio: newDateTimeIso },
+    });
+  }
+
   // ── Health check ─────────────────────────────────────────
 
   async ping(): Promise<boolean> {

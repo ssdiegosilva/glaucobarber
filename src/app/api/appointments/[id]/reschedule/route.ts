@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { buildTrinksClient } from "@/lib/integrations/trinks/client";
+import { format } from "date-fns";
 
 export async function PATCH(
   req: NextRequest,
@@ -38,6 +40,22 @@ export async function PATCH(
         where: { id: appointment.customerId },
         data:  { nextAppointmentAt: newDate },
       });
+    }
+  }
+
+  // Mirror to Trinks (best-effort)
+  if (appointment.trinksId) {
+    try {
+      const integration = await prisma.integration.findUnique({
+        where: { barbershopId: session.user.barbershopId },
+      });
+      if (integration?.configJson) {
+        const client      = buildTrinksClient(integration.configJson);
+        const trinksDatetime = format(newDate, "yyyy-MM-dd'T'HH:mm:ss");
+        await client.rescheduleAppointment(appointment.trinksId, trinksDatetime);
+      }
+    } catch (err) {
+      console.error("[reschedule] failed to sync to Trinks:", err);
     }
   }
 

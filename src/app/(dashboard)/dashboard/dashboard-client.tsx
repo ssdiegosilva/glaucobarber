@@ -226,6 +226,21 @@ export function DashboardClient({
     }
   }
 
+  async function rescheduleAppointment(id: string, scheduledAt: string) {
+    try {
+      const res = await fetch(`/api/appointments/${id}/reschedule`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledAt }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao reagendar");
+      toast({ title: "Reagendado", description: new Date(scheduledAt).toLocaleString("pt-BR") });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    }
+  }
+
   async function updateStatus(id: string, status: string) {
     setStatusLoading(id);
     try {
@@ -565,6 +580,7 @@ export function DashboardClient({
                       savingItem={savingItem === apt.id}
                       onSavePayment={(paid) => savePayment(apt.id, paid, null)}
                       savingPayment={savingPayment === apt.id}
+                      onReschedule={(scheduledAt) => rescheduleAppointment(apt.id, scheduledAt)}
                     />
                   )}
                 </div>
@@ -722,6 +738,7 @@ function AppointmentPanel({
   savingItem,
   onSavePayment,
   savingPayment,
+  onReschedule,
 }: {
   detail: AppointmentDetail;
   serviceOptions: { id: string; name: string; price: number }[];
@@ -732,10 +749,28 @@ function AppointmentPanel({
   savingItem: boolean;
   onSavePayment: (paid: number | null) => void;
   savingPayment: boolean;
+  onReschedule: (scheduledAt: string) => void;
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [qty, setQty] = useState("1");
   const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [savingReschedule, setSavingReschedule] = useState(false);
+
+  async function handleReschedule(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!rescheduleDate || !rescheduleTime) return;
+    const scheduledAt = new Date(`${rescheduleDate}T${rescheduleTime}`).toISOString();
+    setSavingReschedule(true);
+    try {
+      onReschedule(scheduledAt);
+      setShowReschedule(false);
+    } finally {
+      setSavingReschedule(false);
+    }
+  }
 
   const selectedSvc = serviceOptions.find((s) => s.id === selectedServiceId);
 
@@ -766,7 +801,52 @@ function AppointmentPanel({
             {statusLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : STATUS_LABEL[s] ?? s}
           </Button>
         ))}
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-[11px] border-purple-500/40 text-purple-400 hover:bg-purple-500/10"
+          onClick={(e) => { e.stopPropagation(); setShowReschedule((v) => !v); }}
+        >
+          Reagendar
+        </Button>
       </div>
+
+      {/* Reschedule form */}
+      {showReschedule && (
+        <div className="rounded-md border border-border bg-surface-800/60 p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+          <p className="text-[11px] font-semibold text-foreground">Reagendar para</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="date"
+              value={rescheduleDate}
+              onChange={(e) => setRescheduleDate(e.target.value)}
+              className="rounded border border-border bg-surface-900 px-2 py-1 text-xs text-foreground"
+            />
+            <input
+              type="time"
+              value={rescheduleTime}
+              onChange={(e) => setRescheduleTime(e.target.value)}
+              className="w-24 rounded border border-border bg-surface-900 px-2 py-1 text-xs text-foreground"
+            />
+            <Button
+              size="sm"
+              className="h-7 text-[11px]"
+              disabled={!rescheduleDate || !rescheduleTime || savingReschedule}
+              onClick={handleReschedule}
+            >
+              {savingReschedule ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Confirmar"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px]"
+              onClick={(e) => { e.stopPropagation(); setShowReschedule(false); }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Services */}
       <div className="rounded-md border border-border overflow-hidden">
