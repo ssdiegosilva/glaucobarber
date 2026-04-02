@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
+
+// POST /api/whatsapp/process-queue
+// Processa todas as mensagens na fila (QUEUED, scheduledFor <= now) para o barbershop autenticado.
+export async function POST() {
+  const session = await auth();
+  if (!session?.user?.barbershopId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const barbershopId = session.user.barbershopId;
+  const now = new Date();
+
+  const pending = await prisma.whatsappMessage.findMany({
+    where: {
+      barbershopId,
+      status:       "QUEUED",
+      OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
+    },
+    include: {
+      barbershop: {
+        include: {
+          integration: {
+            select: { whatsappAccessToken: true, whatsappPhoneNumberId: true },
+          },
+        },
+      },
+    },
+    orderBy: { scheduledFor: "asc" },
+  });
+
+  const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+
+  for (const msg of pending) {
+    const integration = msg.barbershop?.integration;
+    if (!integration?.whatsappAccessToken || !integration?.whatsappPhoneNumberId) {
+      results.push({ id: msg.id, ok: false, error: "WhatsApp não configurado" });
+      continue;
+    }
+
+    try {
+      const metaMessageId = await sendWhatsAppMessage(msg.phone, msg.message, {
+        accessToken:   integration.whatsappAccessToken,
+        phoneNumberId: integration.whatsappPhoneNumberId,
+      });
+      await prisma.whatsappMessage.update({
+        where: { id: msg.id },
+        data:  { status: "SENT", sentAt: new Date(), metaMessageId },
+      });
+      results.push({ id: msg.id, ok: true });
+    } catch (err) {
+      await prisma.whatsappMessage.update({
+        where: { id: msg.id },
+        data:  { status: "FAILED" },
+      });
+      results.push({ id: msg.id, ok: false, error: String(err) });
+    }
+  }
+
+  return NextResponse.json({
+    total:  pending.length,
+    sent:   results.filter((r) => r.ok).length,
+    failed: results.filter((r) => !r.ok).length,
+  });
+}

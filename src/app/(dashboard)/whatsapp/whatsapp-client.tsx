@@ -214,6 +214,23 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
   const [queue,     setQueue]     = useState<WaMessage[]>(queueMessages);
   const [history,   setHistory]   = useState<WaMessage[]>(historyMessages);
   const [scheduled, setScheduled] = useState<WaMessage[]>(scheduledMessages);
+  const [processing, setProcessing] = useState(false);
+  const [processResult, setProcessResult] = useState<{ sent: number; failed: number } | null>(null);
+
+  async function processQueue() {
+    setProcessing(true);
+    setProcessResult(null);
+    try {
+      const res = await fetch("/api/whatsapp/process-queue", { method: "POST" });
+      const data = await res.json();
+      setProcessResult({ sent: data.sent ?? 0, failed: data.failed ?? 0 });
+      // Move mensagens enviadas para histórico
+      setQueue((prev) => prev.map((m) => ({ ...m, status: data.sent > 0 ? "SENT" : m.status })));
+      setTimeout(() => window.location.reload(), 1500);
+    } finally {
+      setProcessing(false);
+    }
+  }
 
   function markSent(id: string) {
     const msg = queue.find((m) => m.id === id);
@@ -304,10 +321,28 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
             </div>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground">
-                {queue.length} mensage{queue.length !== 1 ? "ns" : "m"} aguardando envio.
-                Clique em &quot;Enviar&quot; para disparar automaticamente via WhatsApp API.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {queue.length} mensage{queue.length !== 1 ? "ns" : "m"} aguardando envio.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={processQueue}
+                  disabled={processing}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-gold-400 transition-colors h-auto"
+                >
+                  {processing
+                    ? <><Loader2 className="h-3 w-3 animate-spin" /> Processando...</>
+                    : <><Send className="h-3 w-3" /> Enviar tudo</>}
+                </Button>
+              </div>
+              {processResult && (
+                <div className={`rounded-md border px-3 py-2 text-xs ${processResult.failed > 0 ? "border-red-500/30 bg-red-500/10 text-red-400" : "border-green-500/30 bg-green-500/10 text-green-400"}`}>
+                  {processResult.sent} enviada{processResult.sent !== 1 ? "s" : ""}
+                  {processResult.failed > 0 && `, ${processResult.failed} com falha`}
+                  {" — atualizando..."}
+                </div>
+              )}
               {queue.map((m) => (
                 <MessageRow
                   key={m.id}
