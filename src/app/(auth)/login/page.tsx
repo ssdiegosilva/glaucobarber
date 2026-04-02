@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "";
-
 export default function LoginPage() {
   const router = useRouter();
   const [email,    setEmail]    = useState("");
@@ -31,14 +29,8 @@ export default function LoginPage() {
       return;
     }
 
-    // Admin always goes to /admin
-    if (email.toLowerCase() === ADMIN_EMAIL) {
-      router.push("/admin");
-      router.refresh();
-      return;
-    }
-
     // Respect redirectTo param, fallback to /dashboard
+    // Dashboard layout redirects admin users to /admin automatically (server-side)
     const params = new URLSearchParams(window.location.search);
     const redirectTo = params.get("redirectTo") ?? "/dashboard";
     router.push(redirectTo);
