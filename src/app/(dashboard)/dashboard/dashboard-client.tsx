@@ -1368,23 +1368,24 @@ function SuggestionCard({
             {suggestion.content}
           </p>
 
-          <div className="flex gap-2 mt-3">
+          <div className="grid grid-cols-2 gap-2 mt-3">
             <Button
               size="sm"
-              className="flex-1 h-7 text-xs"
+              className="h-8 text-xs gap-1.5"
               onClick={onApprove}
               disabled={approving}
             >
-              <CheckCircle2 className="h-3 w-3" />
-              {approving ? "..." : "Aprovar"}
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {approving ? "Aprovando..." : "Aprovar"}
             </Button>
             <Button
-              variant="ghost"
-              size="icon-sm"
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
               onClick={onDismiss}
-              className="h-7 w-7 text-muted-foreground"
             >
-              <XCircle className="h-3 w-3" />
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir
             </Button>
           </div>
         </CardContent>
