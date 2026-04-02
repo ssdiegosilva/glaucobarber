@@ -13,16 +13,17 @@ interface StatusInput {
 const DAYS_RISK = 14;
 const DAYS_INACTIVE = 60;
 
-export function computePostSaleStatus(input: StatusInput): PostSaleStatus {
+export function computePostSaleStatus(input: StatusInput): PostSaleStatus | null {
   if (input.doNotContact) return "NAO_CONTATAR";
 
   const today = new Date();
   const last = input.lastCompletedAt ? new Date(input.lastCompletedAt) : undefined;
   const next = input.nextAppointmentAt ? new Date(input.nextAppointmentAt) : undefined;
 
-  if (next && next > today) return "RECENTE"; // já tem agendamento, não entra em risco
+  if (next && next > today) return "RECENTE"; // já tem agendamento futuro, não entra em risco
 
-  if (!last) return "RECENTE";
+  // Sem histórico de visita e sem agendamento → cliente novo, sem status de pós-venda
+  if (!last) return null;
 
   const days = differenceInCalendarDays(today, last);
 

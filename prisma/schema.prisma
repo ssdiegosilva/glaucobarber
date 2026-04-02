@@ -284,7 +284,7 @@ model Customer {
   notes        String?
   tags         String[]       @default([])
   status       CustomerStatus @default(ACTIVE)
-  postSaleStatus PostSaleStatus @default(RECENTE)
+  postSaleStatus PostSaleStatus?
   doNotContact   Boolean        @default(false)
   reviewOptOut   Boolean        @default(false)
   lastCompletedAppointmentAt DateTime?

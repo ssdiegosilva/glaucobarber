@@ -26,7 +26,7 @@ export async function refreshPostSaleStatus(barbershopId: string) {
     },
   });
 
-  const updates: { id: string; postSaleStatus: PostSaleStatus; inactiveAt?: Date | null; reactivatedAt?: Date | null }[] = [];
+  const updates: { id: string; postSaleStatus: PostSaleStatus | null; inactiveAt?: Date | null; reactivatedAt?: Date | null }[] = [];
 
   customers.forEach((c) => {
     const status = computePostSaleStatus({
@@ -52,7 +52,7 @@ export async function refreshPostSaleStatus(barbershopId: string) {
       prisma.customer.update({
         where: { id: u.id },
         data: {
-          postSaleStatus: u.postSaleStatus,
+          postSaleStatus: u.postSaleStatus ?? null,
           inactiveAt: u.inactiveAt,
           reactivatedAt: u.reactivatedAt,
         },
