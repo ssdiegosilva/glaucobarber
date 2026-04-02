@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MODEL  = process.env.AI_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
 
 const TYPE_PROMPTS: Record<string, (name: string, days: number, service: string, barbershop: string) => string> = {
   post_sale_review: (name, _days, service, barbershop) =>
@@ -63,6 +62,7 @@ export async function POST(req: NextRequest) {
   const prompt   = promptFn(customer.name, days, serviceName, shopName);
 
   try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await openai.chat.completions.create({
       model:      MODEL,
       max_tokens: 200,

@@ -4,8 +4,6 @@ import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const CATEGORY_MAP: Record<string, string> = {
   HAIRCUT: "HAIRCUT", BEARD: "BEARD", COMBO: "COMBO",
   TREATMENT: "TREATMENT", OTHER: "OTHER",
@@ -62,6 +60,7 @@ Responda EXCLUSIVAMENTE em JSON sem markdown:
 ]`;
 
   try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await openai.chat.completions.create({
       model:       process.env.AI_MODEL ?? "gpt-4o-mini",
       messages:    [{ role: "user", content: prompt }],

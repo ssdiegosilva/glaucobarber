@@ -5,8 +5,7 @@ import OpenAI from "openai";
 import { getDaysInMonth } from "date-fns";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MODEL  = process.env.AI_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
 
 function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[]): number {
   const total = getDaysInMonth(new Date(year, month - 1, 1));
@@ -68,6 +67,7 @@ Responda SOMENTE em JSON com exatamente esse formato:
 }`;
 
   try {
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await client.chat.completions.create({
       model: MODEL,
       max_tokens: 256,
