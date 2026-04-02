@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 
 // POST /api/cron/billing
-// Called monthly (e.g. 1st of each month at 06:00).
-// Aggregates unbilled BillingEvents for PRO barbershops and creates Stripe invoice items.
+// Manual/emergency endpoint for billing reconciliation.
+// Monthly billing is handled automatically inside /api/cron/daily on the 1st of each month
+// (Vercel Hobby only supports 2 cron jobs, so we piggyback on the daily cron).
 export async function POST() {
   const cronSecret = process.env.CRON_SECRET;
   // Validate internal cron secret (set same value as in cron config)
