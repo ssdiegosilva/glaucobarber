@@ -261,6 +261,7 @@ export function FinanceiroClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar sugestão");
+      window.dispatchEvent(new Event("ai-used"));
       setAiSuggestion(data);
       setWizardStep("review");
     } catch (e) {

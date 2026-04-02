@@ -398,6 +398,7 @@ export function DashboardClient({
       const res = await fetch("/api/ai/suggestions", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar sugestões");
+      window.dispatchEvent(new Event("ai-used"));
       const newOnes = (data.suggestions ?? []).map((s: any) => ({
         id: s.id ?? crypto.randomUUID(),
         type: s.type ?? "COMMERCIAL_INSIGHT",

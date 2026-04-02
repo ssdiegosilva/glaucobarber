@@ -287,6 +287,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
       const res  = await fetch(`/api/services/${svc.id}/recommend-price`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro na IA");
+      window.dispatchEvent(new Event("ai-used"));
       setRecommendations((prev) => ({ ...prev, [svc.id]: data as PriceRecommendation }));
       setSelectedPrices((prev) => ({ ...prev, [svc.id]: (data as PriceRecommendation).suggestedPrice }));
       setExpandedRec(svc.id);
@@ -311,6 +312,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
         }
         throw new Error(data.error ?? "Erro ao gerar");
       }
+      window.dispatchEvent(new Event("ai-used"));
       setOpportunities(data.opportunities.map((o: Record<string, unknown>) => ({
         id:             String(o.id),
         name:           String(o.name),

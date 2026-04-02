@@ -111,11 +111,16 @@ async function handlePaymentFailed(inv: Stripe.Invoice) {
 async function upsertSubscription(sub: Stripe.Subscription, barbershopId: string) {
   const priceId = sub.items.data[0]?.price.id ?? "";
 
-  // Map Stripe price to plan tier
+  // Map Stripe price to plan tier — read from DB first, fallback to env vars
+  const dbConfigs = await prisma.platformConfig.findMany({
+    where: { key: { in: ["stripe_price_starter_monthly", "stripe_price_pro_monthly", "stripe_price_enterprise_monthly"] } },
+  });
+  const get = (k: string) => dbConfigs.find((c) => c.key === k)?.value || process.env[k.toUpperCase()] || "";
+
   const PRICE_PLAN_MAP: Record<string, "STARTER" | "PRO" | "ENTERPRISE"> = {
-    [process.env.STRIPE_PRICE_STARTER_MONTHLY!]:    "STARTER",
-    [process.env.STRIPE_PRICE_PRO_MONTHLY!]:        "PRO",
-    [process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY!]: "ENTERPRISE",
+    [get("stripe_price_starter_monthly")]:    "STARTER",
+    [get("stripe_price_pro_monthly")]:        "PRO",
+    [get("stripe_price_enterprise_monthly")]: "ENTERPRISE",
   };
 
   const planTier = PRICE_PLAN_MAP[priceId] ?? "STARTER";

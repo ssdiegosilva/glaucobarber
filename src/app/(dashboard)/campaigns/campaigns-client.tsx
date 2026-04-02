@@ -168,6 +168,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar imagem");
+      window.dispatchEvent(new Event("ai-used"));
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl: data.url } : c)));
       toast({ title: "Imagem gerada", description: "Arte criada via IA." });
       setEditingImage(null);

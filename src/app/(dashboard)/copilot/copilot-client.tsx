@@ -76,6 +76,7 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao enviar");
+      window.dispatchEvent(new Event("ai-used"));
 
       setActiveThreadId(data.threadId);
       setMessages(data.messages);
@@ -111,6 +112,7 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao enviar");
+      window.dispatchEvent(new Event("ai-used"));
 
       setActiveThreadId(data.threadId);
       setMessages(data.messages);

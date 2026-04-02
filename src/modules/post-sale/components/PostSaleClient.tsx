@@ -497,7 +497,7 @@ function ScheduleMessageModal({
         body:    JSON.stringify({ customerId: customer.id, type: action.type }),
       });
       const data = await res.json();
-      if (data.message) setMessage(data.message);
+      if (data.message) { window.dispatchEvent(new Event("ai-used")); setMessage(data.message); }
       else setError("Não foi possível gerar a mensagem.");
     } catch {
       setError("Erro ao conectar com o servidor.");
