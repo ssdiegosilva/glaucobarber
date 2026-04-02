@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <Sidebar barbershopName={barbershopName} className="hidden md:flex" />
       <main className="flex-1 overflow-y-auto">
         <MobileNav barbershopName={barbershopName} />
