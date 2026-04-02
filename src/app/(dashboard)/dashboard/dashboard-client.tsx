@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -181,18 +181,27 @@ export function DashboardClient({
       ? "text-yellow-400"
       : "text-red-400";
 
+  // Track post-approval state per suggestion (id → whatsappQueued)
+  const [approvedMap, setApprovedMap] = useState<Record<string, boolean>>({});
+
   async function handleApproveSuggestion(id: string) {
     setApproving(id);
     try {
       const res = await fetch(`/api/suggestions/${id}/approve`, { method: "POST" });
       if (!res.ok) throw new Error();
-      setLocalSuggestions((prev) => prev.filter((s) => s.id !== id));
-      toast({ title: "Sugestão aprovada!", description: "A ação foi registrada." });
+      const data = await res.json();
+      // Transition card to approved state instead of removing it
+      setApprovedMap((prev) => ({ ...prev, [id]: !!data.whatsappQueued }));
     } catch {
       toast({ title: "Erro ao aprovar", variant: "destructive" });
     } finally {
       setApproving(null);
     }
+  }
+
+  function handleClearSuggestion(id: string) {
+    setApprovedMap((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    setLocalSuggestions((prev) => prev.filter((s) => s.id !== id));
   }
 
   async function loadDetail(id: string) {
@@ -788,7 +797,9 @@ export function DashboardClient({
                   suggestion={s}
                   onApprove={() => handleApproveSuggestion(s.id)}
                   onDismiss={() => handleDismissSuggestion(s.id)}
+                  onClear={() => handleClearSuggestion(s.id)}
                   approving={approving === s.id}
+                  approvedState={s.id in approvedMap ? { whatsappQueued: approvedMap[s.id] } : undefined}
                 />
               ))}
             </div>
@@ -1190,59 +1201,194 @@ function RevenueBarChart({ data }: { data: { day: string; revenue: number; count
   );
 }
 
-function SuggestionCard({
-  suggestion, onApprove, onDismiss, approving,
-}: {
-  suggestion: Suggestion;
-  onApprove:  () => void;
-  onDismiss:  () => void;
-  approving:  boolean;
-}) {
-  const ICONS: Record<string, React.ReactNode> = {
-    COMMERCIAL_INSIGHT: <TrendingUp className="h-3.5 w-3.5" />,
-    CAMPAIGN_TEXT:      <Megaphone className="h-3.5 w-3.5" />,
-    CLIENT_MESSAGE:     <Users className="h-3.5 w-3.5" />,
-    SOCIAL_POST:        <ArrowUpRight className="h-3.5 w-3.5" />,
-    OFFER_OPPORTUNITY:  <Sparkles className="h-3.5 w-3.5" />,
-  };
+const SUGGESTION_ICONS: Record<string, React.ReactNode> = {
+  COMMERCIAL_INSIGHT: <TrendingUp    className="h-3.5 w-3.5" />,
+  CAMPAIGN_TEXT:      <Megaphone     className="h-3.5 w-3.5" />,
+  CLIENT_MESSAGE:     <MessageCircle className="h-3.5 w-3.5" />,
+  SOCIAL_POST:        <ArrowUpRight  className="h-3.5 w-3.5" />,
+  OFFER_OPPORTUNITY:  <Sparkles      className="h-3.5 w-3.5" />,
+  PROMO_BRIEFING:     <Megaphone     className="h-3.5 w-3.5" />,
+};
 
-  return (
-    <Card className="border-gold-500/15 hover:border-gold-500/30 transition-colors">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-2 mb-2">
-          <span className="mt-0.5 text-gold-400 shrink-0">
-            {ICONS[suggestion.type] ?? <Sparkles className="h-3.5 w-3.5" />}
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground leading-snug">{suggestion.title}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{suggestion.reason}</p>
-          </div>
+const APPROVAL_LINK: Record<string, { href: string; label: string } | undefined> = {
+  CLIENT_MESSAGE:     { href: "/whatsapp",  label: "Ver na fila do WhatsApp" },
+  CAMPAIGN_TEXT:      { href: "/campaigns", label: "Ver campanhas" },
+  SOCIAL_POST:        { href: "/campaigns", label: "Ver campanhas" },
+  PROMO_BRIEFING:     { href: "/campaigns", label: "Ver campanhas" },
+  OFFER_OPPORTUNITY:  { href: "/offers",    label: "Ver ofertas" },
+  COMMERCIAL_INSIGHT: undefined,
+};
+
+function SuggestionCard({
+  suggestion,
+  onApprove,
+  onDismiss,
+  onClear,
+  approving,
+  approvedState,
+}: {
+  suggestion:    Suggestion;
+  onApprove:     () => void;
+  onDismiss:     () => void;
+  onClear:       () => void;
+  approving:     boolean;
+  approvedState?: { whatsappQueued: boolean };
+}) {
+  const touchStartX = useRef(0);
+  const [swipeDx, setSwipeDx]   = useState(0);
+  const [swiping, setSwiping]   = useState(false);
+  const SWIPE_THRESHOLD = 80;
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    setSwiping(true);
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const dx = touchStartX.current - e.touches[0].clientX;
+    if (dx > 0) setSwipeDx(Math.min(dx, SWIPE_THRESHOLD + 20));
+  }
+  function onTouchEnd() {
+    setSwiping(false);
+    if (swipeDx >= SWIPE_THRESHOLD) {
+      onClear();
+    } else {
+      setSwipeDx(0);
+    }
+  }
+
+  const link = APPROVAL_LINK[suggestion.type];
+  const icon = SUGGESTION_ICONS[suggestion.type] ?? <Sparkles className="h-3.5 w-3.5" />;
+
+  // ── Approved state ──────────────────────────────────────────
+  if (approvedState) {
+    const isWhatsApp = suggestion.type === "CLIENT_MESSAGE";
+    return (
+      <div
+        className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-500/5 transition-transform"
+        style={{ transform: `translateX(-${swipeDx}px)` }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Swipe-reveal delete zone */}
+        <div
+          className="absolute right-0 top-0 bottom-0 flex items-center px-5 bg-red-500/80 text-white text-xs font-medium gap-1.5 rounded-r-xl pointer-events-none"
+          style={{ opacity: swipeDx > 20 ? Math.min(1, (swipeDx - 20) / 40) : 0 }}
+        >
+          <Trash2 className="h-4 w-4" />
+          Limpar
         </div>
 
-        <p className="text-xs text-foreground/80 leading-relaxed mt-2 line-clamp-3">
-          {suggestion.content}
-        </p>
+        <div className="p-4 space-y-3">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2 min-w-0">
+              <span className="mt-0.5 text-emerald-400 shrink-0">{icon}</span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground leading-snug">{suggestion.title}</p>
+                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 mt-0.5">
+                  <CheckCircle2 className="h-3 w-3" /> Aprovado
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={onClear}
+              className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
+              title="Limpar"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
 
-        <div className="flex gap-2 mt-3">
-          <Button
-            size="sm"
-            className="flex-1 h-7 text-xs"
-            onClick={onApprove}
-            disabled={approving}
-          >
-            <CheckCircle2 className="h-3 w-3" />
-            {approving ? "..." : "Aprovar"}
-          </Button>
+          {/* Content */}
+          <p className="text-xs text-foreground/80 leading-relaxed">{suggestion.content}</p>
+
+          {/* WhatsApp notice */}
+          {isWhatsApp && approvedState.whatsappQueued && (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300 leading-relaxed">
+              Sua mensagem foi para a fila de envio e será enviada em <strong>30 minutos</strong>. Para editar ou cancelar, acesse a área do WhatsApp.
+            </div>
+          )}
+
+          {/* Link */}
+          {link && (
+            <a
+              href={link.href}
+              className="inline-flex items-center gap-1.5 text-xs text-gold-400 hover:text-gold-300 hover:underline transition-colors"
+            >
+              {link.label}
+              <ChevronRight className="h-3 w-3" />
+            </a>
+          )}
+
+          {/* Clear button */}
           <Button
             variant="ghost"
-            size="icon-sm"
-            onClick={onDismiss}
-            className="h-7 w-7 text-muted-foreground"
+            size="sm"
+            className="w-full h-7 text-xs text-muted-foreground hover:text-foreground"
+            onClick={onClear}
           >
-            <XCircle className="h-3 w-3" />
+            <Trash2 className="h-3 w-3 mr-1" />
+            Limpar
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    );
+  }
+
+  // ── Pending state ───────────────────────────────────────────
+  return (
+    <div
+      className="relative overflow-hidden rounded-xl transition-transform"
+      style={{ transform: `translateX(-${swipeDx}px)` }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Swipe-reveal delete zone */}
+      <div
+        className="absolute right-0 top-0 bottom-0 flex items-center px-5 bg-red-500/80 text-white text-xs font-medium gap-1.5 rounded-r-xl pointer-events-none"
+        style={{ opacity: swipeDx > 20 ? Math.min(1, (swipeDx - 20) / 40) : 0 }}
+      >
+        <Trash2 className="h-4 w-4" />
+        Dispensar
+      </div>
+
+      <Card className="border-gold-500/15 hover:border-gold-500/30 transition-colors">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-2 mb-2">
+            <span className="mt-0.5 text-gold-400 shrink-0">{icon}</span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground leading-snug">{suggestion.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{suggestion.reason}</p>
+            </div>
+          </div>
+
+          <p className="text-xs text-foreground/80 leading-relaxed mt-2 line-clamp-3">
+            {suggestion.content}
+          </p>
+
+          <div className="flex gap-2 mt-3">
+            <Button
+              size="sm"
+              className="flex-1 h-7 text-xs"
+              onClick={onApprove}
+              disabled={approving}
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              {approving ? "..." : "Aprovar"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onDismiss}
+              className="h-7 w-7 text-muted-foreground"
+            >
+              <XCircle className="h-3 w-3" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
