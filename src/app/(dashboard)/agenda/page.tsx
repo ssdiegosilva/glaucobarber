@@ -3,22 +3,31 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { startOfDay, endOfDay, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { AgendaClient } from "./agenda-client";
 import type { AgendaAppointment } from "./agenda-client";
 import type { AgendaKPIs } from "./components/AgendaKPICards";
 
 const TOTAL_SLOTS = 20;
 
-export default async function AgendaPage() {
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/login");
 
   const barbershopId = session.user.barbershopId;
-  const now   = new Date();
-  const start = startOfDay(now);
-  const end   = endOfDay(now);
+  const { date: dateParam } = await searchParams;
 
-  const [appointments, integration] = await Promise.all([
+  // Parse requested date (default: today)
+  const target = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date();
+  const start  = startOfDay(target);
+  const end    = endOfDay(target);
+  const dateIso = format(target, "yyyy-MM-dd");
+
+  const [appointments, integration, barbershop] = await Promise.all([
     prisma.appointment.findMany({
       where: { barbershopId, scheduledAt: { gte: start, lte: end } },
       include: {
@@ -28,9 +37,9 @@ export default async function AgendaPage() {
       orderBy: { scheduledAt: "asc" },
     }),
     prisma.integration.findUnique({ where: { barbershopId }, select: { configJson: true, status: true } }),
+    prisma.barbershop.findUnique({ where: { id: barbershopId }, select: { agendaStartHour: true, agendaEndHour: true } }),
   ]);
 
-  // Build serialized appointment list
   const serialized: AgendaAppointment[] = appointments.map((a) => ({
     id:           a.id,
     trinksId:     a.trinksId,
@@ -44,25 +53,23 @@ export default async function AgendaPage() {
     notes:        a.notes,
   }));
 
-  // Compute KPIs server-side
-  const active    = appointments.filter((a) => !["CANCELLED", "NO_SHOW"].includes(a.status));
+  const active = appointments.filter((a) => !["CANCELLED", "NO_SHOW"].includes(a.status));
   const kpis: AgendaKPIs = {
-    revenueCompleted: appointments
-      .filter((a) => a.status === "COMPLETED")
-      .reduce((s, a) => s + Number(a.price ?? 0), 0),
-    revenueProjected: appointments
-      .filter((a) => ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(a.status))
-      .reduce((s, a) => s + Number(a.price ?? 0), 0),
-    completedCount: appointments.filter((a) => a.status === "COMPLETED").length,
-    cancelledCount: appointments.filter((a) => a.status === "CANCELLED").length,
-    noShowCount:    appointments.filter((a) => a.status === "NO_SHOW").length,
-    occupancyRate:  Math.min(active.length / TOTAL_SLOTS, 1),
-    freeSlots:      Math.max(TOTAL_SLOTS - active.length, 0),
-    totalSlots:     TOTAL_SLOTS,
+    revenueCompleted: appointments.filter((a) => a.status === "COMPLETED").reduce((s, a) => s + Number(a.price ?? 0), 0),
+    revenueProjected: appointments.filter((a) => ["SCHEDULED","CONFIRMED","IN_PROGRESS"].includes(a.status)).reduce((s, a) => s + Number(a.price ?? 0), 0),
+    completedCount:   appointments.filter((a) => a.status === "COMPLETED").length,
+    cancelledCount:   appointments.filter((a) => a.status === "CANCELLED").length,
+    noShowCount:      appointments.filter((a) => a.status === "NO_SHOW").length,
+    occupancyRate:    Math.min(active.length / TOTAL_SLOTS, 1),
+    freeSlots:        Math.max(TOTAL_SLOTS - active.length, 0),
+    totalSlots:       TOTAL_SLOTS,
   };
 
-  const hasTrinks = !!integration?.configJson && integration.status === "ACTIVE";
-  const dateLabel = format(now, "EEEE, dd 'de' MMMM");
+  const hasTrinks       = !!integration?.configJson && integration.status === "ACTIVE";
+  const agendaStartHour = barbershop?.agendaStartHour ?? 6;
+  const agendaEndHour   = barbershop?.agendaEndHour   ?? 24;
+  const dateLabel       = format(target, "EEEE, dd 'de' MMMM", { locale: ptBR });
+  const currentYear     = new Date().getFullYear();
 
   return (
     <div className="flex flex-col h-full">
@@ -76,7 +83,11 @@ export default async function AgendaPage() {
           appointments={serialized}
           kpis={kpis}
           date={dateLabel}
+          dateIso={dateIso}
           hasTrinks={hasTrinks}
+          agendaStartHour={agendaStartHour}
+          agendaEndHour={agendaEndHour}
+          currentYear={currentYear}
         />
       </div>
     </div>

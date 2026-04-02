@@ -95,6 +95,10 @@ model Barbershop {
   // Trinks: the operational source of truth
   trinksConfigured Boolean @default(false)
 
+  // Agenda display settings
+  agendaStartHour Int @default(6)   // 0–23
+  agendaEndHour   Int @default(24)  // 1–24 (exclusive upper bound)
+
   // Platform subscription (SaaS billing)
   stripeCustomerId String? @unique
   subscription     PlatformSubscription?

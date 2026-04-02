@@ -1,40 +1,81 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition, useEffect } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { AgendaKPICards } from "./components/AgendaKPICards";
 import { AgendaTimeline } from "./components/AgendaTimeline";
 import { AppointmentDrawer } from "./components/AppointmentDrawer";
+import { MonthlyOverview } from "./components/MonthlyOverview";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2, Settings2, ChevronLeft, ChevronRight, CalendarDays, BarChart3 } from "lucide-react";
 import type { AgendaKPIs } from "./components/AgendaKPICards";
 
 export interface AgendaAppointment {
-  id:           string;
-  trinksId?:    string | null;
-  customerName: string;
-  serviceName?: string | null;
-  scheduledAt:  string;   // ISO string
-  durationMin:  number;
-  status:       string;
-  price?:       number | null;
+  id:            string;
+  trinksId?:     string | null;
+  customerName:  string;
+  serviceName?:  string | null;
+  scheduledAt:   string;   // ISO string
+  durationMin:   number;
+  status:        string;
+  price?:        number | null;
   profissional?: string | null;
-  notes?:       string | null;
+  notes?:        string | null;
 }
 
 interface Props {
-  appointments: AgendaAppointment[];
-  kpis:         AgendaKPIs;
-  date:         string;  // dd/MM/yyyy
-  hasTrinks:    boolean;
+  appointments:    AgendaAppointment[];
+  kpis:            AgendaKPIs;
+  date:            string;   // formatted label e.g. "quinta-feira, 02 de abril"
+  dateIso:         string;   // YYYY-MM-DD for the input
+  hasTrinks:       boolean;
+  agendaStartHour: number;
+  agendaEndHour:   number;
+  currentYear:     number;
 }
 
-export function AgendaClient({ appointments: initial, kpis: initialKpis, date, hasTrinks }: Props) {
-  const router = useRouter();
+const TOTAL_SLOTS = 20;
+
+export function AgendaClient({
+  appointments: initial, kpis, date, dateIso, hasTrinks,
+  agendaStartHour: initStart, agendaEndHour: initEnd, currentYear,
+}: Props) {
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
+
+  const [tab, setTab]                   = useState<"day" | "months">("day");
   const [appointments, setAppointments] = useState(initial);
   const [selectedAppt, setSelectedAppt] = useState<AgendaAppointment | null>(null);
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [syncing, startSync]            = useTransition();
+  const [startHour, setStartHour]       = useState(initStart);
+  const [endHour, setEndHour]           = useState(initEnd);
+  const [savingRange, setSavingRange]   = useState(false);
+
+  // Sync appointments when server re-renders with new data (day change)
+  useEffect(() => { setAppointments(initial); }, [initial]);
+
+  // ── Day navigation ────────────────────────────────────
+
+  function navigateDay(offsetDays: number) {
+    const d = new Date(dateIso);
+    d.setDate(d.getDate() + offsetDays);
+    const newDate = d.toISOString().split("T")[0];
+    const params  = new URLSearchParams(searchParams.toString());
+    params.set("date", newDate);
+    params.delete("tab"); // stay on day tab
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleDatePick(val: string) {
+    if (!val) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("date", val);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  // ── Appointment actions ───────────────────────────────
 
   function openDrawer(appt: AgendaAppointment) {
     setSelectedAppt(appt);
@@ -42,22 +83,16 @@ export function AgendaClient({ appointments: initial, kpis: initialKpis, date, h
   }
 
   function handleStatusChange(appointmentId: string, newStatus: string) {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === appointmentId ? { ...a, status: newStatus } : a))
-    );
-    if (selectedAppt?.id === appointmentId) {
-      setSelectedAppt((prev) => prev ? { ...prev, status: newStatus } : prev);
-    }
+    setAppointments((prev) => prev.map((a) => (a.id === appointmentId ? { ...a, status: newStatus } : a)));
+    setSelectedAppt((prev) => (prev?.id === appointmentId ? { ...prev, status: newStatus } : prev));
   }
 
   function handleReschedule(appointmentId: string, scheduledAt: string) {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === appointmentId ? { ...a, scheduledAt, status: "SCHEDULED" } : a))
-    );
-    if (selectedAppt?.id === appointmentId) {
-      setSelectedAppt((prev) => prev ? { ...prev, scheduledAt, status: "SCHEDULED" } : prev);
-    }
+    setAppointments((prev) => prev.map((a) => (a.id === appointmentId ? { ...a, scheduledAt, status: "SCHEDULED" } : a)));
+    setSelectedAppt((prev) => (prev?.id === appointmentId ? { ...prev, scheduledAt, status: "SCHEDULED" } : prev));
   }
+
+  // ── Sync ─────────────────────────────────────────────
 
   function handleSync() {
     startSync(async () => {
@@ -66,56 +101,169 @@ export function AgendaClient({ appointments: initial, kpis: initialKpis, date, h
     });
   }
 
-  // Recompute KPIs from local state so they update when status changes
-  const TOTAL_SLOTS = 20;
+  // ── Agenda range ─────────────────────────────────────
+
+  async function saveRange(newStart: number, newEnd: number) {
+    if (newEnd <= newStart) return;
+    setSavingRange(true);
+    try {
+      await fetch("/api/barbershop/agenda-settings", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ agendaStartHour: newStart, agendaEndHour: newEnd }),
+      });
+    } finally {
+      setSavingRange(false);
+    }
+  }
+
+  function handleStartChange(val: number) {
+    const v = Math.max(0, Math.min(val, endHour - 1));
+    setStartHour(v);
+    saveRange(v, endHour);
+  }
+
+  function handleEndChange(val: number) {
+    const v = Math.max(startHour + 1, Math.min(val, 24));
+    setEndHour(v);
+    saveRange(startHour, v);
+  }
+
+  // ── Live KPIs (update when status changes) ────────────
+
   const liveKpis: AgendaKPIs = {
-    revenueCompleted: appointments
-      .filter((a) => a.status === "COMPLETED")
-      .reduce((s, a) => s + (a.price ?? 0), 0),
-    revenueProjected: appointments
-      .filter((a) => ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(a.status))
-      .reduce((s, a) => s + (a.price ?? 0), 0),
-    completedCount:  appointments.filter((a) => a.status === "COMPLETED").length,
-    cancelledCount:  appointments.filter((a) => a.status === "CANCELLED").length,
-    noShowCount:     appointments.filter((a) => a.status === "NO_SHOW").length,
-    occupancyRate:   Math.min(
-      appointments.filter((a) => !["CANCELLED", "NO_SHOW"].includes(a.status)).length / TOTAL_SLOTS,
-      1
-    ),
-    freeSlots:  Math.max(TOTAL_SLOTS - appointments.filter((a) => !["CANCELLED", "NO_SHOW"].includes(a.status)).length, 0),
-    totalSlots: TOTAL_SLOTS,
+    revenueCompleted: appointments.filter((a) => a.status === "COMPLETED").reduce((s, a) => s + (a.price ?? 0), 0),
+    revenueProjected: appointments.filter((a) => ["SCHEDULED","CONFIRMED","IN_PROGRESS"].includes(a.status)).reduce((s, a) => s + (a.price ?? 0), 0),
+    completedCount:   appointments.filter((a) => a.status === "COMPLETED").length,
+    cancelledCount:   appointments.filter((a) => a.status === "CANCELLED").length,
+    noShowCount:      appointments.filter((a) => a.status === "NO_SHOW").length,
+    occupancyRate:    Math.min(appointments.filter((a) => !["CANCELLED","NO_SHOW"].includes(a.status)).length / TOTAL_SLOTS, 1),
+    freeSlots:        Math.max(TOTAL_SLOTS - appointments.filter((a) => !["CANCELLED","NO_SHOW"].includes(a.status)).length, 0),
+    totalSlots:       TOTAL_SLOTS,
   };
 
   return (
     <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{date}</p>
-        {hasTrinks && (
-          <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
-            {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            <span className="ml-1.5">Sincronizar Trinks</span>
-          </Button>
+      {/* ── Tab bar ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex rounded-lg border border-border overflow-hidden">
+          <button
+            onClick={() => setTab("day")}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${
+              tab === "day"
+                ? "bg-gold-500/15 text-gold-400 border-r border-border"
+                : "text-muted-foreground hover:text-foreground border-r border-border"
+            }`}
+          >
+            <CalendarDays className="h-4 w-4" /> Dia
+          </button>
+          <button
+            onClick={() => setTab("months")}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${
+              tab === "months"
+                ? "bg-gold-500/15 text-gold-400"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" /> Meses
+          </button>
+        </div>
+
+        {tab === "day" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Range picker */}
+            <div className="flex items-center gap-2 rounded-md border border-border/60 bg-surface-900 px-3 py-1.5 text-xs">
+              <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground">Das</span>
+              <select
+                value={startHour}
+                onChange={(e) => handleStartChange(Number(e.target.value))}
+                disabled={savingRange}
+                className="bg-transparent text-foreground focus:outline-none"
+              >
+                {Array.from({ length: 24 }, (_, i) => (
+                  <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>
+                ))}
+              </select>
+              <span className="text-muted-foreground">às</span>
+              <select
+                value={endHour}
+                onChange={(e) => handleEndChange(Number(e.target.value))}
+                disabled={savingRange}
+                className="bg-transparent text-foreground focus:outline-none"
+              >
+                {Array.from({ length: 24 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>{(i + 1).toString().padStart(2, "0")}:00</option>
+                ))}
+              </select>
+              {savingRange && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            </div>
+
+            {hasTrinks && (
+              <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
+                {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                <span className="ml-1.5">Sincronizar</span>
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
-      <AgendaKPICards kpis={liveKpis} />
+      {/* ── Day tab ─────────────────────────────────────── */}
+      {tab === "day" && (
+        <>
+          {/* Day navigation */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigateDay(-1)}
+              className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-800 transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <p className="text-sm font-medium text-foreground capitalize">{date}</p>
+            <button
+              onClick={() => navigateDay(1)}
+              className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-800 transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <input
+              type="date"
+              value={dateIso}
+              onChange={(e) => handleDatePick(e.target.value)}
+              className="rounded-md border border-border bg-surface-900 px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
 
-      {appointments.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-          Nenhum agendamento para hoje.
-        </div>
-      ) : (
-        <AgendaTimeline appointments={appointments} onSelect={openDrawer} />
+          <AgendaKPICards kpis={liveKpis} />
+
+          {appointments.length === 0 ? (
+            <div className="rounded-lg border border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
+              Nenhum agendamento para este dia.
+            </div>
+          ) : (
+            <AgendaTimeline
+              appointments={appointments}
+              onSelect={openDrawer}
+              startHour={startHour}
+              endHour={endHour}
+            />
+          )}
+
+          <AppointmentDrawer
+            appointment={selectedAppt}
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            onStatusChange={handleStatusChange}
+            onReschedule={handleReschedule}
+          />
+        </>
       )}
 
-      <AppointmentDrawer
-        appointment={selectedAppt}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onStatusChange={handleStatusChange}
-        onReschedule={handleReschedule}
-      />
+      {/* ── Months tab ──────────────────────────────────── */}
+      {tab === "months" && (
+        <MonthlyOverview initialYear={currentYear} />
+      )}
     </div>
   );
 }
