@@ -25,14 +25,13 @@ export async function middleware(req: NextRequest) {
   });
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const isPublic = PUBLIC_PATHS.some((p) => req.nextUrl.pathname.startsWith(p));
-
+  const isPublic    = PUBLIC_PATHS.some((p) => req.nextUrl.pathname.startsWith(p));
   const isAdminPath = req.nextUrl.pathname.startsWith("/admin");
 
-  if (!session && !isPublic) {
+  if (!user && !isPublic) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname + req.nextUrl.search);
@@ -40,9 +39,9 @@ export async function middleware(req: NextRequest) {
   }
 
   // Block /admin for non-admin emails at middleware level
-  if (isAdminPath && session?.user?.email !== ADMIN_EMAIL) {
+  if (isAdminPath && user?.email !== ADMIN_EMAIL) {
     const loginUrl = new URL("/login", req.url);
-    if (!session) loginUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
+    if (!user) loginUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
 
