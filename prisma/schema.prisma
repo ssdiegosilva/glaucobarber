@@ -117,6 +117,7 @@ model Barbershop {
   auditLogs     AuditLog[]
   actions       Action[]
   copilotThreads CopilotThread[]
+  whatsappMessages WhatsappMessage[]
   featureFlags  FeatureFlag[]
   goals         Goal[]
   templates     Template[]
@@ -324,6 +325,7 @@ model Customer {
   payments     Payment[]
   postSaleActions PostSaleAction[]
   customerReviews CustomerReview[]
+  whatsappMessages WhatsappMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -683,6 +685,39 @@ model CopilotMessage {
   createdAt DateTime @default(now())
 
   @@map("copilot_messages")
+}
+
+// ============================================================
+// WHATSAPP COMMUNICATIONS
+// ============================================================
+
+enum WhatsappMessageStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model WhatsappMessage {
+  id           String                @id @default(cuid())
+  barbershopId String
+  customerId   String?
+  customerName String
+  phone        String
+  message      String                @db.Text
+  type         String                // reactivation | post_sale_review | post_sale_followup | agenda_conflict | general
+  status       WhatsappMessageStatus @default(QUEUED)
+  actionId     String?
+  sentAt       DateTime?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([barbershopId, status])
+  @@index([barbershopId, createdAt])
+  @@map("whatsapp_messages")
 }
 
 // ============================================================

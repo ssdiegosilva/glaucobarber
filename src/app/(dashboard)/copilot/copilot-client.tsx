@@ -70,11 +70,8 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
 
       setActiveThreadId(data.threadId);
       setMessages(data.messages);
-      // Replace actions: keep only approved/executed from previous + fresh drafts
-      setActions((prev) => [
-        ...data.actionsDraft,
-        ...prev.filter((a) => a.status === "APPROVED" || a.status === "EXECUTED"),
-      ]);
+      // Replace with fresh drafts — previous actions already handled (approved → WhatsApp/Campaign, dismissed → gone)
+      setActions(data.actionsDraft);
 
       // add thread if new
       setThreads((prev) => {
@@ -142,7 +139,8 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
   async function updateAction(id: string, path: "approve" | "dismiss" | "execute") {
     const res = await fetch(`/api/actions/${id}/${path}`, { method: "POST" });
     if (!res.ok) return;
-    setActions((prev) => prev.map((a) => (a.id === id ? { ...a, status: path === "execute" ? "EXECUTED" : path === "approve" ? "APPROVED" : "DISMISSED" } : a)));
+    // Remove from panel on approve/execute/dismiss — each goes to its own area
+    setActions((prev) => prev.filter((a) => a.id !== id));
   }
 
   const activeMessages = useMemo(() => messages.filter((m) => !activeThreadId || m.threadId === activeThreadId), [messages, activeThreadId]);

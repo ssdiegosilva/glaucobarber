@@ -819,6 +819,7 @@ function AppointmentPanel({
   onReschedule: (scheduledAt: string) => void;
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [showAddService, setShowAddService] = useState(false);
   const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -922,7 +923,15 @@ function AppointmentPanel({
           <span className="flex items-center gap-1.5 text-[11px] font-semibold">
             <Scissors className="h-3.5 w-3.5 text-gold-400" /> Serviços
           </span>
-          <span className="text-[11px] text-muted-foreground">{formatBRL(subtotal)}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground">{formatBRL(subtotal)}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowAddService((v) => !v); }}
+              className="inline-flex items-center gap-1 rounded-md border border-gold-500/30 bg-gold-500/10 px-2 py-0.5 text-[10px] text-gold-400 hover:bg-gold-500/20 transition-colors"
+            >
+              <Plus className="h-3 w-3" /> Serviço
+            </button>
+          </div>
         </div>
 
         <div className="divide-y divide-border">
@@ -958,32 +967,35 @@ function AppointmentPanel({
           ))}
         </div>
 
-        {/* Add service row */}
-        <div className="px-3 py-2.5 bg-surface-900 border-t border-border flex gap-2 items-center">
-          <select
-            value={selectedServiceId}
-            onChange={(e) => setSelectedServiceId(e.target.value)}
-            className="flex-1 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs text-foreground"
-          >
-            <option value="">Selecionar serviço...</option>
-            {serviceOptions.map((s) => (
-              <option key={s.id} value={s.id}>{s.name} — {formatBRL(s.price)}</option>
-            ))}
-          </select>
-          <Button
-            size="sm"
-            className="h-7 text-[11px] shrink-0"
-            disabled={!selectedSvc || savingItem}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!selectedSvc) return;
-              onAddItem({ name: selectedSvc.name, quantity: 1, unitPrice: selectedSvc.price, serviceId: selectedSvc.id });
-              setSelectedServiceId("");
-            }}
-          >
-            {savingItem ? <RefreshCw className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" />Adicionar</>}
-          </Button>
-        </div>
+        {/* Add service row — shown only when toggled */}
+        {showAddService && (
+          <div className="px-3 py-2.5 bg-surface-900 border-t border-border flex gap-2 items-center">
+            <select
+              value={selectedServiceId}
+              onChange={(e) => setSelectedServiceId(e.target.value)}
+              className="flex-1 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs text-foreground"
+            >
+              <option value="">Selecionar serviço...</option>
+              {serviceOptions.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} — {formatBRL(s.price)}</option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              className="h-7 text-[11px] shrink-0"
+              disabled={!selectedSvc || savingItem}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!selectedSvc) return;
+                onAddItem({ name: selectedSvc.name, quantity: 1, unitPrice: selectedSvc.price, serviceId: selectedSvc.id });
+                setSelectedServiceId("");
+                setShowAddService(false);
+              }}
+            >
+              {savingItem ? <RefreshCw className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" />Adicionar</>}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Payment */}
@@ -1008,13 +1020,17 @@ function AppointmentPanel({
             <div className="space-y-0.5">
               <div className="flex gap-4">
                 <span className="text-muted-foreground">Total: <span className="text-foreground font-medium">{formatBRL(subtotal)}</span></span>
-                {discount > 0 && <span className="text-muted-foreground">Desconto: <span className="text-yellow-400 font-medium">-{formatBRL(discount)}</span></span>}
+                {paid.trim() !== "" && discount > 0 && (
+                  <span className="text-muted-foreground">Desconto: <span className="text-yellow-400 font-medium">-{formatBRL(discount)}</span></span>
+                )}
               </div>
-              <div>
-                <span className={remaining > 0 ? "text-yellow-400 font-semibold" : "text-green-400 font-semibold"}>
-                  {remaining > 0 ? `Restante: ${formatBRL(remaining)}` : paidVal > 0 ? "Pago ✓" : "Sem pagamento"}
-                </span>
-              </div>
+              {paid.trim() !== "" && (
+                <div>
+                  <span className={remaining > 0 ? "text-yellow-400 font-semibold" : "text-green-400 font-semibold"}>
+                    {remaining > 0 ? `Restante: ${formatBRL(remaining)}` : "Pago ✓"}
+                  </span>
+                </div>
+              )}
             </div>
             <Button
               size="sm"

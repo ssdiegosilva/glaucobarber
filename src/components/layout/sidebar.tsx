@@ -16,6 +16,7 @@ import {
   LogOut,
   ChevronRight,
   TrendingUp,
+  MessageCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -29,6 +30,7 @@ export const NAV = [
   { href: "/services",     label: "Serviços",    icon: Scissors },
   { href: "/offers",       label: "Ofertas",     icon: Tag },
   { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
+  { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },
   { href: "/post-sale",    label: "Pós-venda",   icon: Users },
   { href: "/integrations", label: "Integrações", icon: Plug },
   { href: "/settings",     label: "Configurações",icon: Settings },
