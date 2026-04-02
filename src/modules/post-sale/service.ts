@@ -86,7 +86,7 @@ const BASE_CUSTOMER_SELECT = {
       service: { select: { name: true } },
       barberId: true,
     },
-    orderBy: { completedAt: "desc" },
+    orderBy: { completedAt: "desc" as const },
     take: 1,
   },
 };

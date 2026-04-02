@@ -364,8 +364,8 @@ model CustomerReview {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([appointmentId])
   @@index([barbershopId, customerId])
-  @@index([appointmentId])
   @@map("customer_reviews")
 }
 
