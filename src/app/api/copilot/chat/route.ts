@@ -59,6 +59,14 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Dismiss old DRAFT actions before creating fresh ones — keeps panel clean
+  if (reply.actions.length > 0) {
+    await prisma.action.updateMany({
+      where: { barbershopId, status: "DRAFT" },
+      data: { status: "DISMISSED" },
+    });
+  }
+
   const createdActions = await Promise.all(
     reply.actions.map((a) =>
       prisma.action.create({

@@ -8,9 +8,16 @@ export default async function CopilotPage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
+  // Auto-cleanup: remove threads older than 3 days
+  const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  await prisma.copilotThread.deleteMany({
+    where: { barbershopId: session.user.barbershopId, lastMessageAt: { lt: cutoff } },
+  });
+
   const threads = await prisma.copilotThread.findMany({
     where: { barbershopId: session.user.barbershopId },
     orderBy: { lastMessageAt: "desc" },
+    take: 5,
   });
 
   const threadDtos = threads.map((t) => ({

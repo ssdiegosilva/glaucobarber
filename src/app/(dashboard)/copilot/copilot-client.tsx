@@ -70,7 +70,11 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
 
       setActiveThreadId(data.threadId);
       setMessages(data.messages);
-      setActions((prev) => [...data.actionsDraft, ...prev]);
+      // Replace actions: keep only approved/executed from previous + fresh drafts
+      setActions((prev) => [
+        ...data.actionsDraft,
+        ...prev.filter((a) => a.status === "APPROVED" || a.status === "EXECUTED"),
+      ]);
 
       // add thread if new
       setThreads((prev) => {
@@ -78,7 +82,7 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
         if (exists) return prev.map((t) => (t.id === data.threadId ? { ...t, lastMessageAt: new Date().toISOString() } : t));
         return [
           { id: data.threadId, title: input.slice(0, 40), status: "OPEN", lastMessageAt: new Date().toISOString() },
-          ...prev,
+          ...prev.slice(0, 4), // cap sidebar at 5
         ];
       });
       setInput("");
@@ -104,14 +108,17 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
 
       setActiveThreadId(data.threadId);
       setMessages(data.messages);
-      setActions((prev) => [...data.actionsDraft, ...prev]);
+      setActions((prev) => [
+        ...data.actionsDraft,
+        ...prev.filter((a) => a.status === "APPROVED" || a.status === "EXECUTED"),
+      ]);
 
       setThreads((prev) => {
         const exists = prev.find((t) => t.id === data.threadId);
         if (exists) return prev.map((t) => (t.id === data.threadId ? { ...t, lastMessageAt: new Date().toISOString() } : t));
         return [
           { id: data.threadId, title: question.slice(0, 40), status: "OPEN", lastMessageAt: new Date().toISOString() },
-          ...prev,
+          ...prev.slice(0, 4),
         ];
       });
     } catch (err) {
