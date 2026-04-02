@@ -1,0 +1,207 @@
+"use client";
+
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatBRL, relativeTime, getInitials } from "@/lib/utils";
+import { Users, Star, Clock, Plus, Pencil } from "lucide-react";
+import { CustomerDrawer, type CustomerRow } from "./customer-drawer";
+
+const STATUS_LABEL   = { ACTIVE: "Ativo", INACTIVE: "Inativo", VIP: "VIP", BLOCKED: "Bloqueado" };
+const STATUS_VARIANT = { ACTIVE: "success", INACTIVE: "warning", VIP: "default", BLOCKED: "destructive" } as const;
+
+const PS_LABEL:   Record<string, string> = { RECENTE: "Recente", EM_RISCO: "Em risco", INATIVO: "Inativo", REATIVADO: "Reativado", NAO_CONTATAR: "Não contatar" };
+const PS_VARIANT: Record<string, string> = { RECENTE: "success", EM_RISCO: "warning", INATIVO: "destructive", REATIVADO: "default", NAO_CONTATAR: "outline" };
+
+interface Customer {
+  id:             string;
+  name:           string;
+  phone:          string | null;
+  email:          string | null;
+  notes:          string | null;
+  status:         string;
+  postSaleStatus: string | null;
+  doNotContact:   boolean;
+  tags:           string[];
+  totalVisits:    number;
+  totalSpent:     number;
+  lastVisitAt:    string | null;
+}
+
+interface Props {
+  customers:      Customer[];
+  total:          number;
+  page:           number;
+  totalPages:     number;
+  q?:             string;
+  vipCount:       number;
+  inactiveCount:  number;
+}
+
+export function ClientsClient({ customers: initial, total, page, totalPages, q, vipCount, inactiveCount }: Props) {
+  const [customers, setCustomers]     = useState(initial);
+  const [drawerMode, setDrawerMode]   = useState<"create" | "edit">("create");
+  const [drawerOpen, setDrawerOpen]   = useState(false);
+  const [editTarget, setEditTarget]   = useState<CustomerRow | null>(null);
+
+  const skip = (page - 1) * 100;
+
+  function openCreate() {
+    setDrawerMode("create");
+    setEditTarget(null);
+    setDrawerOpen(true);
+  }
+
+  function openEdit(c: Customer) {
+    setDrawerMode("edit");
+    setEditTarget({ id: c.id, name: c.name, phone: c.phone, email: c.email, notes: c.notes, doNotContact: c.doNotContact, tags: c.tags });
+    setDrawerOpen(true);
+  }
+
+  function handleSaved(updated: CustomerRow) {
+    if (drawerMode === "create") {
+      // Add to top of list (it's a new customer with no visits yet)
+      setCustomers((prev) => [{
+        ...updated,
+        status: "ACTIVE", postSaleStatus: null, totalVisits: 0, totalSpent: 0, lastVisitAt: null,
+      } as Customer, ...prev]);
+    } else {
+      setCustomers((prev) => prev.map((c) => c.id === updated.id ? { ...c, ...updated } : c));
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard icon={<Users className="h-4 w-4" />} label="Total"    value={total} />
+        <StatCard icon={<Star  className="h-4 w-4" />} label="VIP"      value={vipCount} />
+        <StatCard icon={<Clock className="h-4 w-4" />} label="Inativos" value={inactiveCount} valueClass="text-yellow-400" />
+      </div>
+
+      {/* Search + New */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <form method="GET" className="flex-1">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar por nome..."
+            className="w-full max-w-sm rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </form>
+        <Button size="sm" onClick={openCreate} className="flex items-center gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Novo cliente
+        </Button>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm table-fixed">
+            <thead>
+              <tr className="border-b border-border bg-surface-800/50">
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[30%]">Cliente</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[14%]">Telefone</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[9%]">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[10%]">Pós-venda</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[7%]">Visitas</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[10%]">Total gasto</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[10%]">Última visita</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[10%]">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {customers.map((c) => (
+                <tr key={c.id} className="hover:bg-surface-800/30 transition-colors group">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 border border-gold-500/20 text-xs font-bold text-gold-400 shrink-0">
+                        {getInitials(c.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{c.name}</p>
+                        {c.email && <p className="text-[11px] text-muted-foreground truncate">{c.email}</p>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    <span className="block truncate">{c.phone ?? "—"}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={STATUS_VARIANT[c.status as keyof typeof STATUS_VARIANT] as never}>
+                      {STATUS_LABEL[c.status as keyof typeof STATUS_LABEL] ?? c.status}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.postSaleStatus ? (
+                      <Badge variant={PS_VARIANT[c.postSaleStatus] as never}>{PS_LABEL[c.postSaleStatus] ?? c.postSaleStatus}</Badge>
+                    ) : <span className="text-xs text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-foreground font-medium tabular-nums">{c.totalVisits}</td>
+                  <td className="px-4 py-3 text-right text-foreground tabular-nums">{formatBRL(c.totalSpent)}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {c.lastVisitAt ? relativeTime(c.lastVisitAt) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => openEdit(c)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-1.5 hover:bg-surface-700 text-muted-foreground hover:text-foreground"
+                      title="Editar cliente"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              {skip + 1}–{Math.min(skip + 100, total)} de {total}
+            </p>
+            <div className="flex gap-2">
+              {page > 1 && (
+                <a href={`?page=${page - 1}${q ? `&q=${q}` : ""}`}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors">
+                  Anterior
+                </a>
+              )}
+              {page < totalPages && (
+                <a href={`?page=${page + 1}${q ? `&q=${q}` : ""}`}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors">
+                  Próxima
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <CustomerDrawer
+        mode={drawerMode}
+        customer={editTarget}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSaved={handleSaved}
+      />
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value, valueClass = "text-foreground" }: {
+  icon: React.ReactNode; label: string; value: number; valueClass?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
+      <div className="text-gold-400">{icon}</div>
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`text-xl font-bold tabular-nums ${valueClass}`}>{value}</p>
+      </div>
+    </div>
+  );
+}

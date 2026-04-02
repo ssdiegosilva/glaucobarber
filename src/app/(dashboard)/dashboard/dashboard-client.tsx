@@ -10,6 +10,7 @@ import {
   CheckCircle2, XCircle, Megaphone, AlertTriangle,
   RefreshCw, ChevronRight, ArrowUpRight, BarChart3,
   Scissors, CreditCard, Plus, Trash2,
+  ThumbsUp, Play, Flag, UserX, Ban, CalendarClock as CalendarClockIcon,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -744,6 +745,14 @@ const STATUS_BUTTON_CLASS: Record<string, string> = {
   CANCELLED:   "border-red-500/40 text-red-400 hover:bg-red-500/10",
 };
 
+const STATUS_BUTTON_ICON: Record<string, React.ReactNode> = {
+  CONFIRMED:   <ThumbsUp  className="h-3 w-3 mr-1" />,
+  IN_PROGRESS: <Play      className="h-3 w-3 mr-1" />,
+  COMPLETED:   <Flag      className="h-3 w-3 mr-1" />,
+  NO_SHOW:     <UserX     className="h-3 w-3 mr-1" />,
+  CANCELLED:   <Ban       className="h-3 w-3 mr-1" />,
+};
+
 function AppointmentPanel({
   detail,
   serviceOptions,
@@ -768,7 +777,6 @@ function AppointmentPanel({
   onReschedule: (scheduledAt: string) => void;
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState("");
-  const [qty, setQty] = useState("1");
   const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -814,7 +822,7 @@ function AppointmentPanel({
             onClick={(e) => { e.stopPropagation(); onStatus(s); }}
             disabled={statusLoading}
           >
-            {statusLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : STATUS_LABEL[s] ?? s}
+            {statusLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <>{STATUS_BUTTON_ICON[s]}{STATUS_LABEL[s] ?? s}</>}
           </Button>
         ))}
         <Button
@@ -919,13 +927,6 @@ function AppointmentPanel({
               <option key={s.id} value={s.id}>{s.name} — {formatBRL(s.price)}</option>
             ))}
           </select>
-          <input
-            type="number"
-            min="1"
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            className="w-14 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs text-center"
-          />
           <Button
             size="sm"
             className="h-7 text-[11px] shrink-0"
@@ -933,8 +934,8 @@ function AppointmentPanel({
             onClick={(e) => {
               e.stopPropagation();
               if (!selectedSvc) return;
-              onAddItem({ name: selectedSvc.name, quantity: Number(qty || 1), unitPrice: selectedSvc.price, serviceId: selectedSvc.id });
-              setSelectedServiceId(""); setQty("1");
+              onAddItem({ name: selectedSvc.name, quantity: 1, unitPrice: selectedSvc.price, serviceId: selectedSvc.id });
+              setSelectedServiceId("");
             }}
           >
             {savingItem ? <RefreshCw className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" />Adicionar</>}

@@ -15,6 +15,7 @@ import {
   Sparkles,
   LogOut,
   ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -23,6 +24,7 @@ export const NAV = [
   { href: "/dashboard",    label: "Dashboard",   icon: LayoutDashboard },
   { href: "/agenda",       label: "Agenda",      icon: CalendarDays },
   { href: "/copilot",      label: "Copilot",     icon: Sparkles },
+  { href: "/financeiro",   label: "Financeiro",  icon: TrendingUp },
   { href: "/clients",      label: "Clientes",    icon: Users },
   { href: "/services",     label: "Serviços",    icon: Scissors },
   { href: "/offers",       label: "Ofertas",     icon: Tag },
