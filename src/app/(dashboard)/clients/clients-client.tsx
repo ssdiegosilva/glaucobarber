@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, relativeTime, getInitials } from "@/lib/utils";
-import { Users, Star, Clock, Plus, Pencil } from "lucide-react";
+import { Users, Star, Clock, Plus, Pencil, Loader2 } from "lucide-react";
 import { CustomerDrawer, type CustomerRow } from "./customer-drawer";
 
 const STATUS_LABEL   = { ACTIVE: "Ativo", INACTIVE: "Inativo", VIP: "VIP", BLOCKED: "Bloqueado" };
@@ -38,8 +38,10 @@ interface Props {
   inactiveCount:  number;
 }
 
-export function ClientsClient({ customers: initial, total, page, totalPages, q, vipCount, inactiveCount }: Props) {
+export function ClientsClient({ customers: initial, total, page, totalPages, q, vipCount: initialVipCount, inactiveCount }: Props) {
   const [customers, setCustomers]     = useState(initial);
+  const [vipCount, setVipCount]       = useState(initialVipCount);
+  const [togglingVip, setTogglingVip] = useState<string | null>(null);
   const [drawerMode, setDrawerMode]   = useState<"create" | "edit">("create");
   const [drawerOpen, setDrawerOpen]   = useState(false);
   const [editTarget, setEditTarget]   = useState<CustomerRow | null>(null);
@@ -56,6 +58,23 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
     setDrawerMode("edit");
     setEditTarget({ id: c.id, name: c.name, phone: c.phone, email: c.email, notes: c.notes, doNotContact: c.doNotContact, tags: c.tags });
     setDrawerOpen(true);
+  }
+
+  async function toggleVip(c: Customer) {
+    setTogglingVip(c.id);
+    const newStatus = c.status === "VIP" ? "ACTIVE" : "VIP";
+    try {
+      const res = await fetch(`/api/customers/${c.id}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) return;
+      setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, status: newStatus } : x));
+      setVipCount((prev) => newStatus === "VIP" ? prev + 1 : Math.max(prev - 1, 0));
+    } finally {
+      setTogglingVip(null);
+    }
   }
 
   function handleSaved(updated: CustomerRow) {
@@ -94,8 +113,51 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* ── Mobile card list (hidden on md+) ──────────────── */}
+      <div className="md:hidden space-y-2">
+        {customers.map((c) => (
+          <div key={c.id} className="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-500/15 border border-gold-500/20 text-xs font-bold text-gold-400 shrink-0">
+              {getInitials(c.name)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-foreground truncate text-sm">{c.name}</p>
+                {c.status === "VIP" && <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400 shrink-0" />}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                {c.postSaleStatus ? (
+                  <span className="text-[11px] text-muted-foreground">{PS_LABEL[c.postSaleStatus] ?? c.postSaleStatus}</span>
+                ) : null}
+                {c.lastVisitAt && (
+                  <span className="text-[11px] text-muted-foreground">{relativeTime(c.lastVisitAt)}</span>
+                )}
+                {c.phone && <span className="text-[11px] text-muted-foreground">{c.phone}</span>}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => toggleVip(c)}
+                disabled={togglingVip === c.id}
+                className={`rounded p-1.5 ${c.status === "VIP" ? "text-yellow-400" : "text-muted-foreground"}`}
+              >
+                {togglingVip === c.id
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Star className={`h-4 w-4 ${c.status === "VIP" ? "fill-yellow-400" : ""}`} />}
+              </button>
+              <button
+                onClick={() => openEdit(c)}
+                className="rounded p-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop table (hidden on mobile) ──────────────── */}
+      <div className="hidden md:block rounded-lg border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm table-fixed">
             <thead>
@@ -143,13 +205,29 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
                     {c.lastVisitAt ? relativeTime(c.lastVisitAt) : "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => openEdit(c)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-1.5 hover:bg-surface-700 text-muted-foreground hover:text-foreground"
-                      title="Editar cliente"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => toggleVip(c)}
+                        disabled={togglingVip === c.id}
+                        className={`rounded p-1.5 transition-all ${
+                          c.status === "VIP"
+                            ? "text-yellow-400 hover:text-yellow-300"
+                            : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-yellow-400"
+                        }`}
+                        title={c.status === "VIP" ? "Remover VIP" : "Marcar como VIP"}
+                      >
+                        {togglingVip === c.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Star className={`h-3.5 w-3.5 ${c.status === "VIP" ? "fill-yellow-400" : ""}`} />}
+                      </button>
+                      <button
+                        onClick={() => openEdit(c)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-1.5 hover:bg-surface-700 text-muted-foreground hover:text-foreground"
+                        title="Editar cliente"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -11,6 +11,7 @@ import {
   RefreshCw, ChevronRight, ArrowUpRight, BarChart3,
   Scissors, CreditCard, Plus, Trash2,
   ThumbsUp, Play, Flag, UserX, Ban, CalendarClock as CalendarClockIcon,
+  MessageCircle, Zap, ChevronDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -422,11 +423,33 @@ export function DashboardClient({
     }
   }
 
-  return (
-    <div className="p-6 space-y-6 animate-fade-in">
+  // ── Day score (today only) ───────────────────────────────
+  const dayScore = (() => {
+    let pts = 0;
+    if (stats.occupancyRate >= 0.8) pts += 2;
+    else if (stats.occupancyRate >= 0.5) pts += 1;
+    const dailyGoal = stats.revenueGoal ? stats.revenueGoal / 30 : null;
+    if (dailyGoal && stats.projectedRevenue >= dailyGoal) pts += 2;
+    else if (dailyGoal && stats.projectedRevenue >= dailyGoal * 0.6) pts += 1;
+    if (stats.inactiveClients === 0) pts += 1;
+    if (pts >= 4) return { label: "Ótimo", color: "text-green-400",  bg: "bg-green-500/10 border-green-500/20",  dot: "bg-green-400" };
+    if (pts >= 2) return { label: "Regular", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20", dot: "bg-yellow-400" };
+    return           { label: "Atenção", color: "text-red-400",    bg: "bg-red-500/10 border-red-500/20",     dot: "bg-red-400" };
+  })();
 
-      {/* ── View Tabs ─────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+  // ── Next appointment (first not COMPLETED/CANCELLED/NO_SHOW) ──
+  const nextAppt = view === "today"
+    ? appointments.find((a) => {
+        const s = localStatuses[a.id] ?? a.status;
+        return !["COMPLETED", "CANCELLED", "NO_SHOW", "finalizado", "cancelado", "clientefaltou"].includes(s);
+      })
+    : null;
+
+  return (
+    <div className="p-6 space-y-5 animate-fade-in">
+
+      {/* ── Quick shortcuts ───────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex gap-1 rounded-lg border border-border bg-surface-800/50 p-1">
           {[
             { key: "today", label: "Hoje" },
@@ -447,12 +470,33 @@ export function DashboardClient({
           ))}
         </div>
 
-        {view === "today" && (
-          <Button variant="ghost" size="sm" onClick={handleSync} disabled={syncing} className="text-xs h-7">
-            <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
-            Sync Trinks
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Day score badge */}
+          {view === "today" && (
+            <span className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${dayScore.bg} ${dayScore.color}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${dayScore.dot}`} />
+              {dayScore.label}
+            </span>
+          )}
+
+          {/* Action shortcuts */}
+          <a href="/agenda" className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-gold-500/30 transition-colors">
+            <Calendar className="h-3 w-3" /> Agenda
+          </a>
+          <a href="/copilot" className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-gold-500/30 transition-colors">
+            <Sparkles className="h-3 w-3" /> Copilot
+          </a>
+          <a href="/whatsapp" className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-gold-500/30 transition-colors">
+            <MessageCircle className="h-3 w-3" /> WhatsApp
+          </a>
+
+          {view === "today" && (
+            <Button variant="ghost" size="sm" onClick={handleSync} disabled={syncing} className="text-xs h-7">
+              <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
+              Sync
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Trinks warnings */}
@@ -474,26 +518,40 @@ export function DashboardClient({
 
       {/* ── KPI Grid ──────────────────────────────────────── */}
       {view === "today" ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Featured: Faturamento (spans 2 on large) */}
+          <Card className="hover:border-gold-500/20 transition-colors col-span-2 lg:col-span-2">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-muted-foreground font-medium">Faturamento previsto hoje</p>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-3xl font-bold tabular-nums text-foreground">{formatBRL(stats.projectedRevenue)}</p>
+              {stats.revenueGoal ? (() => {
+                const dailyGoal = stats.revenueGoal / 30;
+                const pct = Math.min(stats.projectedRevenue / dailyGoal, 1);
+                const color = pct >= 1 ? "bg-green-500" : pct >= 0.6 ? "bg-gold-500" : "bg-red-500";
+                return (
+                  <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <span>Meta diária: {formatBRL(dailyGoal)}</span>
+                      <span className={pct >= 1 ? "text-green-400" : ""}>{Math.round(pct * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.round(pct * 100)}%` }} />
+                    </div>
+                  </div>
+                );
+              })() : <p className="text-xs text-muted-foreground mt-2">Sem meta definida — <a href="/financeiro" className="text-gold-400 hover:underline">definir meta</a></p>}
+            </CardContent>
+          </Card>
+
           <KpiCard
             label="Ocupação hoje"
             value={`${Math.round(stats.occupancyRate * 100)}%`}
-            subValue={`${stats.bookedSlots}/${stats.totalSlots} slots`}
+            subValue={`${stats.bookedSlots} de ${stats.totalSlots} slots`}
             icon={<Calendar className="h-4 w-4" />}
             valueClass={occupancyColor}
-          />
-          <KpiCard
-            label="Horários livres"
-            value={String(stats.freeSlots)}
-            subValue="disponíveis hoje"
-            icon={<Clock className="h-4 w-4" />}
-            valueClass={stats.freeSlots > 3 ? "text-red-400" : "text-green-400"}
-          />
-          <KpiCard
-            label="Faturamento previsto"
-            value={formatBRL(stats.projectedRevenue)}
-            subValue={stats.revenueGoal ? `Meta: ${formatBRL(stats.revenueGoal / 30)}` : "sem meta definida"}
-            icon={<TrendingUp className="h-4 w-4" />}
           />
           <KpiCard
             label="Clientes inativos"
@@ -560,10 +618,33 @@ export function DashboardClient({
         <div className="lg:col-span-3 space-y-4">
           {view === "today" ? (
             <>
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gold-400" />
-                Agenda de hoje
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gold-400" />
+                  Agenda de hoje
+                </h2>
+                {/* Day score mobile */}
+                <span className={`sm:hidden inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${dayScore.bg} ${dayScore.color}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${dayScore.dot}`} />
+                  {dayScore.label}
+                </span>
+              </div>
+
+              {/* Next appointment banner */}
+              {nextAppt && (
+                <div className="flex items-center gap-3 rounded-lg border border-gold-500/20 bg-gold-500/8 px-4 py-2.5">
+                  <Zap className="h-4 w-4 text-gold-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Próximo atendimento</p>
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {formatTime(nextAppt.scheduledAt)} · {nextAppt.customerName}
+                      <span className="text-muted-foreground font-normal"> — {nextAppt.serviceName}</span>
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-gold-400 shrink-0">{formatBRL(nextAppt.price)}</span>
+                </div>
+              )}
+
               <Card>
                 <CardContent className="p-0">
                   {appointments.length === 0 ? (

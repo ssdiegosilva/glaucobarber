@@ -10,7 +10,7 @@ export async function PATCH(
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { name, phone, email, notes, doNotContact, tags } = await req.json();
+  const { name, phone, email, notes, doNotContact, tags, status } = await req.json();
 
   const customer = await prisma.customer.findFirst({
     where: { id, barbershopId: session.user.barbershopId },
@@ -26,6 +26,7 @@ export async function PATCH(
       ...(notes         !== undefined ? { notes: notes ?? null }         : {}),
       ...(doNotContact  != null ? { doNotContact: Boolean(doNotContact) }: {}),
       ...(tags          != null ? { tags }                               : {}),
+      ...(status        != null ? { status }                             : {}),
     },
     select: { id: true, name: true, phone: true, email: true, notes: true, doNotContact: true, tags: true },
   });
