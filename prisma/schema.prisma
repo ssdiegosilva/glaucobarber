@@ -116,6 +116,8 @@ model Barbershop {
   featureFlags  FeatureFlag[]
   goals         Goal[]
   templates     Template[]
+  postSaleActions PostSaleAction[]
+  customerReviews CustomerReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
