@@ -147,40 +147,93 @@ export class OpenAIProvider implements AIProvider {
 }
 
 function buildSuggestionsPrompt(ctx: AISuggestionRequest): string {
+  const postSaleBlock = [
+    ctx.clientsAtRisk        > 0 ? `- Clientes em risco (14–60d sem visita): ${ctx.clientsAtRisk}` : null,
+    ctx.clientsInactive      > 0 ? `- Clientes inativos (>60d sem visita): ${ctx.clientsInactive}` : null,
+    ctx.clientsReactivated   > 0 ? `- Clientes reativados (últimos 60d): ${ctx.clientsReactivated}` : null,
+    ctx.pendingGoogleReviews > 0 ? `- Avaliações Google a solicitar (48h pós-atendimento): ${ctx.pendingGoogleReviews}` : null,
+  ].filter(Boolean).join("\n");
+
   return `## Contexto da ${ctx.barbershopName} hoje (${ctx.dayOfWeek}, ${ctx.date})
-- Horários totais: ${ctx.totalSlots}
-- Agendados: ${ctx.bookedSlots} | Livres: ${ctx.freeSlots}
+
+### Agenda
+- Horários totais: ${ctx.totalSlots} | Agendados: ${ctx.bookedSlots} | Livres: ${ctx.freeSlots}
 - Ocupação: ${Math.round(ctx.occupancyRate * 100)}%
-- Faturamento previsto: R$ ${ctx.revenueToday.toFixed(2)}
-${ctx.revenueGoal ? `- Meta mensal: R$ ${ctx.revenueGoal.toFixed(2)}` : ""}
+- Faturamento previsto: R$ ${ctx.revenueToday.toFixed(2)}${ctx.revenueGoal ? ` | Meta mensal: R$ ${ctx.revenueGoal.toFixed(2)}` : ""}
 - Serviços populares: ${ctx.topServices.join(", ") || "—"}
-- Clientes inativos >30 dias: ${ctx.inactiveClients}
-${ctx.recentCampaigns.length > 0 ? `- Campanhas recentes: ${ctx.recentCampaigns.join(", ")}` : ""}
+
+### Pós-venda
+${postSaleBlock || "- Nenhum alerta de pós-venda no momento"}
+
+### Campanhas
+${ctx.recentCampaigns.length > 0 ? `- Ativas/aprovadas: ${ctx.recentCampaigns.join(", ")}` : "- Nenhuma campanha ativa"}
 
 ## Tarefa
-Gere até 3 sugestões acionáveis para hoje. Foque no que gera resultado imediato.
+Gere até 3 sugestões acionáveis e priorizadas para hoje. Considere os alertas de pós-venda (risco, inativos, avaliações) com a mesma importância que a agenda. Priorize o que gera resultado imediato.
 
-Retorne JSON: { "suggestions": [ { "type": "COMMERCIAL_INSIGHT|CAMPAIGN_TEXT|CLIENT_MESSAGE|SOCIAL_POST|OFFER_OPPORTUNITY", "title": "título (máx 60 chars)", "content": "texto pronto para usar", "reason": "motivo em 1 frase" } ] }`;
+Tipos disponíveis:
+- COMMERCIAL_INSIGHT: análise ou insight do dia
+- CAMPAIGN_TEXT: copy pronto para campanha Instagram/WhatsApp
+- CLIENT_MESSAGE: mensagem de reativação para cliente específico em risco ou inativo
+- SOCIAL_POST: sugestão de post orgânico
+- OFFER_OPPORTUNITY: oportunidade de venda de pacote/serviço
+
+Retorne JSON: { "suggestions": [ { "type": "TIPO", "title": "título (máx 60 chars)", "content": "texto pronto para usar", "reason": "motivo em 1 frase" } ] }`;
 }
 
 function buildCopilotPrompt(ctx: CopilotContext, question: string): string {
-  return `Contexto atual da barbearia ${ctx.barbershopName}
-- Data: ${ctx.dayOfWeek}, ${ctx.date}
-- Ocupação hoje: ${Math.round(ctx.occupancyRate * 100)}% (${ctx.bookedSlots}/${ctx.totalSlots})
-- Horários livres: ${ctx.freeWindows.join(", ") || "—"}
-- Receita prevista: R$ ${ctx.projectedRevenue.toFixed(2)} | Realizada: R$ ${ctx.completedRevenue.toFixed(2)} | Meta mês: ${ctx.revenueGoal ?? "—"}
-- Meta semana: ${ctx.weekGoal ?? "—"}; progresso: ${ctx.weekProgress ? Math.round(ctx.weekProgress * 100) + "%" : "—"}
-- Serviços mais vendidos hoje: ${ctx.topServices.join(", ") || "—"}
-- Clientes inativos (+30d): ${ctx.inactiveClients}
-- Campanhas ativas/aprovadas: ${ctx.campaigns.join(", ") || "—"}
+  const publishedBlock = ctx.publishedCampaigns.length > 0
+    ? ctx.publishedCampaigns.map((c) => `  • ${c.title}${c.permalink ? ` → ${c.permalink}` : ""}`).join("\n")
+    : "  • Nenhuma publicada ainda";
 
+  return `## Contexto atual da ${ctx.barbershopName}
+Data: ${ctx.dayOfWeek}, ${ctx.date}
+
+### Agenda do dia
+- Ocupação: ${Math.round(ctx.occupancyRate * 100)}% (${ctx.bookedSlots}/${ctx.totalSlots} horários)
+- Horários livres: ${ctx.freeWindows.join(", ") || "—"}
+- Receita prevista: R$ ${ctx.projectedRevenue.toFixed(2)} | Realizada: R$ ${ctx.completedRevenue.toFixed(2)}
+- Meta mensal: ${ctx.revenueGoal ? `R$ ${ctx.revenueGoal.toFixed(2)}` : "não definida"}
+- Meta semanal: ${ctx.weekGoal ? `R$ ${ctx.weekGoal.toFixed(2)} (${ctx.weekProgress ? Math.round(ctx.weekProgress * 100) + "% concluída" : "—"})` : "não definida"}
+- Serviços mais vendidos: ${ctx.topServices.join(", ") || "—"}
+
+### Pós-venda
+- Clientes em risco (14–60d sem visita, sem agendamento): ${ctx.clientsAtRisk}
+- Clientes inativos (>60d sem visita): ${ctx.clientsInactive}
+- Clientes reativados (voltaram nos últimos 60d): ${ctx.clientsReactivated}
+- Avaliações Google pendentes (48h pós-atendimento): ${ctx.pendingGoogleReviews}
+
+### Campanhas
+Ativas/aprovadas: ${ctx.activeCampaigns.join(", ") || "nenhuma"}
+Publicadas no Instagram:
+${publishedBlock}
+
+---
 Pergunta do usuário: ${question}
 
 Responda em JSON:
 {
   "answer": "resposta executiva em 2-4 frases",
-  "actions": [ { "title": "", "description": "", "type": "campaign|follow_up|agenda|crm|meta|pricing", "reason": "por quê", "payload": {"dados": "opc"} } ],
+  "actions": [
+    {
+      "title": "título da ação",
+      "description": "o que fazer exatamente",
+      "type": "campaign|post_sale_followup|post_sale_review|agenda|crm|meta|pricing",
+      "reason": "por que agir agora",
+      "payload": {}
+    }
+  ],
   "requireApproval": true
 }
+
+Tipos de ação disponíveis:
+- campaign: criar ou publicar campanha no Instagram/WhatsApp
+- post_sale_followup: enviar mensagem de reativação para clientes em risco ou inativos
+- post_sale_review: solicitar avaliação Google para clientes recém-atendidos
+- agenda: ação relacionada a horários livres ou agendamento
+- crm: atualização de dados ou segmentação de clientes
+- meta: ajuste de metas de faturamento
+- pricing: sugestão de preço ou pacote
+
 Nunca confirme execução. Sempre deixe requireApproval true.`;
 }

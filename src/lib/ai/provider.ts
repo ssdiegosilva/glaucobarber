@@ -26,9 +26,6 @@ export function getAIProvider(): AIProvider {
     case "openai":
       _provider = new OpenAIProvider();
       break;
-    // Future adapters:
-    // case "anthropic": _provider = new AnthropicProvider(); break;
-    // case "groq":      _provider = new GroqProvider(); break;
     default:
       _provider = new OpenAIProvider();
   }
@@ -37,11 +34,10 @@ export function getAIProvider(): AIProvider {
 }
 
 // ── Context builder ────────────────────────────────────────
-// Builds AI context from DB state for a given barbershop
 
 import { prisma } from "@/lib/prisma";
 import type { AISuggestionRequest, CopilotContext } from "./types";
-import { startOfDay, endOfDay, format, getDay, startOfWeek, endOfWeek } from "date-fns";
+import { startOfDay, endOfDay, format, getDay, startOfWeek, endOfWeek, subDays } from "date-fns";
 
 const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -50,43 +46,64 @@ export async function buildAIContext(barbershopId: string): Promise<AISuggestion
   const start = startOfDay(now);
   const end   = endOfDay(now);
 
-  const [barbershop, todayAppointments, inactiveCount, recentCampaigns, goal] =
-    await Promise.all([
-      prisma.barbershop.findUnique({ where: { id: barbershopId } }),
+  const [
+    barbershop,
+    todayAppointments,
+    clientsAtRisk,
+    clientsInactive,
+    clientsReactivated,
+    pendingGoogleReviews,
+    recentCampaigns,
+    goal,
+  ] = await Promise.all([
+    prisma.barbershop.findUnique({ where: { id: barbershopId } }),
 
-      prisma.appointment.findMany({
-        where: {
-          barbershopId,
-          scheduledAt: { gte: start, lte: end },
-        },
-        include: { service: true },
-      }),
+    prisma.appointment.findMany({
+      where: { barbershopId, scheduledAt: { gte: start, lte: end } },
+      include: { service: true },
+    }),
 
-      prisma.customer.count({
-        where: {
-          barbershopId,
-          status: "ACTIVE",
-          lastVisitAt: { lt: new Date(Date.now() - 30 * 86400_000) },
-        },
-      }),
+    // EM_RISCO: 14–60 dias sem visita, sem agendamento futuro
+    prisma.customer.count({
+      where: { barbershopId, postSaleStatus: "EM_RISCO" },
+    }),
 
-      prisma.campaign.findMany({
-        where:   { barbershopId, status: { in: ["APPROVED", "PUBLISHED"] } },
-        orderBy: { createdAt: "desc" },
-        take:    3,
-        select:  { title: true },
-      }),
+    // INATIVO: >60 dias sem visita
+    prisma.customer.count({
+      where: { barbershopId, postSaleStatus: "INATIVO" },
+    }),
 
-      prisma.goal.findFirst({
-        where: {
-          barbershopId,
-          month: now.getMonth() + 1,
-          year:  now.getFullYear(),
-        },
-      }),
-    ]);
+    // REATIVADO: voltaram nos últimos 60 dias
+    prisma.customer.count({
+      where: {
+        barbershopId,
+        postSaleStatus: "REATIVADO",
+        reactivatedAt: { gte: subDays(now, 60) },
+      },
+    }),
 
-  // Work hours: 9-19, every 30min = 20 slots
+    // Avaliações Google pendentes (48h pós-atendimento)
+    prisma.customerReview.count({
+      where: {
+        barbershopId,
+        requestStatus: "pendente",
+        appointment: { completedAt: { gte: subDays(now, 2) } },
+        customer: { reviewOptOut: false },
+      },
+    }),
+
+    prisma.campaign.findMany({
+      where:   { barbershopId, status: { in: ["APPROVED", "PUBLISHED"] } },
+      orderBy: { createdAt: "desc" },
+      take:    3,
+      select:  { title: true },
+    }),
+
+    prisma.goal.findFirst({
+      where: { barbershopId, month: now.getMonth() + 1, year: now.getFullYear() },
+    }),
+  ]);
+
   const TOTAL_SLOTS = 20;
   const bookedSlots = todayAppointments.filter(
     (a) => a.status !== "CANCELLED" && a.status !== "NO_SHOW"
@@ -108,53 +125,88 @@ export async function buildAIContext(barbershopId: string): Promise<AISuggestion
     .map(([name]) => name);
 
   return {
-    barbershopName:  barbershop?.name ?? "Barbearia",
-    date:            format(now, "dd/MM/yyyy"),
-    dayOfWeek:       DAY_NAMES[getDay(now)],
-    totalSlots:      TOTAL_SLOTS,
+    barbershopName:       barbershop?.name ?? "Barbearia",
+    date:                 format(now, "dd/MM/yyyy"),
+    dayOfWeek:            DAY_NAMES[getDay(now)],
+    totalSlots:           TOTAL_SLOTS,
     bookedSlots,
-    freeSlots:       TOTAL_SLOTS - bookedSlots,
-    occupancyRate:   bookedSlots / TOTAL_SLOTS,
+    freeSlots:            TOTAL_SLOTS - bookedSlots,
+    occupancyRate:        bookedSlots / TOTAL_SLOTS,
     revenueToday,
-    revenueGoal:     goal?.revenueTarget ? Number(goal.revenueTarget) : undefined,
+    revenueGoal:          goal?.revenueTarget ? Number(goal.revenueTarget) : undefined,
     topServices,
-    inactiveClients: inactiveCount,
-    recentCampaigns: recentCampaigns.map((c) => c.title),
+    clientsAtRisk,
+    clientsInactive,
+    clientsReactivated,
+    pendingGoogleReviews,
+    recentCampaigns:      recentCampaigns.map((c) => c.title),
   };
 }
 
 // ── Copilot context: mais rico para respostas executivas ──
 
 export async function buildCopilotContext(barbershopId: string): Promise<CopilotContext> {
-  const now = new Date();
+  const now   = new Date();
   const start = startOfDay(now);
-  const end = endOfDay(now);
+  const end   = endOfDay(now);
 
-  const [barbershop, appointmentsToday, inactiveCount, campaigns, goalMonth, goalWeek] = await Promise.all([
+  const [
+    barbershop,
+    appointmentsToday,
+    clientsAtRisk,
+    clientsInactive,
+    clientsReactivated,
+    pendingGoogleReviews,
+    activeCampaignsRaw,
+    publishedCampaignsRaw,
+    goalMonth,
+    goalWeek,
+  ] = await Promise.all([
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
+
     prisma.appointment.findMany({
       where: { barbershopId, scheduledAt: { gte: start, lte: end } },
       include: { service: true },
       orderBy: { scheduledAt: "asc" },
     }),
+
+    prisma.customer.count({ where: { barbershopId, postSaleStatus: "EM_RISCO" } }),
+    prisma.customer.count({ where: { barbershopId, postSaleStatus: "INATIVO" } }),
     prisma.customer.count({
+      where: { barbershopId, postSaleStatus: "REATIVADO", reactivatedAt: { gte: subDays(now, 60) } },
+    }),
+
+    prisma.customerReview.count({
       where: {
         barbershopId,
-        status: "ACTIVE",
-        lastVisitAt: { lt: new Date(Date.now() - 30 * 86400_000) },
+        requestStatus: "pendente",
+        appointment: { completedAt: { gte: subDays(now, 2) } },
+        customer: { reviewOptOut: false },
       },
     }),
+
+    // Campanhas aprovadas/agendadas (ainda não publicadas)
     prisma.campaign.findMany({
-      where: { barbershopId, status: { in: ["APPROVED", "PUBLISHED"] } },
+      where: { barbershopId, status: { in: ["APPROVED", "SCHEDULED"] } },
       select: { title: true },
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
+
+    // Campanhas publicadas no Instagram (com permalink)
+    prisma.campaign.findMany({
+      where: { barbershopId, status: "PUBLISHED" },
+      select: { title: true, instagramPermalink: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+
     prisma.goal.findFirst({
       where: { barbershopId, month: now.getMonth() + 1, year: now.getFullYear() },
     }),
+
     prisma.goal.findFirst({
-      where: { barbershopId, month: 0, year: 0 }, // reserved for weekly placeholders if configured
+      where: { barbershopId, month: 0, year: 0 },
     }),
   ]);
 
@@ -172,7 +224,7 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     ? ["manhã inteira", "tarde inteira"]
     : appointmentsToday
         .map((a) => format(a.scheduledAt, "HH:mm"))
-        .slice(0, 4); // coarse view only
+        .slice(0, 4);
 
   const serviceCounts = new Map<string, number>();
   appointmentsToday.forEach((a) => {
@@ -185,38 +237,37 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     .slice(0, 3)
     .map(([name]) => name);
 
-  // Week progress (using appointments completed in current ISO week)
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd   = endOfWeek(now, { weekStartsOn: 1 });
   const weekAggregate = await prisma.appointment.aggregate({
-    where: {
-      barbershopId,
-      scheduledAt: { gte: weekStart, lte: weekEnd },
-      status: "COMPLETED",
-    },
+    where: { barbershopId, scheduledAt: { gte: weekStart, lte: weekEnd }, status: "COMPLETED" },
     _sum: { price: true },
   });
 
-  const weekRevenue = Number(weekAggregate._sum.price ?? 0);
+  const weekRevenue  = Number(weekAggregate._sum.price ?? 0);
   const weekGoalValue = goalWeek?.revenueTarget ?? goalMonth?.revenueTarget ?? null;
-  const weekProgress = weekGoalValue ? Math.min(weekRevenue / Number(weekGoalValue), 1) : null;
+  const weekProgress  = weekGoalValue ? Math.min(weekRevenue / Number(weekGoalValue), 1) : null;
 
   return {
-    barbershopName: barbershop?.name ?? "Barbearia",
-    date: format(now, "dd/MM/yyyy"),
-    dayOfWeek: DAY_NAMES[getDay(now)],
+    barbershopName:       barbershop?.name ?? "Barbearia",
+    date:                 format(now, "dd/MM/yyyy"),
+    dayOfWeek:            DAY_NAMES[getDay(now)],
     occupancyRate,
-    totalSlots: TOTAL_SLOTS,
+    totalSlots:           TOTAL_SLOTS,
     bookedSlots,
-    freeSlots: Math.max(TOTAL_SLOTS - bookedSlots, 0),
+    freeSlots:            Math.max(TOTAL_SLOTS - bookedSlots, 0),
     freeWindows,
     projectedRevenue,
     completedRevenue,
-    revenueGoal: goalMonth?.revenueTarget ? Number(goalMonth.revenueTarget) : null,
+    revenueGoal:          goalMonth?.revenueTarget ? Number(goalMonth.revenueTarget) : null,
     topServices,
-    inactiveClients: inactiveCount,
-    campaigns: campaigns.map((c) => c.title),
-    weekGoal: weekGoalValue ? Number(weekGoalValue) : null,
+    clientsAtRisk,
+    clientsInactive,
+    clientsReactivated,
+    pendingGoogleReviews,
+    activeCampaigns:      activeCampaignsRaw.map((c) => c.title),
+    publishedCampaigns:   publishedCampaignsRaw.map((c) => ({ title: c.title, permalink: c.instagramPermalink })),
+    weekGoal:             weekGoalValue ? Number(weekGoalValue) : null,
     weekProgress,
   };
 }

@@ -4,7 +4,7 @@
 
 export interface AISuggestionRequest {
   barbershopName: string;
-  date:           string; // ISO date
+  date:           string; // dd/MM/yyyy
   dayOfWeek:      string;
   totalSlots:     number;
   bookedSlots:    number;
@@ -13,9 +13,13 @@ export interface AISuggestionRequest {
   revenueToday:   number; // BRL
   revenueGoal?:   number;
   topServices:    string[];
-  inactiveClients: number;
-  recentCampaigns: string[];
-  goals?:         string;
+  // Post-sale breakdown (replaces old generic inactiveClients)
+  clientsAtRisk:        number; // EM_RISCO: 14–60 dias sem visita, sem agendamento
+  clientsInactive:      number; // INATIVO: >60 dias sem visita
+  clientsReactivated:   number; // REATIVADO: voltaram nos últimos 60 dias
+  pendingGoogleReviews: number; // avaliações Google a solicitar (48h pós-atendimento)
+  recentCampaigns: string[];    // campanhas ativas/aprovadas
+  goals?:          string;
 }
 
 export interface AISuggestion {
@@ -52,10 +56,16 @@ export interface CopilotContext {
   completedRevenue: number;
   revenueGoal?: number | null;
   topServices: string[];
-  inactiveClients: number;
-  campaigns: string[];
+  // Post-sale (replaces old generic inactiveClients)
+  clientsAtRisk:        number;
+  clientsInactive:      number;
+  clientsReactivated:   number;
+  pendingGoogleReviews: number;
+  // Campaigns
+  activeCampaigns:     string[];                                          // títulos aprovados/ativos
+  publishedCampaigns:  { title: string; permalink?: string | null }[];   // publicados no Instagram
   weekGoal?: number | null;
-  weekProgress?: number | null;
+  weekProgress?: number | null; // 0-1
 }
 
 export interface CopilotActionSuggestion {
