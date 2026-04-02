@@ -39,6 +39,7 @@ interface PriceRecommendation {
   maxPrice:       number;
   marketPosition: string;
   rationale:      string;
+  location:       string;
 }
 
 interface BarbershopLocation {
@@ -224,6 +225,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   const [loadingAI, setLoadingAI]                 = useState<string | null>(null);
   const [recommendations, setRecommendations]     = useState<Record<string, PriceRecommendation>>({});
   const [expandedRec, setExpandedRec]             = useState<string | null>(null);
+  const [selectedPrices, setSelectedPrices]       = useState<Record<string, number>>({});
   const [generatingOpps, setGeneratingOpps]       = useState(false);
   const [approvingId, setApprovingId]             = useState<string | null>(null);
   const [rejectingId, setRejectingId]             = useState<string | null>(null);
@@ -286,6 +288,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro na IA");
       setRecommendations((prev) => ({ ...prev, [svc.id]: data as PriceRecommendation }));
+      setSelectedPrices((prev) => ({ ...prev, [svc.id]: (data as PriceRecommendation).suggestedPrice }));
       setExpandedRec(svc.id);
     } catch (e) {
       toast({ title: "Erro na recomendação", description: String(e), variant: "destructive" });
@@ -571,34 +574,61 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                         : (loadingAI === s.id ? "Consultando IA..." : "Sugerir preço com IA")}
                     </button>
 
-                    {rec && isExpanded && (
-                      <div className="mt-2 rounded-lg border border-purple-500/20 bg-purple-500/8 p-3 space-y-2">
-                        <div className="flex items-center gap-1.5">
-                          <TrendingUp className="h-3.5 w-3.5 text-purple-400" />
-                          <span className="text-xs font-semibold text-purple-300">Recomendação da IA</span>
-                          <span className="ml-auto text-[10px] text-purple-400/70 capitalize">{rec.marketPosition}</span>
+                    {rec && isExpanded && (() => {
+                      const chosen = selectedPrices[s.id] ?? rec.suggestedPrice;
+                      const step   = 1;
+                      return (
+                        <div className="mt-2 rounded-lg border border-purple-500/20 bg-purple-500/8 p-3 space-y-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <TrendingUp className="h-3.5 w-3.5 text-purple-400" />
+                            <span className="text-xs font-semibold text-purple-300">Recomendação da IA</span>
+                            <span className="ml-auto text-[10px] text-purple-400/70 capitalize">{rec.marketPosition}</span>
+                          </div>
+                          {rec.location && (
+                            <div className="flex items-center gap-1 text-[10px] text-purple-300/70">
+                              <MapPin className="h-2.5 w-2.5" />
+                              Baseado em barbearias em <span className="font-semibold text-purple-300 ml-0.5">{rec.location}</span>
+                            </div>
+                          )}
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{rec.rationale}</p>
+                          {/* Price slider */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-[10px] text-muted-foreground">Escolha o preço</span>
+                              <span className="text-lg font-bold text-purple-300">{formatBRL(chosen)}</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={rec.minPrice}
+                              max={rec.maxPrice}
+                              step={step}
+                              value={chosen}
+                              onChange={(e) => setSelectedPrices((prev) => ({ ...prev, [s.id]: Number(e.target.value) }))}
+                              className="w-full h-1.5 rounded-full accent-purple-500 cursor-pointer"
+                            />
+                            <div className="flex justify-between text-[9px] text-muted-foreground">
+                              <span>Mín {formatBRL(rec.minPrice)}</span>
+                              <span className="text-purple-400/60">Sugerido {formatBRL(rec.suggestedPrice)}</span>
+                              <span>Máx {formatBRL(rec.maxPrice)}</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 pt-0.5">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs flex-1 bg-purple-600 hover:bg-purple-500"
+                              onClick={() => applyRecommendation(s.id, chosen)}
+                              disabled={saving}
+                            >
+                              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check className="h-3 w-3 mr-1" />Aplicar {formatBRL(chosen)}</>}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                              onClick={() => { setRecommendations((prev) => { const n = { ...prev }; delete n[s.id]; return n; }); setExpandedRec(null); }}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-bold text-purple-300">{formatBRL(rec.suggestedPrice)}</span>
-                          <span className="text-[10px] text-muted-foreground">faixa: {formatBRL(rec.minPrice)} – {formatBRL(rec.maxPrice)}</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">{rec.rationale}</p>
-                        <div className="flex gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs flex-1 bg-purple-600 hover:bg-purple-500"
-                            onClick={() => applyRecommendation(s.id, rec.suggestedPrice)}
-                            disabled={saving}
-                          >
-                            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check className="h-3 w-3 mr-1" />Aplicar {formatBRL(rec.suggestedPrice)}</>}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
-                            onClick={() => { setRecommendations((prev) => { const n = { ...prev }; delete n[s.id]; return n; }); setExpandedRec(null); }}>
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </>
                 )}
 

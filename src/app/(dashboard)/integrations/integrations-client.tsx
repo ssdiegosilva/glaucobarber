@@ -15,6 +15,7 @@ interface IntegrationInfo {
   configured: boolean;
   instagramPageAccessToken?: string | null;
   instagramBusinessId?: string | null;
+  instagramUsername?: string | null;
 }
 interface SyncRunInfo {
   id:                  string;
@@ -46,12 +47,14 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [estabs,     setEstabs]     = useState<{ id: string; nome: string }[]>([]);
   const [loadingEstab, setLoadingEstab] = useState(false);
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
-  const [igToken,    setIgToken]    = useState("");
-  const [igBizId,    setIgBizId]    = useState("");
-  const [igPageId,   setIgPageId]   = useState("");
-  const [savingIg,   setSavingIg]   = useState(false);
-  const [editingIg,  setEditingIg]  = useState(!integration?.instagramBusinessId);
-  const [displayBizId, setDisplayBizId] = useState(integration?.instagramBusinessId ?? "");
+  const [igToken,       setIgToken]       = useState("");
+  const [igBizId,       setIgBizId]       = useState("");
+  const [igPageId,      setIgPageId]      = useState("");
+  const [igSelectedName, setIgSelectedName] = useState("");
+  const [savingIg,      setSavingIg]      = useState(false);
+  const [editingIg,     setEditingIg]     = useState(!integration?.instagramBusinessId);
+  const [displayBizId,  setDisplayBizId]  = useState(integration?.instagramBusinessId ?? "");
+  const [displayUsername, setDisplayUsername] = useState(integration?.instagramUsername ?? "");
   const [discovering, setDiscovering] = useState(false);
   const [igAccounts,  setIgAccounts]  = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
 
@@ -143,12 +146,13 @@ export function IntegrationsClient({ integration, syncRuns }: {
       const res = await fetch("/api/integrations/instagram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: igToken, businessId: igBizId, pageId: igPageId }),
+        body: JSON.stringify({ accessToken: igToken, businessId: igBizId, pageId: igPageId, username: igSelectedName || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar Instagram");
       toast({ title: "Instagram conectado", description: "Dados salvos com sucesso." });
       setDisplayBizId(igBizId);
+      setDisplayUsername(igSelectedName);
       setEditingIg(false);
     } catch (e) {
       toast({ title: "Erro ao salvar Instagram", description: String(e), variant: "destructive" });
@@ -326,7 +330,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
                       <button
                         key={acc.instagramId}
                         type="button"
-                        onClick={() => { setIgBizId(acc.instagramId); setIgPageId(acc.pageId); }}
+                        onClick={() => { setIgBizId(acc.instagramId); setIgPageId(acc.pageId); setIgSelectedName(acc.instagramName); }}
                         className={`w-full text-left rounded-md border px-3 py-2 text-xs transition-colors ${igBizId === acc.instagramId ? "border-gold-500/60 bg-gold-500/10 text-foreground" : "border-border bg-surface-800 text-muted-foreground hover:text-foreground"}`}
                       >
                         <span className="font-medium">@{acc.instagramName}</span>
@@ -374,10 +378,22 @@ export function IntegrationsClient({ integration, syncRuns }: {
             <div className="rounded-md border border-green-500/30 bg-green-500/8 px-4 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                <div className="text-xs">
+                <div className="text-xs space-y-0.5">
                   <p className="font-semibold text-green-400">Conectado</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    Business ID: <span className="font-mono text-foreground">{displayBizId}</span>
+                  {displayUsername ? (
+                    <p className="text-foreground font-medium">
+                      <a
+                        href={`https://instagram.com/${displayUsername}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
+                      >
+                        @{displayUsername}
+                      </a>
+                    </p>
+                  ) : null}
+                  <p className="text-muted-foreground">
+                    Business ID: <span className="font-mono text-foreground/70">{displayBizId}</span>
                   </p>
                 </div>
               </div>

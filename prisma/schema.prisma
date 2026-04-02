@@ -184,6 +184,7 @@ model Integration {
   instagramPageAccessToken String?
   instagramBusinessId      String?
   instagramPageId          String?
+  instagramUsername        String?
 
   lastSyncAt DateTime?
   errorMsg   String?
@@ -865,6 +866,8 @@ model Goal {
   appointmentTarget Int?
   notes             String?
   offDaysOfWeek     Int[]    // 0=Dom,1=Seg,...,6=Sab — dias que NÃO trabalha
+  extraOffDays      Int[]    // dias específicos (1-31) bloqueados mesmo sendo dia útil
+  extraWorkDays     Int[]    // dias específicos (1-31) liberados mesmo sendo folga
   workingDaysCount  Int?     // dias do mês que vai trabalhar (calculado)
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)

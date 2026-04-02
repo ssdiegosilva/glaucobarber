@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { accessToken, businessId, pageId } = await req.json();
+  const { accessToken, businessId, pageId, username } = await req.json();
   if (!accessToken || !businessId) {
     return NextResponse.json({ error: "Preencha token e Instagram Business ID" }, { status: 400 });
   }
@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
     update: {
       instagramPageAccessToken: accessToken,
       instagramBusinessId: businessId,
-      instagramPageId: pageId,
+      instagramPageId: pageId ?? null,
+      instagramUsername: username ?? null,
       status: "ACTIVE",
     },
     create: {
@@ -25,7 +26,8 @@ export async function POST(req: NextRequest) {
       status: "ACTIVE",
       instagramPageAccessToken: accessToken,
       instagramBusinessId: businessId,
-      instagramPageId: pageId,
+      instagramPageId: pageId ?? null,
+      instagramUsername: username ?? null,
     },
   });
 

@@ -35,6 +35,8 @@ export default async function FinanceiroPage() {
     discountPayments,
     allGoals,
     yearAppointments,
+    dailyRevenueRaw,
+    dailyScheduledRaw,
   ] = await Promise.all([
     prisma.appointment.aggregate({
       where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
@@ -73,6 +75,16 @@ export default async function FinanceiroPage() {
     prisma.appointment.findMany({
       where:  { barbershopId, status: "COMPLETED", scheduledAt: { gte: yearStart, lte: yearEnd } },
       select: { scheduledAt: true, price: true },
+    }),
+    // Daily completed revenue this month (for calendar color coding)
+    prisma.appointment.findMany({
+      where:  { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
+      select: { scheduledAt: true, price: true },
+    }),
+    // Upcoming scheduled appointments this month (for gold indicator)
+    prisma.appointment.findMany({
+      where:  { barbershopId, status: { in: ["PENDING", "CONFIRMED"] }, scheduledAt: { gte: now, lte: thisEnd } },
+      select: { scheduledAt: true },
     }),
   ]);
 
@@ -133,6 +145,20 @@ export default async function FinanceiroPage() {
     };
   });
 
+  // ── Daily revenue map for current month ─────────────────────
+  const revenueByDay: Record<number, number> = {};
+  for (const a of dailyRevenueRaw) {
+    const d = a.scheduledAt.getDate();
+    revenueByDay[d] = (revenueByDay[d] ?? 0) + Number(a.price ?? 0);
+  }
+
+  // ── Upcoming scheduled appointments per day ─────────────────
+  const scheduledByDay: Record<number, number> = {};
+  for (const a of dailyScheduledRaw) {
+    const d = a.scheduledAt.getDate();
+    scheduledByDay[d] = (scheduledByDay[d] ?? 0) + 1;
+  }
+
   // ── All goals serialized ────────────────────────────────────
   const MONTH_LABELS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const allGoalsSerialized = allGoals.map((g) => ({
@@ -144,6 +170,8 @@ export default async function FinanceiroPage() {
     isPast:           g.month < month,
     isCurrent:        g.month === month,
     offDaysOfWeek:    g.offDaysOfWeek ?? [],
+    extraOffDays:     g.extraOffDays  ?? [],
+    extraWorkDays:    g.extraWorkDays ?? [],
     workingDaysCount: g.workingDaysCount ?? null,
   }));
 
@@ -171,8 +199,12 @@ export default async function FinanceiroPage() {
             appointmentTarget: goal.appointmentTarget ?? null,
             notes:             goal.notes ?? null,
             offDaysOfWeek:     goal.offDaysOfWeek ?? [],
+            extraOffDays:      goal.extraOffDays  ?? [],
+            extraWorkDays:     goal.extraWorkDays ?? [],
             workingDaysCount:  goal.workingDaysCount ?? null,
           } : null}
+          revenueByDay={revenueByDay}
+          scheduledByDay={scheduledByDay}
           byService={byServiceSerialized}
           discountByDay={discountByDay}
           discountList={discountList}

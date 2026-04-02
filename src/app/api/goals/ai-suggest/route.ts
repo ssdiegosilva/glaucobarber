@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour } = await req.json();
+  const { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour, wizardContext } = await req.json();
   if (!month || !year) return NextResponse.json({ error: "month e year obrigatórios" }, { status: 400 });
 
   const offDays: number[] = Array.isArray(offDaysOfWeek) ? offDaysOfWeek.map(Number) : [];
@@ -55,6 +55,7 @@ Dados da barbearia:
 
 Com base nesses dados, sugira uma meta de faturamento mensal realista mas desafiadora.
 Considere uma ocupação esperada entre 70% e 85% da capacidade total.
+${wizardContext ? `\nContexto adicional informado pelo barbeiro: "${wizardContext}"\nConsidere este contexto ao ajustar a meta (ex: feriados, eventos especiais, folgas extras).` : ""}
 
 Responda SOMENTE em JSON com exatamente esse formato:
 {

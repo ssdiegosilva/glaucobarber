@@ -20,6 +20,8 @@ interface Goal {
   appointmentTarget: number | null;
   notes:             string | null;
   offDaysOfWeek:     number[];
+  extraOffDays:      number[];
+  extraWorkDays:     number[];
   workingDaysCount:  number | null;
 }
 
@@ -37,6 +39,8 @@ interface GoalRow {
   revenueTarget: number | null; revenueActual: number;
   isPast: boolean; isCurrent: boolean;
   offDaysOfWeek:    number[];
+  extraOffDays:     number[];
+  extraWorkDays:    number[];
   workingDaysCount: number | null;
 }
 
@@ -53,6 +57,8 @@ interface Props {
   totalDiscountMonth: number;
   annualMonths: AnnualMonth[];
   allGoals: GoalRow[];
+  revenueByDay:   Record<number, number>;
+  scheduledByDay: Record<number, number>;
 }
 
 // ── Day helpers ───────────────────────────────────────────────
@@ -60,16 +66,87 @@ interface Props {
 const DOW_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DOW_FULL   = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 
-/** Mini calendar for a month showing X on off days */
-function WorkingDaysCalendar({ month, year, offDaysOfWeek }: { month: number; year: number; offDaysOfWeek: number[] }) {
+/** Interactive/colored calendar for a month */
+function DaysCalendar({
+  month, year,
+  offDaysOfWeek,
+  extraOffDays = [],
+  extraWorkDays = [],
+  setExtraOffDays,
+  setExtraWorkDays,
+  revenueByDay,
+  scheduledByDay,
+  dailyGoal,
+  today,
+  readOnly = false,
+}: {
+  month: number; year: number;
+  offDaysOfWeek: number[];
+  extraOffDays?: number[];
+  extraWorkDays?: number[];
+  setExtraOffDays?: (v: number[]) => void;
+  setExtraWorkDays?: (v: number[]) => void;
+  revenueByDay?: Record<number, number>;
+  scheduledByDay?: Record<number, number>;
+  dailyGoal?: number | null;
+  today?: number;    // day-of-month number for current month only
+  readOnly?: boolean;
+}) {
   const daysInMonth = getDaysInMonth(new Date(year, month - 1, 1));
-  const firstDow    = new Date(year, month - 1, 1).getDay(); // 0=Sun
+  const firstDow    = new Date(year, month - 1, 1).getDay();
   const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
-  // pad to full weeks
   while (cells.length % 7 !== 0) cells.push(null);
 
+  function isWorking(day: number) {
+    const dow = new Date(year, month - 1, day).getDay();
+    return (!offDaysOfWeek.includes(dow) || extraWorkDays.includes(day)) && !extraOffDays.includes(day);
+  }
+
+  function handleClick(day: number) {
+    if (readOnly || !setExtraOffDays || !setExtraWorkDays) return;
+    const dow = new Date(year, month - 1, day).getDay();
+    const isOffWeekday = offDaysOfWeek.includes(dow);
+    if (extraOffDays.includes(day)) {
+      setExtraOffDays(extraOffDays.filter((d) => d !== day));
+    } else if (extraWorkDays.includes(day)) {
+      setExtraWorkDays(extraWorkDays.filter((d) => d !== day));
+    } else if (isOffWeekday) {
+      setExtraWorkDays([...extraWorkDays, day]);
+    } else {
+      setExtraOffDays([...extraOffDays, day]);
+    }
+  }
+
+  function getDayStyle(day: number): string {
+    const working = isWorking(day);
+    const isToday = today === day;
+    const todayRing = isToday ? " ring-1 ring-gold-400" : "";
+
+    if (!working) return `bg-zinc-800/60 text-zinc-600 border border-zinc-700/40${todayRing}`;
+
+    if (revenueByDay && today !== undefined) {
+      const isPast = day < today!;
+      if (isPast || isToday) {
+        const rev = revenueByDay[day] ?? 0;
+        const goal = dailyGoal ?? 0;
+        if (goal > 0 && rev >= goal) return `bg-emerald-500/20 text-emerald-300 border border-emerald-500/30${todayRing}`;
+        if (rev > 0 || isToday) return `bg-red-500/15 text-red-300 border border-red-500/25${todayRing}`;
+        return `bg-red-500/10 text-red-400/70 border border-red-500/15${todayRing}`;
+      }
+      // future
+      const scheduled = scheduledByDay?.[day] ?? 0;
+      if (scheduled > 0) return `bg-amber-500/15 text-amber-300 border border-amber-500/25${todayRing}`;
+    }
+
+    // override unlocked (was off weekday, now working)
+    if (extraWorkDays.includes(day)) return `bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 border-dashed${todayRing}`;
+    return `bg-zinc-700/40 text-foreground/70 hover:bg-zinc-600/50${todayRing}`;
+  }
+
+  const showLegend = !!revenueByDay;
+
   return (
-    <div className="mt-3">
+    <div className="mt-2">
       <div className="grid grid-cols-7 gap-0.5 mb-1">
         {DOW_LABELS.map((d) => (
           <div key={d} className="text-center text-[9px] font-semibold text-muted-foreground uppercase tracking-wide py-0.5">{d}</div>
@@ -78,25 +155,39 @@ function WorkingDaysCalendar({ month, year, offDaysOfWeek }: { month: number; ye
       <div className="grid grid-cols-7 gap-0.5">
         {cells.map((day, i) => {
           if (!day) return <div key={i} />;
-          const dow    = new Date(year, month - 1, day).getDay();
-          const isOff  = offDaysOfWeek.includes(dow);
+          const working = isWorking(day);
+          const style = getDayStyle(day);
           return (
-            <div
+            <button
               key={i}
-              className={`flex items-center justify-center rounded text-[10px] h-6 font-medium transition-colors
-                ${isOff
-                  ? "bg-red-500/12 text-red-400 border border-red-500/20"
-                  : "bg-surface-700/50 text-foreground/70"
-                }`}
+              type="button"
+              disabled={readOnly}
+              onClick={() => handleClick(day)}
+              title={!readOnly ? (working ? "Clique para bloquear este dia" : "Clique para liberar este dia") : undefined}
+              className={`flex items-center justify-center rounded text-[10px] h-6 font-medium transition-colors ${style} ${!readOnly ? "cursor-pointer" : "cursor-default"}`}
             >
-              {isOff ? <XIcon className="h-2.5 w-2.5" /> : day}
-            </div>
+              {!working && !extraWorkDays.includes(day) ? <XIcon className="h-2.5 w-2.5" /> : day}
+            </button>
           );
         })}
       </div>
-      <p className="text-[10px] text-muted-foreground mt-2 text-right">
-        <XIcon className="h-2.5 w-2.5 inline text-red-400 mr-1" />dias de folga
-      </p>
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+        {showLegend ? (
+          <>
+            <span className="flex items-center gap-1 text-[9px] text-emerald-400"><span className="h-2 w-2 rounded-sm bg-emerald-500/20 border border-emerald-500/30 inline-block" />Meta atingida</span>
+            <span className="flex items-center gap-1 text-[9px] text-red-400"><span className="h-2 w-2 rounded-sm bg-red-500/15 border border-red-500/25 inline-block" />Abaixo da meta</span>
+            <span className="flex items-center gap-1 text-[9px] text-amber-300"><span className="h-2 w-2 rounded-sm bg-amber-500/15 border border-amber-500/25 inline-block" />Agenda preenchida</span>
+            <span className="flex items-center gap-1 text-[9px] text-zinc-500"><span className="h-2 w-2 rounded-sm bg-zinc-700/40 inline-block" />Dia livre</span>
+            <span className="flex items-center gap-1 text-[9px] text-zinc-500"><span className="h-2 w-2 rounded-sm bg-zinc-800/60 border border-zinc-700/40 inline-block" />Folga</span>
+          </>
+        ) : (
+          <>
+            <span className="flex items-center gap-1 text-[9px] text-zinc-500"><XIcon className="h-2 w-2 text-zinc-600 inline" />Folga</span>
+            {!readOnly && <span className="text-[9px] text-muted-foreground">Clique para ajustar dias individuais</span>}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -120,23 +211,28 @@ export function FinanceiroClient({
   discountByDay, discountList, totalDiscountMonth,
   annualMonths: initialAnnualMonths,
   allGoals: initialAllGoals,
+  revenueByDay,
+  scheduledByDay,
 }: Props) {
   const [tab, setTab]   = useState<Tab>("overview");
   const [goal, setGoal] = useState<Goal | null>(initialGoal);
 
   // Metas tab state
-  const [selectedMonth, setSelectedMonth] = useState(month);
-  const [revenueTarget, setRevenueTarget] = useState(initialGoal?.revenueTarget ? String(initialGoal.revenueTarget) : "");
-  const [offDaysOfWeek, setOffDaysOfWeek] = useState<number[]>(initialGoal?.offDaysOfWeek ?? []);
-  const [savingGoal, setSavingGoal]       = useState(false);
-  const [allGoals, setAllGoals]           = useState<GoalRow[]>(initialAllGoals);
+  const [selectedMonth,  setSelectedMonth]  = useState(month);
+  const [revenueTarget,  setRevenueTarget]  = useState(initialGoal?.revenueTarget ? String(initialGoal.revenueTarget) : "");
+  const [offDaysOfWeek,  setOffDaysOfWeek]  = useState<number[]>(initialGoal?.offDaysOfWeek ?? []);
+  const [extraOffDays,   setExtraOffDays]   = useState<number[]>(initialGoal?.extraOffDays  ?? []);
+  const [extraWorkDays,  setExtraWorkDays]  = useState<number[]>(initialGoal?.extraWorkDays ?? []);
+  const [savingGoal,     setSavingGoal]     = useState(false);
+  const [allGoals,       setAllGoals]       = useState<GoalRow[]>(initialAllGoals);
 
   // AI wizard state
-  type WizardStep = "idle" | "days" | "hours" | "suggesting" | "review";
+  type WizardStep = "idle" | "days" | "hours" | "context" | "suggesting" | "review";
   const [wizardStep,          setWizardStep]          = useState<WizardStep>("idle");
   const [wizardOffDays,       setWizardOffDays]       = useState<number[]>([]);
   const [wizardHours,         setWizardHours]         = useState("8");
   const [wizardApptsPerHour,  setWizardApptsPerHour]  = useState("2");
+  const [wizardContext,       setWizardContext]       = useState("");
   const [aiSuggestion,        setAiSuggestion]        = useState<{ suggestedRevenueTarget: number; workingDaysCount: number; explanation: string } | null>(null);
 
   // Annual tab state
@@ -157,9 +253,10 @@ export function FinanceiroClient({
         body: JSON.stringify({
           month: selectedMonth,
           year,
-          offDaysOfWeek:      wizardOffDays,
-          hoursPerDay:        Number(wizardHours),
+          offDaysOfWeek:       wizardOffDays,
+          hoursPerDay:         Number(wizardHours),
           appointmentsPerHour: Number(wizardApptsPerHour),
+          wizardContext:       wizardContext.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -176,8 +273,11 @@ export function FinanceiroClient({
     if (!aiSuggestion) return;
     setRevenueTarget(String(aiSuggestion.suggestedRevenueTarget));
     setOffDaysOfWeek(wizardOffDays);
+    setExtraOffDays([]);
+    setExtraWorkDays([]);
     setWizardStep("idle");
     setAiSuggestion(null);
+    setWizardContext("");
   }
 
   async function handleSaveGoal() {
@@ -191,6 +291,8 @@ export function FinanceiroClient({
           year,
           revenueTarget: revenueTarget ? Number(revenueTarget) : null,
           offDaysOfWeek,
+          extraOffDays,
+          extraWorkDays,
         }),
       });
       const data = await res.json();
@@ -205,6 +307,8 @@ export function FinanceiroClient({
         isPast:           selectedMonth < month,
         isCurrent:        selectedMonth === month,
         offDaysOfWeek:    offDaysOfWeek,
+        extraOffDays:     extraOffDays,
+        extraWorkDays:    extraWorkDays,
         workingDaysCount: data.goal.workingDaysCount ?? null,
       };
 
@@ -214,7 +318,7 @@ export function FinanceiroClient({
       });
 
       if (selectedMonth === month) {
-        setGoal({ id: saved.id, revenueTarget: saved.revenueTarget, appointmentTarget: null, notes: null, offDaysOfWeek, workingDaysCount: data.goal.workingDaysCount ?? null });
+        setGoal({ id: saved.id, revenueTarget: saved.revenueTarget, appointmentTarget: null, notes: null, offDaysOfWeek, extraOffDays, extraWorkDays, workingDaysCount: data.goal.workingDaysCount ?? null });
       }
 
       toast({ title: `Meta de ${MONTH_NAMES[selectedMonth - 1]} salva!` });
@@ -416,7 +520,26 @@ export function FinanceiroClient({
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="ghost" onClick={() => setWizardStep("days")}>← Voltar</Button>
-                      <Button size="sm" onClick={handleAiSuggest} disabled={!wizardHours || !wizardApptsPerHour}>
+                      <Button size="sm" onClick={() => setWizardStep("context")} disabled={!wizardHours || !wizardApptsPerHour}>
+                        Próximo →
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {wizardStep === "context" && (
+                  <>
+                    <p className="text-sm text-foreground">Tem algo especial neste mês que a IA deve considerar? <span className="text-muted-foreground text-xs">(opcional)</span></p>
+                    <textarea
+                      value={wizardContext}
+                      onChange={(e) => setWizardContext(e.target.value)}
+                      rows={3}
+                      placeholder="Ex: feriado na semana do dia 15, vou trabalhar no sábado dia 12, semana de férias a partir do dia 20..."
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setWizardStep("hours")}>← Voltar</Button>
+                      <Button size="sm" onClick={handleAiSuggest}>
                         Gerar sugestão com IA
                       </Button>
                     </div>
@@ -464,6 +587,8 @@ export function FinanceiroClient({
                     const existing = allGoals.find((g) => g.month === m);
                     setRevenueTarget(existing?.revenueTarget ? String(existing.revenueTarget) : "");
                     setOffDaysOfWeek(existing?.offDaysOfWeek ?? []);
+                    setExtraOffDays(existing?.extraOffDays  ?? []);
+                    setExtraWorkDays(existing?.extraWorkDays ?? []);
                   }}
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground"
                 >
@@ -493,16 +618,40 @@ export function FinanceiroClient({
                     </button>
                   ))}
                 </div>
-                {offDaysOfWeek.length > 0 && (
-                  <p className="text-[11px] text-muted-foreground">
-                    Dias úteis no mês: <span className="font-semibold text-foreground">
-                      {/* count working days inline */}
-                      {Array.from({ length: getDaysInMonth(new Date(year, selectedMonth - 1, 1)) }, (_, i) =>
-                        new Date(year, selectedMonth - 1, i + 1).getDay()
-                      ).filter((d) => !offDaysOfWeek.includes(d)).length}
-                    </span>
-                  </p>
-                )}
+                {(() => {
+                  const total = getDaysInMonth(new Date(year, selectedMonth - 1, 1));
+                  let count = 0;
+                  for (let d = 1; d <= total; d++) {
+                    const dow = new Date(year, selectedMonth - 1, d).getDay();
+                    if ((!offDaysOfWeek.includes(dow) || extraWorkDays.includes(d)) && !extraOffDays.includes(d)) count++;
+                  }
+                  return (
+                    <p className="text-[11px] text-muted-foreground">
+                      Dias úteis no mês: <span className="font-semibold text-foreground">{count}</span>
+                      {(extraOffDays.length > 0 || extraWorkDays.length > 0) && (
+                        <span className="ml-2 text-[10px] text-gold-400">({extraOffDays.length} bloqueado{extraOffDays.length !== 1 ? "s" : ""}, {extraWorkDays.length} extra{extraWorkDays.length !== 1 ? "s" : ""})</span>
+                      )}
+                    </p>
+                  );
+                })()}
+                <DaysCalendar
+                  month={selectedMonth} year={year}
+                  offDaysOfWeek={offDaysOfWeek}
+                  extraOffDays={extraOffDays}   setExtraOffDays={setExtraOffDays}
+                  extraWorkDays={extraWorkDays} setExtraWorkDays={setExtraWorkDays}
+                  revenueByDay={selectedMonth === month ? revenueByDay : undefined}
+                  scheduledByDay={selectedMonth === month ? scheduledByDay : undefined}
+                  dailyGoal={revenueTarget && offDaysOfWeek.length > 0 ? (() => {
+                    const total2 = getDaysInMonth(new Date(year, selectedMonth - 1, 1));
+                    let wc = 0;
+                    for (let d = 1; d <= total2; d++) {
+                      const dow = new Date(year, selectedMonth - 1, d).getDay();
+                      if ((!offDaysOfWeek.includes(dow) || extraWorkDays.includes(d)) && !extraOffDays.includes(d)) wc++;
+                    }
+                    return wc > 0 ? Number(revenueTarget) / wc : null;
+                  })() : null}
+                  today={selectedMonth === month ? new Date().getDate() : undefined}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -586,7 +735,17 @@ export function FinanceiroClient({
                         <p className="text-[10px] text-muted-foreground">Meta futura — sem dados ainda</p>
                       )}
                       {g.offDaysOfWeek?.length > 0 && (
-                        <WorkingDaysCalendar month={g.month} year={year} offDaysOfWeek={g.offDaysOfWeek} />
+                        <DaysCalendar
+                          month={g.month} year={year}
+                          offDaysOfWeek={g.offDaysOfWeek}
+                          extraOffDays={g.extraOffDays}
+                          extraWorkDays={g.extraWorkDays}
+                          revenueByDay={g.isCurrent ? revenueByDay : undefined}
+                          scheduledByDay={g.isCurrent ? scheduledByDay : undefined}
+                          dailyGoal={g.isCurrent && g.revenueTarget && workDays > 0 ? g.revenueTarget / workDays : null}
+                          today={g.isCurrent ? new Date().getDate() : undefined}
+                          readOnly
+                        />
                       )}
                     </div>
                   );

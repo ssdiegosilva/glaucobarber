@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, CheckCircle2, XCircle, Play, MessageSquare, Sparkles, PanelsTopLeft, Trash2 } from "lucide-react";
+import { Loader2, Send, CheckCircle2, XCircle, Play, MessageSquare, Sparkles, PanelsTopLeft, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 type Thread = {
   id: string;
@@ -55,6 +55,15 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showActionsMobile, setShowActionsMobile] = useState(false);
+  const [expandedActions, setExpandedActions] = useState<Set<string>>(new Set());
+
+  function toggleActionExpand(id: string) {
+    setExpandedActions((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   async function sendMessage() {
     if (!input.trim() || loading) return;
@@ -284,27 +293,48 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
               </CardHeader>
               <CardContent className="space-y-3">
                 {actions.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma ação pendente</p>}
-                {actions.map((a) => (
-                  <div key={a.id} className="rounded-md border border-border p-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-foreground">{a.title}</p>
-                      <Badge variant={badgeVariant(a.status)} className="text-[10px]">{a.status}</Badge>
+                {actions.map((a) => {
+                  const isExpanded = expandedActions.has(a.id);
+                  const isLong = (a.description?.length ?? 0) > 120;
+                  return (
+                    <div key={a.id} className="rounded-md border border-border p-3 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground leading-snug">{a.title}</p>
+                        <Badge variant={badgeVariant(a.status)} className="text-[10px] shrink-0">{a.status}</Badge>
+                      </div>
+                      {a.description && (
+                        <div>
+                          <p className={`text-xs text-muted-foreground leading-relaxed ${isExpanded ? "" : "line-clamp-3"}`}>
+                            {a.description}
+                          </p>
+                          {isLong && (
+                            <button
+                              type="button"
+                              onClick={() => toggleActionExpand(a.id)}
+                              className="flex items-center gap-0.5 text-[10px] text-gold-400 hover:text-gold-300 mt-0.5 transition-colors"
+                            >
+                              {isExpanded
+                                ? <><ChevronUp className="h-3 w-3" />Ver menos</>
+                                : <><ChevronDown className="h-3 w-3" />Ver mais</>}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-muted-foreground">Tipo: {a.type}</p>
+                      <div className="flex gap-2 pt-0.5">
+                        <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "approve")} title="Aprovar">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "execute")} title="Executar">
+                          <Play className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon-sm" variant="ghost" onClick={() => updateAction(a.id, "dismiss")} title="Dispensar">
+                          <XCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                    {a.description && <p className="text-xs text-muted-foreground line-clamp-3">{a.description}</p>}
-                    <p className="text-[10px] text-muted-foreground">Tipo: {a.type}</p>
-                    <div className="flex gap-2 pt-1">
-                      <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "approve")} title="Aprovar">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "execute")} title="Executar">
-                        <Play className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="icon-sm" variant="ghost" onClick={() => updateAction(a.id, "dismiss")} title="Dispensar">
-                        <XCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </div>

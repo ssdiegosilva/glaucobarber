@@ -38,20 +38,26 @@ export async function POST(
   if (!service) return NextResponse.json({ error: "Serviço não encontrado" }, { status: 404 });
 
   const categoryPt = CATEGORY_PT[service.category] ?? "serviço";
-  const location   = [barbershop?.city, barbershop?.state].filter(Boolean).join(", ") || "Brasil";
+  // Build location from most specific to least: address → city/state → Brasil
+  const locationParts = [barbershop?.address, barbershop?.city, barbershop?.state].filter(Boolean);
+  const location      = locationParts.join(", ") || "Brasil";
+  // Neighborhood/city display for UI
+  const displayLocation = [barbershop?.city, barbershop?.state].filter(Boolean).join(", ") || "Brasil";
 
   const prompt = `Você é um especialista em precificação para barbearias no Brasil.
 
 Contexto:
 - Barbearia: ${barbershop?.name ?? "não informado"}
-- Localização: ${location}
+- Endereço completo: ${location}
 - Serviço: ${service.name} (categoria: ${categoryPt})
 - Duração: ${service.durationMin} minutos
 - Preço atual: R$ ${Number(service.price).toFixed(2)}
 
-Analise o mercado de barbearias em ${location} e sugira um preço ideal para este serviço, considerando:
-1. Faixa de preço típica para ${categoryPt} em ${location}
-2. Posicionamento de mercado (entrada, médio, premium)
+Pesquise e analise o mercado de barbearias especificamente em ${displayLocation} e sugira um preço ideal para este serviço.
+Use o endereço completo para considerar o perfil socioeconômico da região e a concorrência local.
+Considere:
+1. Faixa de preço praticada por barbearias na região de ${displayLocation}
+2. Posicionamento de mercado (entrada, médio, premium) neste bairro/cidade
 3. Custo de tempo (${service.durationMin} min)
 
 Responda EXCLUSIVAMENTE em JSON com este formato (sem markdown):
@@ -60,7 +66,7 @@ Responda EXCLUSIVAMENTE em JSON com este formato (sem markdown):
   "minPrice": 40.00,
   "maxPrice": 80.00,
   "marketPosition": "médio",
-  "rationale": "Explicação em 2-3 frases em português sobre o preço sugerido e o mercado local."
+  "rationale": "Explicação em 2-3 frases mencionando explicitamente ${displayLocation} e os preços praticados na região."
 }`;
 
   try {
@@ -77,13 +83,14 @@ Responda EXCLUSIVAMENTE em JSON com este formato (sem markdown):
     const parsed  = JSON.parse(cleaned);
 
     return NextResponse.json({
-      serviceId:      service.id,
-      currentPrice:   Number(service.price),
-      suggestedPrice: Number(parsed.suggestedPrice),
-      minPrice:       Number(parsed.minPrice),
-      maxPrice:       Number(parsed.maxPrice),
-      marketPosition: String(parsed.marketPosition),
-      rationale:      String(parsed.rationale),
+      serviceId:       service.id,
+      currentPrice:    Number(service.price),
+      suggestedPrice:  Number(parsed.suggestedPrice),
+      minPrice:        Number(parsed.minPrice),
+      maxPrice:        Number(parsed.maxPrice),
+      marketPosition:  String(parsed.marketPosition),
+      rationale:       String(parsed.rationale),
+      location:        displayLocation,
     });
   } catch (err) {
     console.error("[recommend-price]", err);
