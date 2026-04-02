@@ -12,13 +12,13 @@ export default async function WhatsappPage() {
   const barbershopId = session.user.barbershopId;
   const now = new Date();
 
-  const [todayMessages, queueMessages, historyMessages] = await Promise.all([
+  const [todayMessages, queueMessages, historyMessages, scheduledMessages] = await Promise.all([
     prisma.whatsappMessage.findMany({
       where: { barbershopId, createdAt: { gte: startOfDay(now), lte: endOfDay(now) } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.whatsappMessage.findMany({
-      where: { barbershopId, status: "QUEUED" },
+      where: { barbershopId, status: "QUEUED", OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }] },
       orderBy: { createdAt: "asc" },
     }),
     prisma.whatsappMessage.findMany({
@@ -26,18 +26,23 @@ export default async function WhatsappPage() {
       orderBy: { sentAt: "desc" },
       take: 200,
     }),
+    prisma.whatsappMessage.findMany({
+      where: { barbershopId, status: "QUEUED", scheduledFor: { gt: now } },
+      orderBy: { scheduledFor: "asc" },
+    }),
   ]);
 
   const serialize = (m: typeof todayMessages[0]) => ({
-    id:          m.id,
+    id:           m.id,
     customerName: m.customerName,
-    phone:       m.phone,
-    message:     m.message,
-    type:        m.type,
-    status:      m.status,
-    actionId:    m.actionId,
-    sentAt:      m.sentAt?.toISOString() ?? null,
-    createdAt:   m.createdAt.toISOString(),
+    phone:        m.phone,
+    message:      m.message,
+    type:         m.type,
+    status:       m.status,
+    actionId:     m.actionId,
+    sentAt:       m.sentAt?.toISOString() ?? null,
+    scheduledFor: (m as any).scheduledFor ? new Date((m as any).scheduledFor).toISOString() : null,
+    createdAt:    m.createdAt.toISOString(),
   });
 
   return (
@@ -51,6 +56,7 @@ export default async function WhatsappPage() {
         todayMessages={todayMessages.map(serialize)}
         queueMessages={queueMessages.map(serialize)}
         historyMessages={historyMessages.map(serialize)}
+        scheduledMessages={scheduledMessages.map(serialize)}
       />
     </div>
   );

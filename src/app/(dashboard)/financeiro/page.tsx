@@ -83,7 +83,7 @@ export default async function FinanceiroPage() {
     }),
     // Upcoming scheduled appointments this month (for gold indicator)
     prisma.appointment.findMany({
-      where:  { barbershopId, status: { in: ["PENDING", "CONFIRMED"] }, scheduledAt: { gte: now, lte: thisEnd } },
+      where:  { barbershopId, status: { in: ["SCHEDULED", "CONFIRMED"] }, scheduledAt: { gte: now, lte: thisEnd } },
       select: { scheduledAt: true },
     }),
   ]);

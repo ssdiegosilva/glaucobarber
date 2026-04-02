@@ -17,6 +17,7 @@ import {
   ChevronRight,
   TrendingUp,
   MessageCircle,
+  HeartHandshake,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -31,7 +32,7 @@ export const NAV = [
   { href: "/offers",       label: "Ofertas",     icon: Tag },
   { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
   { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },
-  { href: "/post-sale",    label: "Pós-venda",   icon: Users },
+  { href: "/post-sale",    label: "Pós-venda",   icon: HeartHandshake },
   { href: "/integrations", label: "Integrações", icon: Plug },
   { href: "/settings",     label: "Configurações",icon: Settings },
 ];

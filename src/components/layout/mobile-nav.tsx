@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { NAV } from "./sidebar";
 import { Scissors, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ interface MobileNavProps {
 
 export function MobileNav({ barbershopName }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="md:hidden sticky top-0 z-30">
@@ -35,20 +37,27 @@ export function MobileNav({ barbershopName }: MobileNavProps) {
       </div>
 
       {open && (
-        <div className="bg-card border-b border-border shadow-lg">
-          <nav className="flex flex-col divide-y divide-border">
-            {NAV.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "px-4 py-3 text-sm font-medium text-foreground hover:bg-surface-800",
-                )}
-              >
-                {label}
-              </Link>
-            ))}
+        <div className="bg-card border-b border-border shadow-xl">
+          <nav className="grid grid-cols-2 gap-px bg-border">
+            {NAV.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/");
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-gold-500/15 text-gold-400"
+                      : "bg-card text-muted-foreground hover:bg-surface-800 hover:text-foreground"
+                  )}
+                >
+                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-gold-400" : "")} />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
           </nav>
         </div>
       )}

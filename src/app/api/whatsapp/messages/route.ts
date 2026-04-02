@@ -3,6 +3,40 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDay, endOfDay, subDays } from "date-fns";
 
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { customerId, customerName, phone, message, type, scheduledFor } = await req.json();
+  if (!customerName || !phone || !message) {
+    return NextResponse.json({ error: "customerName, phone e message são obrigatórios" }, { status: 400 });
+  }
+
+  const [msg] = await prisma.$transaction([
+    prisma.whatsappMessage.create({
+      data: {
+        barbershopId: session.user.barbershopId,
+        customerId:   customerId ?? null,
+        customerName,
+        phone,
+        message,
+        type:         type ?? "general",
+        status:       "QUEUED",
+        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+      },
+    }),
+    // Track when we last contacted this customer so the button can be disabled until next appointment
+    ...(customerId ? [
+      prisma.customer.update({
+        where: { id: customerId },
+        data:  { lastWhatsappSentAt: new Date() },
+      }),
+    ] : []),
+  ]);
+
+  return NextResponse.json({ message: msg }, { status: 201 });
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -297,8 +297,9 @@ model Customer {
   reviewOptOut   Boolean        @default(false)
   lastCompletedAppointmentAt DateTime?
   nextAppointmentAt          DateTime?
-  inactiveAt    DateTime?
-  reactivatedAt DateTime?
+  inactiveAt                 DateTime?
+  reactivatedAt              DateTime?
+  lastWhatsappSentAt         DateTime?  // updated when a WhatsApp message is queued for this customer
   churnReason   PostSaleChurnReason?
   preferredProfessionalId String?
   avatarUrl    String?
@@ -757,6 +758,7 @@ model WhatsappMessage {
   type         String                // reactivation | post_sale_review | post_sale_followup | agenda_conflict | general
   status       WhatsappMessageStatus @default(QUEUED)
   actionId     String?
+  scheduledFor DateTime?             // if set: send only after this date/time
   sentAt       DateTime?
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)

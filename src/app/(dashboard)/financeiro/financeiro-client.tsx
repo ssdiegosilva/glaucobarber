@@ -454,7 +454,7 @@ export function FinanceiroClient({
             )}
 
             {/* Wizard: step days */}
-            {(wizardStep === "days" || wizardStep === "hours" || wizardStep === "suggesting" || wizardStep === "review") && (
+            {(wizardStep === "days" || wizardStep === "hours" || wizardStep === "context" || wizardStep === "suggesting" || wizardStep === "review") && (
               <div className="rounded-lg border border-gold-500/30 bg-card p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

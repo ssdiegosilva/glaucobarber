@@ -27,10 +27,14 @@ export interface CustomerSummary {
   postSaleStatus: PostSaleStatus;
   professionalName?: string | null;
   serviceName?: string | null;
+  servicePrice?: number | null;
   ticketMedio?: number;
   frequencia?: number;
   churnReason?: string | null;
   lastAction?: string | null;
+  // WhatsApp button disable logic
+  lastWhatsappSentAt?: string | null;
+  lastCompletedAppointmentAt?: string | null;
 }
 
 export interface PostSaleActionDto {

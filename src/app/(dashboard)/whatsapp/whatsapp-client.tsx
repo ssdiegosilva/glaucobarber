@@ -11,21 +11,23 @@ import {
 import { formatBRL } from "@/lib/utils";
 
 type WaMessage = {
-  id:          string;
+  id:           string;
   customerName: string;
-  phone:       string;
-  message:     string;
-  type:        string;
-  status:      string;
-  actionId:    string | null;
-  sentAt:      string | null;
-  createdAt:   string;
+  phone:        string;
+  message:      string;
+  type:         string;
+  status:       string;
+  actionId:     string | null;
+  sentAt:       string | null;
+  scheduledFor: string | null;
+  createdAt:    string;
 };
 
 interface Props {
-  todayMessages:   WaMessage[];
-  queueMessages:   WaMessage[];
-  historyMessages: WaMessage[];
+  todayMessages:     WaMessage[];
+  queueMessages:     WaMessage[];
+  historyMessages:   WaMessage[];
+  scheduledMessages: WaMessage[];
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -144,7 +146,11 @@ function MessageRow({
 
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-muted-foreground">
-          {msg.sentAt ? `Enviado ${formatDate(msg.sentAt)}` : formatDate(msg.createdAt)}
+          {msg.sentAt
+            ? `Enviado ${formatDate(msg.sentAt)}`
+            : msg.scheduledFor
+            ? `Agendado para ${formatDate(msg.scheduledFor)}`
+            : formatDate(msg.createdAt)}
         </span>
 
         {showActions && msg.status === "QUEUED" && (
@@ -173,11 +179,12 @@ function MessageRow({
 
 // ── Main client ───────────────────────────────────────────────
 
-export function WhatsappClient({ todayMessages, queueMessages, historyMessages }: Props) {
-  const [tab, setTab] = useState<"today" | "queue" | "history">("today");
-  const [today,   setToday]   = useState<WaMessage[]>(todayMessages);
-  const [queue,   setQueue]   = useState<WaMessage[]>(queueMessages);
-  const [history, setHistory] = useState<WaMessage[]>(historyMessages);
+export function WhatsappClient({ todayMessages, queueMessages, historyMessages, scheduledMessages }: Props) {
+  const [tab, setTab] = useState<"today" | "queue" | "scheduled" | "history">("today");
+  const [today,     setToday]     = useState<WaMessage[]>(todayMessages);
+  const [queue,     setQueue]     = useState<WaMessage[]>(queueMessages);
+  const [history,   setHistory]   = useState<WaMessage[]>(historyMessages);
+  const [scheduled, setScheduled] = useState<WaMessage[]>(scheduledMessages);
 
   function markSent(id: string) {
     const msg = queue.find((m) => m.id === id);
@@ -197,6 +204,7 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages }
   function removeFromQueue(id: string) {
     setQueue((prev) => prev.filter((m) => m.id !== id));
     setToday((prev) => prev.filter((m) => m.id !== id));
+    setScheduled((prev) => prev.filter((m) => m.id !== id));
   }
 
   const sentToday   = today.filter((m) => m.status === "SENT").length;
@@ -204,9 +212,10 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages }
   const failedToday = today.filter((m) => m.status === "FAILED").length;
 
   const TABS = [
-    { id: "today" as const,   label: "Hoje",      badge: today.length },
-    { id: "queue" as const,   label: "Fila",      badge: queue.length },
-    { id: "history" as const, label: "Histórico", badge: history.length },
+    { id: "today"     as const, label: "Hoje",      badge: today.length     },
+    { id: "queue"     as const, label: "Fila",      badge: queue.length     },
+    { id: "scheduled" as const, label: "Agendadas", badge: scheduled.length },
+    { id: "history"   as const, label: "Histórico", badge: history.length   },
   ];
 
   return (
@@ -271,6 +280,35 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages }
                 Clique em &quot;Enviar WhatsApp&quot; para abrir o WhatsApp Web já com a mensagem preenchida.
               </p>
               {queue.map((m) => (
+                <MessageRow
+                  key={m.id}
+                  msg={m}
+                  showActions
+                  onSent={markSent}
+                  onFailed={markFailed}
+                  onDelete={removeFromQueue}
+                />
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* SCHEDULED */}
+      {tab === "scheduled" && (
+        <div className="space-y-3">
+          {scheduled.length === 0 ? (
+            <div className="rounded-lg border border-border p-8 text-center">
+              <CalendarDays className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Nenhuma mensagem agendada.</p>
+              <p className="text-xs text-muted-foreground mt-1">Agende envios no Pós-venda para aparecerem aqui.</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {scheduled.length} mensage{scheduled.length !== 1 ? "ns" : "m"} com envio programado.
+              </p>
+              {scheduled.map((m) => (
                 <MessageRow
                   key={m.id}
                   msg={m}
