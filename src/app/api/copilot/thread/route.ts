@@ -27,3 +27,21 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ messages, actions });
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const threadId = req.nextUrl.searchParams.get("threadId");
+  if (!threadId) return NextResponse.json({ error: "threadId is required" }, { status: 400 });
+
+  const thread = await prisma.copilotThread.findUnique({ where: { id: threadId } });
+  if (!thread || thread.barbershopId !== session.user.barbershopId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  await prisma.copilotThread.delete({ where: { id: threadId } });
+  return NextResponse.json({ ok: true });
+}

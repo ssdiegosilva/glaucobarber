@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Target, Scissors, BarChart3, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, Scissors, BarChart3, Loader2, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 // ── Types ────────────────────────────────────────────────────
@@ -23,6 +23,17 @@ interface ServiceRevenue {
   count:    number;
 }
 
+interface DiscountDay   { day: string; total: number; }
+interface DiscountEntry {
+  id:             string;
+  customerName:   string;
+  serviceName:    string;
+  date:           string;
+  originalAmount: number;
+  discountValue:  number;
+  paidValue:      number;
+}
+
 interface Props {
   month:                 number;
   year:                  number;
@@ -37,9 +48,12 @@ interface Props {
   avgTicketPrev:         number;
   goal:                  Goal | null;
   byService:             ServiceRevenue[];
+  discountByDay:         DiscountDay[];
+  discountList:          DiscountEntry[];
+  totalDiscountMonth:    number;
 }
 
-type Tab = "overview" | "goals" | "services";
+type Tab = "overview" | "goals" | "services" | "discounts";
 
 const CATEGORY_LABEL: Record<string, string> = {
   HAIRCUT: "Corte", BEARD: "Barba", COMBO: "Combo", TREATMENT: "Tratamento", OTHER: "Outro",
@@ -53,6 +67,9 @@ export function FinanceiroClient({
   avgTicket, avgTicketPrev,
   goal: initialGoal,
   byService,
+  discountByDay,
+  discountList,
+  totalDiscountMonth,
 }: Props) {
   const [tab, setTab]   = useState<Tab>("overview");
   const [goal, setGoal] = useState<Goal | null>(initialGoal);
@@ -100,6 +117,8 @@ export function FinanceiroClient({
   const completedDelta  = completedPrev  > 0 ? (completedThis  - completedPrev)  / completedPrev  : null;
   const ticketDelta     = avgTicketPrev  > 0 ? (avgTicket      - avgTicketPrev)  / avgTicketPrev  : null;
   const maxRevenue      = Math.max(...byService.map((s) => s.revenue), 1);
+  const maxDiscountDay  = Math.max(...discountByDay.map((d) => d.total), 1);
+  const discountRate    = revenueThisMonth > 0 ? totalDiscountMonth / (revenueThisMonth + totalDiscountMonth) : 0;
 
   return (
     <div className="space-y-5">
@@ -109,6 +128,7 @@ export function FinanceiroClient({
           ["overview", "Visão Geral",  BarChart3],
           ["goals",    "Metas",        Target],
           ["services", "Por Serviço",  Scissors],
+          ["discounts","Descontos",    Tag],
         ] as [Tab, string, React.ElementType][]).map(([key, label, Icon]) => (
           <button
             key={key}
@@ -260,6 +280,104 @@ export function FinanceiroClient({
             <Button onClick={handleSaveGoal} disabled={savingGoal}>
               {savingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar meta"}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Descontos ──────────────────────────────────── */}
+      {tab === "discounts" && (
+        <div className="space-y-5">
+          {/* KPI summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">Total descontado no mês</p>
+              <p className="text-2xl font-bold text-red-400 tabular-nums">{formatBRL(totalDiscountMonth)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">Taxa de desconto</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums">{Math.round(discountRate * 100)}%</p>
+              <p className="text-xs text-muted-foreground">do faturamento bruto</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">Atendimentos com desconto</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums">{discountList.length}</p>
+            </div>
+          </div>
+
+          {/* Bar chart by day */}
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Desconto por dia</p>
+            {discountByDay.every((d) => d.total === 0) ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Nenhum desconto aplicado este mês.</p>
+            ) : (
+              <div className="flex items-end gap-1 h-28 overflow-x-auto pb-2">
+                {discountByDay.map((d) => (
+                  <div key={d.day} className="flex flex-col items-center gap-1 min-w-[18px] flex-1">
+                    <div
+                      className="w-full rounded-sm bg-red-500/50 hover:bg-red-500/70 transition-colors relative group"
+                      style={{ height: d.total > 0 ? `${Math.max((d.total / maxDiscountDay) * 100, 6)}%` : "2px" }}
+                      title={`${d.day}: ${formatBRL(d.total)}`}
+                    >
+                      {d.total > 0 && (
+                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          {formatBRL(d.total)}
+                        </span>
+                      )}
+                    </div>
+                    {/* Show label every ~5 days to avoid crowding */}
+                    <span className="text-[8px] text-muted-foreground leading-none">
+                      {d.day.split("/")[0]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Discount list */}
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="px-4 py-3 bg-surface-800/50 border-b border-border">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Descontos aplicados</p>
+            </div>
+            {discountList.length === 0 ? (
+              <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                Nenhum desconto aplicado este mês.
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Cliente</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Serviço</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Data</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Valor original</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Desconto</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Pago</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {discountList.map((d) => (
+                    <tr key={d.id} className="hover:bg-surface-800/30 transition-colors">
+                      <td className="px-4 py-2.5 font-medium text-foreground">{d.customerName}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{d.serviceName}</td>
+                      <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">{d.date}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-foreground">{formatBRL(d.originalAmount)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-red-400 font-medium">-{formatBRL(d.discountValue)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-green-400">{formatBRL(d.paidValue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-border bg-surface-800/30">
+                    <td className="px-4 py-2.5 text-xs font-semibold text-foreground" colSpan={4}>Total</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-red-400">-{formatBRL(totalDiscountMonth)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-green-400">
+                      {formatBRL(discountList.reduce((s, d) => s + d.paidValue, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
           </div>
         </div>
       )}

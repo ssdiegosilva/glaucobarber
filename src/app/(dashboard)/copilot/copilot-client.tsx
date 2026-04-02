@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, CheckCircle2, XCircle, Play, MessageSquare, Sparkles, PanelsTopLeft } from "lucide-react";
+import { Loader2, Send, CheckCircle2, XCircle, Play, MessageSquare, Sparkles, PanelsTopLeft, Trash2 } from "lucide-react";
 
 type Thread = {
   id: string;
@@ -125,6 +125,17 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
     }
   }
 
+  async function deleteThread(id: string) {
+    const res = await fetch(`/api/copilot/thread?threadId=${id}`, { method: "DELETE" });
+    if (!res.ok) return;
+    setThreads((prev) => prev.filter((t) => t.id !== id));
+    if (activeThreadId === id) {
+      setActiveThreadId(null);
+      setMessages([]);
+      setActions([]);
+    }
+  }
+
   async function loadThread(id: string) {
     if (id === activeThreadId) return;
     setActiveThreadId(id);
@@ -159,16 +170,27 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
           {threads.length === 0 && <p className="text-xs text-muted-foreground">Sem threads ainda</p>}
           <div className="space-y-2">
             {threads.map((t) => (
-              <button
+              <div
                 key={t.id}
-                onClick={() => loadThread(t.id)}
-                className={`w-full text-left rounded-md border px-3 py-2 text-xs transition-colors ${
+                className={`group relative rounded-md border text-xs transition-colors ${
                   t.id === activeThreadId ? "border-gold-500/40 bg-gold-500/10" : "border-border hover:border-gold-500/20"
                 }`}
               >
-                <p className="font-semibold text-foreground truncate">{t.title || "Sem título"}</p>
-                <p className="text-[10px] text-muted-foreground">{new Date(t.lastMessageAt).toLocaleString()}</p>
-              </button>
+                <button
+                  onClick={() => loadThread(t.id)}
+                  className="w-full text-left px-3 py-2 pr-7"
+                >
+                  <p className="font-semibold text-foreground truncate">{t.title || "Sem título"}</p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(t.lastMessageAt).toLocaleString()}</p>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-muted-foreground hover:text-red-400"
+                  title="Excluir chat"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
             ))}
           </div>
         </div>

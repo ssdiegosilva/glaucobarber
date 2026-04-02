@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { FinanceiroClient } from "./financeiro-client";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default async function FinanceiroPage() {
@@ -27,6 +27,7 @@ export default async function FinanceiroPage() {
     prevMonthCount,
     goal,
     byService,
+    discountPayments,
   ] = await Promise.all([
     // Revenue realizada este mês
     prisma.appointment.aggregate({
@@ -54,6 +55,27 @@ export default async function FinanceiroPage() {
     prisma.appointment.findMany({
       where:   { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
       select:  { price: true, service: { select: { id: true, name: true, category: true } } },
+    }),
+
+    // Descontos aplicados este mês (payments com discountValue > 0)
+    prisma.payment.findMany({
+      where: {
+        barbershopId,
+        domain: "SHOP_OFFER",
+        discountValue: { gt: 0 },
+        createdAt: { gte: thisStart, lte: thisEnd },
+      },
+      select: {
+        id: true,
+        discountValue: true,
+        paidValue: true,
+        amount: true,
+        paidAt: true,
+        createdAt: true,
+        customer: { select: { name: true } },
+        appointment: { select: { scheduledAt: true, service: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -84,6 +106,30 @@ export default async function FinanceiroPage() {
 
   const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
 
+  // Build discount-by-day map for the bar chart
+  const daysInMonth = eachDayOfInterval({ start: thisStart, end: thisEnd });
+  const discountByDayMap = new Map<string, number>();
+  for (const d of daysInMonth) {
+    discountByDayMap.set(format(d, "dd/MM"), 0);
+  }
+  for (const p of discountPayments) {
+    const dayKey = format(p.createdAt, "dd/MM");
+    discountByDayMap.set(dayKey, (discountByDayMap.get(dayKey) ?? 0) + Number(p.discountValue ?? 0));
+  }
+  const discountByDay = [...discountByDayMap.entries()].map(([day, total]) => ({ day, total }));
+
+  const discountList = discountPayments.map((p) => ({
+    id:           p.id,
+    customerName: p.customer?.name ?? "—",
+    serviceName:  p.appointment?.service?.name ?? "—",
+    date:         format(p.paidAt ?? p.createdAt, "dd/MM/yyyy"),
+    originalAmount: Number(p.amount),
+    discountValue:  Number(p.discountValue ?? 0),
+    paidValue:      Number(p.paidValue ?? 0),
+  }));
+
+  const totalDiscountMonth = discountList.reduce((s, d) => s + d.discountValue, 0);
+
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -111,6 +157,9 @@ export default async function FinanceiroPage() {
             notes:             goal.notes ?? null,
           } : null}
           byService={byServiceSerialized}
+          discountByDay={discountByDay}
+          discountList={discountList}
+          totalDiscountMonth={totalDiscountMonth}
         />
       </div>
     </div>
