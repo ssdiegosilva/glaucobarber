@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 import { getDaysInMonth } from "date-fns";
+import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL  = process.env.AI_MODEL ?? "gpt-4o-mini";
@@ -25,6 +26,9 @@ function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[]): 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { allowed } = await checkAiAllowance(session.user.barbershopId);
+  if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
 
   const { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour, wizardContext } = await req.json();
   if (!month || !year) return NextResponse.json({ error: "month e year obrigatórios" }, { status: 400 });
@@ -76,6 +80,7 @@ Responda SOMENTE em JSON com exatamente esse formato:
 
     const text   = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(text);
+    await consumeAiCredit(session.user.barbershopId);
 
     return NextResponse.json({
       suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.75 * avgTicket),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL  = process.env.AI_MODEL ?? "gpt-4o-mini";
@@ -23,6 +24,9 @@ const TYPE_PROMPTS: Record<string, (name: string, days: number, service: string,
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { allowed } = await checkAiAllowance(session.user.barbershopId);
+  if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
 
   const { customerId, type } = await req.json();
   if (!customerId || !type) return NextResponse.json({ error: "customerId e type são obrigatórios" }, { status: 400 });
@@ -65,6 +69,7 @@ export async function POST(req: NextRequest) {
       messages:   [{ role: "user", content: prompt }],
     });
     const message = completion.choices[0]?.message?.content?.trim() ?? "";
+    await consumeAiCredit(session.user.barbershopId);
     return NextResponse.json({ message });
   } catch {
     return NextResponse.json({ error: "Erro ao gerar mensagem" }, { status: 500 });

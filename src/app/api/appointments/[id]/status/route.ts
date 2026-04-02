@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { AppointmentStatus } from "@prisma/client";
 import { buildTrinksClient } from "@/lib/integrations/trinks/client";
 import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
+import { createAppointmentBillingEvent } from "@/lib/billing";
 
 const allowed: AppointmentStatus[] = ["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
 
@@ -105,6 +106,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Refresh post-sale status for this customer when appointment is completed
   if (status === "COMPLETED" && appointment.customerId) {
     refreshPostSaleStatus(session.user.barbershopId).catch(() => null);
+  }
+
+  // PRO plan: register per-appointment billing event (fire-and-forget)
+  if (status === "COMPLETED") {
+    createAppointmentBillingEvent(session.user.barbershopId, appointment.id).catch(() => null);
   }
 
   return NextResponse.json({ ok: true });

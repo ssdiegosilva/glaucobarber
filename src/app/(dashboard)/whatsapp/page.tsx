@@ -34,6 +34,7 @@ export default async function WhatsappPage() {
 
   const serialize = (m: typeof todayMessages[0]) => ({
     id:           m.id,
+    customerId:   m.customerId ?? null,
     customerName: m.customerName,
     phone:        m.phone,
     message:      m.message,

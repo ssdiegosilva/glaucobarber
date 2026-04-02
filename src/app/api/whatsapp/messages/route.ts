@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDay, endOfDay, subDays } from "date-fns";
+import { sendWhatsAppMessage, type WhatsAppCredentials } from "@/lib/whatsapp";
+
+/** Busca as credenciais WhatsApp do barbershop. Retorna null se não configurado. */
+async function getWhatsAppCreds(barbershopId: string): Promise<WhatsAppCredentials | null> {
+  const integration = await prisma.integration.findUnique({
+    where:  { barbershopId },
+    select: { whatsappAccessToken: true, whatsappPhoneNumberId: true },
+  });
+  if (!integration?.whatsappAccessToken || !integration?.whatsappPhoneNumberId) return null;
+  return {
+    accessToken:   integration.whatsappAccessToken,
+    phoneNumberId: integration.whatsappPhoneNumberId,
+  };
+}
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -11,6 +25,8 @@ export async function POST(req: NextRequest) {
   if (!customerName || !phone || !message) {
     return NextResponse.json({ error: "customerName, phone e message são obrigatórios" }, { status: 400 });
   }
+
+  const isScheduled = !!scheduledFor;
 
   const [msg] = await prisma.$transaction([
     prisma.whatsappMessage.create({
@@ -22,10 +38,10 @@ export async function POST(req: NextRequest) {
         message,
         type:         type ?? "general",
         status:       "QUEUED",
-        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+        scheduledFor: isScheduled ? new Date(scheduledFor) : null,
       },
     }),
-    // Track when we last contacted this customer so the button can be disabled until next appointment
+    // Track quando o cliente foi contatado pela última vez
     ...(customerId ? [
       prisma.customer.update({
         where: { id: customerId },
@@ -33,6 +49,35 @@ export async function POST(req: NextRequest) {
       }),
     ] : []),
   ]);
+
+  // Se não for agendada, tenta enviar imediatamente
+  if (!isScheduled) {
+    const creds = await getWhatsAppCreds(session.user.barbershopId);
+
+    if (!creds) {
+      // WhatsApp não configurado – mantém na fila para envio manual ou futuro
+      return NextResponse.json(
+        { message: msg, warning: "WhatsApp não configurado para este barbershop." },
+        { status: 201 }
+      );
+    }
+
+    try {
+      const metaMessageId = await sendWhatsAppMessage(phone, message, creds);
+      await prisma.whatsappMessage.update({
+        where: { id: msg.id },
+        data:  { status: "SENT", sentAt: new Date(), metaMessageId },
+      });
+      return NextResponse.json({ message: { ...msg, status: "SENT", metaMessageId } }, { status: 201 });
+    } catch (err) {
+      console.error("[WhatsApp] Falha ao enviar mensagem:", err);
+      await prisma.whatsappMessage.update({
+        where: { id: msg.id },
+        data:  { status: "FAILED" },
+      });
+      return NextResponse.json({ message: { ...msg, status: "FAILED" } }, { status: 201 });
+    }
+  }
 
   return NextResponse.json({ message: msg }, { status: 201 });
 }

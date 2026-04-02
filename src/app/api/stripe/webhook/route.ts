@@ -54,6 +54,29 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const barbershopId = session.metadata?.barbershopId;
   if (!barbershopId) return;
 
+  // Handle AI credit pack purchase (one-time payment)
+  if (session.metadata?.creditType === "ai_pack") {
+    await prisma.platformSubscription.upsert({
+      where:  { barbershopId },
+      create: {
+        barbershopId,
+        planTier:           "FREE",
+        status:             "ACTIVE",
+        aiCreditBalance:    60,
+        currentPeriodStart: new Date(),
+        currentPeriodEnd:   new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      },
+      update: { aiCreditBalance: { increment: 60 } },
+    });
+    if (session.customer) {
+      await prisma.barbershop.update({
+        where: { id: barbershopId },
+        data:  { stripeCustomerId: session.customer as string },
+      });
+    }
+    return;
+  }
+
   // Save stripeCustomerId on barbershop
   if (session.customer) {
     await prisma.barbershop.update({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -21,6 +22,9 @@ export async function POST(
   if (!session?.user?.barbershopId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { allowed } = await checkAiAllowance(session.user.barbershopId);
+  if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
 
   const { id } = await params;
 
@@ -82,6 +86,7 @@ Responda EXCLUSIVAMENTE em JSON com este formato (sem markdown):
     const cleaned = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
     const parsed  = JSON.parse(cleaned);
 
+    await consumeAiCredit(session.user.barbershopId);
     return NextResponse.json({
       serviceId:       service.id,
       currentPrice:    Number(service.price),

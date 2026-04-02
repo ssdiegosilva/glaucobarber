@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -18,6 +19,9 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const barbershopId = session.user.barbershopId;
+
+  const { allowed } = await checkAiAllowance(barbershopId);
+  if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
 
   const [barbershop, existingServices] = await Promise.all([
     prisma.barbershop.findUnique({
@@ -100,6 +104,7 @@ Responda EXCLUSIVAMENTE em JSON sem markdown:
       )
     );
 
+    await consumeAiCredit(barbershopId);
     return NextResponse.json({ opportunities: created });
   } catch (err) {
     console.error("[opportunities/generate]", err);

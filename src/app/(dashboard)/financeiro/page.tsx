@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { FinanceiroClient } from "./financeiro-client";
+import { getPlan, hasFeature } from "@/lib/billing";
+import { UpgradeWall } from "@/components/billing/UpgradeWall";
 import {
   startOfMonth, endOfMonth, subMonths, format,
   eachDayOfInterval, startOfYear, endOfYear,
@@ -14,6 +16,21 @@ export default async function FinanceiroPage() {
   if (!session?.user?.barbershopId) redirect("/login");
 
   const barbershopId = session.user.barbershopId;
+
+  const { tier } = await getPlan(barbershopId);
+  if (!hasFeature(tier, "financeiro")) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="Gestão Financeira" subtitle="Metas e análise de faturamento" userName={session.user.name} />
+        <UpgradeWall
+          feature="Gestão Financeira"
+          requiredPlan="PRO"
+          description="Defina metas de faturamento, acompanhe o progresso diário e use a IA para sugerir metas realistas."
+        />
+      </div>
+    );
+  }
+
   const now          = new Date();
   const month        = now.getMonth() + 1;
   const year         = now.getFullYear();

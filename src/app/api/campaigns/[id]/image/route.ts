@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
 import { uploadCampaignImageFromUrl } from "@/lib/storage";
+import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -10,6 +11,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { promptOverride?: string };
+
+  const { allowed } = await checkAiAllowance(session.user.barbershopId);
+  if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
 
   const campaign = await prisma.campaign.findUnique({ where: { id }, include: { template: true } });
   if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -36,6 +40,7 @@ Use cores e estética premium, legível e moderna.`;
     });
 
     await prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } });
+    await consumeAiCredit(session.user.barbershopId);
     return NextResponse.json({ url: stored.url });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

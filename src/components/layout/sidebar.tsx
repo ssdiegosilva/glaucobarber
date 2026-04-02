@@ -18,6 +18,7 @@ import {
   TrendingUp,
   MessageCircle,
   HeartHandshake,
+  CreditCard,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -35,14 +36,18 @@ export const NAV = [
   { href: "/post-sale",    label: "Pós-venda",   icon: HeartHandshake },
   { href: "/integrations", label: "Integrações", icon: Plug },
   { href: "/settings",     label: "Configurações",icon: Settings },
+  { href: "/billing",      label: "Plano",        icon: CreditCard },
 ];
 
 interface SidebarProps {
   barbershopName?: string | null;
   className?: string;
+  aiUsed?:    number;
+  aiLimit?:   number;
+  aiCredits?: number;
 }
 
-export function Sidebar({ barbershopName, className }: SidebarProps) {
+export function Sidebar({ barbershopName, className, aiUsed = 0, aiLimit = 30, aiCredits = 0 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
@@ -89,16 +94,40 @@ export function Sidebar({ barbershopName, className }: SidebarProps) {
           })}
         </ul>
 
-        {/* AI Badge */}
-        <div className="mt-6 mx-1 rounded-lg bg-gold-500/8 border border-gold-500/15 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-3.5 w-3.5 text-gold-400" />
-            <span className="text-xs font-semibold text-gold-400">IA Ativa</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Sugestões geradas automaticamente toda manhã
-          </p>
-        </div>
+        {/* AI Usage Indicator */}
+        {(() => {
+          const total    = aiLimit + aiCredits;
+          const pct      = total > 0 ? Math.min(100, Math.round((aiUsed / total) * 100)) : 100;
+          const remaining = Math.max(0, total - aiUsed);
+          const isLow    = pct >= 80;
+          const isOut    = pct >= 100;
+          return (
+            <Link href="/billing" className="mt-6 mx-1 rounded-lg bg-gold-500/8 border border-gold-500/15 p-3 block hover:bg-gold-500/12 transition-colors">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className={`h-3.5 w-3.5 ${isOut ? "text-red-400" : isLow ? "text-amber-400" : "text-gold-400"}`} />
+                  <span className={`text-xs font-semibold ${isOut ? "text-red-400" : isLow ? "text-amber-400" : "text-gold-400"}`}>
+                    {isOut ? "IA Esgotada" : "IA"}
+                  </span>
+                </div>
+                <span className={`text-[10px] ${isOut ? "text-red-400" : "text-muted-foreground"}`}>
+                  {aiUsed}/{total}
+                </span>
+              </div>
+              <div className="h-1 rounded-full bg-surface-700 overflow-hidden mb-1.5">
+                <div
+                  className={`h-full rounded-full ${isOut ? "bg-red-500" : isLow ? "bg-amber-500" : "bg-gold-500"}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {isOut
+                  ? "Adicionar créditos →"
+                  : `${remaining} chamada${remaining !== 1 ? "s" : ""} restante${remaining !== 1 ? "s" : ""}`}
+              </p>
+            </Link>
+          );
+        })()}
       </nav>
 
       {/* Footer */}

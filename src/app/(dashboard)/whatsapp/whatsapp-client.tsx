@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
-  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw,
+  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2,
 } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 
 type WaMessage = {
   id:           string;
+  customerId:   string | null;
   customerName: string;
   phone:        string;
   message:      string;
@@ -59,11 +60,6 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-function buildWhatsappLink(phone: string, message: string) {
-  const digits = phone.replace(/\D/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
-
 // ── Stat card for today's dashboard ──────────────────────────
 
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
@@ -98,6 +94,36 @@ function MessageRow({
   onDelete?:  (id: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
+
+  async function send() {
+    setLoading(true);
+    try {
+      // Recria a mensagem sem scheduledFor para envio imediato via Meta API
+      const res = await fetch("/api/whatsapp/messages", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          customerId:   msg.customerId ?? undefined,
+          customerName: msg.customerName,
+          phone:        msg.phone,
+          message:      msg.message,
+          type:         msg.type,
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.message?.status === "SENT") {
+        onSent?.(msg.id);
+        // Remove da fila (a mensagem original ainda fica como QUEUED, mas foi substituída)
+        onDelete?.(msg.id);
+        await fetch(`/api/whatsapp/messages/${msg.id}`, { method: "DELETE" });
+      } else {
+        onFailed?.(msg.id);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function patch(status: string) {
     setLoading(true);
@@ -155,15 +181,18 @@ function MessageRow({
 
         {showActions && msg.status === "QUEUED" && (
           <div className="flex gap-1.5">
-            <a
-              href={buildWhatsappLink(msg.phone, msg.message)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setTimeout(() => patch("SENT"), 1500)}
-              className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors"
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={send}
+              disabled={loading}
+              className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors h-auto"
             >
-              <Send className="h-3 w-3" /> Enviar WhatsApp
-            </a>
+              {loading
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Send className="h-3 w-3" />}
+              Enviar
+            </Button>
             <Button size="icon-sm" variant="ghost" onClick={() => patch("FAILED")} disabled={loading} title="Marcar como falha">
               <XCircle className="h-3.5 w-3.5 text-red-400" />
             </Button>
@@ -277,7 +306,7 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
             <>
               <p className="text-xs text-muted-foreground">
                 {queue.length} mensage{queue.length !== 1 ? "ns" : "m"} aguardando envio.
-                Clique em &quot;Enviar WhatsApp&quot; para abrir o WhatsApp Web já com a mensagem preenchida.
+                Clique em &quot;Enviar&quot; para disparar automaticamente via WhatsApp API.
               </p>
               {queue.map((m) => (
                 <MessageRow

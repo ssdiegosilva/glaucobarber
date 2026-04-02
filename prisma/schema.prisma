@@ -125,6 +125,8 @@ model Barbershop {
   postSaleActions PostSaleAction[]
   customerReviews CustomerReview[]
   serviceOpportunities ServiceOpportunity[]
+  aiUsageMonths  AiUsageMonth[]
+  billingEvents  BillingEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -185,6 +187,11 @@ model Integration {
   instagramBusinessId      String?
   instagramPageId          String?
   instagramUsername        String?
+
+  // WhatsApp Business API (Meta) – credenciais por barbershop
+  whatsappAccessToken   String? // token de acesso permanente da Meta API
+  whatsappPhoneNumberId String? // ID do número cadastrado no Meta (phone_number_id)
+  whatsappVerifyToken   String? // gerado automaticamente pelo sistema; o usuário só copia no painel Meta
 
   lastSyncAt DateTime?
   errorMsg   String?
@@ -461,6 +468,7 @@ model Appointment {
   payments   Payment[]
   postSaleActions PostSaleAction[]
   customerReviews CustomerReview[]
+  billingEvent    BillingEvent?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -755,11 +763,12 @@ model WhatsappMessage {
   customerName String
   phone        String
   message      String                @db.Text
-  type         String                // reactivation | post_sale_review | post_sale_followup | agenda_conflict | general
-  status       WhatsappMessageStatus @default(QUEUED)
-  actionId     String?
-  scheduledFor DateTime?             // if set: send only after this date/time
-  sentAt       DateTime?
+  type          String                // reactivation | post_sale_review | post_sale_followup | agenda_conflict | general
+  status        WhatsappMessageStatus @default(QUEUED)
+  actionId      String?
+  scheduledFor  DateTime?             // if set: send only after this date/time
+  sentAt        DateTime?
+  metaMessageId String?               // wamid retornado pela Meta API; usado para rastrear delivery status
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id])
@@ -777,6 +786,7 @@ model WhatsappMessage {
 // ============================================================
 
 enum PlanTier {
+  FREE
   STARTER
   PRO
   ENTERPRISE
@@ -792,16 +802,19 @@ enum SubscriptionStatus {
 }
 
 model PlatformSubscription {
-  id           String             @id @default(cuid())
-  barbershopId String             @unique
-  stripeSubId  String             @unique
-  stripePriceId String
-  planTier     PlanTier           @default(STARTER)
-  status       SubscriptionStatus @default(TRIALING)
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean     @default(false)
+  id            String             @id @default(cuid())
+  barbershopId  String             @unique
+  stripeSubId   String?            @unique   // null para plano FREE
+  stripePriceId String?                      // null para plano FREE
+  planTier      PlanTier           @default(FREE)
+  status        SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime      @default(now())
+  currentPeriodEnd   DateTime      @default(dbgenerated("NOW() + INTERVAL '1 year'"))
+  cancelAtPeriodEnd  Boolean       @default(false)
   trialEndsAt        DateTime?
+
+  // Créditos extras de IA comprados (each credit = 1 AI call)
+  aiCreditBalance Int @default(0)
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
 
@@ -912,4 +925,44 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+// ============================================================
+// AI USAGE & BILLING EVENTS
+// ============================================================
+
+// Tracks AI consumption per barbershop per billing period.
+// yearMonth = "2024-04" for paid plans; "trial" for FREE (lifetime counter).
+model AiUsageMonth {
+  id           String @id @default(cuid())
+  barbershopId String
+  yearMonth    String  // "YYYY-MM" or "trial"
+  usageCount   Int    @default(0)
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barbershopId, yearMonth])
+  @@map("ai_usage_months")
+}
+
+// Per-appointment fee events for PRO plan (R$1,50 each).
+// invoicedAt is null until the monthly cron runs and creates Stripe invoice items.
+model BillingEvent {
+  id            String    @id @default(cuid())
+  barbershopId  String
+  appointmentId String    @unique  // idempotência: 1 evento por atendimento
+  yearMonth     String              // "YYYY-MM"
+  amountCents   Int                 // 150 = R$1,50
+  invoicedAt    DateTime?           // null = ainda não faturado
+
+  barbershop  Barbershop  @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([barbershopId, yearMonth, invoicedAt])
+  @@map("billing_events")
 }

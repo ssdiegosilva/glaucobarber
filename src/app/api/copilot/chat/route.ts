@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { buildCopilotContext, getAIProvider } from "@/lib/ai/provider";
+import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
 
   const barbershopId = session.user.barbershopId!;
   const userId = session.user.id;
+
+  const { allowed } = await checkAiAllowance(barbershopId);
+  if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
 
   let thread = threadId
     ? await prisma.copilotThread.findUnique({ where: { id: threadId } })
@@ -47,6 +51,7 @@ export async function POST(req: NextRequest) {
   const context = await buildCopilotContext(barbershopId);
   const provider = getAIProvider();
   const reply = await provider.generateCopilotResponse(context, message);
+  await consumeAiCredit(barbershopId);
 
   const assistantMsg = await prisma.copilotMessage.create({
     data: {

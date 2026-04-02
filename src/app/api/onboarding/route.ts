@@ -39,6 +39,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Auto-create FREE plan subscription (no Stripe required)
+    const now = new Date();
+    await tx.platformSubscription.create({
+      data: {
+        barbershopId:      shop.id,
+        planTier:          "FREE",
+        status:            "ACTIVE",
+        currentPeriodStart: now,
+        currentPeriodEnd:   new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     return shop;
   });
 

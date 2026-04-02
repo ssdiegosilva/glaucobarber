@@ -18,31 +18,43 @@ export const stripe = new Proxy({} as Stripe, {
 
 // ── Plan definitions ───────────────────────────────────────
 export const PLANS = {
+  FREE: {
+    name:        "Free",
+    description: "Trial gratuito para conhecer a plataforma",
+    priceId:     "",              // no Stripe price
+    monthlyBRL:  0,
+    features: [
+      "30 chamadas de IA (vitalício)",
+      "Todos os recursos desbloqueados",
+      "Acesso ao Copilot, pós-venda e campanhas",
+      "Gestão financeira incluída no trial",
+    ],
+  },
   STARTER: {
-    name:        "Starter",
+    name:        "Start",
     description: "Para barbearias que estão começando",
     priceId:     process.env.STRIPE_PRICE_STARTER_MONTHLY ?? "",
-    monthlyBRL:  9700,
+    monthlyBRL:  8900,            // R$89/mês
     features: [
-      "Sync com Trinks",
-      "Dashboard diário",
-      "Até 5 sugestões de IA por mês",
-      "Painel de clientes",
-      "1 usuário",
+      "50 chamadas de IA por mês",
+      "Agenda e gestão de clientes",
+      "Copilot, pós-venda e campanhas",
+      "Pós-venda com reativação automática",
     ],
   },
   PRO: {
     name:        "Pro",
     description: "Para barbearias que querem crescer",
     priceId:     process.env.STRIPE_PRICE_PRO_MONTHLY ?? "",
-    monthlyBRL:  19700,
+    monthlyBRL:  14900,           // R$149/mês base
+    appointmentFeeCents: 150,     // +R$1,50 por atendimento concluído
+    appointmentCapCents: 40000,   // cap em R$400/mês
     features: [
-      "Tudo do Starter",
-      "Sugestões de IA ilimitadas",
-      "Campanhas e ofertas",
-      "Sync automático",
-      "Até 3 usuários",
-      "Relatórios avançados",
+      "300 chamadas de IA por mês",
+      "Gestão financeira com metas",
+      "R$1,50 por atendimento concluído (cap R$400/mês)",
+      "Sync automático com Trinks",
+      "Todos os recursos desbloqueados",
     ],
     popular: true,
   },
@@ -50,12 +62,11 @@ export const PLANS = {
     name:        "Enterprise",
     description: "Para redes e barbearias premium",
     priceId:     process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ?? "",
-    monthlyBRL:  39700,
+    monthlyBRL:  0,               // custom pricing
     features: [
-      "Tudo do Pro",
+      "IA ilimitada",
       "Multi-unidade",
       "API access",
-      "Usuários ilimitados",
       "Suporte prioritário",
       "Onboarding dedicado",
     ],
