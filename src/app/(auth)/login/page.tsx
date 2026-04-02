@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const ADMIN_EMAIL = "ss.diegosilva@gmail.com";
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "";
 
 export default function LoginPage() {
   const router = useRouter();

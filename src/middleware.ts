@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback", "/api/stripe/webhook", "/api/cron"];
-const ADMIN_EMAIL  = "ss.diegosilva@gmail.com";
+const ADMIN_EMAIL  = process.env.ADMIN_EMAIL ?? "";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;

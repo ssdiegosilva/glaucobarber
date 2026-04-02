@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { AdminSidebar } from "./admin-sidebar";
 
-const ADMIN_EMAIL = "ss.diegosilva@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
