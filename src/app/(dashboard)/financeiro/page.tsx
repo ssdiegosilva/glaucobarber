@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { FinanceiroClient } from "./financeiro-client";
-import { startOfMonth, endOfMonth, subMonths, format, eachDayOfInterval } from "date-fns";
+import {
+  startOfMonth, endOfMonth, subMonths, format,
+  eachDayOfInterval, startOfYear, endOfYear,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default async function FinanceiroPage() {
@@ -19,6 +22,8 @@ export default async function FinanceiroPage() {
   const thisEnd    = endOfMonth(now);
   const prevStart  = startOfMonth(subMonths(now, 1));
   const prevEnd    = endOfMonth(subMonths(now, 1));
+  const yearStart  = startOfYear(now);
+  const yearEnd    = endOfYear(now);
 
   const [
     thisMonthAgg,
@@ -28,57 +33,50 @@ export default async function FinanceiroPage() {
     goal,
     byService,
     discountPayments,
+    allGoals,
+    yearAppointments,
   ] = await Promise.all([
-    // Revenue realizada este mês
     prisma.appointment.aggregate({
       where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
-      _sum:   { price: true },
-      _count: { _all: true },
+      _sum: { price: true }, _count: { _all: true },
     }),
-    // Revenue realizada mês anterior
     prisma.appointment.aggregate({
       where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: prevStart, lte: prevEnd } },
-      _sum:   { price: true },
-      _count: { _all: true },
+      _sum: { price: true }, _count: { _all: true },
     }),
-    // Total de atendimentos (não cancelados) este mês
     prisma.appointment.count({
       where: { barbershopId, status: { notIn: ["CANCELLED", "NO_SHOW"] }, scheduledAt: { gte: thisStart, lte: thisEnd } },
     }),
-    // Total de atendimentos (não cancelados) mês anterior
     prisma.appointment.count({
       where: { barbershopId, status: { notIn: ["CANCELLED", "NO_SHOW"] }, scheduledAt: { gte: prevStart, lte: prevEnd } },
     }),
-    // Meta do mês atual
     prisma.goal.findFirst({ where: { barbershopId, month, year } }),
-    // Revenue por serviço (este mês)
     prisma.appointment.findMany({
-      where:   { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
-      select:  { price: true, service: { select: { id: true, name: true, category: true } } },
+      where:  { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
+      select: { price: true, service: { select: { id: true, name: true, category: true } } },
     }),
-
-    // Descontos aplicados este mês (payments com discountValue > 0)
     prisma.payment.findMany({
-      where: {
-        barbershopId,
-        domain: "SHOP_OFFER",
-        discountValue: { gt: 0 },
-        createdAt: { gte: thisStart, lte: thisEnd },
-      },
+      where: { barbershopId, domain: "SHOP_OFFER", discountValue: { gt: 0 }, createdAt: { gte: thisStart, lte: thisEnd } },
       select: {
-        id: true,
-        discountValue: true,
-        paidValue: true,
-        amount: true,
-        paidAt: true,
-        createdAt: true,
-        customer: { select: { name: true } },
+        id: true, discountValue: true, paidValue: true, amount: true, paidAt: true, createdAt: true,
+        customer:    { select: { name: true } },
         appointment: { select: { scheduledAt: true, service: { select: { name: true } } } },
       },
       orderBy: { createdAt: "desc" },
     }),
+    // All goals for current year (Metas tab)
+    prisma.goal.findMany({
+      where:   { barbershopId, year },
+      orderBy: { month: "asc" },
+    }),
+    // Full year appointments for annual chart
+    prisma.appointment.findMany({
+      where:  { barbershopId, status: "COMPLETED", scheduledAt: { gte: yearStart, lte: yearEnd } },
+      select: { scheduledAt: true, price: true },
+    }),
   ]);
 
+  // ── Current month ────────────────────────────────────────────
   const revenueThisMonth = Number(thisMonthAgg._sum.price ?? 0);
   const revenuePrevMonth = Number(prevMonthAgg._sum.price ?? 0);
   const completedThis    = thisMonthAgg._count._all;
@@ -86,58 +84,74 @@ export default async function FinanceiroPage() {
   const avgTicket        = completedThis > 0 ? revenueThisMonth / completedThis : 0;
   const avgTicketPrev    = completedPrev > 0 ? revenuePrevMonth / completedPrev : 0;
 
-  // Aggregate revenue by service
+  // ── By service ───────────────────────────────────────────────
   const svcMap = new Map<string, { name: string; category: string; revenue: number; count: number }>();
   for (const appt of byService) {
-    const svcId   = appt.service?.id   ?? "__none__";
-    const svcName = appt.service?.name ?? "Sem serviço";
-    const svcCat  = appt.service?.category ?? "OTHER";
-    const existing = svcMap.get(svcId);
-    if (existing) {
-      existing.revenue += Number(appt.price ?? 0);
-      existing.count   += 1;
-    } else {
-      svcMap.set(svcId, { name: svcName, category: svcCat, revenue: Number(appt.price ?? 0), count: 1 });
-    }
+    const svcId = appt.service?.id ?? "__none__";
+    const entry = svcMap.get(svcId);
+    if (entry) { entry.revenue += Number(appt.price ?? 0); entry.count += 1; }
+    else svcMap.set(svcId, { name: appt.service?.name ?? "Sem serviço", category: appt.service?.category ?? "OTHER", revenue: Number(appt.price ?? 0), count: 1 });
   }
-  const byServiceSerialized = [...svcMap.values()]
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 20);
+  const byServiceSerialized = [...svcMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 20);
 
-  const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
-
-  // Build discount-by-day map for the bar chart
+  // ── Discounts ────────────────────────────────────────────────
   const daysInMonth = eachDayOfInterval({ start: thisStart, end: thisEnd });
-  const discountByDayMap = new Map<string, number>();
-  for (const d of daysInMonth) {
-    discountByDayMap.set(format(d, "dd/MM"), 0);
-  }
+  const discountByDayMap = new Map<string, number>(daysInMonth.map((d) => [format(d, "dd/MM"), 0]));
   for (const p of discountPayments) {
-    const dayKey = format(p.createdAt, "dd/MM");
-    discountByDayMap.set(dayKey, (discountByDayMap.get(dayKey) ?? 0) + Number(p.discountValue ?? 0));
+    const k = format(p.createdAt, "dd/MM");
+    discountByDayMap.set(k, (discountByDayMap.get(k) ?? 0) + Number(p.discountValue ?? 0));
   }
-  const discountByDay = [...discountByDayMap.entries()].map(([day, total]) => ({ day, total }));
-
-  const discountList = discountPayments.map((p) => ({
-    id:           p.id,
-    customerName: p.customer?.name ?? "—",
-    serviceName:  p.appointment?.service?.name ?? "—",
-    date:         format(p.paidAt ?? p.createdAt, "dd/MM/yyyy"),
+  const discountByDay  = [...discountByDayMap.entries()].map(([day, total]) => ({ day, total }));
+  const discountList   = discountPayments.map((p) => ({
+    id: p.id,
+    customerName:   p.customer?.name ?? "—",
+    serviceName:    p.appointment?.service?.name ?? "—",
+    date:           format(p.paidAt ?? p.createdAt, "dd/MM/yyyy"),
     originalAmount: Number(p.amount),
     discountValue:  Number(p.discountValue ?? 0),
     paidValue:      Number(p.paidValue ?? 0),
   }));
-
   const totalDiscountMonth = discountList.reduce((s, d) => s + d.discountValue, 0);
+
+  // ── Annual chart ────────────────────────────────────────────
+  const revenueByMonth = new Map<number, number>();
+  const countByMonth   = new Map<number, number>();
+  for (const a of yearAppointments) {
+    const m = a.scheduledAt.getMonth() + 1;
+    revenueByMonth.set(m, (revenueByMonth.get(m) ?? 0) + Number(a.price ?? 0));
+    countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
+  }
+  const goalByMonth = new Map(allGoals.map((g) => [g.month, Number(g.revenueTarget ?? 0)]));
+  const annualMonths = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    return {
+      month:   m,
+      label:   format(new Date(year, i, 1), "MMM", { locale: ptBR }),
+      revenue: revenueByMonth.get(m) ?? 0,
+      count:   countByMonth.get(m) ?? 0,
+      goal:    goalByMonth.get(m) ?? null,
+    };
+  });
+
+  // ── All goals serialized ────────────────────────────────────
+  const MONTH_LABELS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const allGoalsSerialized = allGoals.map((g) => ({
+    id:            g.id,
+    month:         g.month,
+    monthLabel:    MONTH_LABELS[g.month - 1] ?? String(g.month),
+    revenueTarget: g.revenueTarget ? Number(g.revenueTarget) : null,
+    // revenue for this month from annualMonths
+    revenueActual: revenueByMonth.get(g.month) ?? 0,
+    isPast:        g.month < month,
+    isCurrent:     g.month === month,
+  }));
+
+  const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
 
   return (
     <div className="flex flex-col h-full">
-      <Header
-        title="Financeiro"
-        subtitle={`Acompanhamento de ${monthLabel}`}
-        userName={session.user.name}
-      />
-      <div className="p-6">
+      <Header title="Financeiro" subtitle={`Mês atual: ${monthLabel}`} userName={session.user.name} />
+      <div className="p-6 overflow-y-auto">
         <FinanceiroClient
           month={month}
           year={year}
@@ -152,7 +166,7 @@ export default async function FinanceiroPage() {
           avgTicketPrev={avgTicketPrev}
           goal={goal ? {
             id:               goal.id,
-            revenueTarget:    goal.revenueTarget  ? Number(goal.revenueTarget)  : null,
+            revenueTarget:    goal.revenueTarget ? Number(goal.revenueTarget) : null,
             appointmentTarget: goal.appointmentTarget ?? null,
             notes:             goal.notes ?? null,
           } : null}
@@ -160,6 +174,8 @@ export default async function FinanceiroPage() {
           discountByDay={discountByDay}
           discountList={discountList}
           totalDiscountMonth={totalDiscountMonth}
+          annualMonths={annualMonths}
+          allGoals={allGoalsSerialized}
         />
       </div>
     </div>

@@ -4,10 +4,13 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Target, Scissors, BarChart3, Loader2, Tag } from "lucide-react";
+import {
+  TrendingUp, TrendingDown, Target, Scissors, BarChart3,
+  Loader2, Tag, ChevronLeft, ChevronRight, CheckCircle2,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-// ── Types ────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────
 
 interface Goal {
   id: string;
@@ -16,48 +19,43 @@ interface Goal {
   notes:             string | null;
 }
 
-interface ServiceRevenue {
-  name:     string;
-  category: string;
-  revenue:  number;
-  count:    number;
+interface ServiceRevenue { name: string; category: string; revenue: number; count: number; }
+interface DiscountDay    { day: string; total: number; }
+interface DiscountEntry  {
+  id: string; customerName: string; serviceName: string;
+  date: string; originalAmount: number; discountValue: number; paidValue: number;
 }
-
-interface DiscountDay   { day: string; total: number; }
-interface DiscountEntry {
-  id:             string;
-  customerName:   string;
-  serviceName:    string;
-  date:           string;
-  originalAmount: number;
-  discountValue:  number;
-  paidValue:      number;
+interface AnnualMonth {
+  month: number; label: string; revenue: number; count: number; goal: number | null;
+}
+interface GoalRow {
+  id: string; month: number; monthLabel: string;
+  revenueTarget: number | null; revenueActual: number;
+  isPast: boolean; isCurrent: boolean;
 }
 
 interface Props {
-  month:                 number;
-  year:                  number;
-  monthLabel:            string;
-  revenueThisMonth:      number;
-  revenuePrevMonth:      number;
-  completedThis:         number;
-  completedPrev:         number;
-  totalAppointmentsThis: number;
-  totalAppointmentsPrev: number;
-  avgTicket:             number;
-  avgTicketPrev:         number;
-  goal:                  Goal | null;
-  byService:             ServiceRevenue[];
-  discountByDay:         DiscountDay[];
-  discountList:          DiscountEntry[];
-  totalDiscountMonth:    number;
+  month: number; year: number; monthLabel: string;
+  revenueThisMonth: number; revenuePrevMonth: number;
+  completedThis: number; completedPrev: number;
+  totalAppointmentsThis: number; totalAppointmentsPrev: number;
+  avgTicket: number; avgTicketPrev: number;
+  goal: Goal | null;
+  byService: ServiceRevenue[];
+  discountByDay: DiscountDay[];
+  discountList: DiscountEntry[];
+  totalDiscountMonth: number;
+  annualMonths: AnnualMonth[];
+  allGoals: GoalRow[];
 }
 
-type Tab = "overview" | "goals" | "services" | "discounts";
+type Tab = "overview" | "goals" | "services" | "discounts" | "annual";
 
 const CATEGORY_LABEL: Record<string, string> = {
   HAIRCUT: "Corte", BEARD: "Barba", COMBO: "Combo", TREATMENT: "Tratamento", OTHER: "Outro",
 };
+
+const MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 export function FinanceiroClient({
   month, year, monthLabel,
@@ -67,42 +65,56 @@ export function FinanceiroClient({
   avgTicket, avgTicketPrev,
   goal: initialGoal,
   byService,
-  discountByDay,
-  discountList,
-  totalDiscountMonth,
+  discountByDay, discountList, totalDiscountMonth,
+  annualMonths: initialAnnualMonths,
+  allGoals: initialAllGoals,
 }: Props) {
   const [tab, setTab]   = useState<Tab>("overview");
   const [goal, setGoal] = useState<Goal | null>(initialGoal);
 
-  // Goal form state
-  const [revenueTarget, setRevenueTarget]         = useState(initialGoal?.revenueTarget ? String(initialGoal.revenueTarget) : "");
-  const [appointmentTarget, setAppointmentTarget] = useState(initialGoal?.appointmentTarget ? String(initialGoal.appointmentTarget) : "");
-  const [notes, setNotes]                         = useState(initialGoal?.notes ?? "");
-  const [savingGoal, setSavingGoal]               = useState(false);
+  // Metas tab state
+  const [selectedMonth, setSelectedMonth]           = useState(month);
+  const [revenueTarget, setRevenueTarget]           = useState(initialGoal?.revenueTarget ? String(initialGoal.revenueTarget) : "");
+  const [savingGoal, setSavingGoal]                 = useState(false);
+  const [allGoals, setAllGoals]                     = useState<GoalRow[]>(initialAllGoals);
+
+  // Annual tab state
+  const [annualYear, setAnnualYear]   = useState(year);
+  const [annualData, setAnnualData]   = useState(initialAnnualMonths);
+  const [loadingYear, setLoadingYear] = useState(false);
 
   async function handleSaveGoal() {
     setSavingGoal(true);
     try {
       const res = await fetch("/api/goals", {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          month,
-          year,
-          revenueTarget:     revenueTarget ? Number(revenueTarget) : null,
-          appointmentTarget: appointmentTarget ? Number(appointmentTarget) : null,
-          notes:             notes || null,
-        }),
+        body: JSON.stringify({ month: selectedMonth, year, revenueTarget: revenueTarget ? Number(revenueTarget) : null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar meta");
-      setGoal({
-        id:               data.goal.id,
-        revenueTarget:    data.goal.revenueTarget     ? Number(data.goal.revenueTarget)  : null,
-        appointmentTarget: data.goal.appointmentTarget ?? null,
-        notes:             data.goal.notes ?? null,
+
+      const saved: GoalRow = {
+        id:            data.goal.id,
+        month:         selectedMonth,
+        monthLabel:    MONTH_NAMES[selectedMonth - 1].slice(0, 3),
+        revenueTarget: data.goal.revenueTarget ? Number(data.goal.revenueTarget) : null,
+        revenueActual: allGoals.find((g) => g.month === selectedMonth)?.revenueActual ?? 0,
+        isPast:        selectedMonth < month,
+        isCurrent:     selectedMonth === month,
+      };
+
+      setAllGoals((prev) => {
+        const exists = prev.findIndex((g) => g.month === selectedMonth);
+        return exists >= 0 ? prev.map((g, i) => i === exists ? saved : g) : [...prev, saved].sort((a, b) => a.month - b.month);
       });
-      toast({ title: "Meta salva!" });
+
+      if (selectedMonth === month) {
+        setGoal({ id: saved.id, revenueTarget: saved.revenueTarget, appointmentTarget: null, notes: null });
+      }
+
+      toast({ title: `Meta de ${MONTH_NAMES[selectedMonth - 1]} salva!` });
+      setRevenueTarget("");
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally {
@@ -110,41 +122,58 @@ export function FinanceiroClient({
     }
   }
 
-  // Derived
+  async function loadYear(y: number) {
+    setLoadingYear(true);
+    try {
+      const res = await fetch(`/api/financeiro/annual?year=${y}`);
+      const data = await res.json();
+      setAnnualYear(y);
+      setAnnualData(data.months);
+    } finally {
+      setLoadingYear(false);
+    }
+  }
+
+  // ── Derived ────────────────────────────────────────────────
   const revenueProgress = goal?.revenueTarget ? Math.min(revenueThisMonth / goal.revenueTarget, 1) : null;
-  const apptProgress    = goal?.appointmentTarget ? Math.min(completedThis / goal.appointmentTarget, 1) : null;
   const revenueDelta    = revenuePrevMonth > 0 ? (revenueThisMonth - revenuePrevMonth) / revenuePrevMonth : null;
   const completedDelta  = completedPrev  > 0 ? (completedThis  - completedPrev)  / completedPrev  : null;
   const ticketDelta     = avgTicketPrev  > 0 ? (avgTicket      - avgTicketPrev)  / avgTicketPrev  : null;
   const maxRevenue      = Math.max(...byService.map((s) => s.revenue), 1);
   const maxDiscountDay  = Math.max(...discountByDay.map((d) => d.total), 1);
   const discountRate    = revenueThisMonth > 0 ? totalDiscountMonth / (revenueThisMonth + totalDiscountMonth) : 0;
+  const maxAnnual       = Math.max(...annualData.map((m) => Math.max(m.revenue, m.goal ?? 0)), 1);
+
+  // Future months available for goal setting (current month through Dec of this year)
+  const availableMonths = Array.from({ length: 12 - month + 1 }, (_, i) => month + i);
+
+  const TABS: [Tab, string, React.ElementType][] = [
+    ["overview",  "Visão Geral", BarChart3],
+    ["goals",     "Metas",       Target],
+    ["annual",    "Histórico",   TrendingUp],
+    ["services",  "Por Serviço", Scissors],
+    ["discounts", "Descontos",   Tag],
+  ];
 
   return (
     <div className="space-y-5">
       {/* Tab bar */}
-      <div className="flex rounded-lg border border-border overflow-hidden w-fit">
-        {([
-          ["overview", "Visão Geral",  BarChart3],
-          ["goals",    "Metas",        Target],
-          ["services", "Por Serviço",  Scissors],
-          ["discounts","Descontos",    Tag],
-        ] as [Tab, string, React.ElementType][]).map(([key, label, Icon]) => (
+      <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface-800/50 p-1 w-fit">
+        {TABS.map(([key, label, Icon]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-r border-border last:border-r-0 transition-colors
-              ${tab === key ? "bg-gold-500/15 text-gold-400" : "text-muted-foreground hover:text-foreground"}`}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors
+              ${tab === key ? "bg-gold-500/15 text-gold-400 border border-gold-500/20" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Icon className="h-3.5 w-3.5" /> {label}
           </button>
         ))}
       </div>
 
-      {/* ── Visão Geral ────────────────────────────────── */}
+      {/* ── Visão Geral ─────────────────────────────────── */}
       {tab === "overview" && (
         <div className="space-y-5">
-          {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <KpiCard
               label="Receita realizada"
@@ -159,8 +188,6 @@ export function FinanceiroClient({
               value={String(completedThis)}
               delta={completedDelta}
               sub={`Mês anterior: ${completedPrev}`}
-              progress={apptProgress}
-              progressLabel={goal?.appointmentTarget ? `Meta: ${goal.appointmentTarget}` : undefined}
             />
             <KpiCard
               label="Ticket médio"
@@ -170,11 +197,10 @@ export function FinanceiroClient({
             />
           </div>
 
-          {/* Secondary stats */}
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total de agendamentos (não cancelados)</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">{totalAppointmentsThis}</p>
+              <p className="text-xs text-muted-foreground mb-1">Agendamentos (não cancelados)</p>
+              <p className="text-2xl font-bold tabular-nums">{totalAppointmentsThis}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Mês anterior: {totalAppointmentsPrev}
                 {totalAppointmentsPrev > 0 && (
@@ -185,109 +211,297 @@ export function FinanceiroClient({
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Taxa de conversão (concluídos / agendados)</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">
+              <p className="text-xs text-muted-foreground mb-1">Taxa de conversão</p>
+              <p className="text-2xl font-bold tabular-nums">
                 {totalAppointmentsThis > 0 ? `${Math.round(completedThis / totalAppointmentsThis * 100)}%` : "—"}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {completedThis} de {totalAppointmentsThis} atendimentos
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{completedThis} de {totalAppointmentsThis}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Metas ──────────────────────────────────────── */}
+      {/* ── Metas ───────────────────────────────────────── */}
       {tab === "goals" && (
-        <div className="max-w-lg space-y-5">
-          <p className="text-sm text-muted-foreground">
-            Defina as metas para <span className="capitalize text-foreground font-medium">{monthLabel}</span>.
-            Elas aparecem no dashboard e são usadas pela IA para sugestões contextuais.
-          </p>
-
-          {/* Current progress if goal exists */}
-          {goal && (
-            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-              <p className="text-xs font-medium text-foreground uppercase tracking-wide">Progresso atual</p>
-              {goal.revenueTarget && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Receita</span>
-                    <span className="text-foreground font-medium">
-                      {formatBRL(revenueThisMonth)} / {formatBRL(goal.revenueTarget)}
-                      {" "}({Math.round(Math.min(revenueThisMonth / goal.revenueTarget, 1) * 100)}%)
-                    </span>
-                  </div>
-                  <ProgressBar value={Math.min(revenueThisMonth / goal.revenueTarget, 1)} />
-                </div>
-              )}
-              {goal.appointmentTarget && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Atendimentos</span>
-                    <span className="text-foreground font-medium">
-                      {completedThis} / {goal.appointmentTarget}
-                      {" "}({Math.round(Math.min(completedThis / goal.appointmentTarget, 1) * 100)}%)
-                    </span>
-                  </div>
-                  <ProgressBar value={Math.min(completedThis / goal.appointmentTarget, 1)} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Edit form */}
-          <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-            <p className="text-xs font-medium text-foreground uppercase tracking-wide">
-              {goal ? "Editar meta" : "Definir meta"}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: define goal */}
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Defina a meta de receita mensal. Você pode cadastrar metas para os próximos meses do ano.
             </p>
-            <div className="space-y-3">
+
+            <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+              {/* Month selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Mês</label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    const m = Number(e.target.value);
+                    setSelectedMonth(m);
+                    const existing = allGoals.find((g) => g.month === m);
+                    setRevenueTarget(existing?.revenueTarget ? String(existing.revenueTarget) : "");
+                  }}
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground"
+                >
+                  {availableMonths.map((m) => (
+                    <option key={m} value={m}>
+                      {MONTH_NAMES[m - 1]} {year}{m === month ? " (atual)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Meta de receita (R$)</label>
                 <input
-                  type="number"
-                  min="0"
-                  step="100"
+                  type="number" min="0" step="100"
                   value={revenueTarget}
                   onChange={(e) => setRevenueTarget(e.target.value)}
                   placeholder="Ex: 15000"
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">Meta de atendimentos</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={appointmentTarget}
-                  onChange={(e) => setAppointmentTarget(e.target.value)}
-                  placeholder="Ex: 120"
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">Observações</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Contexto, promoções planejadas, etc."
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                />
-              </div>
+
+              {/* Progress if current month already has data */}
+              {selectedMonth === month && goal?.revenueTarget && (
+                <div className="space-y-1 pt-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Progresso atual</span>
+                    <span>{formatBRL(revenueThisMonth)} / {formatBRL(goal.revenueTarget)} ({Math.round(Math.min(revenueThisMonth / goal.revenueTarget, 1) * 100)}%)</span>
+                  </div>
+                  <ProgressBar value={Math.min(revenueThisMonth / goal.revenueTarget, 1)} />
+                </div>
+              )}
+
+              <Button onClick={handleSaveGoal} disabled={savingGoal || !revenueTarget}>
+                {savingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar meta"}
+              </Button>
             </div>
-            <Button onClick={handleSaveGoal} disabled={savingGoal}>
-              {savingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar meta"}
-            </Button>
+          </div>
+
+          {/* Right: all defined goals */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Metas definidas — {year}</p>
+            {allGoals.length === 0 ? (
+              <div className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">
+                Nenhuma meta definida ainda.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {allGoals.map((g) => {
+                  const pct = g.revenueTarget ? Math.min(g.revenueActual / g.revenueTarget, 1) : null;
+                  return (
+                    <div key={g.id} className={`rounded-lg border p-3 space-y-2 ${g.isCurrent ? "border-gold-500/30 bg-gold-500/5" : "border-border"}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-foreground">{MONTH_NAMES[g.month - 1]}</span>
+                          {g.isCurrent && <Badge variant="outline" className="text-[9px] px-1 py-0">Atual</Badge>}
+                          {g.isPast && pct !== null && pct >= 1 && <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />}
+                        </div>
+                        <span className="text-xs font-semibold text-gold-400">{g.revenueTarget ? formatBRL(g.revenueTarget) : "—"}</span>
+                      </div>
+                      {g.revenueTarget && (g.isPast || g.isCurrent) && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>{formatBRL(g.revenueActual)} realizados</span>
+                            <span>{Math.round((pct ?? 0) * 100)}%</span>
+                          </div>
+                          <ProgressBar value={pct ?? 0} />
+                        </div>
+                      )}
+                      {!g.isPast && !g.isCurrent && (
+                        <p className="text-[10px] text-muted-foreground">Meta futura — sem dados ainda</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── Descontos ──────────────────────────────────── */}
+      {/* ── Histórico Anual ─────────────────────────────── */}
+      {tab === "annual" && (
+        <div className="space-y-5">
+          {/* Year selector */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => loadYear(annualYear - 1)}
+              disabled={loadingYear}
+              className="rounded-md border border-border p-1.5 hover:bg-surface-700 transition-colors disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-base font-bold text-foreground w-16 text-center tabular-nums">{annualYear}</span>
+            <button
+              onClick={() => loadYear(annualYear + 1)}
+              disabled={loadingYear || annualYear >= year}
+              className="rounded-md border border-border p-1.5 hover:bg-surface-700 transition-colors disabled:opacity-50"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {loadingYear && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
+
+          {/* KPI totals */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Receita total {annualYear}</p>
+              <p className="text-2xl font-bold text-gold-400 tabular-nums">{formatBRL(annualData.reduce((s, m) => s + m.revenue, 0))}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Atendimentos {annualYear}</p>
+              <p className="text-2xl font-bold tabular-nums">{annualData.reduce((s, m) => s + m.count, 0)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Meses com meta</p>
+              <p className="text-2xl font-bold tabular-nums">{annualData.filter((m) => m.goal !== null).length}</p>
+            </div>
+          </div>
+
+          {/* Bar chart */}
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-4">Receita por mês</p>
+            <div className="flex items-end gap-2 h-40">
+              {annualData.map((m) => {
+                const revPct  = (m.revenue / maxAnnual) * 100;
+                const goalPct = m.goal ? (m.goal / maxAnnual) * 100 : null;
+                const hit     = m.goal && m.revenue >= m.goal;
+                const isFuture = annualYear === year && m.month > month;
+                return (
+                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex flex-col justify-end h-32 relative">
+                      {/* Goal line */}
+                      {goalPct !== null && (
+                        <div
+                          className="absolute w-full border-t-2 border-dashed border-gold-500/50"
+                          style={{ bottom: `${goalPct}%` }}
+                        />
+                      )}
+                      {/* Revenue bar */}
+                      <div
+                        className={`w-full rounded-sm transition-all ${
+                          isFuture ? "bg-surface-700" :
+                          hit ? "bg-green-500/70" : m.revenue > 0 ? "bg-gold-500/60" : "bg-surface-700"
+                        }`}
+                        style={{ height: m.revenue > 0 ? `${Math.max(revPct, 4)}%` : "4px" }}
+                        title={`${m.label}: ${formatBRL(m.revenue)}${m.goal ? ` / meta ${formatBRL(m.goal)}` : ""}`}
+                      />
+                    </div>
+                    <span className="text-[9px] text-muted-foreground">{m.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-gold-500/60 inline-block" /> Receita</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-green-500/70 inline-block" /> Meta atingida</span>
+              <span className="flex items-center gap-1"><span className="h-0 w-4 border-t-2 border-dashed border-gold-500/50 inline-block" /> Meta</span>
+            </div>
+          </div>
+
+          {/* Monthly table */}
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface-800/50">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Mês</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Atend.</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Receita</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Meta</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">%</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {annualData.map((m) => {
+                  const pct = m.goal ? Math.round(Math.min(m.revenue / m.goal, 1) * 100) : null;
+                  const isCur = annualYear === year && m.month === month;
+                  return (
+                    <tr key={m.month} className={`hover:bg-surface-800/30 transition-colors ${isCur ? "bg-gold-500/5" : ""}`}>
+                      <td className="px-4 py-2.5 font-medium text-foreground text-xs">
+                        {MONTH_NAMES[m.month - 1]}
+                        {isCur && <span className="ml-1.5 text-[9px] text-gold-400 border border-gold-500/30 rounded px-1">atual</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-xs text-muted-foreground">{m.count || "—"}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-xs font-semibold text-gold-400">{m.revenue > 0 ? formatBRL(m.revenue) : "—"}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-xs text-muted-foreground">{m.goal ? formatBRL(m.goal) : "—"}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-xs">
+                        {pct !== null ? (
+                          <span className={pct >= 100 ? "text-green-400 font-semibold" : pct >= 60 ? "text-yellow-400" : "text-red-400"}>
+                            {pct}%
+                          </span>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border bg-surface-800/30">
+                  <td className="px-4 py-2.5 text-xs font-semibold">Total</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-xs font-semibold">{annualData.reduce((s, m) => s + m.count, 0)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-xs font-bold text-gold-400">{formatBRL(annualData.reduce((s, m) => s + m.revenue, 0))}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-xs text-muted-foreground">{formatBRL(annualData.reduce((s, m) => s + (m.goal ?? 0), 0))}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Por Serviço ─────────────────────────────────── */}
+      {tab === "services" && (
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          {byService.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-muted-foreground">Nenhum atendimento concluído este mês.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface-800/50">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Serviço</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Categoria</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Qtd</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ticket médio</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Receita</th>
+                  <th className="px-4 py-3 w-32" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {byService.map((s) => (
+                  <tr key={s.name} className="hover:bg-surface-800/30 transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
+                    <td className="px-4 py-3"><Badge variant="outline" className="text-[10px]">{CATEGORY_LABEL[s.category] ?? s.category}</Badge></td>
+                    <td className="px-4 py-3 text-right tabular-nums">{s.count}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatBRL(s.revenue / s.count)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-gold-400">{formatBRL(s.revenue)}</td>
+                    <td className="px-4 py-3">
+                      <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                        <div className="h-full rounded-full bg-gold-500" style={{ width: `${(s.revenue / maxRevenue) * 100}%` }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border bg-surface-800/30">
+                  <td className="px-4 py-3 text-xs font-semibold" colSpan={2}>Total</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold">{byService.reduce((s, r) => s + r.count, 0)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold text-muted-foreground">{completedThis > 0 ? formatBRL(byService.reduce((s,r) => s + r.revenue, 0) / byService.reduce((s,r) => s + r.count, 0)) : "—"}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-bold text-gold-400">{formatBRL(byService.reduce((s, r) => s + r.revenue, 0))}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── Descontos ───────────────────────────────────── */}
       {tab === "discounts" && (
         <div className="space-y-5">
-          {/* KPI summary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-lg border border-border bg-card p-4 space-y-1">
               <p className="text-xs text-muted-foreground">Total descontado no mês</p>
@@ -295,16 +509,15 @@ export function FinanceiroClient({
             </div>
             <div className="rounded-lg border border-border bg-card p-4 space-y-1">
               <p className="text-xs text-muted-foreground">Taxa de desconto</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">{Math.round(discountRate * 100)}%</p>
+              <p className="text-2xl font-bold tabular-nums">{Math.round(discountRate * 100)}%</p>
               <p className="text-xs text-muted-foreground">do faturamento bruto</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4 space-y-1">
               <p className="text-xs text-muted-foreground">Atendimentos com desconto</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">{discountList.length}</p>
+              <p className="text-2xl font-bold tabular-nums">{discountList.length}</p>
             </div>
           </div>
 
-          {/* Bar chart by day */}
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Desconto por dia</p>
             {discountByDay.every((d) => d.total === 0) ? (
@@ -317,32 +530,20 @@ export function FinanceiroClient({
                       className="w-full rounded-sm bg-red-500/50 hover:bg-red-500/70 transition-colors relative group"
                       style={{ height: d.total > 0 ? `${Math.max((d.total / maxDiscountDay) * 100, 6)}%` : "2px" }}
                       title={`${d.day}: ${formatBRL(d.total)}`}
-                    >
-                      {d.total > 0 && (
-                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          {formatBRL(d.total)}
-                        </span>
-                      )}
-                    </div>
-                    {/* Show label every ~5 days to avoid crowding */}
-                    <span className="text-[8px] text-muted-foreground leading-none">
-                      {d.day.split("/")[0]}
-                    </span>
+                    />
+                    <span className="text-[8px] text-muted-foreground">{d.day.split("/")[0]}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Discount list */}
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-3 bg-surface-800/50 border-b border-border">
               <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Descontos aplicados</p>
             </div>
             {discountList.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-                Nenhum desconto aplicado este mês.
-              </div>
+              <div className="px-6 py-8 text-center text-sm text-muted-foreground">Nenhum desconto aplicado este mês.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
@@ -350,7 +551,7 @@ export function FinanceiroClient({
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Cliente</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Serviço</th>
                     <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Data</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Valor original</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Original</th>
                     <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Desconto</th>
                     <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Pago</th>
                   </tr>
@@ -360,8 +561,8 @@ export function FinanceiroClient({
                     <tr key={d.id} className="hover:bg-surface-800/30 transition-colors">
                       <td className="px-4 py-2.5 font-medium text-foreground">{d.customerName}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{d.serviceName}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">{d.date}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-foreground">{formatBRL(d.originalAmount)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{d.date}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{formatBRL(d.originalAmount)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-red-400 font-medium">-{formatBRL(d.discountValue)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-green-400">{formatBRL(d.paidValue)}</td>
                     </tr>
@@ -369,11 +570,9 @@ export function FinanceiroClient({
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-border bg-surface-800/30">
-                    <td className="px-4 py-2.5 text-xs font-semibold text-foreground" colSpan={4}>Total</td>
+                    <td className="px-4 py-2.5 text-xs font-semibold" colSpan={4}>Total</td>
                     <td className="px-4 py-2.5 text-right tabular-nums font-bold text-red-400">-{formatBRL(totalDiscountMonth)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-green-400">
-                      {formatBRL(discountList.reduce((s, d) => s + d.paidValue, 0))}
-                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-green-400">{formatBRL(discountList.reduce((s, d) => s + d.paidValue, 0))}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -381,72 +580,11 @@ export function FinanceiroClient({
           </div>
         </div>
       )}
-
-      {/* ── Por Serviço ────────────────────────────────── */}
-      {tab === "services" && (
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          {byService.length === 0 ? (
-            <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-              Nenhum atendimento concluído este mês ainda.
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-800/50">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Serviço</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Categoria</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Qtd</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ticket médio</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Receita</th>
-                  <th className="px-4 py-3 w-32"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {byService.map((s) => (
-                  <tr key={s.name} className="hover:bg-surface-800/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline" className="text-[10px]">{CATEGORY_LABEL[s.category] ?? s.category}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-foreground">{s.count}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatBRL(s.revenue / s.count)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-gold-400">{formatBRL(s.revenue)}</td>
-                    <td className="px-4 py-3">
-                      {/* CSS bar proportional to max */}
-                      <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gold-500"
-                          style={{ width: `${(s.revenue / maxRevenue) * 100}%` }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-border bg-surface-800/30">
-                  <td className="px-4 py-3 text-xs font-semibold text-foreground" colSpan={2}>Total</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">
-                    {byService.reduce((s, r) => s + r.count, 0)}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums font-semibold text-muted-foreground">
-                    {completedThis > 0 ? formatBRL(revenueThisMonth / completedThis) : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums font-bold text-gold-400">
-                    {formatBRL(revenueThisMonth)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
-// ── Sub-components ───────────────────────────────────────────
+// ── Sub-components ────────────────────────────────────────────
 
 function KpiCard({ label, value, delta, sub, progress, progressLabel }: {
   label: string; value: string; delta?: number | null;
