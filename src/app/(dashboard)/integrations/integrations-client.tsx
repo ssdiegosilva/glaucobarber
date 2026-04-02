@@ -50,6 +50,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [igBizId,    setIgBizId]    = useState("");
   const [igPageId,   setIgPageId]   = useState("");
   const [savingIg,   setSavingIg]   = useState(false);
+  const [editingIg,  setEditingIg]  = useState(!integration?.instagramPageAccessToken || !integration?.instagramBusinessId);
   const [discovering, setDiscovering] = useState(false);
   const [igAccounts,  setIgAccounts]  = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
 
@@ -146,7 +147,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar Instagram");
       toast({ title: "Instagram conectado", description: "Dados salvos com sucesso." });
-      setShowForm(false);
+      setEditingIg(false);
     } catch (e) {
       toast({ title: "Erro ao salvar Instagram", description: String(e), variant: "destructive" });
     } finally {
@@ -299,7 +300,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {(!integration?.instagramPageAccessToken || !integration.instagramBusinessId || showForm) ? (
+          {editingIg ? (
             <>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Page Access Token</label>
@@ -355,22 +356,31 @@ export function IntegrationsClient({ integration, syncRuns }: {
                   </div>
                 </div>
               )}
-              <div className="flex justify-end">
-                <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs">
+              <div className="flex items-center justify-between">
+                {integration?.instagramBusinessId && (
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingIg(false)}>
+                    Cancelar
+                  </Button>
+                )}
+                <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs ml-auto">
                   {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar Instagram"}
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground">Cole o token e clique em &quot;Buscar contas&quot; para detectar automaticamente o Instagram Business ID.</p>
             </>
           ) : (
-            <div className="rounded-md border border-border bg-surface-900 px-3 py-3 flex items-start justify-between gap-3">
-              <div className="text-xs text-foreground">
-                <p className="font-semibold">Instagram configurado</p>
-                <p className="text-muted-foreground">Business ID: {integration?.instagramBusinessId}</p>
-                <p className="text-muted-foreground">Token salvo</p>
+            <div className="rounded-md border border-green-500/30 bg-green-500/8 px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                <div className="text-xs">
+                  <p className="font-semibold text-green-400">Conectado</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    Business ID: <span className="font-mono text-foreground">{integration?.instagramBusinessId}</span>
+                  </p>
+                </div>
               </div>
-              <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowForm(true)}>
-                Editar
+              <Button size="sm" variant="outline" className="text-xs shrink-0 gap-1" onClick={() => setEditingIg(true)}>
+                <Settings className="h-3.5 w-3.5" /> Editar
               </Button>
             </div>
           )}

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Building2, RefreshCw, Save } from "lucide-react";
+import {
+  Building2, RefreshCw, Save, Pencil, MapPin, Phone, Globe,
+  Share2, Camera, X,
+} from "lucide-react";
 
 export interface BarbershopData {
   id: string;
@@ -20,12 +22,113 @@ export interface BarbershopData {
   logoUrl: string | null;
 }
 
+function getInitials(name: string) {
+  return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+}
+
+// ── View mode: shareable card ─────────────────────────────────────────────────
+function CardView({ data, onEdit }: { data: BarbershopData; onEdit: () => void }) {
+  const location = [data.address, data.city, data.state].filter(Boolean).join(", ");
+
+  async function handleShare() {
+    const shareData = {
+      title: data.name,
+      text: `${data.name}${data.description ? " — " + data.description : ""}`,
+      url: data.websiteUrl ?? window.location.href,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch { /* cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(shareData.url);
+      toast({ title: "Link copiado!", description: shareData.url });
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-gold-500/20 bg-gradient-to-br from-surface-900 via-surface-900 to-surface-800 overflow-hidden shadow-lg">
+      {/* Gold accent bar */}
+      <div className="h-1 bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600" />
+
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          {/* Logo */}
+          <div className="shrink-0">
+            {data.logoUrl ? (
+              <img
+                src={data.logoUrl}
+                alt={data.name}
+                className="h-20 w-20 rounded-xl object-cover border-2 border-gold-500/30 shadow"
+              />
+            ) : (
+              <div className="h-20 w-20 rounded-xl bg-gold-500/15 border-2 border-gold-500/30 flex items-center justify-center">
+                <span className="text-2xl font-bold text-gold-400">{getInitials(data.name)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-foreground truncate">{data.name}</h2>
+            {data.description && (
+              <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{data.description}</p>
+            )}
+
+            <div className="mt-3 space-y-1.5">
+              {location && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5 text-gold-400/70 shrink-0" />
+                  <span className="truncate">{location}</span>
+                </div>
+              )}
+              {data.phone && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Phone className="h-3.5 w-3.5 text-gold-400/70 shrink-0" />
+                  <span>{data.phone}</span>
+                </div>
+              )}
+              {data.websiteUrl && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Globe className="h-3.5 w-3.5 text-gold-400/70 shrink-0" />
+                  <a
+                    href={data.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate hover:text-gold-400 transition-colors"
+                  >
+                    {data.websiteUrl.replace(/^https?:\/\//, "")}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-5 pt-4 border-t border-border/40 flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground/50">glaucobarber.com/{data.slug}</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={handleShare}>
+              <Share2 className="h-3.5 w-3.5" /> Compartilhar
+            </Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" /> Editar
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Edit form ─────────────────────────────────────────────────────────────────
 export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [values, setValues] = useState({ ...barbershop });
+  const [editing, setEditing]   = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
+  const [values, setValues]     = useState({ ...barbershop });
   const [snapshot, setSnapshot] = useState({ ...barbershop });
+  const [logoPreview, setLogoPreview] = useState<string | null>(barbershop.logoUrl);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function onChange(field: keyof BarbershopData, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -33,8 +136,25 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
 
   function reset() {
     setValues(snapshot);
+    setLogoPreview(snapshot.logoUrl);
     setEditing(false);
     setError("");
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      toast({ title: "Imagem muito grande", description: "Máximo 500 KB", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setLogoPreview(dataUrl);
+      setValues((prev) => ({ ...prev, logoUrl: dataUrl }));
+    };
+    reader.readAsDataURL(file);
   }
 
   async function onSave() {
@@ -42,17 +162,15 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
     setError("");
     try {
       const res = await fetch("/api/barbershop", {
-        method: "PATCH",
+        method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body:    JSON.stringify(values),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Erro ao salvar");
-        return;
-      }
+      if (!res.ok) { setError(data.error ?? "Erro ao salvar"); return; }
       setSnapshot(data.barbershop);
       setValues(data.barbershop);
+      setLogoPreview(data.barbershop.logoUrl);
       setEditing(false);
       toast({ title: "Dados atualizados", description: "Informações salvas com sucesso." });
     } catch (e) {
@@ -62,87 +180,110 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
     }
   }
 
+  if (!editing) {
+    return <CardView data={{ ...values, logoUrl: logoPreview }} onEdit={() => setEditing(true)} />;
+  }
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Building2 className="h-4 w-4 text-gold-400" />
-        <CardTitle className="text-base">Dados da Barbearia</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Field label="Nome" value={values.name} onChange={(v) => onChange("name", v)} editing={editing} required />
-          <Field label="Slug" value={values.slug} onChange={(v) => onChange("slug", v)} editing={editing} required helper="usado em links, só letras/números" />
-          <Field label="Email" value={values.email ?? ""} onChange={(v) => onChange("email", v)} editing={editing} />
-          <Field label="Telefone" value={values.phone ?? ""} onChange={(v) => onChange("phone", v)} editing={editing} />
-          <Field label="Cidade" value={values.city ?? ""} onChange={(v) => onChange("city", v)} editing={editing} />
-          <Field label="Estado" value={values.state ?? ""} onChange={(v) => onChange("state", v)} editing={editing} />
-          <Field label="Endereço" value={values.address ?? ""} onChange={(v) => onChange("address", v)} editing={editing} />
-          <Field label="Site" value={values.websiteUrl ?? ""} onChange={(v) => onChange("websiteUrl", v)} editing={editing} />
-          <Field label="Logo (URL)" value={values.logoUrl ?? ""} onChange={(v) => onChange("logoUrl", v)} editing={editing} />
+    <div className="rounded-2xl border border-gold-500/20 bg-surface-900 overflow-hidden shadow-lg">
+      <div className="h-1 bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600" />
+      <div className="p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Building2 className="h-4 w-4 text-gold-400" />
+          <h3 className="text-base font-semibold">Editar dados da barbearia</h3>
         </div>
+
+        {/* Logo upload */}
+        <div className="flex items-center gap-4">
+          <div className="shrink-0 relative group cursor-pointer" onClick={() => fileRef.current?.click()}>
+            {logoPreview ? (
+              <img src={logoPreview} alt="Logo" className="h-20 w-20 rounded-xl object-cover border-2 border-gold-500/30" />
+            ) : (
+              <div className="h-20 w-20 rounded-xl bg-gold-500/15 border-2 border-gold-500/30 flex items-center justify-center">
+                <span className="text-2xl font-bold text-gold-400">{getInitials(values.name || "?")}</span>
+              </div>
+            )}
+            <div className="absolute inset-0 rounded-xl bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera className="h-6 w-6 text-white" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-foreground">Logo da barbearia</p>
+            <p className="text-[11px] text-muted-foreground">Clique na imagem ou use uma URL. Máx 500 KB.</p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => fileRef.current?.click()}>
+                <Camera className="h-3 w-3" /> Upload
+              </Button>
+              {logoPreview && (
+                <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => { setLogoPreview(null); setValues((p) => ({ ...p, logoUrl: null as unknown as string })); }}>
+                  <X className="h-3 w-3" /> Remover
+                </Button>
+              )}
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            <input
+              type="url"
+              placeholder="Ou cole uma URL..."
+              value={values.logoUrl?.startsWith("data:") ? "" : (values.logoUrl ?? "")}
+              onChange={(e) => { setValues((p) => ({ ...p, logoUrl: e.target.value })); setLogoPreview(e.target.value || null); }}
+              className="w-full rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
+
+        {/* Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <Field label="Nome *"    value={values.name}           onChange={(v) => onChange("name", v)} />
+          <Field label="Slug *"    value={values.slug}           onChange={(v) => onChange("slug", v)} helper="letras e números, sem espaços" />
+          <Field label="Email"     value={values.email ?? ""}    onChange={(v) => onChange("email", v)} />
+          <Field label="Telefone"  value={values.phone ?? ""}    onChange={(v) => onChange("phone", v)} />
+          <Field label="Cidade"    value={values.city ?? ""}     onChange={(v) => onChange("city", v)} />
+          <Field label="Estado"    value={values.state ?? ""}    onChange={(v) => onChange("state", v)} />
+          <Field label="Endereço"  value={values.address ?? ""}  onChange={(v) => onChange("address", v)} />
+          <Field label="Site"      value={values.websiteUrl ?? ""} onChange={(v) => onChange("websiteUrl", v)} />
+        </div>
+
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Descrição</label>
-          {editing ? (
-            <textarea
-              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-              value={values.description ?? ""}
-              onChange={(e) => onChange("description", e.target.value)}
-              rows={3}
-            />
-          ) : (
-            <div className="w-full rounded-md border border-border/40 bg-surface-900 px-3 py-2 text-xs text-foreground min-h-[64px]">
-              {(values.description ?? "").trim() || "—"}
-            </div>
-          )}
+          <textarea
+            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            value={values.description ?? ""}
+            onChange={(e) => onChange("description", e.target.value)}
+            rows={3}
+            placeholder="Descreva sua barbearia..."
+          />
         </div>
+
         {error && <p className="text-xs text-red-400">{error}</p>}
+
         <div className="flex flex-wrap gap-2 justify-end pt-1">
-          {editing ? (
-            <>
-              <Button variant="ghost" size="sm" className="text-xs" onClick={reset} disabled={saving}>
-                Cancelar
-              </Button>
-              <Button size="sm" className="text-xs" onClick={onSave} disabled={saving || !values.name || !values.slug}>
-                {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
-                {saving ? "Salvando..." : "Salvar"}
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => setEditing(true)}>
-              Editar
-            </Button>
-          )}
+          <Button variant="ghost" size="sm" className="text-xs" onClick={reset} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button size="sm" className="text-xs gap-1" onClick={onSave} disabled={saving || !values.name || !values.slug}>
+            {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
-function Field({ label, value, onChange, editing, required, helper }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  editing: boolean;
-  required?: boolean;
-  helper?: string;
+function Field({ label, value, onChange, helper }: {
+  label: string; value: string; onChange: (v: string) => void; helper?: string;
 }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground">{label}{required ? " *" : ""}</label>
-        {helper && <span className="text-[10px] text-muted-foreground">{helper}</span>}
+        <label className="text-xs text-muted-foreground">{label}</label>
+        {helper && <span className="text-[10px] text-muted-foreground/70">{helper}</span>}
       </div>
-      {editing ? (
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-      ) : (
-        <div className="w-full rounded-md border border-border/40 bg-surface-900 px-3 py-2 text-xs text-foreground min-h-[38px] flex items-center">
-          {value?.trim() || "—"}
-        </div>
-      )}
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+      />
     </div>
   );
 }

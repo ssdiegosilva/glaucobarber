@@ -230,6 +230,17 @@ export async function syncBarbershop(
       data: { lastSyncAt: new Date(), status: "ACTIVE", errorMsg: null },
     });
 
+    // Keep only the 10 most recent sync runs
+    const allRuns = await prisma.syncRun.findMany({
+      where:   { barbershopId },
+      orderBy: { startedAt: "desc" },
+      select:  { id: true },
+    });
+    if (allRuns.length > 10) {
+      const toDelete = allRuns.slice(10).map((r) => r.id);
+      await prisma.syncRun.deleteMany({ where: { id: { in: toDelete } } });
+    }
+
     // Refresh post-sale status after full sync
     try {
       await refreshPostSaleStatus(barbershopId);
