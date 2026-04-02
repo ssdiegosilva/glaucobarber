@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
-  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2, Pencil, X,
+  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2, Pencil, X, PenLine,
 } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 
@@ -75,6 +75,117 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ── Compose custom message modal ─────────────────────────────
+
+function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: WaMessage) => void }) {
+  const [name,         setName]         = useState("");
+  const [phone,        setPhone]        = useState("");
+  const [text,         setText]         = useState("");
+  const [scheduledFor, setScheduledFor] = useState("");
+  const [sending,      setSending]      = useState(false);
+  const [error,        setError]        = useState("");
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  async function send() {
+    if (!name.trim() || !phone.trim() || !text.trim()) return;
+    setSending(true);
+    setError("");
+    try {
+      const res = await fetch("/api/whatsapp/messages", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          customerName: name.trim(),
+          phone:        phone.trim(),
+          message:      text.trim(),
+          type:         "general",
+          messageKind:  "text",
+          scheduledFor: scheduledFor || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      onSent(data.message);
+      onClose();
+    } catch {
+      setError("Erro ao enviar mensagem.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[60] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto max-w-md mx-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Mensagem personalizada</h3>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Nome do cliente</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="João Silva"
+              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Telefone (com DDD)</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="11999998888"
+              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Mensagem</label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              placeholder="Digite a mensagem..."
+              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Agendar para (opcional)</label>
+            <input
+              type="date"
+              value={scheduledFor}
+              min={todayStr}
+              onChange={(e) => setScheduledFor(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
+          Mensagens personalizadas só funcionam dentro da janela de 24h de conversa ativa. Fora desse período, use um template aprovado pela Meta.
+        </div>
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>Cancelar</Button>
+          <Button className="flex-1 gap-2" onClick={send} disabled={sending || !name || !phone || !text}>
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {scheduledFor ? "Agendar" : "Enviar agora"}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -307,8 +418,9 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
   const [queue,     setQueue]     = useState<WaMessage[]>(queueMessages);
   const [history,   setHistory]   = useState<WaMessage[]>(historyMessages);
   const [scheduled, setScheduled] = useState<WaMessage[]>(scheduledMessages);
-  const [processing, setProcessing] = useState(false);
+  const [processing,   setProcessing]   = useState(false);
   const [processResult, setProcessResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [showCompose, setShowCompose] = useState(false);
 
   async function processQueue() {
     setProcessing(true);
@@ -365,27 +477,43 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
     { id: "history"   as const, label: "Histórico", badge: history.length   },
   ];
 
+  function handleComposeSent(msg: WaMessage) {
+    setToday((prev) => [msg, ...prev]);
+    if (msg.scheduledFor) setScheduled((prev) => [msg, ...prev]);
+    else setQueue((prev) => [msg, ...prev]);
+  }
+
   return (
     <div className="flex-1 p-6 space-y-5 overflow-y-auto">
-      {/* Tabs */}
-      <div className="flex gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id
-                ? "border-gold-500/40 bg-gold-500/10 text-gold-400"
-                : "border-border text-muted-foreground hover:border-gold-500/20 hover:text-foreground"
-            }`}
-          >
-            {t.label}
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-              tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"
-            }`}>{t.badge}</span>
-          </button>
-        ))}
+      {/* Header with compose button */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                tab === t.id
+                  ? "border-gold-500/40 bg-gold-500/10 text-gold-400"
+                  : "border-border text-muted-foreground hover:border-gold-500/20 hover:text-foreground"
+              }`}
+            >
+              {t.label}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"
+              }`}>{t.badge}</span>
+            </button>
+          ))}
+        </div>
+        <Button size="sm" onClick={() => setShowCompose(true)} className="gap-1.5 shrink-0">
+          <PenLine className="h-4 w-4" />
+          Mensagem personalizada
+        </Button>
       </div>
+
+      {showCompose && (
+        <ComposeModal onClose={() => setShowCompose(false)} onSent={handleComposeSent} />
+      )}
 
       {/* TODAY */}
       {tab === "today" && (

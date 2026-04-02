@@ -118,7 +118,8 @@ model Barbershop {
   auditLogs     AuditLog[]
   actions       Action[]
   copilotThreads CopilotThread[]
-  whatsappMessages WhatsappMessage[]
+  whatsappMessages  WhatsappMessage[]
+  whatsappTemplates WhatsappTemplate[]
   featureFlags  FeatureFlag[]
   goals         Goal[]
   templates     Template[]
@@ -764,6 +765,10 @@ model WhatsappMessage {
   phone        String
   message      String                @db.Text
   type          String                // reactivation | post_sale_review | post_sale_followup | agenda_conflict | general
+  // "text" = free text via Business API; "template" = Meta-approved template (HSM)
+  messageKind   String                @default("text")
+  templateName  String?               // metaName of the WhatsappTemplate used (if messageKind=="template")
+  templateVars  String?               // JSON array of resolved variable values e.g. ["João","https://g.page/..."]
   status        WhatsappMessageStatus @default(QUEUED)
   actionId      String?
   scheduledFor  DateTime?             // if set: send only after this date/time
@@ -779,6 +784,31 @@ model WhatsappMessage {
   @@index([barbershopId, status])
   @@index([barbershopId, createdAt])
   @@map("whatsapp_messages")
+}
+
+// ============================================================
+// WHATSAPP TEMPLATES (Meta-approved HSM templates)
+// Each barbershop registers their own templates in Meta Business Manager.
+// Variables use {{1}}, {{2}} notation in Meta; stored here for preview and UI.
+// ============================================================
+
+model WhatsappTemplate {
+  id           String  @id @default(cuid())
+  barbershopId String
+  metaName     String  // exact name in Meta Business Manager (e.g. "review_request")
+  label        String  // human-readable label (e.g. "Pedir avaliação Google")
+  body         String  // body text with {{1}}, {{2}} for preview in UI
+  // JSON array: [{key,label,defaultValue}] e.g. [{"key":"nome","label":"Nome do cliente","defaultValue":""}]
+  variables    String  @default("[]")
+  active       Boolean @default(true)
+
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barbershopId, metaName])
+  @@map("whatsapp_templates")
 }
 
 // ============================================================

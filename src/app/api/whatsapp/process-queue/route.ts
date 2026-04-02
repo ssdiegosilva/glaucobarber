@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
 
 // POST /api/whatsapp/process-queue
 // Processa todas as mensagens na fila (QUEUED, scheduledFor <= now) para o barbershop autenticado.
@@ -41,11 +41,21 @@ export async function POST() {
       continue;
     }
 
+    const creds = {
+      accessToken:   integration.whatsappAccessToken,
+      phoneNumberId: integration.whatsappPhoneNumberId,
+    };
+
     try {
-      const metaMessageId = await sendWhatsAppMessage(msg.phone, msg.message, {
-        accessToken:   integration.whatsappAccessToken,
-        phoneNumberId: integration.whatsappPhoneNumberId,
-      });
+      let metaMessageId: string;
+
+      if (msg.messageKind === "template" && msg.templateName) {
+        const vars: string[] = msg.templateVars ? JSON.parse(msg.templateVars) : [];
+        metaMessageId = await sendWhatsAppTemplate(msg.phone, msg.templateName, vars, creds);
+      } else {
+        metaMessageId = await sendWhatsAppMessage(msg.phone, msg.message, creds);
+      }
+
       await prisma.whatsappMessage.update({
         where: { id: msg.id },
         data:  { status: "SENT", sentAt: new Date(), metaMessageId },

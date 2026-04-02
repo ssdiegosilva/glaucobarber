@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDay, endOfDay, subDays } from "date-fns";
-import { sendWhatsAppMessage, type WhatsAppCredentials } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, sendWhatsAppTemplate, type WhatsAppCredentials } from "@/lib/whatsapp";
 
 /** Busca as credenciais WhatsApp do barbershop. Retorna null se não configurado. */
 async function getWhatsAppCreds(barbershopId: string): Promise<WhatsAppCredentials | null> {
@@ -21,12 +21,16 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { customerId, customerName, phone, message, type, scheduledFor } = await req.json();
+  const {
+    customerId, customerName, phone, message, type, scheduledFor,
+    messageKind, templateName, templateVars,
+  } = await req.json();
   if (!customerName || !phone || !message) {
     return NextResponse.json({ error: "customerName, phone e message são obrigatórios" }, { status: 400 });
   }
 
   const isScheduled = !!scheduledFor;
+  const kind = messageKind === "template" ? "template" : "text";
 
   const [msg] = await prisma.$transaction([
     prisma.whatsappMessage.create({
@@ -37,6 +41,11 @@ export async function POST(req: NextRequest) {
         phone,
         message,
         type:         type ?? "general",
+        messageKind:  kind,
+        templateName: kind === "template" ? (templateName ?? null) : null,
+        templateVars: kind === "template" && templateVars
+          ? JSON.stringify(templateVars)
+          : null,
         status:       "QUEUED",
         scheduledFor: isScheduled ? new Date(scheduledFor) : null,
       },
@@ -63,7 +72,9 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const metaMessageId = await sendWhatsAppMessage(phone, message, creds);
+      const metaMessageId = kind === "template" && templateName
+        ? await sendWhatsAppTemplate(phone, templateName, templateVars ?? [], creds)
+        : await sendWhatsAppMessage(phone, message, creds);
       await prisma.whatsappMessage.update({
         where: { id: msg.id },
         data:  { status: "SENT", sentAt: new Date(), metaMessageId },

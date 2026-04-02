@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-react";
+import { useEffect } from "react";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 
@@ -392,14 +393,12 @@ function CustomerDetailSheet({
         />
       )}
 
-      {/* Schedule message modal */}
+      {/* Template message modal */}
       {selectedAction && (
-        <ScheduleMessageModal
+        <TemplateMessageModal
           customer={customer}
           action={selectedAction}
-          onClose={() => {
-            setSelectedAction(null);
-          }}
+          onClose={() => setSelectedAction(null)}
           onSent={() => {
             setSelectedAction(null);
             setShowWhatsApp(false);
@@ -465,9 +464,21 @@ function WhatsAppActionSheet({
   );
 }
 
-// ── Schedule message modal ────────────────────────────────────────────────────
+// ── Template variable type ────────────────────────────────────────────────────
 
-function ScheduleMessageModal({
+interface WaTemplate {
+  id:        string;
+  metaName:  string;
+  label:     string;
+  body:      string;
+  variables: string; // JSON: [{key,label,defaultValue}]
+}
+
+interface TemplateVar { key: string; label: string; defaultValue: string }
+
+// ── Template message modal (used for ALL post-sale sends) ─────────────────────
+
+function TemplateMessageModal({
   customer,
   action,
   onClose,
@@ -481,34 +492,44 @@ function ScheduleMessageModal({
   const isScheduled = !!action.scheduled;
   const todayStr    = new Date().toISOString().slice(0, 10);
 
-  const [message,     setMessage]     = useState("");
+  const [templates,    setTemplates]    = useState<WaTemplate[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [selectedTpl,  setSelectedTpl]  = useState<WaTemplate | null>(null);
+  const [varValues,    setVarValues]    = useState<string[]>([]);
   const [scheduledFor, setScheduledFor] = useState(isScheduled ? todayStr : "");
-  const [generating,  setGenerating]  = useState(false);
-  const [sending,     setSending]     = useState(false);
-  const [error,       setError]       = useState("");
+  const [sending,      setSending]      = useState(false);
+  const [error,        setError]        = useState("");
 
-  const generateMessage = useCallback(async () => {
-    if (!customer.id) return;
-    setGenerating(true);
+  // Load templates on mount
+  useEffect(() => {
+    fetch("/api/whatsapp/templates")
+      .then((r) => r.json())
+      .then((data: WaTemplate[]) => {
+        setTemplates(data);
+        if (data.length === 1) selectTemplate(data[0]);
+      })
+      .catch(() => setError("Erro ao carregar templates."))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function selectTemplate(tpl: WaTemplate) {
+    setSelectedTpl(tpl);
+    const vars: TemplateVar[] = JSON.parse(tpl.variables || "[]");
+    setVarValues(vars.map((v) => {
+      if (v.key === "customer_name" || v.key === "nome") return customer.name;
+      return v.defaultValue ?? "";
+    }));
     setError("");
-    try {
-      const res  = await fetch("/api/post-sale/generate-message", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ customerId: customer.id, type: action.type }),
-      });
-      const data = await res.json();
-      if (data.message) { window.dispatchEvent(new Event("ai-used")); setMessage(data.message); }
-      else setError("Não foi possível gerar a mensagem.");
-    } catch {
-      setError("Erro ao conectar com o servidor.");
-    } finally {
-      setGenerating(false);
-    }
-  }, [customer.id, action.type]);
+  }
+
+  function previewBody() {
+    if (!selectedTpl) return "";
+    return selectedTpl.body.replace(/\{\{(\d+)\}\}/g, (_, i) => varValues[Number(i) - 1] ?? `{{${i}}}`);
+  }
 
   async function handleSend() {
-    if (!message.trim() || !customer.phone) return;
+    if (!selectedTpl || !customer.phone) return;
     setSending(true);
     setError("");
     try {
@@ -519,24 +540,29 @@ function ScheduleMessageModal({
           customerId:   customer.id,
           customerName: customer.name,
           phone:        customer.phone,
-          message:      message.trim(),
+          message:      previewBody(),
           type:         action.type,
+          messageKind:  "template",
+          templateName: selectedTpl.metaName,
+          templateVars: varValues,
           scheduledFor: isScheduled && scheduledFor ? scheduledFor : undefined,
         }),
       });
-      if (!res.ok) throw new Error("Falha ao enviar");
+      if (!res.ok) throw new Error("Falha ao agendar");
       onSent();
     } catch {
-      setError("Erro ao salvar mensagem.");
+      setError("Erro ao agendar mensagem.");
     } finally {
       setSending(false);
     }
   }
 
+  const vars: TemplateVar[] = selectedTpl ? JSON.parse(selectedTpl.variables || "[]") : [];
+
   return (
     <>
       <div className="fixed inset-0 bg-black/70 z-60" onClick={onClose} />
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[70] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[70] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-foreground">{action.label}</h3>
@@ -547,7 +573,7 @@ function ScheduleMessageModal({
           </button>
         </div>
 
-        {/* Date picker for scheduled messages */}
+        {/* Date picker */}
         {isScheduled && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Data de envio</label>
@@ -561,44 +587,69 @@ function ScheduleMessageModal({
           </div>
         )}
 
-        {/* Message textarea */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Mensagem</label>
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={4}
-            placeholder="Escreva a mensagem ou gere com IA..."
-            className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-          />
-        </div>
+        {/* Template selector */}
+        {loading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando templates...
+          </div>
+        ) : templates.length === 0 ? (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-3 text-xs text-amber-300 space-y-1">
+            <p className="font-medium">Nenhum template configurado</p>
+            <p>Acesse o painel admin → WhatsApp Templates para cadastrar os templates aprovados pela Meta.</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Template</label>
+            <select
+              value={selectedTpl?.id ?? ""}
+              onChange={(e) => {
+                const t = templates.find((t) => t.id === e.target.value);
+                if (t) selectTemplate(t);
+              }}
+              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Selecione um template…</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        {/* AI generation button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-2 text-muted-foreground"
-          disabled={generating}
-          onClick={generateMessage}
-        >
-          {generating ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <span className="text-xs">✦</span>
-          )}
-          {generating ? "Gerando..." : "Gerar com IA"}
-        </Button>
+        {/* Variable inputs */}
+        {vars.length > 0 && vars.map((v, i) => (
+          <div key={v.key} className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">{v.label}</label>
+            <input
+              type="text"
+              value={varValues[i] ?? ""}
+              onChange={(e) => {
+                const next = [...varValues];
+                next[i] = e.target.value;
+                setVarValues(next);
+              }}
+              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        ))}
+
+        {/* Preview */}
+        {selectedTpl && (
+          <div className="rounded-lg border border-border/40 bg-surface-800/50 px-3 py-2 space-y-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pré-visualização</p>
+            <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{previewBody()}</p>
+          </div>
+        )}
 
         {error && <p className="text-xs text-red-400">{error}</p>}
 
-        {/* Actions */}
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>
             Cancelar
           </Button>
           <Button
             className="flex-1 gap-2"
-            disabled={!message.trim() || !customer.phone || sending || (isScheduled && !scheduledFor)}
+            disabled={!selectedTpl || !customer.phone || sending || (isScheduled && !scheduledFor) || templates.length === 0}
             onClick={handleSend}
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
@@ -619,23 +670,15 @@ function ReviewList({ reviews }: { reviews: ReviewItem[] }) {
   async function sendReview(r: ReviewItem) {
     if (!r.customerPhone) return;
     setSendingId(r.id);
-    try {
-      await fetch("/api/whatsapp/messages", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          customerId:   r.customerId,
-          customerName: r.customerName,
-          phone:        r.customerPhone,
-          message:      `Olá ${r.customerName}! Obrigado por visitar nossa barbearia hoje. Que tal nos deixar uma avaliação no Google? Sua opinião é muito importante para nós!`,
-          type:         "post_sale_review",
-        }),
-      });
-      setSentIds((prev) => new Set([...prev, r.id]));
-    } finally {
-      setSendingId(null);
-    }
+    setReviewTemplate(r.id);
   }
+
+  function setReviewTemplate(reviewId: string) {
+    setSendingId(null);
+    setOpenReviewId(reviewId);
+  }
+
+  const [openReviewId, setOpenReviewId] = useState<string | null>(null);
 
   if (reviews.length === 0) {
     return (
@@ -645,52 +688,74 @@ function ReviewList({ reviews }: { reviews: ReviewItem[] }) {
     );
   }
 
+  const openReview = openReviewId ? reviews.find((r) => r.id === openReviewId) : null;
+
   return (
-    <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
-        Clientes atendidos nas últimas 48h aguardando solicitação de avaliação Google.
-      </p>
-      {reviews.map((r) => (
-        <div key={r.id} className="rounded-lg border border-border/60 bg-surface-900">
-          <div className="py-3 px-4 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{r.customerName}</p>
-              <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-0.5">
-                {r.customerPhone && <span>{r.customerPhone}</span>}
-                {r.completedAt && <span>Atendido {relativeTime(r.completedAt)}</span>}
-                {r.serviceName && <span>{r.serviceName}</span>}
+    <>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Clientes atendidos nas últimas 48h aguardando solicitação de avaliação Google.
+        </p>
+        {reviews.map((r) => (
+          <div key={r.id} className="rounded-lg border border-border/60 bg-surface-900">
+            <div className="py-3 px-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{r.customerName}</p>
+                <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-0.5">
+                  {r.customerPhone && <span>{r.customerPhone}</span>}
+                  {r.completedAt && <span>Atendido {relativeTime(r.completedAt)}</span>}
+                  {r.serviceName && <span>{r.serviceName}</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {sentIds.has(r.id) ? (
+                  <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-400/30">
+                    Agendado
+                  </Badge>
+                ) : (
+                  <>
+                    <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/30">
+                      Pendente
+                    </Badge>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      disabled={!r.customerPhone}
+                      onClick={() => sendReview(r)}
+                    >
+                      <MessageCircle className="h-3 w-3" />
+                      Pedir avaliação
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {sentIds.has(r.id) ? (
-                <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-400/30">
-                  Enviado
-                </Badge>
-              ) : (
-                <>
-                  <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/30">
-                    Pendente
-                  </Badge>
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs gap-1"
-                    disabled={!r.customerPhone || sendingId === r.id}
-                    onClick={() => sendReview(r)}
-                  >
-                    {sendingId === r.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <MessageCircle className="h-3 w-3" />
-                    )}
-                    Pedir avaliação
-                  </Button>
-                </>
-              )}
-            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      {openReview && (
+        <TemplateMessageModal
+          customer={{
+            id: openReview.customerId,
+            name: openReview.customerName,
+            phone: openReview.customerPhone ?? null,
+            postSaleStatus: "RECENTE",
+            lastVisitAt: openReview.completedAt ?? null,
+            serviceName: openReview.serviceName ?? null,
+            servicePrice: null,
+            lastWhatsappSentAt: null,
+            lastCompletedAppointmentAt: null,
+          }}
+          action={{ id: "review", label: "Pedir avaliação Google", type: "post_sale_review", icon: MessageCircle }}
+          onClose={() => setOpenReviewId(null)}
+          onSent={() => {
+            setSentIds((prev) => new Set([...prev, openReview.id]));
+            setOpenReviewId(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 

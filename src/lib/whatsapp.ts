@@ -49,7 +49,56 @@ export async function sendWhatsAppMessage(
   }
 
   const data = await response.json();
-  // data.messages[0].id = wamid
+  return (data?.messages?.[0]?.id as string) ?? "";
+}
+
+/**
+ * Envia um template aprovado pela Meta via WhatsApp.
+ * variables: valores posicionais para {{1}}, {{2}}, etc.
+ * languageCode: código do idioma do template (padrão: pt_BR).
+ */
+export async function sendWhatsAppTemplate(
+  to:           string,
+  templateName: string,
+  variables:    string[],
+  creds:        WhatsAppCredentials,
+  languageCode  = "pt_BR"
+): Promise<string> {
+  const phone = normalizePhone(to);
+
+  const components = variables.length > 0
+    ? [{
+        type:       "body",
+        parameters: variables.map((v) => ({ type: "text", text: v })),
+      }]
+    : [];
+
+  const response = await fetch(`${WHATSAPP_API_URL}/${creds.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization:  `Bearer ${creds.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type:    "individual",
+      to:                phone,
+      type:              "template",
+      template: {
+        name:     templateName,
+        language: { code: languageCode },
+        components,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error("[WhatsApp] template send error:", JSON.stringify(error));
+    throw new Error(`WhatsApp template API error: ${response.status}`);
+  }
+
+  const data = await response.json();
   return (data?.messages?.[0]?.id as string) ?? "";
 }
 
