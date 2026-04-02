@@ -88,9 +88,10 @@ model Barbershop {
   address     String?
   city        String?
   state       String?
-  logoUrl     String?
-  websiteUrl  String?
-  description String?
+  logoUrl      String?
+  websiteUrl   String?
+  description  String?
+  instagramUrl String?
 
   // Trinks: the operational source of truth
   trinksConfigured Boolean @default(false)

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
 import {
   Scissors, Pencil, Check, X, Loader2, Sparkles, TrendingUp,
-  ChevronDown, ChevronUp, Plus, Lightbulb,
+  ChevronDown, ChevronUp, Plus, Lightbulb, MapPin, Navigation,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -41,13 +41,180 @@ interface PriceRecommendation {
   rationale:      string;
 }
 
+interface BarbershopLocation {
+  address: string | null;
+  city:    string | null;
+  state:   string | null;
+}
+
 interface Props {
   initialServices:      Service[];
   initialOpportunities: Opportunity[];
   hasTrinks:            boolean;
+  barbershopLocation:   BarbershopLocation;
 }
 
-export function ServicesClient({ initialServices, initialOpportunities, hasTrinks }: Props) {
+// ── Address capture modal ─────────────────────────────────────
+function AddressModal({
+  onSave,
+  onClose,
+}: {
+  onSave: (loc: BarbershopLocation) => void;
+  onClose: () => void;
+}) {
+  const [address, setAddress] = useState("");
+  const [city, setCity]       = useState("");
+  const [state, setState]     = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  async function handleGPS() {
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocalização não disponível neste navegador", variant: "destructive" });
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=pt-BR`,
+            { headers: { "User-Agent": "GlaucoBarber/1.0" } }
+          );
+          const data = await res.json();
+          const addr = data.address ?? {};
+          setAddress([addr.road, addr.house_number].filter(Boolean).join(", ") || "");
+          setCity(addr.city || addr.town || addr.village || addr.municipality || "");
+          setState(addr.state || "");
+        } catch {
+          toast({ title: "Não foi possível obter o endereço", description: "Preencha manualmente", variant: "destructive" });
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        toast({ title: "Permissão de localização negada", description: "Preencha o endereço manualmente", variant: "destructive" });
+      }
+    );
+  }
+
+  async function handleSave() {
+    if (!city.trim() && !address.trim()) {
+      toast({ title: "Informe ao menos a cidade", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/barbershop/location", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ address: address.trim(), city: city.trim(), state: state.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar endereço");
+      onSave({ address: address.trim() || null, city: city.trim() || null, state: state.trim() || null });
+      toast({ title: "Endereço salvo!", description: "A IA usará este endereço nas sugestões." });
+      onClose();
+    } catch (e) {
+      toast({ title: "Erro ao salvar", description: String(e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-purple-400" />
+            <h2 className="font-semibold text-foreground text-sm">Endereço da barbearia</h2>
+          </div>
+          <button onClick={onClose} className="rounded p-1 hover:bg-surface-700 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            A IA usa o endereço da sua barbearia para sugerir serviços populares na sua região. Isso também atualiza o perfil da barbearia nas configurações.
+          </p>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full h-9 text-xs gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            onClick={handleGPS}
+            disabled={locating}
+          >
+            {locating
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <Navigation className="h-3.5 w-3.5" />}
+            {locating ? "Obtendo localização..." : "Usar minha localização atual"}
+          </Button>
+
+          <div className="relative flex items-center gap-2">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-[10px] text-muted-foreground shrink-0">ou preencha manualmente</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Endereço (rua e número)</label>
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Ex: Rua das Flores, 123"
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Cidade *</label>
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Ex: São Paulo"
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Estado</label>
+                <input
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="Ex: SP"
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+          </div>
+
+          {(address || city) && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground rounded-md bg-surface-800/60 px-3 py-2">
+              <MapPin className="h-3 w-3 text-purple-400 shrink-0" />
+              <span className="truncate">{[address, city, state].filter(Boolean).join(", ")}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-border px-5 py-3 flex gap-2 justify-end">
+          <Button variant="ghost" size="sm" className="text-xs" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button size="sm" className="text-xs gap-1" onClick={handleSave} disabled={saving || (!address.trim() && !city.trim())}>
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            {saving ? "Salvando..." : "Salvar e continuar"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ServicesClient({ initialServices, initialOpportunities, hasTrinks, barbershopLocation }: Props) {
   const [services, setServices]                   = useState(initialServices);
   const [opportunities, setOpportunities]         = useState(initialOpportunities);
   const [editingId, setEditingId]                 = useState<string | null>(null);
@@ -60,6 +227,9 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   const [generatingOpps, setGeneratingOpps]       = useState(false);
   const [approvingId, setApprovingId]             = useState<string | null>(null);
   const [rejectingId, setRejectingId]             = useState<string | null>(null);
+  const [location, setLocation]                   = useState<BarbershopLocation>(barbershopLocation);
+  const [showAddressModal, setShowAddressModal]   = useState(false);
+  const [pendingGenerate, setPendingGenerate]     = useState(false);
 
   function startEdit(svc: Service) {
     setEditingId(svc.id);
@@ -122,12 +292,22 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
     } finally { setLoadingAI(null); }
   }
 
-  async function generateOpportunities() {
+  const hasLocation = !!(location.address || location.city);
+
+  async function doGenerate() {
     setGeneratingOpps(true);
+    setPendingGenerate(false);
     try {
       const res  = await fetch("/api/services/opportunities/generate", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro ao gerar");
+      if (!res.ok) {
+        if (data.error === "ADDRESS_REQUIRED") {
+          setShowAddressModal(true);
+          setPendingGenerate(true);
+          return;
+        }
+        throw new Error(data.error ?? "Erro ao gerar");
+      }
       setOpportunities(data.opportunities.map((o: Record<string, unknown>) => ({
         id:             String(o.id),
         name:           String(o.name),
@@ -140,6 +320,22 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally { setGeneratingOpps(false); }
+  }
+
+  async function generateOpportunities() {
+    if (!hasLocation) {
+      setShowAddressModal(true);
+      setPendingGenerate(true);
+      return;
+    }
+    await doGenerate();
+  }
+
+  function handleAddressSaved(loc: BarbershopLocation) {
+    setLocation(loc);
+    if (pendingGenerate) {
+      doGenerate();
+    }
   }
 
   async function approveOpportunity(opp: Opportunity) {
@@ -166,6 +362,14 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   }
 
   return (
+    <>
+      {showAddressModal && (
+        <AddressModal
+          onSave={handleAddressSaved}
+          onClose={() => { setShowAddressModal(false); setPendingGenerate(false); }}
+        />
+      )}
+
     <div className="space-y-6">
       {/* ── Opportunity section ────────────────────────────────── */}
       <div>
@@ -179,18 +383,37 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
               </span>
             )}
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
-            onClick={generateOpportunities}
-            disabled={generatingOpps}
-          >
-            {generatingOpps
-              ? <Loader2 className="h-3 w-3 animate-spin" />
-              : <Sparkles className="h-3 w-3" />}
-            {generatingOpps ? "Consultando IA..." : "Descobrir oportunidades"}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              onClick={generateOpportunities}
+              disabled={generatingOpps}
+            >
+              {generatingOpps
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Sparkles className="h-3 w-3" />}
+              {generatingOpps ? "Consultando IA..." : "Descobrir oportunidades"}
+            </Button>
+            {hasLocation ? (
+              <button
+                onClick={() => setShowAddressModal(true)}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-purple-400 transition-colors"
+              >
+                <MapPin className="h-2.5 w-2.5" />
+                {[location.city, location.state].filter(Boolean).join(", ")}
+              </button>
+            ) : (
+              <button
+                onClick={() => { setShowAddressModal(true); setPendingGenerate(true); }}
+                className="flex items-center gap-1 text-[10px] text-amber-400/80 hover:text-amber-400 transition-colors"
+              >
+                <MapPin className="h-2.5 w-2.5" />
+                Adicionar endereço para melhores sugestões
+              </button>
+            )}
+          </div>
         </div>
 
         {opportunities.length === 0 && (
@@ -388,5 +611,6 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
         </div>
       </div>
     </div>
+    </>
   );
 }

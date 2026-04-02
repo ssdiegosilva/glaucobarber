@@ -10,7 +10,7 @@ export default async function ServicesPage() {
 
   const barbershopId = session.user.barbershopId;
 
-  const [services, integration, opportunities] = await Promise.all([
+  const [services, integration, opportunities, barbershop] = await Promise.all([
     prisma.service.findMany({
       where:   { barbershopId },
       orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -22,6 +22,10 @@ export default async function ServicesPage() {
     prisma.serviceOpportunity.findMany({
       where:   { barbershopId, status: "PENDING" },
       orderBy: { createdAt: "desc" },
+    }),
+    prisma.barbershop.findUnique({
+      where:  { barbershopId },
+      select: { address: true, city: true, state: true },
     }),
   ]);
 
@@ -55,6 +59,11 @@ export default async function ServicesPage() {
             rationale:      o.rationale,
           }))}
           hasTrinks={hasTrinks}
+          barbershopLocation={{
+            address: barbershop?.address ?? null,
+            city:    barbershop?.city ?? null,
+            state:   barbershop?.state ?? null,
+          }}
         />
       </div>
     </div>

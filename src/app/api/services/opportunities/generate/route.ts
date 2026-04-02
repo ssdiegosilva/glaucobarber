@@ -22,7 +22,7 @@ export async function POST() {
   const [barbershop, existingServices] = await Promise.all([
     prisma.barbershop.findUnique({
       where:  { id: barbershopId },
-      select: { name: true, city: true, state: true },
+      select: { name: true, address: true, city: true, state: true },
     }),
     prisma.service.findMany({
       where:  { barbershopId, active: true },
@@ -30,7 +30,11 @@ export async function POST() {
     }),
   ]);
 
-  const location     = [barbershop?.city, barbershop?.state].filter(Boolean).join(", ") || "Brasil";
+  const locationParts = [barbershop?.address, barbershop?.city, barbershop?.state].filter(Boolean);
+  if (locationParts.length === 0) {
+    return NextResponse.json({ error: "ADDRESS_REQUIRED" }, { status: 422 });
+  }
+  const location = locationParts.join(", ");
   const existingList = existingServices.map((s) => s.name).join(", ");
 
   const prompt = `Você é especialista em mercado de barbearias no Brasil.

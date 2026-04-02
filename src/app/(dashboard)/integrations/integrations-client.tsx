@@ -50,7 +50,8 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [igBizId,    setIgBizId]    = useState("");
   const [igPageId,   setIgPageId]   = useState("");
   const [savingIg,   setSavingIg]   = useState(false);
-  const [editingIg,  setEditingIg]  = useState(!integration?.instagramPageAccessToken || !integration?.instagramBusinessId);
+  const [editingIg,  setEditingIg]  = useState(!integration?.instagramBusinessId);
+  const [displayBizId, setDisplayBizId] = useState(integration?.instagramBusinessId ?? "");
   const [discovering, setDiscovering] = useState(false);
   const [igAccounts,  setIgAccounts]  = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
 
@@ -147,6 +148,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar Instagram");
       toast({ title: "Instagram conectado", description: "Dados salvos com sucesso." });
+      setDisplayBizId(igBizId);
       setEditingIg(false);
     } catch (e) {
       toast({ title: "Erro ao salvar Instagram", description: String(e), variant: "destructive" });
@@ -357,7 +359,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
                 </div>
               )}
               <div className="flex items-center justify-between">
-                {integration?.instagramBusinessId && (
+                {displayBizId && (
                   <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingIg(false)}>
                     Cancelar
                   </Button>
@@ -375,7 +377,7 @@ export function IntegrationsClient({ integration, syncRuns }: {
                 <div className="text-xs">
                   <p className="font-semibold text-green-400">Conectado</p>
                   <p className="text-muted-foreground mt-0.5">
-                    Business ID: <span className="font-mono text-foreground">{integration?.instagramBusinessId}</span>
+                    Business ID: <span className="font-mono text-foreground">{displayBizId}</span>
                   </p>
                 </div>
               </div>
