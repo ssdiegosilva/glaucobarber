@@ -62,18 +62,45 @@ export interface CopilotContext {
   clientsReactivated:   number;
   pendingGoogleReviews: number;
   // Campaigns
-  activeCampaigns:     string[];                                          // títulos aprovados/ativos
-  publishedCampaigns:  { title: string; permalink?: string | null }[];   // publicados no Instagram
+  activeCampaigns:     string[];
+  publishedCampaigns:  { title: string; permalink?: string | null }[];
   weekGoal?: number | null;
   weekProgress?: number | null; // 0-1
+
+  // ── Monthly financial goal tracking ──────────────────────
+  /** Whether a revenue goal was defined for the current month */
+  monthGoalSet:           boolean;
+  /** Receita realizada (COMPLETED) neste mês */
+  monthRevenueActual:     number;
+  /** Meta de receita do mês (null = não definida) */
+  monthRevenueTarget:     number | null;
+  /** Progresso 0-1 da meta de receita (null se sem meta) */
+  monthRevenuePct:        number | null;
+  /** Meta de atendimentos do mês */
+  monthApptTarget:        number | null;
+  /** Atendimentos concluídos neste mês */
+  monthApptActual:        number;
+  /** Dias restantes no mês (incluindo hoje) */
+  daysLeftInMonth:        number;
+  /** Receita diária necessária para bater a meta (null se sem meta ou já atingida) */
+  dailyRevenueNeeded:     number | null;
+
+  // ── Reactivation opportunities ───────────────────────────
+  /** Top inactive clients ready for a promo — sorted by days inactive desc */
+  topInactiveForPromo: {
+    name:        string;
+    phone?:      string | null;
+    daysSince:   number;
+    lastService: string | null;
+  }[];
+
   // Overlapping appointments detected today
   overlaps: {
     professionalName:   string | null;
     clientA:            { name: string; phone?: string | null };
     clientB:            { name: string; phone?: string | null };
-    startA:             string; // HH:mm
-    startB:             string; // HH:mm
-    /** Preferred alternative slots for clientB based on their history (e.g. "segundas às 18:00") */
+    startA:             string;
+    startB:             string;
     alternativeHint:    string | null;
   }[];
 }

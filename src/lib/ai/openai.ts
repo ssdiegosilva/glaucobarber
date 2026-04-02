@@ -182,10 +182,12 @@ Retorne JSON: { "suggestions": [ { "type": "TIPO", "title": "título (máx 60 ch
 }
 
 function buildCopilotPrompt(ctx: CopilotContext, question: string): string {
+  // ── Published campaigns block ──────────────────────────
   const publishedBlock = ctx.publishedCampaigns.length > 0
     ? ctx.publishedCampaigns.map((c) => `  • ${c.title}${c.permalink ? ` → ${c.permalink}` : ""}`).join("\n")
     : "  • Nenhuma publicada ainda";
 
+  // ── Overlaps block ─────────────────────────────────────
   const overlapsBlock = ctx.overlaps.length > 0
     ? ctx.overlaps.map((o) => {
         const pro = o.professionalName ? ` (${o.professionalName})` : "";
@@ -194,43 +196,86 @@ function buildCopilotPrompt(ctx: CopilotContext, question: string): string {
       }).join("\n")
     : "  • Nenhuma sobreposição detectada";
 
+  // ── Monthly goal block ─────────────────────────────────
+  let goalBlock: string;
+  if (!ctx.monthGoalSet) {
+    goalBlock = `⚠️ ATENÇÃO: Nenhuma meta definida para este mês. Recomende ao usuário que acesse /financeiro > Metas para definir.`;
+  } else {
+    const pct     = ctx.monthRevenuePct != null ? Math.round(ctx.monthRevenuePct * 100) : null;
+    const emoji   = pct == null ? "" : pct >= 90 ? "🟢" : pct >= 60 ? "🟡" : "🔴";
+    const gap     = ctx.monthRevenueTarget != null ? Math.max(ctx.monthRevenueTarget - ctx.monthRevenueActual, 0) : null;
+    const apptLine = ctx.monthApptTarget
+      ? `\n- Atendimentos: ${ctx.monthApptActual} / ${ctx.monthApptTarget} (${Math.round(Math.min(ctx.monthApptActual / ctx.monthApptTarget, 1) * 100)}%)`
+      : "";
+    goalBlock = [
+      `${emoji} Receita este mês: R$ ${ctx.monthRevenueActual.toFixed(2)} / R$ ${ctx.monthRevenueTarget?.toFixed(2) ?? "—"} (${pct ?? "—"}%)`,
+      gap && gap > 0
+        ? `- Faltam R$ ${gap.toFixed(2)} nos próximos ${ctx.daysLeftInMonth} dias (R$ ${ctx.dailyRevenueNeeded?.toFixed(2) ?? "—"}/dia necessário)`
+        : `- Meta de receita atingida! ✅`,
+      apptLine,
+    ].filter(Boolean).join("\n");
+  }
+
+  // ── Reactivation opportunities block ──────────────────
+  const reactivationBlock = ctx.topInactiveForPromo.length > 0
+    ? ctx.topInactiveForPromo.map((c) =>
+        `  • ${c.name} — ${c.daysSince}d sem visita${c.lastService ? `, último: ${c.lastService}` : ""}${c.phone ? ` · ${c.phone}` : ""}`
+      ).join("\n")
+    : "  • Nenhum cliente elegível no momento";
+
+  // ── Motivational tone hint ─────────────────────────────
+  const motivationalHint = (() => {
+    if (!ctx.monthGoalSet) return "Incentive o usuário a definir metas — é o primeiro passo para crescer com intenção.";
+    const pct = ctx.monthRevenuePct ?? 0;
+    if (pct >= 1.0)   return "Meta atingida! Use tom celebratório. Sugira superar a meta ou consolidar os resultados.";
+    if (pct >= 0.8)   return "Quase lá! Use tom motivacional de reta final. Uma campanha ou oferta pode fechar o mês com chave de ouro.";
+    if (pct >= 0.5)   return "Progresso no caminho certo. Foque nas alavancas com maior retorno: reativação + agenda cheia.";
+    if (pct >= 0.25)  return "Ainda há tempo, mas é hora de agir. Recomende ações de reativação e campanhas imediatas.";
+    return "Meta muito abaixo — seja honesto mas construtivo. Sugira ações urgentes e revisão da meta se necessário.";
+  })();
+
   return `## Contexto atual da ${ctx.barbershopName}
-Data: ${ctx.dayOfWeek}, ${ctx.date}
+Data: ${ctx.dayOfWeek}, ${ctx.date} | ${ctx.daysLeftInMonth} dias restantes no mês
 
 ### Agenda do dia
 - Ocupação: ${Math.round(ctx.occupancyRate * 100)}% (${ctx.bookedSlots}/${ctx.totalSlots} horários)
-- Horários livres: ${ctx.freeWindows.join(", ") || "—"}
-- Receita prevista: R$ ${ctx.projectedRevenue.toFixed(2)} | Realizada: R$ ${ctx.completedRevenue.toFixed(2)}
-- Meta mensal: ${ctx.revenueGoal ? `R$ ${ctx.revenueGoal.toFixed(2)}` : "não definida"}
-- Meta semanal: ${ctx.weekGoal ? `R$ ${ctx.weekGoal.toFixed(2)} (${ctx.weekProgress ? Math.round(ctx.weekProgress * 100) + "% concluída" : "—"})` : "não definida"}
+- Horários livres hoje: ${ctx.freeSlots} slots${ctx.freeWindows.length ? ` — próximos: ${ctx.freeWindows.join(", ")}` : ""}
+- Receita do dia prevista: R$ ${ctx.projectedRevenue.toFixed(2)} | Realizada: R$ ${ctx.completedRevenue.toFixed(2)}
 - Serviços mais vendidos: ${ctx.topServices.join(", ") || "—"}
 
 ### Sobreposições de agenda hoje
 ${overlapsBlock}
 
-### Pós-venda
-- Clientes em risco (14–60d sem visita, sem agendamento): ${ctx.clientsAtRisk}
-- Clientes inativos (>60d sem visita): ${ctx.clientsInactive}
-- Clientes reativados (voltaram nos últimos 60d): ${ctx.clientsReactivated}
-- Avaliações Google pendentes (48h pós-atendimento): ${ctx.pendingGoogleReviews}
+### Meta financeira do mês
+${goalBlock}
+
+### Oportunidades de reativação (clientes inativos / em risco)
+Total em risco: ${ctx.clientsAtRisk} | Total inativos: ${ctx.clientsInactive} | Reativados (60d): ${ctx.clientsReactivated}
+Top candidatos para promoção:
+${reactivationBlock}
+
+### Avaliações Google
+- Pendentes (últimas 48h): ${ctx.pendingGoogleReviews}
 
 ### Campanhas
-Ativas/aprovadas: ${ctx.activeCampaigns.join(", ") || "nenhuma"}
-Publicadas no Instagram:
+- Ativas/aprovadas: ${ctx.activeCampaigns.join(", ") || "nenhuma"}
+- Publicadas no Instagram:
 ${publishedBlock}
 
 ---
+Tom de resposta: ${motivationalHint}
+
 Pergunta do usuário: ${question}
 
 Responda em JSON:
 {
-  "answer": "resposta executiva em 2-4 frases",
+  "answer": "resposta executiva em 2–4 frases, tom adequado ao progresso da meta",
   "actions": [
     {
-      "title": "título da ação",
-      "description": "o que fazer exatamente",
-      "type": "campaign|post_sale_followup|post_sale_review|agenda|crm|meta|pricing",
-      "reason": "por que agir agora",
+      "title": "título da ação (curto)",
+      "description": "o que fazer exatamente — seja específico",
+      "type": "campaign|reactivation_promo|post_sale_followup|post_sale_review|agenda|agenda_conflict|define_goal|crm|pricing|motivational",
+      "reason": "por que agir agora — 1 frase com dado concreto do contexto",
       "payload": {}
     }
   ],
@@ -238,14 +283,22 @@ Responda em JSON:
 }
 
 Tipos de ação disponíveis:
-- campaign: criar ou publicar campanha no Instagram/WhatsApp
-- post_sale_followup: enviar mensagem de reativação para clientes em risco ou inativos
-- post_sale_review: solicitar avaliação Google para clientes recém-atendidos
-- agenda: ação relacionada a horários livres ou agendamento
-- agenda_conflict: reagendar cliente para resolver sobreposição (inclua no payload: clientName, phone, suggestedDay, suggestedHour)
-- crm: atualização de dados ou segmentação de clientes
-- meta: ajuste de metas de faturamento
-- pricing: sugestão de preço ou pacote
+- campaign: criar campanha Instagram/WhatsApp para preencher agenda ou acelerar meta
+- reactivation_promo: oferta especial para cliente(s) inativo(s) específico(s) — inclua no payload: clientNames, phones, suggestedDiscount, message
+- post_sale_followup: mensagem de reativação genérica para lista de inativos
+- post_sale_review: solicitar avaliação Google (clientes recém-atendidos)
+- agenda: ação para preencher horários livres de hoje ou desta semana
+- agenda_conflict: reagendar cliente para resolver sobreposição (payload: clientName, phone, suggestedDay, suggestedHour)
+- define_goal: recomendar ao usuário que defina a meta do mês em /financeiro > Metas
+- crm: segmentação, atualização de dados de clientes
+- pricing: sugestão de preço ou pacote para aumentar ticket médio
+- motivational: mensagem de reconhecimento / celebração de resultado
 
-Nunca confirme execução. Sempre deixe requireApproval true.`;
+Regras importantes:
+- Se não há meta definida, SEMPRE inclua uma ação do tipo define_goal
+- Se faltam horários livres + meta abaixo de 60%, sugira campaign urgente
+- Se clientes inativos > 5, SEMPRE inclua reactivation_promo com os top candidatos do payload
+- Se pendingGoogleReviews > 0, inclua post_sale_review
+- Se sobreposição detectada, inclua agenda_conflict
+- Nunca confirme execução. requireApproval sempre true.`;
 }

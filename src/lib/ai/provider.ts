@@ -37,7 +37,7 @@ export function getAIProvider(): AIProvider {
 
 import { prisma } from "@/lib/prisma";
 import type { AISuggestionRequest, CopilotContext } from "./types";
-import { startOfDay, endOfDay, format, getDay, startOfWeek, endOfWeek, subDays } from "date-fns";
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, format, getDay, startOfWeek, endOfWeek, subDays, differenceInCalendarDays } from "date-fns";
 
 const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -161,6 +161,8 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     publishedCampaignsRaw,
     goalMonth,
     goalWeek,
+    monthAgg,
+    topInactiveRaw,
   ] = await Promise.all([
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
 
@@ -208,6 +210,21 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     prisma.goal.findFirst({
       where: { barbershopId, month: 0, year: 0 }, // weekly (month=0 convention)
     }),
+
+    // MTD revenue (this month completed)
+    prisma.appointment.aggregate({
+      where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: startOfMonth(now), lte: endOfMonth(now) } },
+      _sum:   { price: true },
+      _count: { _all: true },
+    }),
+
+    // Top inactive clients for reactivation promo (INATIVO or EM_RISCO, sorted by oldest last visit)
+    prisma.customer.findMany({
+      where: { barbershopId, postSaleStatus: { in: ["INATIVO", "EM_RISCO"] }, doNotContact: false },
+      select: { name: true, phone: true, lastCompletedAppointmentAt: true, lastServiceSummary: true },
+      orderBy: { lastCompletedAppointmentAt: "asc" },
+      take: 5,
+    }),
   ]);
 
   const TOTAL_SLOTS = 20;
@@ -247,6 +264,27 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
   const weekRevenue  = Number(weekAggregate._sum.price ?? 0);
   const weekGoalValue = goalWeek?.revenueTarget ?? goalMonth?.revenueTarget ?? null;
   const weekProgress  = weekGoalValue ? Math.min(weekRevenue / Number(weekGoalValue), 1) : null;
+
+  // ── Monthly goal metrics ───────────────────────────────
+  const monthRevenueActual  = Number(monthAgg._sum.price ?? 0);
+  const monthApptActual     = monthAgg._count._all;
+  const monthRevenueTarget  = goalMonth?.revenueTarget ? Number(goalMonth.revenueTarget) : null;
+  const monthApptTarget     = goalMonth?.appointmentTarget ?? null;
+  const monthRevenuePct     = monthRevenueTarget ? Math.min(monthRevenueActual / monthRevenueTarget, 1) : null;
+  const monthGoalSet        = !!goalMonth;
+  const daysLeftInMonth     = Math.max(1, differenceInCalendarDays(endOfMonth(now), now) + 1);
+  const revenueGap          = monthRevenueTarget ? Math.max(monthRevenueTarget - monthRevenueActual, 0) : null;
+  const dailyRevenueNeeded  = revenueGap && revenueGap > 0 ? Math.ceil(revenueGap / daysLeftInMonth) : null;
+
+  // ── Reactivation opportunities ─────────────────────────
+  const topInactiveForPromo = topInactiveRaw.map((c) => ({
+    name:        c.name,
+    phone:       c.phone,
+    daysSince:   c.lastCompletedAppointmentAt
+      ? differenceInCalendarDays(now, c.lastCompletedAppointmentAt)
+      : 999,
+    lastService: c.lastServiceSummary,
+  }));
 
   // ── Overlap detection ──────────────────────────────────
   // Group active appointments by professional (barberId), sort by time, detect overlaps
@@ -330,6 +368,17 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     publishedCampaigns:   publishedCampaignsRaw.map((c) => ({ title: c.title, permalink: c.instagramPermalink })),
     weekGoal:             weekGoalValue ? Number(weekGoalValue) : null,
     weekProgress,
+    // Monthly goal
+    monthGoalSet,
+    monthRevenueActual,
+    monthRevenueTarget,
+    monthRevenuePct,
+    monthApptTarget,
+    monthApptActual,
+    daysLeftInMonth,
+    dailyRevenueNeeded,
+    // Reactivation
+    topInactiveForPromo,
     overlaps,
   };
 }

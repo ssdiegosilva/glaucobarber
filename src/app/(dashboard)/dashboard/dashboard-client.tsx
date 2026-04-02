@@ -105,21 +105,37 @@ interface Props {
 // ── Status helpers ───────────────────────────────────────────
 
 const STATUS_LABEL: Record<string, string> = {
-  SCHEDULED:   "Agendado",
-  CONFIRMED:   "Confirmado",
-  IN_PROGRESS: "Em atendimento",
-  COMPLETED:   "Concluído",
-  CANCELLED:   "Cancelado",
-  NO_SHOW:     "Não compareceu",
+  // Internal statuses
+  SCHEDULED:    "Agendado",
+  CONFIRMED:    "Confirmado",
+  IN_PROGRESS:  "Em atendimento",
+  COMPLETED:    "Concluído",
+  CANCELLED:    "Cancelado",
+  NO_SHOW:      "Não compareceu",
+  // Trinks raw statuses (live data, lowercase)
+  agendado:     "Agendado",
+  confirmado:   "Confirmado",
+  ematendimento:"Em atendimento",
+  finalizado:   "Concluído",
+  cancelado:    "Cancelado",
+  clientefaltou:"Não compareceu",
 };
 
-const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "destructive" | "outline"> = {
-  SCHEDULED:   "outline",
-  CONFIRMED:   "info",
-  IN_PROGRESS: "default",
-  COMPLETED:   "success",
-  CANCELLED:   "destructive",
-  NO_SHOW:     "warning",
+const STATUS_VARIANT: Record<string, string> = {
+  // Internal
+  SCHEDULED:    "outline",
+  CONFIRMED:    "info",
+  IN_PROGRESS:  "default",
+  COMPLETED:    "success",
+  CANCELLED:    "destructive",
+  NO_SHOW:      "warning",
+  // Trinks raw (live)
+  agendado:     "outline",
+  confirmado:   "info",
+  ematendimento:"default",
+  finalizado:   "success",
+  cancelado:    "destructive",
+  clientefaltou:"warning",
 } as never;
 
 // ── Main Component ───────────────────────────────────────────
@@ -576,9 +592,10 @@ export function DashboardClient({
                   {(() => {
                     const s = localStatuses[apt.id] ?? apt.status;
                     return (
-                      <Badge variant={STATUS_VARIANT[s] as never}>
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_CHIP_CLASS[s] ?? "border-border text-muted-foreground"}`}>
+                        {STATUS_BUTTON_ICON[s]}
                         {STATUS_LABEL[s] ?? s}
-                      </Badge>
+                      </span>
                     );
                   })()}
                 </div>
@@ -745,12 +762,37 @@ const STATUS_BUTTON_CLASS: Record<string, string> = {
   CANCELLED:   "border-red-500/40 text-red-400 hover:bg-red-500/10",
 };
 
+// Same color palette used for the read-only status chip in the card header
+const STATUS_CHIP_CLASS: Record<string, string> = {
+  SCHEDULED:     "border-border text-muted-foreground",
+  CONFIRMED:     "border-blue-500/40 text-blue-400",
+  IN_PROGRESS:   "border-yellow-500/40 text-yellow-400",
+  COMPLETED:     "border-green-500/40 text-green-400",
+  NO_SHOW:       "border-orange-500/40 text-orange-400",
+  CANCELLED:     "border-red-500/40 text-red-400",
+  // Trinks raw
+  agendado:      "border-border text-muted-foreground",
+  confirmado:    "border-blue-500/40 text-blue-400",
+  ematendimento: "border-yellow-500/40 text-yellow-400",
+  finalizado:    "border-green-500/40 text-green-400",
+  cancelado:     "border-red-500/40 text-red-400",
+  clientefaltou: "border-orange-500/40 text-orange-400",
+};
+
 const STATUS_BUTTON_ICON: Record<string, React.ReactNode> = {
-  CONFIRMED:   <ThumbsUp  className="h-3 w-3 mr-1" />,
-  IN_PROGRESS: <Play      className="h-3 w-3 mr-1" />,
-  COMPLETED:   <Flag      className="h-3 w-3 mr-1" />,
-  NO_SHOW:     <UserX     className="h-3 w-3 mr-1" />,
-  CANCELLED:   <Ban       className="h-3 w-3 mr-1" />,
+  CONFIRMED:      <ThumbsUp         className="h-3 w-3 mr-1" />,
+  IN_PROGRESS:    <Play             className="h-3 w-3 mr-1" />,
+  COMPLETED:      <Flag             className="h-3 w-3 mr-1" />,
+  NO_SHOW:        <UserX            className="h-3 w-3 mr-1" />,
+  CANCELLED:      <Ban              className="h-3 w-3 mr-1" />,
+  // Trinks raw
+  agendado:       <CalendarClockIcon className="h-3 w-3 mr-1" />,
+  confirmado:     <ThumbsUp         className="h-3 w-3 mr-1" />,
+  ematendimento:  <Play             className="h-3 w-3 mr-1" />,
+  finalizado:     <Flag             className="h-3 w-3 mr-1" />,
+  cancelado:      <Ban              className="h-3 w-3 mr-1" />,
+  clientefaltou:  <UserX            className="h-3 w-3 mr-1" />,
+  SCHEDULED:      <CalendarClockIcon className="h-3 w-3 mr-1" />,
 };
 
 function AppointmentPanel({
@@ -831,6 +873,7 @@ function AppointmentPanel({
           className="h-7 text-[11px] border-purple-500/40 text-purple-400 hover:bg-purple-500/10"
           onClick={(e) => { e.stopPropagation(); setShowReschedule((v) => !v); }}
         >
+          <CalendarClockIcon className="h-3 w-3 mr-1" />
           Reagendar
         </Button>
       </div>

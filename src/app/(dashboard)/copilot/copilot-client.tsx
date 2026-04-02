@@ -38,6 +38,15 @@ interface Props {
   initialThreadId: string | null;
 }
 
+const QUICK_QUESTIONS = [
+  "Como está meu dia hoje?",
+  "Estou perto da meta do mês?",
+  "Quais clientes devo reativar?",
+  "Tenho sobreposições na agenda?",
+  "Que campanha devo fazer agora?",
+  "Como melhorar minha ocupação?",
+];
+
 export default function CopilotClient({ initialThreads, initialMessages, initialActions, initialThreadId }: Props) {
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -73,6 +82,38 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
         ];
       });
       setInput("");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function sendMessageWith(question: string) {
+    if (loading) return;
+    setLoading(true);
+    setInput("");
+    try {
+      const res = await fetch("/api/copilot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: question, threadId: activeThreadId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao enviar");
+
+      setActiveThreadId(data.threadId);
+      setMessages(data.messages);
+      setActions((prev) => [...data.actionsDraft, ...prev]);
+
+      setThreads((prev) => {
+        const exists = prev.find((t) => t.id === data.threadId);
+        if (exists) return prev.map((t) => (t.id === data.threadId ? { ...t, lastMessageAt: new Date().toISOString() } : t));
+        return [
+          { id: data.threadId, title: question.slice(0, 40), status: "OPEN", lastMessageAt: new Date().toISOString() },
+          ...prev,
+        ];
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -175,11 +216,25 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
                 </div>
               </div>
 
+              {/* Pre-configured question chips */}
+              <div className="flex flex-wrap gap-2">
+                {QUICK_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => { setInput(q); setTimeout(() => sendMessageWith(q), 0); }}
+                    disabled={loading}
+                    className="rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1 text-xs text-gold-400 hover:bg-gold-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex gap-2">
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ex: Como está meu dia hoje?"
+                  placeholder="Ou escreva sua própria pergunta..."
                   onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
                   className="flex-1 rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground"
                 />
