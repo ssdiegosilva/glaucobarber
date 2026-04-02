@@ -34,11 +34,15 @@ export async function auth(): Promise<AuthSession | null> {
     },
   });
 
-  const membership = await prisma.membership.findFirst({
+  const memberships = await prisma.membership.findMany({
     where: { userId: dbUser.id, active: true },
     include: { barbershop: true },
     orderBy: { createdAt: "asc" },
   });
+
+  // PLATFORM_ADMIN takes priority over any other membership
+  const membership =
+    memberships.find((m) => m.role === "PLATFORM_ADMIN") ?? memberships[0] ?? null;
 
   const isAdmin = membership?.role === "PLATFORM_ADMIN";
 
