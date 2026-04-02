@@ -25,6 +25,7 @@ export const NAV = [
   { href: "/services",     label: "Serviços",    icon: Scissors },
   { href: "/offers",       label: "Ofertas",     icon: Tag },
   { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
+  { href: "/post-sale",    label: "Pós-venda",   icon: Users },
   { href: "/integrations", label: "Integrações", icon: Plug },
   { href: "/settings",     label: "Configurações",icon: Settings },
 ];

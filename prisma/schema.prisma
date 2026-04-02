@@ -252,6 +252,25 @@ enum CustomerStatus {
   BLOCKED
 }
 
+// Pós-venda / retenção
+enum PostSaleStatus {
+  RECENTE
+  EM_RISCO
+  INATIVO
+  REATIVADO
+  NAO_CONTATAR
+}
+
+enum PostSaleChurnReason {
+  SEM_INTERESSE
+  MUDOU_DE_REGIAO
+  PRECO
+  CONCORRENTE
+  ATENDIMENTO_PONTUAL
+  SEM_RETORNO
+  OUTRO
+}
+
 model Customer {
   id           String         @id @default(cuid())
   barbershopId String
@@ -263,6 +282,15 @@ model Customer {
   notes        String?
   tags         String[]       @default([])
   status       CustomerStatus @default(ACTIVE)
+  postSaleStatus PostSaleStatus @default(RECENTE)
+  doNotContact   Boolean        @default(false)
+  reviewOptOut   Boolean        @default(false)
+  lastCompletedAppointmentAt DateTime?
+  nextAppointmentAt          DateTime?
+  inactiveAt    DateTime?
+  reactivatedAt DateTime?
+  churnReason   PostSaleChurnReason?
+  preferredProfessionalId String?
   avatarUrl    String?
 
   // Computed/cached fields (refreshed on sync)
@@ -279,12 +307,64 @@ model Customer {
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   payments     Payment[]
+  postSaleActions PostSaleAction[]
+  customerReviews CustomerReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([barbershopId, trinksId])
+  @@index([barbershopId, postSaleStatus])
+  @@index([barbershopId, lastCompletedAppointmentAt])
+  @@index([barbershopId, nextAppointmentAt])
   @@map("customers")
+}
+
+model PostSaleAction {
+  id             String     @id @default(cuid())
+  barbershopId   String
+  customerId     String
+  appointmentId  String?
+  actionType     String
+  channel        String
+  result         String
+  notes          String?
+  createdByUserId String?
+
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([barbershopId, customerId])
+  @@index([appointmentId])
+  @@map("post_sale_actions")
+}
+
+model CustomerReview {
+  id             String   @id @default(cuid())
+  barbershopId   String
+  customerId     String
+  appointmentId  String
+  requestStatus  String
+  requestSentAt  DateTime?
+  respondedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewUrl      String?
+  notes          String?
+
+  barbershop   Barbershop  @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customer     Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  appointment  Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([barbershopId, customerId])
+  @@index([appointmentId])
+  @@map("customer_reviews")
 }
 
 enum ServiceCategory {
@@ -355,6 +435,8 @@ model Appointment {
   service    Service?   @relation(fields: [serviceId], references: [id])
   items      AppointmentItem[]
   payments   Payment[]
+  postSaleActions PostSaleAction[]
+  customerReviews CustomerReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

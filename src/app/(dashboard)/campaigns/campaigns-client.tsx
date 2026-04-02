@@ -231,7 +231,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured }: {
               disabled={!theme || !objective || loadingCreate}
               className={`text-xs gap-2 text-black font-semibold transition-all duration-300 ${
                 loadingCreate
-                  ? "bg-gold-500 animate-pulse shadow-[0_0_20px_4px_rgba(234,179,8,0.4)] scale-[1.02] cursor-wait"
+                  ? "bg-gold-500 cursor-wait btn-shimmer"
                   : "bg-gold-500/90 hover:bg-gold-500"
               }`}
             >

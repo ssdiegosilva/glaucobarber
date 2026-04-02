@@ -69,6 +69,11 @@
 }
 
 @layer utilities {
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+
   /* Gold gradient text */
   .text-gold-gradient {
     @apply bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent;
@@ -92,5 +97,20 @@
     @apply absolute inset-0 content-[''];
     background: linear-gradient(90deg, transparent 0%, rgba(201,168,76,.08) 50%, transparent 100%);
     animation: shimmer 1.5s infinite;
+  }
+
+  /* Subtle shimmer for loading buttons */
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 45%, transparent 70%);
+    transform: translateX(-100%);
+    animation: shimmer 1.6s ease-in-out infinite;
+    pointer-events: none;
   }
 }
