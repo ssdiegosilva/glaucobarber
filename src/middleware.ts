@@ -41,7 +41,9 @@ export async function middleware(req: NextRequest) {
 
   // Block /admin for non-admin emails at middleware level
   if (isAdminPath && session?.user?.email !== ADMIN_EMAIL) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    const loginUrl = new URL("/login", req.url);
+    if (!session) loginUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return res;
