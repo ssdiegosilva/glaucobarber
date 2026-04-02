@@ -11,7 +11,7 @@ export default async function IntegrationsPage() {
   const [integration, syncRuns] = await Promise.all([
     prisma.integration.findUnique({
       where:  { barbershopId: session.user.barbershopId },
-      select: { status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true },
+      select: { status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true },
     }),
     prisma.syncRun.findMany({
       where:   { barbershopId: session.user.barbershopId },
@@ -40,7 +40,10 @@ export default async function IntegrationsPage() {
           configured: !!integration.configJson,
           instagramBusinessId: integration.instagramBusinessId,
           instagramUsername:   integration.instagramUsername,
+          whatsappConfigured: !!(integration.whatsappAccessToken && integration.whatsappPhoneNumberId),
+          whatsappVerifyToken: integration.whatsappVerifyToken,
         } : null}
+        barbershopId={session.user.barbershopId}
         syncRuns={syncRuns.map((r) => ({
           ...r,
           startedAt: r.startedAt.toISOString(),

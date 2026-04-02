@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
-import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Plug, Clock, Settings, ChevronDown } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertTriangle, Plug, Clock, Settings, ChevronDown, Copy, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface IntegrationInfo {
@@ -16,6 +16,8 @@ interface IntegrationInfo {
   instagramPageAccessToken?: string | null;
   instagramBusinessId?: string | null;
   instagramUsername?: string | null;
+  whatsappConfigured?: boolean;
+  whatsappVerifyToken?: string | null;
 }
 interface SyncRunInfo {
   id:                  string;
@@ -33,9 +35,10 @@ interface SyncRunInfo {
 const RUN_STATUS_VARIANT = { RUNNING: "warning", SUCCESS: "success", PARTIAL: "warning", FAILED: "destructive" } as const;
 const RUN_STATUS_LABEL   = { RUNNING: "Rodando", SUCCESS: "Sucesso", PARTIAL: "Parcial", FAILED: "Falhou" };
 
-export function IntegrationsClient({ integration, syncRuns }: {
-  integration: IntegrationInfo | null;
-  syncRuns:    SyncRunInfo[];
+export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
+  integration:  IntegrationInfo | null;
+  syncRuns:     SyncRunInfo[];
+  barbershopId: string;
 }) {
   const [syncing,    setSyncing]    = useState(false);
   const [runs,       setRuns]       = useState(syncRuns);
@@ -57,6 +60,17 @@ export function IntegrationsClient({ integration, syncRuns }: {
   const [displayUsername, setDisplayUsername] = useState(integration?.instagramUsername ?? "");
   const [discovering, setDiscovering] = useState(false);
   const [igAccounts,  setIgAccounts]  = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
+
+  // WhatsApp
+  const [waConfigured,   setWaConfigured]   = useState(integration?.whatsappConfigured ?? false);
+  const [waEditing,      setWaEditing]       = useState(!integration?.whatsappConfigured);
+  const [waToken,        setWaToken]         = useState("");
+  const [waPhoneId,      setWaPhoneId]       = useState("");
+  const [waSaving,       setWaSaving]        = useState(false);
+  const [waWebhookUrl,   setWaWebhookUrl]    = useState("");
+  const [waVerifyToken,  setWaVerifyToken]   = useState(integration?.whatsappVerifyToken ?? "");
+  const [waCopied,       setWaCopied]        = useState<"url" | "token" | null>(null);
+  const [waLoadingSetup, setWaLoadingSetup]  = useState(false);
 
   async function handleSave() {
     setFormError("");
@@ -159,6 +173,45 @@ export function IntegrationsClient({ integration, syncRuns }: {
     } finally {
       setSavingIg(false);
     }
+  }
+
+  async function handleLoadWaSetup() {
+    setWaLoadingSetup(true);
+    try {
+      const res = await fetch("/api/whatsapp/setup");
+      const data = await res.json();
+      if (res.ok) {
+        setWaWebhookUrl(data.webhookUrl ?? "");
+        setWaVerifyToken(data.verifyToken ?? "");
+      }
+    } finally {
+      setWaLoadingSetup(false);
+    }
+  }
+
+  async function handleSaveWhatsApp() {
+    setWaSaving(true);
+    try {
+      const res = await fetch("/api/whatsapp/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: waToken, phoneNumberId: waPhoneId }),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar");
+      toast({ title: "WhatsApp configurado!", description: "Credenciais salvas com sucesso." });
+      setWaConfigured(true);
+      setWaEditing(false);
+    } catch (e) {
+      toast({ title: "Erro ao salvar WhatsApp", description: String(e), variant: "destructive" });
+    } finally {
+      setWaSaving(false);
+    }
+  }
+
+  function handleCopy(value: string, type: "url" | "token") {
+    navigator.clipboard.writeText(value);
+    setWaCopied(type);
+    setTimeout(() => setWaCopied(null), 2000);
   }
 
   const statusColor = {
@@ -398,6 +451,114 @@ export function IntegrationsClient({ integration, syncRuns }: {
                 </div>
               </div>
               <Button size="sm" variant="outline" className="text-xs shrink-0 gap-1" onClick={() => setEditingIg(true)}>
+                <Settings className="h-3.5 w-3.5" /> Editar
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* WhatsApp Integration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20">
+                <Plug className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <CardTitle className="text-base">WhatsApp Business</CardTitle>
+                <p className="text-xs text-muted-foreground">Envio de mensagens automáticas para clientes</p>
+              </div>
+            </div>
+            <Badge variant={waConfigured ? "success" : "outline"} className="text-xs">
+              {waConfigured ? "Conectado" : "Não configurado"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {waEditing ? (
+            <>
+              {/* Webhook info */}
+              <div className="rounded-md border border-border bg-surface-800/50 p-3 space-y-2">
+                <p className="text-xs font-semibold text-foreground">1. Configure o webhook no painel Meta</p>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">URL do Webhook</label>
+                  <div className="flex gap-2 items-center">
+                    {waWebhookUrl ? (
+                      <>
+                        <code className="flex-1 rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground font-mono truncate">
+                          {waWebhookUrl}
+                        </code>
+                        <Button size="icon-sm" variant="ghost" onClick={() => handleCopy(waWebhookUrl, "url")}>
+                          {waCopied === "url" ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="outline" className="text-xs" onClick={handleLoadWaSetup} disabled={waLoadingSetup}>
+                        {waLoadingSetup ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Gerar URL do Webhook
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {waVerifyToken && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Verify Token</label>
+                    <div className="flex gap-2 items-center">
+                      <code className="flex-1 rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground font-mono truncate">
+                        {waVerifyToken}
+                      </code>
+                      <Button size="icon-sm" variant="ghost" onClick={() => handleCopy(waVerifyToken, "token")}>
+                        {waCopied === "token" ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Credentials */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-foreground">2. Cole suas credenciais da Meta</p>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Access Token (permanente)</label>
+                  <input
+                    value={waToken}
+                    onChange={(e) => setWaToken(e.target.value)}
+                    placeholder="EAAGm..."
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Phone Number ID</label>
+                  <input
+                    value={waPhoneId}
+                    onChange={(e) => setWaPhoneId(e.target.value)}
+                    placeholder="ex: 123456789012345"
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button size="sm" className="text-xs" onClick={handleSaveWhatsApp} disabled={waSaving || !waToken || !waPhoneId}>
+                  {waSaving ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Salvar
+                </Button>
+                {waConfigured && (
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setWaEditing(false)}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="rounded-md border border-green-500/30 bg-green-500/8 px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
+              </div>
+              <Button size="sm" variant="outline" className="text-xs shrink-0 gap-1" onClick={() => { setWaEditing(true); handleLoadWaSetup(); }}>
                 <Settings className="h-3.5 w-3.5" /> Editar
               </Button>
             </div>

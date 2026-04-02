@@ -9,6 +9,7 @@ export interface AuthSession {
     barbershopId: string | null;
     barbershopSlug: string | null;
     role: string | null;
+    isAdmin: boolean;
   };
 }
 
@@ -39,14 +40,17 @@ export async function auth(): Promise<AuthSession | null> {
     orderBy: { createdAt: "asc" },
   });
 
+  const isAdmin = membership?.role === "PLATFORM_ADMIN";
+
   return {
     user: {
       id: dbUser.id,
       name: dbUser.name,
       email: dbUser.email,
-      barbershopId: membership?.barbershopId ?? null,
-      barbershopSlug: membership?.barbershop?.slug ?? null,
+      barbershopId: isAdmin ? null : (membership?.barbershopId ?? null),
+      barbershopSlug: isAdmin ? null : (membership?.barbershop?.slug ?? null),
       role: membership?.role ?? null,
+      isAdmin,
     },
   };
 }

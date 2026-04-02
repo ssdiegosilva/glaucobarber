@@ -966,3 +966,17 @@ model BillingEvent {
   @@index([barbershopId, yearMonth, invoicedAt])
   @@map("billing_events")
 }
+
+// ============================================================
+// PLATFORM CONFIG (admin-managed key-value store)
+// Used to store Stripe Price IDs and other platform settings
+// without requiring env var redeploys.
+// ============================================================
+
+model PlatformConfig {
+  key       String   @id  // e.g. "stripe_price_pro_monthly"
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_configs")
+}

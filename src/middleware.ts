@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth/callback", "/api/stripe/webhook", "/api/cron"];
+const ADMIN_EMAIL  = "ss.diegosilva@gmail.com";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -29,11 +30,18 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = PUBLIC_PATHS.some((p) => req.nextUrl.pathname.startsWith(p));
 
+  const isAdminPath = req.nextUrl.pathname.startsWith("/admin");
+
   if (!session && !isPublic) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Block /admin for non-admin emails at middleware level
+  if (isAdminPath && session?.user?.email !== ADMIN_EMAIL) {
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   return res;
