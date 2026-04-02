@@ -277,11 +277,6 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
 
   async function fetchRecommendation(svc: Service) {
     if (loadingAI === svc.id) return;
-    if (recommendations[svc.id]) {
-      setRecommendations((prev) => { const n = { ...prev }; delete n[svc.id]; return n; });
-      setExpandedRec(null);
-      return;
-    }
     setLoadingAI(svc.id);
     try {
       const res  = await fetch(`/api/services/${svc.id}/recommend-price`, { method: "POST" });
@@ -562,17 +557,17 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                     </div>
 
                     <button
-                      onClick={() => fetchRecommendation(s)}
+                      onClick={() => rec ? setExpandedRec(isExpanded ? null : s.id) : fetchRecommendation(s)}
                       disabled={loadingAI === s.id}
                       className="mt-3 flex items-center gap-1.5 text-[11px] text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50"
                     >
                       {loadingAI === s.id
                         ? <Loader2 className="h-3 w-3 animate-spin" />
-                        : <Sparkles className="h-3 w-3" />}
+                        : rec
+                          ? (isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)
+                          : <Sparkles className="h-3 w-3" />}
                       {rec
-                        ? (isExpanded
-                          ? <><ChevronUp className="h-3 w-3" /> Ocultar sugestão</>
-                          : <><ChevronDown className="h-3 w-3" /> Ver sugestão</>)
+                        ? (isExpanded ? "Ocultar sugestão" : "Ver sugestão")
                         : (loadingAI === s.id ? "Consultando IA..." : "Sugerir preço com IA")}
                     </button>
 

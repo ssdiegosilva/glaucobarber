@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
-import { CheckCircle2, ChevronDown, ChevronRight, Clock, ExternalLink, Megaphone, Send, Wand2, Sparkles, XCircle, Tag } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Megaphone, Send, Settings, Wand2, Sparkles, XCircle, Tag } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
 const STATUS_VARIANT: Record<string, string> = { DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
@@ -470,6 +470,55 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
                     );
                   })()}
 
+                  {/* Instagram not configured notice */}
+                  {!instagramConfigured && c.status === "APPROVED" && (
+                    <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-amber-400 font-medium">Instagram não conectado</p>
+                        <p className="text-[10px] text-amber-400/70 mt-0.5">Configure para publicar diretamente, ou copie o texto e salve a imagem para postar manualmente.</p>
+                      </div>
+                      <a
+                        href="/integrations"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 rounded p-1.5 hover:bg-amber-500/20 text-amber-400 transition-colors"
+                        title="Configurar integrações"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Copy text + Save image row */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(c.text).then(() =>
+                          toast({ title: "Texto copiado!", description: "Cole no Instagram ou onde preferir." })
+                        );
+                      }}
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copiar texto
+                    </Button>
+                    {c.imageUrl && (
+                      <a
+                        href={c.imageUrl}
+                        download={`campanha-${c.id}.jpg`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        <Download className="h-3 w-3" />
+                        Salvar imagem
+                      </a>
+                    )}
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
@@ -480,7 +529,14 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
                         <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); setStatus(c.id, "APPROVED"); }}>Aprovar</Button>
                       )}
                       {c.status === "APPROVED" && (
-                        <Button size="sm" variant="default" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); publish(c.id); }} disabled={!instagramConfigured || publishingId === c.id}>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 text-[11px]"
+                          onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                          disabled={!instagramConfigured || publishingId === c.id}
+                          title={!instagramConfigured ? "Configure o Instagram em Integrações" : undefined}
+                        >
                           {publishingId === c.id ? "Publicando..." : "Publicar"}
                         </Button>
                       )}
