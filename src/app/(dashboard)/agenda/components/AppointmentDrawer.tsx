@@ -83,7 +83,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
       .then((d) => setContext(d))
       .catch(() => setContext(null))
       .finally(() => setLoadingCtx(false));
-  }, [appointment?.id, open]);
+  }, [appointment?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleStatus(status: string) {
     if (!appointment) return;

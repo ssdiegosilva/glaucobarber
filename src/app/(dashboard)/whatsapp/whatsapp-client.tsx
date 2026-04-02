@@ -268,7 +268,7 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages }
             <>
               <p className="text-xs text-muted-foreground">
                 {queue.length} mensage{queue.length !== 1 ? "ns" : "m"} aguardando envio.
-                Clique em "Enviar WhatsApp" para abrir o WhatsApp Web já com a mensagem preenchida.
+                Clique em &quot;Enviar WhatsApp&quot; para abrir o WhatsApp Web já com a mensagem preenchida.
               </p>
               {queue.map((m) => (
                 <MessageRow
