@@ -119,12 +119,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ messages });
   }
 
-  // history: last 30 days, SENT only
+  // history: last 7 days, SENT only
   const messages = await prisma.whatsappMessage.findMany({
     where: {
       barbershopId,
       status: "SENT",
-      sentAt: { gte: subDays(now, 30) },
+      sentAt: { gte: subDays(now, 7) },
     },
     orderBy: { sentAt: "desc" },
     take: 200,

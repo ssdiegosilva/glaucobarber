@@ -470,6 +470,14 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
   const queuedToday = today.filter((m) => m.status === "QUEUED").length;
   const failedToday = today.filter((m) => m.status === "FAILED").length;
 
+  const [todayFilter, setTodayFilter] = useState<"all" | "SENT" | "QUEUED" | "FAILED">("all");
+
+  function toggleTodayFilter(f: "SENT" | "QUEUED" | "FAILED") {
+    setTodayFilter((prev) => (prev === f ? "all" : f));
+  }
+
+  const todayFiltered = todayFilter === "all" ? today : today.filter((m) => m.status === todayFilter);
+
   const TABS = [
     { id: "today"     as const, label: "Hoje",      badge: today.length     },
     { id: "queue"     as const, label: "Fila",      badge: queue.length     },
@@ -519,9 +527,30 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
       {tab === "today" && (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <StatCard label="Enviadas" value={sentToday}   icon={<CheckCircle2 className="h-4 w-4 text-green-400"  />} color="bg-green-500/10 border-green-500/20"  />
-            <StatCard label="Na fila"  value={queuedToday} icon={<Clock        className="h-4 w-4 text-yellow-400" />} color="bg-yellow-500/10 border-yellow-500/20" />
-            <StatCard label="Falha"    value={failedToday} icon={<XCircle      className="h-4 w-4 text-red-400"    />} color="bg-red-500/10 border-red-500/20"       />
+            {([
+              { status: "SENT"   as const, label: "Enviadas", value: sentToday,   icon: <CheckCircle2 className="h-4 w-4 text-green-400"  />, color: "bg-green-500/10 border-green-500/20",   active: "border-green-400 ring-1 ring-green-400/40"   },
+              { status: "QUEUED" as const, label: "Na fila",  value: queuedToday, icon: <Clock        className="h-4 w-4 text-yellow-400" />, color: "bg-yellow-500/10 border-yellow-500/20", active: "border-yellow-400 ring-1 ring-yellow-400/40" },
+              { status: "FAILED" as const, label: "Falha",    value: failedToday, icon: <XCircle      className="h-4 w-4 text-red-400"    />, color: "bg-red-500/10 border-red-500/20",       active: "border-red-400 ring-1 ring-red-400/40"       },
+            ]).map(({ status, label, value, icon, color, active }) => (
+              <button
+                key={status}
+                onClick={() => toggleTodayFilter(status)}
+                className={`rounded-xl border p-4 text-left transition-all focus:outline-none cursor-pointer ${
+                  todayFilter === status ? active : color
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex items-center justify-center rounded-lg p-2 border ${color}`}>{icon}</span>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{value}</p>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                  </div>
+                </div>
+                {todayFilter === status && (
+                  <p className="text-[10px] text-muted-foreground mt-1.5">filtro ativo · clique para limpar</p>
+                )}
+              </button>
+            ))}
           </div>
 
           {today.length === 0 ? (
@@ -532,9 +561,23 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
             </div>
           ) : (
             <div className="space-y-2">
-              {today.map((m) => (
-                <MessageRow key={m.id} msg={m} />
-              ))}
+              {todayFiltered.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  Nenhuma mensagem com status &quot;{todayFilter}&quot; hoje.
+                </p>
+              ) : (
+                todayFiltered.map((m) => (
+                  <MessageRow
+                    key={m.id}
+                    msg={m}
+                    showActions={m.status === "QUEUED" || m.status === "FAILED"}
+                    onSent={markSent}
+                    onFailed={markFailed}
+                    onDelete={removeFromQueue}
+                    onEdit={updateMessage}
+                  />
+                ))
+              )}
             </div>
           )}
         </div>

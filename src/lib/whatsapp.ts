@@ -11,9 +11,18 @@ export interface WhatsAppCredentials {
   phoneNumberId: string;
 }
 
-/** Normaliza número para o formato esperado pela Meta API: 55XXXXXXXXXX */
+/**
+ * Normaliza número para o formato esperado pela Meta API: 55XXXXXXXXXX (sem +).
+ * Se o número tiver 10-11 dígitos (DDD + número sem código de país),
+ * assume Brasil e adiciona 55 automaticamente.
+ */
 export function normalizePhone(raw: string): string {
-  return raw.replace(/\D/g, "").replace(/^\+/, "");
+  const digits = raw.replace(/\D/g, "").replace(/^\+/, "");
+  // Número brasileiro sem código de país: 10 dígitos (fixo) ou 11 dígitos (celular)
+  if (digits.length >= 10 && digits.length <= 11) {
+    return `55${digits}`;
+  }
+  return digits;
 }
 
 /**
