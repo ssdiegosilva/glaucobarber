@@ -12,11 +12,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/login");
   }
 
-  // Admins should not be in the dashboard
-  if (session.user.isAdmin) {
-    redirect("/admin");
-  }
-
   // Load barbershop name + AI usage for sidebar
   let barbershopName: string | null = null;
   let aiUsed = 0;

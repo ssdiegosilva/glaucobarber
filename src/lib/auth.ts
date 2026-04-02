@@ -40,19 +40,20 @@ export async function auth(): Promise<AuthSession | null> {
     orderBy: { createdAt: "asc" },
   });
 
-  // PLATFORM_ADMIN takes priority over any other membership
-  const membership =
-    memberships.find((m) => m.role === "PLATFORM_ADMIN") ?? memberships[0] ?? null;
+  // PLATFORM_ADMIN takes priority for role/isAdmin, but barbershop comes from OWNER membership
+  const adminMembership = memberships.find((m) => m.role === "PLATFORM_ADMIN") ?? null;
+  const shopMembership = memberships.find((m) => m.role !== "PLATFORM_ADMIN") ?? null;
+  const membership = adminMembership ?? shopMembership;
 
-  const isAdmin = membership?.role === "PLATFORM_ADMIN";
+  const isAdmin = !!adminMembership;
 
   return {
     user: {
       id: dbUser.id,
       name: dbUser.name,
       email: dbUser.email,
-      barbershopId: isAdmin ? null : (membership?.barbershopId ?? null),
-      barbershopSlug: isAdmin ? null : (membership?.barbershop?.slug ?? null),
+      barbershopId: shopMembership?.barbershopId ?? null,
+      barbershopSlug: shopMembership?.barbershop?.slug ?? null,
       role: membership?.role ?? null,
       isAdmin,
     },

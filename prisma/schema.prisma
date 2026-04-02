@@ -980,3 +980,19 @@ model PlatformConfig {
 
   @@map("platform_configs")
 }
+
+// ============================================================
+// FEATURE GATES — which features each plan/role can access
+// Configurable by admin. Per-barbershop override via FeatureFlag.
+// ============================================================
+
+model PlanFeatureGate {
+  id       String  @id @default(cuid())
+  feature  String  // e.g. "financeiro", "campaigns", "copilot"
+  // Role or plan tier: FREE | STARTER | PRO | PLATFORM_ADMIN
+  planTier String
+  enabled  Boolean @default(true)
+
+  @@unique([feature, planTier])
+  @@map("plan_feature_gates")
+}
