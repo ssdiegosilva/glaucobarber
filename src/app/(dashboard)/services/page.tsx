@@ -24,7 +24,7 @@ export default async function ServicesPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.barbershop.findUnique({
-      where:  { barbershopId },
+      where:  { id: barbershopId },
       select: { address: true, city: true, state: true },
     }),
   ]);
