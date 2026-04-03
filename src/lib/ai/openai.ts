@@ -76,9 +76,26 @@ export class OpenAIProvider implements AIProvider {
     return { text: raw.text ?? "", artBriefing: raw.artBriefing ?? "" };
   }
 
-  async generateCampaignImage(input: { prompt: string; styleHint?: string }): Promise<{ url: string }> {
+  async generateCampaignImage(input: { prompt: string; styleHint?: string; referenceImageUrl?: string }): Promise<{ url: string }> {
     const prompt = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
-    const model = process.env.IMAGE_MODEL ?? "dall-e-3";
+    const configuredModel = process.env.IMAGE_MODEL ?? "gpt-image-1";
+
+    let imageBase64: string | undefined;
+    if (input.referenceImageUrl) {
+      try {
+        const res = await fetch(input.referenceImageUrl);
+        if (res.ok) {
+          const buffer = Buffer.from(await res.arrayBuffer());
+          imageBase64 = buffer.toString("base64");
+        }
+      } catch {
+        // keep undefined if fetch fails
+      }
+    }
+
+    const model = imageBase64 && configuredModel.startsWith("dall-e")
+      ? "gpt-image-1"
+      : configuredModel;
 
     try {
       const img = await this.client.images.generate({
@@ -86,6 +103,7 @@ export class OpenAIProvider implements AIProvider {
         prompt,
         size: "1024x1024",
         n: 1,
+        ...(imageBase64 ? { image: imageBase64 } : {}),
       });
       const url = img.data?.[0]?.url;
       if (!url) throw new Error("Falha ao gerar imagem");

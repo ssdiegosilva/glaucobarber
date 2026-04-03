@@ -18,11 +18,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const campaign = await prisma.campaign.findUnique({ where: { id }, include: { template: true } });
   if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const barbershop = await prisma.barbershop.findUnique({ where: { id: session.user.barbershopId }, select: { name: true, brandStyle: true } });
+  const barbershop = await prisma.barbershop.findUnique({
+    where:  { id: session.user.barbershopId },
+    select: { name: true, brandStyle: true, campaignReferenceImageUrl: true },
+  });
 
   const brandStyleBlock = barbershop?.brandStyle
     ? `Brand style: ${barbershop.brandStyle}`
     : `Brand style: premium barbershop aesthetic — black background, gold metallic accents, elegant contrast, cinematic lighting, masculine and sophisticated`;
+
+  const referenceNote = barbershop?.campaignReferenceImageUrl
+    ? "Use the provided reference photo as the base and preserve key subjects/identity."
+    : "";
 
   const prompt = body.promptOverride ?? `
 Create a premium square marketing image (1080x1080) for a barbershop brand called "${barbershop?.name ?? "Barbearia"}".
@@ -30,6 +37,7 @@ Create a premium square marketing image (1080x1080) for a barbershop brand calle
 Goal: ${campaign.objective || "Promote the barbershop services"}
 
 ${brandStyleBlock}
+${referenceNote}
 
 Visual direction:
 - strong centered composition
@@ -54,7 +62,11 @@ Important:
 
   const provider = getAIProvider();
   try {
-    const img = await provider.generateCampaignImage({ prompt, styleHint });
+    const img = await provider.generateCampaignImage({
+      prompt,
+      styleHint,
+      referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
+    });
     const stored = await uploadCampaignImageFromUrl({
       barbershopId: campaign.barbershopId,
       campaignId: campaign.id,

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { BarbershopCard } from "./barbershop-card";
 import { BrandStyleCard } from "./brand-style-card";
+import { CampaignReferenceImageCard } from "./campaign-reference-image-card";
 import { IntegrationsClient } from "./integrations-client";
 
 export default async function SettingsPage() {
@@ -60,6 +61,8 @@ export default async function SettingsPage() {
           barbershopName={barbershop?.name ?? null}
           logoUrl={barbershop?.logoUrl ?? null}
         />
+
+        <CampaignReferenceImageCard initialUrl={barbershop?.campaignReferenceImageUrl ?? null} />
 
         <Suspense>
         <IntegrationsClient

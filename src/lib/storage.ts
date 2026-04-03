@@ -76,6 +76,64 @@ export async function uploadCampaignImageFromUrl({
   });
 }
 
+export async function uploadBarbershopReferenceImage({
+  barbershopId,
+  fileName,
+  buffer,
+  contentType,
+}: {
+  barbershopId: string;
+  fileName: string;
+  buffer: Buffer;
+  contentType?: string;
+}): Promise<{ path: string; url: string }> {
+  const client = getServiceClient();
+  const ext = fileName.includes(".") ? fileName.split(".").pop() : "jpg";
+  const key = `${barbershopId}/reference/${Date.now()}.${ext}`;
+
+  const { error } = await client.storage.from(bucket).upload(key, buffer, {
+    upsert: true,
+    cacheControl: "3600",
+    contentType: contentType || "image/jpeg",
+  });
+  if (error) throw new Error(error.message);
+
+  const { data } = client.storage.from(bucket).getPublicUrl(key);
+  return { path: key, url: data.publicUrl };
+}
+
+export async function uploadBarbershopReferenceImageFromUrl({
+  barbershopId,
+  sourceUrl,
+  fileName,
+}: {
+  barbershopId: string;
+  sourceUrl: string;
+  fileName?: string;
+}): Promise<{ path: string; url: string }> {
+  const res = await fetch(sourceUrl);
+  if (!res.ok) throw new Error("Não foi possível baixar a imagem de referência");
+
+  const contentType = res.headers.get("content-type") || "image/jpeg";
+  const buffer = Buffer.from(await res.arrayBuffer());
+
+  const mimeExt: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+  const extFromMime = mimeExt[contentType];
+  const urlExt = sourceUrl.split(".").pop()?.split(/[#?]/)[0];
+  const ext = extFromMime || urlExt || "jpg";
+
+  return uploadBarbershopReferenceImage({
+    barbershopId,
+    fileName: fileName ?? `reference.${ext}`,
+    buffer,
+    contentType,
+  });
+}
+
 export async function signCampaignImage(path: string): Promise<string | null> {
   if (!path) return null;
   // Extract storage key from any Supabase URL, or use as-is if it's already a plain key
