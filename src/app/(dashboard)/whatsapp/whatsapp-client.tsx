@@ -75,6 +75,7 @@ function formatDay(iso: string) {
 // ── Compose modal ─────────────────────────────────────────────
 
 type CustomerSuggestion = { id: string; name: string; phone: string | null };
+type TextTemplate = { id: string; label: string; body: string; active: boolean };
 
 function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: WaMessage) => void }) {
   const [customerId,   setCustomerId]   = useState<string | null>(null);
@@ -88,6 +89,14 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
   const [suggestions,  setSuggestions]  = useState<CustomerSuggestion[]>([]);
   const [searching,    setSearching]    = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Template mode
+  const [mode,           setMode]           = useState<"write" | "template">("write");
+  const [textTemplates,  setTextTemplates]  = useState<TextTemplate[]>([]);
+  const [loadingTpls,    setLoadingTpls]    = useState(false);
+  const [tplsLoaded,     setTplsLoaded]     = useState(false);
+  const [personalizing,  setPersonalizing]  = useState<string | null>(null); // template id being personalized
+
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef   = useRef<HTMLDivElement>(null);
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -99,6 +108,20 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  async function switchToTemplateMode() {
+    setMode("template");
+    if (tplsLoaded) return;
+    setLoadingTpls(true);
+    try {
+      const res  = await fetch("/api/whatsapp/templates?kind=text");
+      const data = await res.json();
+      setTextTemplates((Array.isArray(data) ? data : []).filter((t: TextTemplate & { active: boolean }) => t.active));
+      setTplsLoaded(true);
+    } finally {
+      setLoadingTpls(false);
+    }
+  }
 
   function handleQueryChange(val: string) {
     setQuery(val);
@@ -123,6 +146,35 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
     setPhone(c.phone ? c.phone.replace(/\D/g, "") : "");
     setSuggestions([]);
     setShowDropdown(false);
+  }
+
+  async function useTemplate(tpl: TextTemplate) {
+    if (name.trim()) {
+      // Cliente selecionado → IA personaliza
+      setPersonalizing(tpl.id);
+      try {
+        const res = await fetch("/api/whatsapp/messages/personalize", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ templateBody: tpl.body, customerName: name.trim() }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setText(data.message);
+        } else {
+          // Fallback: substituição simples
+          setText(tpl.body.replace(/\{\{name\}\}/gi, name.trim()));
+        }
+      } catch {
+        setText(tpl.body.replace(/\{\{name\}\}/gi, name.trim()));
+      } finally {
+        setPersonalizing(null);
+      }
+    } else {
+      // Sem cliente → insere com {{name}} para edição manual
+      setText(tpl.body);
+    }
+    setMode("write");
   }
 
   async function send() {
@@ -163,6 +215,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
           <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-3">
+          {/* Customer search */}
           <div ref={dropdownRef} className="relative">
             <label className="text-xs font-medium text-muted-foreground">Buscar cliente</label>
             <div className="mt-1 relative">
@@ -196,6 +249,8 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
               </div>
             )}
           </div>
+
+          {/* Name + phone */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground">Nome</label>
@@ -210,20 +265,85 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
                 className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Mensagem</label>
-            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4}
-              placeholder="Digite a mensagem..."
-              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+
+          {/* Write / Template toggle */}
+          <div className="flex gap-1.5 rounded-lg border border-border p-1 bg-surface-900">
+            <button onClick={() => setMode("write")}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
+                mode === "write" ? "bg-surface-700 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              <PenLine className="h-3.5 w-3.5" /> Escrever
+            </button>
+            <button onClick={switchToTemplateMode}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
+                mode === "template" ? "bg-surface-700 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              <LayoutTemplate className="h-3.5 w-3.5" /> Usar template
+            </button>
           </div>
+
+          {/* Write mode: textarea */}
+          {mode === "write" && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Mensagem</label>
+              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4}
+                placeholder="Digite a mensagem..."
+                className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+            </div>
+          )}
+
+          {/* Template mode: picker */}
+          {mode === "template" && (
+            <div className="space-y-2">
+              {!name.trim() && (
+                <div className="flex items-start gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-400">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>Selecione um cliente acima para a IA personalizar a mensagem com o nome dele automaticamente.</span>
+                </div>
+              )}
+              {loadingTpls ? (
+                <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : textTemplates.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border/60 p-6 text-center">
+                  <p className="text-xs text-muted-foreground">Nenhum template de texto ativo.</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">Crie templates na aba Templates → Texto manual.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border rounded-lg border border-border overflow-hidden max-h-56 overflow-y-auto">
+                  {textTemplates.map((tpl) => (
+                    <div key={tpl.id} className="flex items-start gap-3 px-3 py-2.5 hover:bg-surface-800 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground">{tpl.label}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{tpl.body}</p>
+                      </div>
+                      <button
+                        onClick={() => useTemplate(tpl)}
+                        disabled={personalizing === tpl.id}
+                        className="shrink-0 flex items-center gap-1 rounded-md border border-gold-500/40 bg-gold-500/10 px-2 py-1 text-[11px] text-gold-400 hover:bg-gold-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {personalizing === tpl.id
+                          ? <><Loader2 className="h-3 w-3 animate-spin" />IA...</>
+                          : name.trim()
+                          ? <><Sparkles className="h-3 w-3" />Usar</>
+                          : "Usar"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Schedule */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Agendar para (opcional)</label>
             <input type="date" value={scheduledFor} min={todayStr} onChange={(e) => setScheduledFor(e.target.value)}
               className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
         </div>
+
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
-          Mensagens personalizadas só funcionam dentro da janela de 24h de conversa ativa.
+          Mensagens de texto só funcionam dentro da janela de 24h de conversa ativa.
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex gap-2">
