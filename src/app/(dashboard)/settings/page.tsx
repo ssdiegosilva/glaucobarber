@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -53,6 +54,7 @@ export default async function SettingsPage() {
           />
         )}
 
+        <Suspense>
         <IntegrationsClient
           integration={integration ? {
             status:              integration.status,
@@ -70,6 +72,7 @@ export default async function SettingsPage() {
             startedAt: r.startedAt.toISOString(),
           }))}
         />
+        </Suspense>
       </div>
     </div>
   );

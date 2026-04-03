@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
 import {
   RefreshCw, CheckCircle2, AlertTriangle, Plug, Clock,
-  Settings, ChevronDown, Copy, Check, Unplug,
+  Settings, ChevronDown, Copy, Check, Unplug, LogIn,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -38,11 +39,15 @@ interface SyncRunInfo {
 const RUN_STATUS_VARIANT = { RUNNING: "warning", SUCCESS: "success", PARTIAL: "warning", FAILED: "destructive" } as const;
 const RUN_STATUS_LABEL   = { RUNNING: "Rodando", SUCCESS: "Sucesso", PARTIAL: "Parcial", FAILED: "Falhou" };
 
+const HAS_OAUTH = !!process.env.NEXT_PUBLIC_INSTAGRAM_OAUTH_ENABLED;
+
 export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   integration:  IntegrationInfo | null;
   syncRuns:     SyncRunInfo[];
   barbershopId: string;
 }) {
+  const searchParams = useSearchParams();
+  const router       = useRouter();
   const [syncing,      setSyncing]      = useState(false);
   const [runs,         setRuns]         = useState(syncRuns.slice(0, 5));
   const [showForm,     setShowForm]     = useState(!integration?.configured);
@@ -56,17 +61,50 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   const [showHistory,  setShowHistory]  = useState(false);
 
   // Instagram
-  const [igToken,         setIgToken]         = useState("");
-  const [igBizId,         setIgBizId]         = useState("");
-  const [igPageId,        setIgPageId]        = useState("");
-  const [igSelectedName,  setIgSelectedName]  = useState("");
-  const [savingIg,        setSavingIg]        = useState(false);
-  const [editingIg,       setEditingIg]       = useState(!integration?.instagramBusinessId);
-  const [displayBizId,    setDisplayBizId]    = useState(integration?.instagramBusinessId ?? "");
-  const [displayUsername, setDisplayUsername] = useState(integration?.instagramUsername ?? "");
-  const [discovering,     setDiscovering]     = useState(false);
-  const [igAccounts,      setIgAccounts]      = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
-  const [disconnectingIg, setDisconnectingIg] = useState(false);
+  const [igToken,           setIgToken]           = useState("");
+  const [igBizId,           setIgBizId]           = useState("");
+  const [igPageId,          setIgPageId]          = useState("");
+  const [igSelectedName,    setIgSelectedName]    = useState("");
+  const [savingIg,          setSavingIg]          = useState(false);
+  const [editingIg,         setEditingIg]         = useState(!integration?.instagramBusinessId);
+  const [displayBizId,      setDisplayBizId]      = useState(integration?.instagramBusinessId ?? "");
+  const [displayUsername,   setDisplayUsername]   = useState(integration?.instagramUsername ?? "");
+  const [discovering,       setDiscovering]       = useState(false);
+  const [igAccounts,        setIgAccounts]        = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
+  const [disconnectingIg,   setDisconnectingIg]   = useState(false);
+  const [showManualFallback, setShowManualFallback] = useState(false);
+  const [igPendingLoading,  setIgPendingLoading]  = useState(false);
+
+  // Handle OAuth callback query params
+  useEffect(() => {
+    const ig  = searchParams.get("ig");
+    const msg = searchParams.get("msg");
+    if (!ig) return;
+
+    if (ig === "connected") {
+      toast({ title: "Instagram conectado com sucesso!" });
+      setEditingIg(false);
+      router.replace("/settings");
+      window.location.reload();
+    } else if (ig === "pending") {
+      setIgPendingLoading(true);
+      fetch("/api/integrations/instagram/pending")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.accounts?.length > 0) {
+            setIgAccounts(data.accounts);
+            setEditingIg(true);
+            setShowManualFallback(false);
+          }
+        })
+        .finally(() => setIgPendingLoading(false));
+      router.replace("/settings");
+    } else if (ig === "error") {
+      toast({ title: "Erro ao conectar Instagram", description: msg ?? "Tente novamente.", variant: "destructive" });
+      router.replace("/settings");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // WhatsApp
   const [waConfigured,   setWaConfigured]   = useState(integration?.whatsappConfigured ?? false);
@@ -450,26 +488,30 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         <CardContent className="space-y-3">
           {editingIg ? (
             <>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Page Access Token</label>
-                <div className="flex gap-2">
-                  <input
-                    value={igToken} onChange={(e) => { setIgToken(e.target.value); setIgAccounts([]); }}
-                    placeholder="EAAG..."
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                  />
-                  <Button size="sm" variant="outline" onClick={handleDiscoverInstagram} disabled={!igToken || discovering} className="text-xs shrink-0">
-                    {discovering ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Buscar"}
+              {/* OAuth button (only when app is configured) */}
+              {HAS_OAUTH && igAccounts.length === 0 && (
+                <a href="/api/integrations/instagram/oauth" className="block">
+                  <Button
+                    type="button"
+                    className="w-full gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0"
+                    disabled={igPendingLoading}
+                  >
+                    {igPendingLoading
+                      ? <RefreshCw className="h-4 w-4 animate-spin" />
+                      : <LogIn className="h-4 w-4" />}
+                    Entrar com Instagram
                   </Button>
-                </div>
-              </div>
+                </a>
+              )}
+
+              {/* Account picker (after OAuth with multiple accounts) */}
               {igAccounts.length > 0 && (
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Conta do Instagram</label>
+                  <label className="text-xs text-muted-foreground">Selecione a conta do Instagram</label>
                   <div className="space-y-1">
                     {igAccounts.map((acc) => (
                       <button key={acc.instagramId} type="button"
-                        onClick={() => { setIgBizId(acc.instagramId); setIgPageId(acc.pageId); setIgSelectedName(acc.instagramName); }}
+                        onClick={() => { setIgBizId(acc.instagramId); setIgPageId(acc.pageId); setIgSelectedName(acc.instagramName); setIgToken(acc.pageToken); }}
                         className={`w-full text-left rounded-md border px-3 py-2 text-xs transition-colors ${igBizId === acc.instagramId ? "border-gold-500/60 bg-gold-500/10 text-foreground" : "border-border bg-surface-800 text-muted-foreground hover:text-foreground"}`}
                       >
                         <span className="font-medium">@{acc.instagramName}</span>
@@ -477,31 +519,76 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-              {igAccounts.length === 0 && igBizId && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Instagram Business ID</label>
-                    <input value={igBizId} onChange={(e) => setIgBizId(e.target.value)} placeholder="ex: 1784..."
-                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Page ID (opcional)</label>
-                    <input value={igPageId} onChange={(e) => setIgPageId(e.target.value)} placeholder="ID da página do Facebook"
-                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    {displayBizId && (
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setEditingIg(false); setIgAccounts([]); fetch("/api/integrations/instagram/pending", { method: "DELETE" }); }}>Cancelar</Button>
+                    )}
+                    <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs ml-auto">
+                      {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Conectar conta selecionada"}
+                    </Button>
                   </div>
                 </div>
               )}
-              <div className="flex items-center justify-between gap-2">
-                {displayBizId && (
-                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingIg(false)}>Cancelar</Button>
-                )}
-                <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs ml-auto">
-                  {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar Instagram"}
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">Cole o token e clique em &quot;Buscar&quot; para detectar o Instagram Business ID automaticamente.</p>
+
+              {/* Separator + manual fallback toggle */}
+              {igAccounts.length === 0 && (
+                <>
+                  {HAS_OAUTH && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 border-t border-border/40" />
+                      <button
+                        type="button"
+                        onClick={() => setShowManualFallback((v) => !v)}
+                        className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showManualFallback ? "ocultar token manual" : "inserir token manualmente"}
+                      </button>
+                      <div className="flex-1 border-t border-border/40" />
+                    </div>
+                  )}
+
+                  {(!HAS_OAUTH || showManualFallback) && (
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Page Access Token</label>
+                        <div className="flex gap-2">
+                          <input
+                            value={igToken} onChange={(e) => { setIgToken(e.target.value); setIgAccounts([]); }}
+                            placeholder="EAAG..."
+                            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                          />
+                          <Button size="sm" variant="outline" onClick={handleDiscoverInstagram} disabled={!igToken || discovering} className="text-xs shrink-0">
+                            {discovering ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Buscar"}
+                          </Button>
+                        </div>
+                      </div>
+                      {igBizId && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Instagram Business ID</label>
+                            <input value={igBizId} onChange={(e) => setIgBizId(e.target.value)} placeholder="ex: 1784..."
+                              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground">Page ID (opcional)</label>
+                            <input value={igPageId} onChange={(e) => setIgPageId(e.target.value)} placeholder="ID da página do Facebook"
+                              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-2">
+                        {displayBizId && (
+                          <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingIg(false)}>Cancelar</Button>
+                        )}
+                        <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs ml-auto">
+                          {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar Instagram"}
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Cole o token e clique em &quot;Buscar&quot; para detectar o Instagram Business ID automaticamente.</p>
+                    </div>
+                  )}
+                </>
+              )}
             </>
           ) : (
             <div className="rounded-md border border-green-500/30 bg-green-500/8 px-4 py-3 flex items-center justify-between gap-3">
