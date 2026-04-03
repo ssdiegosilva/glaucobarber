@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2 } from "lucide-react";
+import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, Clock, AlertTriangle } from "lucide-react";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan display config ──────────────────────────────────────────────────────
@@ -46,6 +46,9 @@ interface Props {
   stripeCustomerId:   string | null;
   featureMatrix:      Record<string, Record<string, boolean>>;
   allFeatures:        { key: string; label: string }[];
+  trialEndsAt:        string | null;
+  currentPeriodEnd:   string | null;
+  cancelAtPeriodEnd:  boolean;
 }
 
 function formatBRL(cents: number) {
@@ -83,6 +86,9 @@ export function BillingClient({
   stripeCustomerId,
   featureMatrix,
   allFeatures,
+  trialEndsAt,
+  currentPeriodEnd,
+  cancelAtPeriodEnd,
 }: Props) {
   const [loadingCredits, setLoadingCredits] = useState(false);
   const [loadingPortal,  setLoadingPortal]  = useState(false);
@@ -92,6 +98,14 @@ export function BillingClient({
   const aiPct      = totalAi > 0 ? Math.min(100, Math.round((aiUsed / totalAi) * 100)) : 100;
   const capCents   = appointmentCapCents;
   const apptPct    = hasAppointmentFee ? Math.min(100, Math.round((appointmentCents / capCents) * 100)) : 0;
+
+  const isTrialing = planStatus === "TRIALING";
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
+  const periodEndFormatted = currentPeriodEnd
+    ? new Date(currentPeriodEnd).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : null;
 
   async function buyCredits() {
     setLoadingCredits(true);
@@ -122,18 +136,29 @@ export function BillingClient({
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plano atual</span>
-              <Badge variant="outline" className={`text-[11px] px-2 ${info.badgeClass}`}>
-                {info.label}
-              </Badge>
-              {planStatus === "ACTIVE" && (
+              {isTrialing ? (
+                <Badge variant="outline" className="text-[11px] px-2 text-gold-400 border-gold-500/30">Trial</Badge>
+              ) : (
+                <Badge variant="outline" className={`text-[11px] px-2 ${info.badgeClass}`}>{info.label}</Badge>
+              )}
+              {planStatus === "ACTIVE" && !cancelAtPeriodEnd && (
                 <Badge variant="outline" className="text-[11px] text-emerald-400 border-emerald-400/30">Ativo</Badge>
               )}
               {planStatus === "PAST_DUE" && (
                 <Badge variant="outline" className="text-[11px] text-red-400 border-red-400/30">Pagamento pendente</Badge>
               )}
             </div>
-            <p className={`text-2xl font-bold ${info.color}`}>{info.label}</p>
-            <p className="text-sm text-muted-foreground">{PLAN_PRICE[planTier]}</p>
+            {isTrialing ? (
+              <>
+                <p className="text-2xl font-bold text-gold-400">Trial gratuito</p>
+                <p className="text-sm text-muted-foreground">Acesso completo a todos os recursos</p>
+              </>
+            ) : (
+              <>
+                <p className={`text-2xl font-bold ${info.color}`}>{info.label}</p>
+                <p className="text-sm text-muted-foreground">{PLAN_PRICE[planTier]}</p>
+              </>
+            )}
           </div>
           {stripeCustomerId && (
             <Button variant="outline" size="sm" onClick={openPortal} disabled={loadingPortal}>
@@ -143,11 +168,41 @@ export function BillingClient({
           )}
         </div>
 
+        {/* Trial countdown */}
+        {isTrialing && trialEndsAt && (
+          <div className="flex items-center gap-2 rounded-lg border border-gold-500/20 bg-gold-500/5 px-3 py-2.5">
+            <Clock className="h-4 w-4 text-gold-400 shrink-0" />
+            <div className="text-sm">
+              <span className="text-gold-400 font-medium">
+                {trialDaysLeft === 0 ? "Expira hoje" : `${trialDaysLeft} dia${trialDaysLeft !== 1 ? "s" : ""} restantes`}
+              </span>
+              <span className="text-muted-foreground"> — trial encerra em {new Date(trialEndsAt).toLocaleDateString("pt-BR")}. Após isso, migra para o plano Free.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Pending plan change banner */}
+        {cancelAtPeriodEnd && periodEndFormatted && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="text-amber-400 font-medium">Mudança de plano agendada</p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                O plano atual permanece ativo até <span className="text-foreground">{periodEndFormatted}</span>. A alteração entra em vigor no próximo ciclo. Para reverter, use o Portal de cobrança.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Features */}
         <div className="grid grid-cols-1 gap-1.5 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span>{PLAN_AI_LABEL[planTier]} de IA</span>
+            {isTrialing ? (
+              <span>IA ilimitada durante o trial</span>
+            ) : (
+              <span>{PLAN_AI_LABEL[planTier]} de IA</span>
+            )}
           </div>
           {hasAppointmentFee && (
             <div className="flex items-center gap-2">
@@ -157,8 +212,8 @@ export function BillingClient({
           )}
         </div>
 
-        {/* Upgrade CTAs */}
-        {planTier === "FREE" && (
+        {/* Upgrade CTAs — hidden when there's already a pending Stripe change */}
+        {!cancelAtPeriodEnd && (planTier === "FREE" || isTrialing) && (
           <div className="flex gap-2 pt-2">
             <form action="/api/stripe/checkout" method="POST" className="flex-1">
               <input type="hidden" name="priceId" value={process.env.NEXT_PUBLIC_STRIPE_PRICE_START ?? ""} />
@@ -173,7 +228,7 @@ export function BillingClient({
             </form>
           </div>
         )}
-        {planTier === "STARTER" && (
+        {!cancelAtPeriodEnd && planTier === "STARTER" && !isTrialing && (
           <form action="/api/stripe/checkout" method="POST">
             <input type="hidden" name="priceId" value={process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO ?? ""} />
             <Button type="submit" className="w-full gap-1">
@@ -191,9 +246,15 @@ export function BillingClient({
             <Sparkles className="h-4 w-4 text-gold-400" />
             <span className="text-sm font-medium text-foreground">Uso de IA</span>
           </div>
-          <span className="text-xs text-muted-foreground">{formatYearMonth(yearMonth)}</span>
+          {!isTrialing && <span className="text-xs text-muted-foreground">{formatYearMonth(yearMonth)}</span>}
         </div>
 
+        {isTrialing ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>Ilimitado durante o trial — aproveite para explorar todos os recursos.</span>
+          </div>
+        ) : (
         <div>
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
             <span>{aiUsed} de {aiLimit === Infinity ? "∞" : aiLimit} chamadas usadas</span>
@@ -213,6 +274,7 @@ export function BillingClient({
             {aiPct >= 100 ? "Limite atingido — adicione créditos para continuar usando a IA." : `${100 - aiPct}% restante`}
           </p>
         </div>
+        )}
 
         <Button
           variant="outline"

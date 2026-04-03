@@ -29,9 +29,10 @@ export default async function BillingPage() {
     getFullFeatureMatrix(),
   ]);
 
+  const limits = PLAN_LIMITS[plan.tier];
+
   const appointmentCount  = billingStats._count._all;
   const appointmentCents  = billingStats._sum.amountCents ?? 0;
-  const limits            = PLAN_LIMITS[plan.tier];
 
   return (
     <div className="flex flex-col h-full">
@@ -55,6 +56,9 @@ export default async function BillingPage() {
         stripeCustomerId={plan.stripeCustomerId}
         featureMatrix={featureMatrix}
         allFeatures={ALL_FEATURES.map((f) => ({ key: f.key, label: f.label }))}
+        trialEndsAt={plan.trialEndsAt?.toISOString() ?? null}
+        currentPeriodEnd={plan.currentPeriodEnd?.toISOString() ?? null}
+        cancelAtPeriodEnd={plan.cancelAtPeriodEnd}
       />
     </div>
   );

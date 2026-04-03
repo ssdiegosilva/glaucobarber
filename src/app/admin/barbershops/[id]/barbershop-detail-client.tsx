@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Brain, CreditCard, Users, Calendar, ExternalLink } from "lucide-react";
+import { ArrowLeft, Brain, CreditCard, Users, Calendar, ExternalLink, AlertTriangle } from "lucide-react";
 
 type Shop = {
   id: string; name: string; slug: string; email: string; city: string; state: string;
@@ -110,6 +110,25 @@ export function BarbershopDetailClient({
         {/* Plan override */}
         <Card title="Gerenciar Plano">
           <div className="space-y-3">
+            {/* Stripe conflict warning */}
+            {subscription?.cancelAtPeriodEnd && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/8 px-3 py-2.5">
+                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs text-amber-400 font-medium">Mudança Stripe pendente</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Há uma alteração agendada via Stripe para {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString("pt-BR") : "—"}. Override manual pode conflitar. Use o Stripe Dashboard para reverter primeiro.
+                  </p>
+                </div>
+              </div>
+            )}
+            {subscription?.status === "TRIALING" && subscription.trialEndsAt && (
+              <div className="flex items-start gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+                <p className="text-[11px] text-blue-400">
+                  Trial ativo — expira em {new Date(subscription.trialEndsAt).toLocaleDateString("pt-BR")}. O cron diário migra automaticamente para FREE após a expiração.
+                </p>
+              </div>
+            )}
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Plano</label>
               <select value={planTier} onChange={(e) => setPlanTier(e.target.value)}

@@ -24,6 +24,24 @@ export async function GET(req: NextRequest) {
     where: { createdAt: { lt: sevenDaysAgo }, status: { in: ["SENT", "FAILED"] } },
   });
 
+  // ── Trial expiration: TRIALING → FREE ────────────────────────────────────────
+  // Barbershops whose trial ended become FREE (30 lifetime AI calls)
+  const expiredTrials = await prisma.platformSubscription.findMany({
+    where: { status: "TRIALING", trialEndsAt: { lt: new Date() } },
+    select: { barbershopId: true },
+  });
+
+  if (expiredTrials.length > 0) {
+    await prisma.platformSubscription.updateMany({
+      where: { barbershopId: { in: expiredTrials.map((t) => t.barbershopId) } },
+      data: {
+        status:          "ACTIVE",
+        planTier:        "FREE",
+        currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
   // Find all active barbershops with AI enabled
   const barbershops = await prisma.barbershop.findMany({
     where: {

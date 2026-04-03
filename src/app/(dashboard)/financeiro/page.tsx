@@ -17,8 +17,8 @@ export default async function FinanceiroPage() {
 
   const barbershopId = session.user.barbershopId;
 
-  const { tier } = await getPlan(barbershopId);
-  if (!hasFeature(tier, "financeiro")) {
+  const { effectiveTier } = await getPlan(barbershopId);
+  if (!hasFeature(effectiveTier, "financeiro")) {
     return (
       <div className="flex flex-col h-full">
         <Header title="Gestão Financeira" subtitle="Metas e análise de faturamento" userName={session.user.name} />
