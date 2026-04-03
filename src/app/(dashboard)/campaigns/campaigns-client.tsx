@@ -257,33 +257,35 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
               )}
             </div>
           )}
-          <div className="flex items-center justify-between">
-            <Button
-              onClick={createCampaign}
-              disabled={!theme || !objective || loadingCreate}
-              className={`text-xs gap-2 text-black font-semibold transition-all duration-300 ${
-                loadingCreate
-                  ? "bg-gold-500 cursor-wait btn-shimmer"
-                  : "bg-gold-500/90 hover:bg-gold-500"
-              }`}
-            >
-              {loadingCreate ? (
-                <>
-                  <Sparkles className="h-3.5 w-3.5 animate-spin" />
-                  Criando campanha...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-3.5 w-3.5" />
-                  Gerar campanha com IA
-                </>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Button
+                onClick={createCampaign}
+                disabled={!theme || !objective || loadingCreate}
+                className={`text-xs gap-2 text-black font-semibold transition-all duration-300 ${
+                  loadingCreate
+                    ? "bg-gold-500 cursor-wait btn-shimmer"
+                    : "bg-gold-500/90 hover:bg-gold-500"
+                }`}
+              >
+                {loadingCreate ? (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                    Criando campanha...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3.5 w-3.5" />
+                    Gerar campanha com IA
+                  </>
+                )}
+              </Button>
+              {!instagramConfigured && (
+                <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/integrations" className="underline">configurar</a></p>
               )}
-            </Button>
+            </div>
             {loadingCreate && (
               <p className="text-[11px] text-gold-400/70 animate-pulse">Pode demorar alguns segundos ✨</p>
-            )}
-            {!instagramConfigured && (
-              <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/integrations" className="underline">configurar</a></p>
             )}
           </div>
         </CardContent>
