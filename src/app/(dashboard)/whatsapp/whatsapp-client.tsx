@@ -312,6 +312,30 @@ function MessageRow({
   const [showEdit,   setShowEdit]   = useState(false);
   const [localMsg,   setLocalMsg]   = useState(msg);
   const [botLoading, setBotLoading] = useState(false);
+  const [swipeX,     setSwipeX]     = useState(0);
+  const [isSwiping,  setIsSwiping]  = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const SWIPE_THRESHOLD = 80;
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    setIsSwiping(true);
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const delta = e.touches[0].clientX - touchStartX.current;
+    if (delta > 0) setSwipeX(Math.min(delta, 130));
+  }
+  function onTouchEnd() {
+    setIsSwiping(false);
+    touchStartX.current = null;
+    if (swipeX >= SWIPE_THRESHOLD) {
+      setSwipeX(400);
+      remove();
+    } else {
+      setSwipeX(0);
+    }
+  }
 
   /** Abre o WhatsApp do usuário e marca como enviado manualmente */
   async function sendManual() {
@@ -370,11 +394,28 @@ function MessageRow({
 
   return (
     <>
-      <div className={`rounded-lg border p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 ${
-        isToday
-          ? "border-amber-500/40 bg-amber-500/5 ring-1 ring-amber-500/20"
-          : "border-border bg-surface-800/60"
-      }`}>
+      {/* swipe wrapper */}
+      <div className="relative overflow-hidden rounded-lg">
+        {/* delete background revealed on swipe */}
+        <div
+          className="absolute inset-y-0 left-0 flex items-center pl-4 rounded-lg bg-red-500/20 border border-red-500/30"
+          style={{ width: `${Math.max(swipeX, 0)}px`, transition: isSwiping ? "none" : "width 0.2s ease" }}
+        >
+          <Trash2 className={`h-4 w-4 text-red-400 transition-opacity ${swipeX >= SWIPE_THRESHOLD ? "opacity-100" : "opacity-50"}`} />
+        </div>
+        <div
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          style={{
+            transform: `translateX(${swipeX}px)`,
+            transition: isSwiping ? "none" : "transform 0.25s ease",
+          }}
+          className={`rounded-lg border p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 ${
+            isToday
+              ? "border-amber-500/40 bg-amber-500/5 ring-1 ring-amber-500/20"
+              : "border-border bg-surface-800/60"
+          }`}>
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col min-w-0">
@@ -488,7 +529,8 @@ function MessageRow({
             </div>
           )}
         </div>
-      </div>
+        </div>{/* end swipeable row */}
+      </div>{/* end swipe wrapper */}
       {showEdit && <EditMessageModal msg={localMsg} onClose={() => setShowEdit(false)} onSaved={handleSaved} />}
     </>
   );
