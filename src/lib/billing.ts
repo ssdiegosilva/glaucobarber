@@ -13,8 +13,8 @@ export const PLAN_LIMITS: Record<
     appointmentFee: boolean;          // charges per completed appointment
   }
 > = {
-  FREE:       { aiPerPeriod: 30,       periodType: "trial",   featureGates: ["financeiro", "meta"], appointmentFee: false },
-  STARTER:    { aiPerPeriod: 50,       periodType: "monthly", featureGates: ["financeiro"],         appointmentFee: false },
+  FREE:       { aiPerPeriod: 30,       periodType: "trial",   featureGates: ["financeiro", "meta", "whatsapp_auto"], appointmentFee: false },
+  STARTER:    { aiPerPeriod: 50,       periodType: "monthly", featureGates: ["financeiro", "whatsapp_auto"],          appointmentFee: false },
   PRO:        { aiPerPeriod: 300,      periodType: "monthly", featureGates: [],             appointmentFee: true  },
   ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly", featureGates: [],             appointmentFee: false },
 };

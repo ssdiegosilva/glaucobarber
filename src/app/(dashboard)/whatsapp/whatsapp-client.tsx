@@ -22,6 +22,7 @@ type WaMessage = {
   status:        string;
   actionId:      string | null;
   sentAt:        string | null;
+  sentManually:  boolean;
   scheduledFor:  string | null;
   createdAt:     string;
   metaMessageId: string | null | undefined;
@@ -29,10 +30,12 @@ type WaMessage = {
 };
 
 interface Props {
-  sentToday:      WaMessage[];
-  queueMessages:  WaMessage[];
-  failedToday:    WaMessage[];
-  historyMessages: WaMessage[];
+  sentToday:        WaMessage[];
+  queueMessages:    WaMessage[];
+  failedToday:      WaMessage[];
+  historyMessages:  WaMessage[];
+  hasAutoSend:      boolean;
+  whatsappConfigured: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -291,44 +294,46 @@ function EditMessageModal({ msg, onClose, onSaved }: { msg: WaMessage; onClose: 
 // ── Message row ───────────────────────────────────────────────
 
 function MessageRow({
-  msg, showActions, isToday, onSent, onFailed, onDelete, onEdit, onRetry,
+  msg, showActions, isToday, hasAutoSend, whatsappConfigured,
+  onManualSent, onFailed, onDelete, onEdit, onRetry,
 }: {
-  msg:         WaMessage;
-  showActions?: boolean;
-  isToday?:    boolean;
-  onSent?:     (id: string) => void;
-  onFailed?:   (id: string) => void;
-  onDelete?:   (id: string) => void;
-  onEdit?:     (updated: WaMessage) => void;
-  onRetry?:    (id: string) => void;
+  msg:                WaMessage;
+  showActions?:       boolean;
+  isToday?:           boolean;
+  hasAutoSend?:       boolean;
+  whatsappConfigured?: boolean;
+  onManualSent?:      (id: string) => void;
+  onFailed?:          (id: string) => void;
+  onDelete?:          (id: string) => void;
+  onEdit?:            (updated: WaMessage) => void;
+  onRetry?:           (id: string) => void;
 }) {
-  const [loading,  setLoading]  = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [localMsg, setLocalMsg] = useState(msg);
+  const [loading,    setLoading]    = useState(false);
+  const [showEdit,   setShowEdit]   = useState(false);
+  const [localMsg,   setLocalMsg]   = useState(msg);
+  const [botLoading, setBotLoading] = useState(false);
 
-  async function send() {
+  /** Abre o WhatsApp do usuário e marca como enviado manualmente */
+  async function sendManual() {
+    const phone = localMsg.phone.replace(/\D/g, "");
+    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(localMsg.message)}`, "_blank");
     setLoading(true);
     try {
-      const res = await fetch("/api/whatsapp/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId:   localMsg.customerId ?? undefined,
-          customerName: localMsg.customerName,
-          phone:        localMsg.phone,
-          message:      localMsg.message,
-          type:         localMsg.type,
-        }),
+      await fetch(`/api/whatsapp/messages/${localMsg.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "SENT", sentManually: true }),
       });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.message?.status === "SENT") {
-        onSent?.(localMsg.id);
-        onDelete?.(localMsg.id);
-        await fetch(`/api/whatsapp/messages/${localMsg.id}`, { method: "DELETE" });
-      } else {
-        onFailed?.(localMsg.id);
-      }
+      onManualSent?.(localMsg.id);
     } finally { setLoading(false); }
+  }
+
+  /** Aciona o bot para enviar agora (processa a fila) */
+  async function sendViaBot() {
+    setBotLoading(true);
+    try {
+      await fetch("/api/whatsapp/process-queue", { method: "POST" });
+      setTimeout(() => window.location.reload(), 800);
+    } finally { setBotLoading(false); }
   }
 
   async function remove() {
@@ -407,9 +412,15 @@ function MessageRow({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-[10px] text-muted-foreground">{timeStr}</span>
+            {/* sent manually / auto tag */}
+            {localMsg.status === "SENT" && (
+              localMsg.sentManually
+                ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-1.5 py-0.5 text-[9px] text-amber-400">👤 manual</span>
+                : <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-1.5 py-0.5 text-[9px] text-green-400">🤖 automático</span>
+            )}
             {localMsg.metaMessageId && (
               <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-1.5 py-0.5 text-[9px] text-green-400">
                 <ExternalLink className="h-2.5 w-2.5" />
@@ -417,23 +428,52 @@ function MessageRow({
               </span>
             )}
           </div>
+
+          {/* SENT: only delete */}
+          {localMsg.status === "SENT" && (
+            <button onClick={remove} disabled={loading}
+              className="rounded-md border border-border p-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors disabled:opacity-50">
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+
+          {/* QUEUED actions */}
           {showActions && localMsg.status === "QUEUED" && (
-            <div className="flex gap-1.5 shrink-0">
-              <button onClick={send} disabled={loading}
-                className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50">
-                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                Enviar
-              </button>
-              <button onClick={() => setShowEdit(true)} disabled={loading}
+            <div className="flex gap-1.5 shrink-0 flex-wrap">
+              {hasAutoSend && whatsappConfigured ? (
+                /* PRO com bot: dois botões */
+                <>
+                  <button onClick={sendManual} disabled={loading || botLoading}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors disabled:opacity-50">
+                    {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                    Enviar manual
+                  </button>
+                  <button onClick={sendViaBot} disabled={loading || botLoading}
+                    className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50">
+                    {botLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                    Via bot agora
+                  </button>
+                </>
+              ) : (
+                /* Sem auto-send: botão pulsando */
+                <button onClick={sendManual} disabled={loading}
+                  className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50 animate-pulse">
+                  {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                  Enviar no WhatsApp
+                </button>
+              )}
+              <button onClick={() => setShowEdit(true)} disabled={loading || botLoading}
                 className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors disabled:opacity-50">
                 <Pencil className="h-3 w-3" />
               </button>
-              <button onClick={remove} disabled={loading}
+              <button onClick={remove} disabled={loading || botLoading}
                 className="rounded-md border border-border p-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors disabled:opacity-50">
                 <Trash2 className="h-3 w-3" />
               </button>
             </div>
           )}
+
+          {/* FAILED actions */}
           {showActions && localMsg.status === "FAILED" && (
             <div className="flex gap-1.5 shrink-0">
               <button onClick={retry} disabled={loading}
@@ -467,7 +507,7 @@ function Empty({ icon, text }: { icon: React.ReactNode; text: string }) {
 
 // ── Main client ───────────────────────────────────────────────
 
-export function WhatsappClient({ sentToday, queueMessages, failedToday, historyMessages }: Props) {
+export function WhatsappClient({ sentToday, queueMessages, failedToday, historyMessages, hasAutoSend, whatsappConfigured }: Props) {
   const [tab, setTab] = useState<"sent" | "queue" | "failed" | "templates">("sent");
 
   const [sent,    setSent]    = useState(sentToday);
@@ -499,10 +539,10 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
     } finally { setProcessing(false); }
   }
 
-  function markSent(id: string) {
+  function markManualSent(id: string) {
     const msg = queue.find((m) => m.id === id);
     setQueue((prev) => prev.filter((m) => m.id !== id));
-    if (msg) setSent((prev) => [{ ...msg, status: "SENT", sentAt: new Date().toISOString() }, ...prev]);
+    if (msg) setSent((prev) => [{ ...msg, status: "SENT", sentManually: true, sentAt: new Date().toISOString() }, ...prev]);
   }
 
   function markFailed(id: string) {
@@ -548,8 +588,28 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
     return acc;
   }, []);
 
+  const botActive = hasAutoSend && whatsappConfigured;
+
   return (
     <div className="px-3 py-3 sm:px-6 sm:py-5 space-y-3">
+
+      {/* ── Banner de status do envio automático ─────────────── */}
+      {!whatsappConfigured ? (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>WhatsApp não configurado — configure nas <a href="/settings" className="underline font-medium">Integrações</a> para ativar o envio.</span>
+        </div>
+      ) : !hasAutoSend ? (
+        <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
+          <Send className="h-3.5 w-3.5 shrink-0" />
+          <span>Envio automático disponível no plano PRO — <a href="/billing" className="underline font-medium">ver planos</a>. Você pode enviar manualmente clicando nas mensagens da fila.</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2 text-xs text-green-300">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>Bot ativo — processa a fila a cada 15 min 🤖. Você também pode enviar manualmente quando quiser.</span>
+        </div>
+      )}
 
       {/* Tab bar + compose button */}
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
@@ -586,7 +646,13 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
 
       {/* Tab description */}
       {tab === "sent"    && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens enviadas com sucesso. Histórico dos últimos 5 dias.</p>}
-      {tab === "queue"   && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens aguardando envio. Use &quot;Enviar tudo&quot; para processar a fila agora ou aguarde o envio automático.</p>}
+      {tab === "queue" && (
+        <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">
+          {botActive
+            ? "Bot envia automaticamente a cada 15 min. Você pode antecipar clicando em \"Via bot agora\" ou abrir o WhatsApp manualmente."
+            : "Envio manual necessário — clique em cada mensagem para abrir o WhatsApp e enviar."}
+        </p>
+      )}
       {tab === "failed"  && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens que falharam no envio. Use &quot;Tentar novamente&quot; para reagendar para daqui 1 hora. Itens com mais de 1 dia são removidos automaticamente.</p>}
 
       {/* ── Enviadas (hoje + histórico) ────────────────────── */}
@@ -605,7 +671,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                       Hoje · {sent.length} mensagem{sent.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  {sent.map((m) => <MessageRow key={m.id} msg={m} isToday />)}
+                  {sent.map((m) => <MessageRow key={m.id} msg={m} isToday onDelete={(id) => setSent((p) => p.filter((x) => x.id !== id))} />)}
                 </div>
               )}
 
@@ -613,7 +679,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
               {historyByDay.map((group) => (
                 <div key={group.day} className="space-y-2">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide capitalize">{group.day}</p>
-                  {group.msgs.map((m) => <MessageRow key={m.id} msg={m} />)}
+                  {group.msgs.map((m) => <MessageRow key={m.id} msg={m} onDelete={(id) => setHistory((p) => p.filter((x) => x.id !== id))} />)}
                 </div>
               ))}
             </>
@@ -632,15 +698,17 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                 <p className="text-xs text-muted-foreground">
                   {queue.length} mensage{queue.length !== 1 ? "ns" : "m"} aguardando.
                 </p>
-                <button
-                  onClick={processQueue}
-                  disabled={processing}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-gold-400 transition-colors disabled:opacity-50"
-                >
-                  {processing
-                    ? <><Loader2 className="h-3 w-3 animate-spin" />Processando...</>
-                    : <><Send className="h-3 w-3" />Enviar tudo</>}
-                </button>
+                {botActive && (
+                  <button
+                    onClick={processQueue}
+                    disabled={processing}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-gold-400 transition-colors disabled:opacity-50"
+                  >
+                    {processing
+                      ? <><Loader2 className="h-3 w-3 animate-spin" />Processando...</>
+                      : <><Send className="h-3 w-3" />Enviar tudo via bot</>}
+                  </button>
+                )}
               </div>
               {processResult && (
                 <div className={`rounded-md border px-3 py-2 text-xs ${
@@ -661,11 +729,12 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                       <>
                         <p className="text-[11px] font-semibold text-amber-400 flex items-center gap-1.5 pt-1">
                           <Clock className="h-3 w-3" />
-                          Enviar hoje ({todayMsgs.length})
+                          {botActive ? `Bot envia hoje (${todayMsgs.length})` : `Ação manual necessária (${todayMsgs.length})`}
                         </p>
                         {todayMsgs.map((m) => (
                           <MessageRow key={m.id} msg={m} showActions isToday
-                            onSent={markSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
+                            hasAutoSend={hasAutoSend} whatsappConfigured={whatsappConfigured}
+                            onManualSent={markManualSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
                         ))}
                       </>
                     )}
@@ -678,7 +747,8 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                         )}
                         {futureMsgs.map((m) => (
                           <MessageRow key={m.id} msg={m} showActions
-                            onSent={markSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
+                            hasAutoSend={hasAutoSend} whatsappConfigured={whatsappConfigured}
+                            onManualSent={markManualSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
                         ))}
                       </>
                     )}

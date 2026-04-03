@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { status, message, scheduledFor } = body;
+  const { status, message, scheduledFor, sentManually } = body;
 
   if (status && !["SENT", "FAILED", "QUEUED"].includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
@@ -29,6 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(scheduledFor !== undefined && {
         scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
       }),
+      ...(sentManually !== undefined && { sentManually: !!sentManually }),
     },
   });
 
