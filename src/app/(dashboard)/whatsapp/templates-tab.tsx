@@ -296,9 +296,11 @@ export function TemplatesTab({ hasWabaId }: { hasWabaId?: boolean }) {
               <span className="hidden sm:inline">Sincronizar da Meta</span>
             </Button>
           )}
-          <Button size="sm" onClick={openNew} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Novo template
-          </Button>
+          {subTab === "text" && (
+            <Button size="sm" onClick={openNew} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Novo template
+            </Button>
+          )}
         </div>
       </div>
 
