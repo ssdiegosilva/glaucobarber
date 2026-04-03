@@ -23,14 +23,16 @@ export async function POST(req: NextRequest) {
 
   const {
     customerId, customerName, phone, message, type, scheduledFor,
-    messageKind, templateName, templateVars,
+    messageKind, templateName, templateVars, sentManually,
   } = await req.json();
   if (!customerName || !phone || !message) {
     return NextResponse.json({ error: "customerName, phone e message são obrigatórios" }, { status: 400 });
   }
 
-  const isScheduled = !!scheduledFor;
-  const kind = messageKind === "template" ? "template" : "text";
+  const isScheduled  = !!scheduledFor;
+  const isManual     = !!sentManually;
+  const kind         = messageKind === "template" ? "template" : "text";
+  const now          = new Date();
 
   const [msg] = await prisma.$transaction([
     prisma.whatsappMessage.create({
@@ -46,7 +48,10 @@ export async function POST(req: NextRequest) {
         templateVars: kind === "template" && templateVars
           ? JSON.stringify(templateVars)
           : null,
-        status:       "QUEUED",
+        // Mensagem manual (wa.me): já foi enviada pelo usuário, vai direto para SENT
+        status:       isManual ? "SENT" : "QUEUED",
+        sentAt:       isManual ? now : null,
+        sentManually: isManual,
         scheduledFor: isScheduled ? new Date(scheduledFor) : null,
       },
     }),
@@ -54,12 +59,17 @@ export async function POST(req: NextRequest) {
     ...(customerId ? [
       prisma.customer.update({
         where: { id: customerId },
-        data:  { lastWhatsappSentAt: new Date() },
+        data:  { lastWhatsappSentAt: now },
       }),
     ] : []),
   ]);
 
-  // Se não for agendada, tenta enviar imediatamente
+  // Mensagem manual já foi enviada pelo usuário via wa.me — não precisa tentar enviar pela API
+  if (isManual) {
+    return NextResponse.json({ message: msg }, { status: 201 });
+  }
+
+  // Se não for agendada, tenta enviar imediatamente via API
   if (!isScheduled) {
     const creds = await getWhatsAppCreds(session.user.barbershopId);
 

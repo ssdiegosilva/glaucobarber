@@ -123,6 +123,10 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   const [wabaSaving,   setWabaSaving]   = useState(false);
   const [wabaSyncing,  setWabaSyncing]  = useState(false);
   const [wabaSyncMsg,  setWabaSyncMsg]  = useState<string | null>(null);
+  const [wabaDisconnecting, setWabaDisconnecting] = useState(false);
+
+  // Trinks
+  const [disconnectingTrinks, setDisconnectingTrinks] = useState(false);
 
   // ── Trinks ────────────────────────────────────────────────────
 
@@ -180,6 +184,25 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       toast({ title: "Erro no sync", description: String(e), variant: "destructive" });
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleDisconnectTrinks() {
+    if (!confirm("Desconectar Trinks? O sync automático será interrompido.")) return;
+    setDisconnectingTrinks(true);
+    try {
+      const res = await fetch("/api/integrations/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "trinks" }),
+      });
+      if (!res.ok) throw new Error("Erro ao desconectar");
+      toast({ title: "Trinks desconectada" });
+      window.location.reload();
+    } catch (e) {
+      toast({ title: "Erro ao desconectar", description: String(e), variant: "destructive" });
+    } finally {
+      setDisconnectingTrinks(false);
     }
   }
 
@@ -317,6 +340,27 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
     }
   }
 
+  async function handleDisconnectWaba() {
+    if (!confirm("Remover WABA ID? A sincronização de templates será pausada.")) return;
+    setWabaDisconnecting(true);
+    try {
+      const res = await fetch("/api/whatsapp/setup", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wabaId: null }),
+      });
+      if (!res.ok) throw new Error("Erro ao remover WABA ID");
+      toast({ title: "Templates desconectados" });
+      setWabaId("");
+      setWabaSyncMsg(null);
+      setWabaEditing(true);
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setWabaDisconnecting(false);
+    }
+  }
+
   async function handleDisconnectWhatsApp() {
     if (!confirm("Desconectar WhatsApp? O envio automático de mensagens vai parar.")) return;
     setDisconnectingWa(true);
@@ -449,10 +493,16 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
                 <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
               </div>
-              <Button size="sm" variant="outline" className="text-xs gap-1 shrink-0"
-                onClick={() => setShowForm(true)}>
-                <Settings className="h-3.5 w-3.5" /> Editar
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" className="text-xs gap-1"
+                  onClick={() => setShowForm(true)}>
+                  <Settings className="h-3.5 w-3.5" /> Editar
+                </Button>
+                <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                  onClick={handleDisconnectTrinks} disabled={disconnectingTrinks} title="Desconectar Trinks">
+                  {disconnectingTrinks ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
             </div>
           ) : null}
 
@@ -834,9 +884,13 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                           : <RefreshCw className="h-3 w-3" />}
                         Sincronizar templates
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-xs gap-1 shrink-0"
+                      <Button size="sm" variant="outline" className="text-xs gap-1"
                         onClick={() => setWabaEditing(true)}>
                         <Settings className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                        onClick={handleDisconnectWaba} disabled={wabaDisconnecting} title="Desconectar templates">
+                        {wabaDisconnecting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
                       </Button>
                     </div>
                   </div>

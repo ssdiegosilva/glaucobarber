@@ -344,17 +344,19 @@ export function TemplatesTab({ hasWabaId }: { hasWabaId?: boolean }) {
                     <p className="text-xs text-muted-foreground font-mono mt-0.5">{t.metaName}</p>
                   )}
                 </div>
-                <div className="flex gap-1.5 shrink-0">
-                  <Button size="icon-sm" variant="ghost" onClick={() => toggleActive(t)} title={t.active ? "Desativar" : "Ativar"}>
-                    {t.active ? <X className="h-3.5 w-3.5 text-muted-foreground" /> : <Check className="h-3.5 w-3.5 text-emerald-400" />}
-                  </Button>
-                  <Button size="icon-sm" variant="ghost" onClick={() => openEdit(t)}>
-                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                  <Button size="icon-sm" variant="ghost" onClick={() => remove(t.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                  </Button>
-                </div>
+                {subTab === "text" && (
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="icon-sm" variant="ghost" onClick={() => toggleActive(t)} title={t.active ? "Desativar" : "Ativar"}>
+                      {t.active ? <X className="h-3.5 w-3.5 text-muted-foreground" /> : <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                    </Button>
+                    <Button size="icon-sm" variant="ghost" onClick={() => openEdit(t)}>
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                    <Button size="icon-sm" variant="ghost" onClick={() => remove(t.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <p className="text-xs text-foreground/70 leading-relaxed whitespace-pre-wrap">{t.body}</p>
