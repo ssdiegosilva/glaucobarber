@@ -32,9 +32,12 @@ export interface CustomerSummary {
   frequencia?: number;
   churnReason?: string | null;
   lastAction?: string | null;
-  // WhatsApp button disable logic
   lastWhatsappSentAt?: string | null;
   lastCompletedAppointmentAt?: string | null;
+  // FUP tracking per latest appointment
+  lastAppointmentId?: string | null;
+  reviewStatus?: string | null;   // null = not requested, 'enviado'/'respondeu'/'avaliou' = done
+  sentTypes?: string[];            // WhatsApp message types sent since last appointment
 }
 
 export interface PostSaleActionDto {

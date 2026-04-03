@@ -1,30 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
 import type { CustomerSummary, PostSaleStatus } from "../types";
 import {
-  X,
-  MessageCircle,
-  Calendar,
-  Phone,
-  Clock,
-  Scissors,
-  ChevronRight,
-  Loader2,
+  X, MessageCircle, Calendar, Phone, Clock, Scissors,
+  ChevronRight, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
+  UserMinus, RefreshCcw,
 } from "lucide-react";
-import { useEffect } from "react";
 
-// ── Status config ─────────────────────────────────────────────────────────────
+// ── Status actions ────────────────────────────────────────────
 
 interface ActionConfig {
-  id:        string;
-  label:     string;
-  type:      string;  // maps to generate-message types
-  icon:      React.ComponentType<{ className?: string }>;
-  scheduled?: boolean;  // true = shows date picker and queues instead of sending immediately
+  id:         string;
+  label:      string;
+  type:       string;
+  icon:       React.ComponentType<{ className?: string }>;
+  scheduled?: boolean;
 }
 
 const STATUS_ACTIONS: Record<PostSaleStatus, ActionConfig[]> = {
@@ -50,117 +44,169 @@ const STATUS_ACTIONS: Record<PostSaleStatus, ActionConfig[]> = {
   NAO_CONTATAR: [],
 };
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type FilterKey = "emRisco" | "avalPendentes" | "recentes" | "inativos" | "reativados";
-
-const FILTER_LABELS: Record<FilterKey, string> = {
-  emRisco:       "Clientes em risco",
-  avalPendentes: "Avaliações pendentes",
-  recentes:      "Recém-atendidos",
-  inativos:      "Inativos",
-  reativados:    "Reativados",
-};
-
-const FILTER_STATUS: Record<FilterKey, string | null> = {
-  emRisco:       "EM_RISCO",
-  avalPendentes: null,
-  recentes:      "RECENTE",
-  inativos:      "INATIVO",
-  reativados:    "REATIVADO",
-};
-
-interface SummaryData {
-  emRisco:       number;
-  avalPendentes: number;
-  recentes:      number;
-  inativos:      number;
-  reativados:    number;
+// For a given action, which WA type (or review status) marks it as done?
+function isActionDone(action: ActionConfig, customer: CustomerSummary): boolean {
+  const sentTypes   = customer.sentTypes   ?? [];
+  const reviewStatus = customer.reviewStatus ?? null;
+  if (action.id === "review") {
+    return sentTypes.includes("post_sale_review") ||
+      (reviewStatus !== null && reviewStatus !== "pendente");
+  }
+  return sentTypes.includes(action.type);
 }
 
-export interface ReviewItem {
-  id:            string;
-  customerId:    string;
-  appointmentId: string;
-  customerName:  string;
-  customerPhone?: string | null;
-  completedAt?:  string | null;
-  serviceName?:  string | null;
-  requestStatus: string;
+// ── Filter cards config ───────────────────────────────────────
+
+type FilterKey = "emRisco" | "recentes" | "inativos" | "reativados";
+
+const FILTER_CONFIG: {
+  key: FilterKey; label: string; tooltip: string;
+  icon: React.ReactNode; cardBorder: string; cardBg: string; numColor: string;
+}[] = [
+  {
+    key: "emRisco", label: "Clientes em risco",
+    tooltip: "Último atendimento entre 14 e 60 dias atrás, sem agendamento futuro. Risco de perda — contato imediato recomendado.",
+    icon: <AlertTriangle className="h-4 w-4 text-orange-400" />,
+    cardBorder: "border-orange-500/40", cardBg: "bg-orange-500/5", numColor: "text-orange-400",
+  },
+  {
+    key: "recentes", label: "Recém-atendidos",
+    tooltip: "Atendidos nos últimos 14 dias. Janela ideal para pedir avaliação e enviar mensagem de acompanhamento.",
+    icon: <Clock className="h-4 w-4 text-blue-400" />,
+    cardBorder: "border-blue-500/40", cardBg: "bg-blue-500/5", numColor: "text-blue-400",
+  },
+  {
+    key: "inativos", label: "Inativos",
+    tooltip: "Sem visita há mais de 60 dias. Alta prioridade para campanhas de reativação com oferta ou mensagem personalizada.",
+    icon: <UserMinus className="h-4 w-4 text-red-400" />,
+    cardBorder: "border-red-500/40", cardBg: "bg-red-500/5", numColor: "text-red-400",
+  },
+  {
+    key: "reativados", label: "Reativados",
+    tooltip: "Estavam inativos e voltaram nos últimos 60 dias. Continue o engajamento para fidelizá-los.",
+    icon: <RefreshCcw className="h-4 w-4 text-green-400" />,
+    cardBorder: "border-green-500/40", cardBg: "bg-green-500/5", numColor: "text-green-400",
+  },
+];
+
+const FILTER_STATUS: Record<FilterKey, PostSaleStatus> = {
+  emRisco:   "EM_RISCO",
+  recentes:  "RECENTE",
+  inativos:  "INATIVO",
+  reativados:"REATIVADO",
+};
+
+// ── Lightbulb tooltip ─────────────────────────────────────────
+
+function CriteriaTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onOut(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onOut);
+    return () => document.removeEventListener("mousedown", onOut);
+  }, [open]);
+
+  return (
+    <div className="relative inline-flex" ref={ref}>
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); }}
+        className="text-muted-foreground/70 hover:text-gold-400 transition-colors"
+      >
+        <Lightbulb className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <div className="absolute bottom-full right-0 mb-2 z-50 w-64 rounded-lg border border-border bg-card shadow-xl px-3 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
+          <div className="flex items-start gap-2">
+            <Lightbulb className="h-3 w-3 text-gold-400 shrink-0 mt-0.5" />
+            <p>{text}</p>
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }}
+              className="shrink-0 text-muted-foreground/50 hover:text-foreground ml-1">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="absolute top-full right-3 border-4 border-transparent border-t-border" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Props ─────────────────────────────────────────────────────
+
+interface SummaryData {
+  emRisco:    number;
+  recentes:   number;
+  inativos:   number;
+  reativados: number;
 }
 
 interface Props {
   summary:   SummaryData;
   customers: CustomerSummary[];
-  reviews:   ReviewItem[];
 }
 
-// ── Root component ────────────────────────────────────────────────────────────
+// ── Root component ────────────────────────────────────────────
 
-export function PostSaleClient({ summary, customers, reviews }: Props) {
-  const [active, setActive] = useState<FilterKey | null>(null);
+export function PostSaleClient({ summary, customers }: Props) {
+  const [active,           setActive]           = useState<FilterKey | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null);
 
-  function toggle(key: FilterKey) {
-    setActive((prev) => (prev === key ? null : key));
-  }
-
-  let filteredCustomers: CustomerSummary[] = customers;
-  let showReviews = false;
-
-  if (active === "avalPendentes") {
-    showReviews       = true;
-    filteredCustomers = [];
-  } else if (active && FILTER_STATUS[active]) {
-    const status      = FILTER_STATUS[active];
-    filteredCustomers = customers.filter((c) => c.postSaleStatus === status);
-  }
+  const filteredCustomers = active
+    ? customers.filter((c) => c.postSaleStatus === FILTER_STATUS[active])
+    : customers;
 
   return (
     <div className="space-y-5">
-      {/* Summary / filter cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {(Object.keys(FILTER_LABELS) as FilterKey[]).map((key) => {
-          const isActive = active === key;
-          const count    = summary[key];
+      {/* Filter cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {FILTER_CONFIG.map((cfg) => {
+          const isActive = active === cfg.key;
+          const count    = summary[cfg.key];
           return (
             <button
-              key={key}
-              onClick={() => toggle(key)}
-              className={`rounded-lg border text-left p-4 transition-all focus:outline-none focus:ring-2 focus:ring-ring
-                ${isActive
-                  ? "border-gold-500/60 bg-gold-500/10 shadow-[0_0_0_1px_rgba(234,179,8,0.25)]"
-                  : "border-border/60 bg-surface-900 hover:border-border"}`}
+              key={cfg.key}
+              onClick={() => setActive((prev) => prev === cfg.key ? null : cfg.key)}
+              className={`rounded-lg border text-left p-3 sm:p-4 transition-all focus:outline-none focus:ring-2 focus:ring-ring ${
+                isActive
+                  ? `${cfg.cardBorder} ${cfg.cardBg}`
+                  : "border-border/60 bg-surface-900 hover:border-border"
+              }`}
             >
-              <p className={`text-xs mb-1.5 ${isActive ? "text-gold-400" : "text-muted-foreground"}`}>
-                {FILTER_LABELS[key]}
-              </p>
-              <p className={`text-2xl font-semibold tabular-nums ${isActive ? "text-gold-400" : "text-foreground"}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className={`inline-flex items-center justify-center rounded-md border p-1 ${isActive ? cfg.cardBg : "bg-surface-800 border-border"}`}>
+                    {cfg.icon}
+                  </span>
+                  <p className={`text-xs leading-tight ${isActive ? cfg.numColor : "text-muted-foreground"}`}>
+                    {cfg.label}
+                  </p>
+                </div>
+                <CriteriaTooltip text={cfg.tooltip} />
+              </div>
+              <p className={`text-2xl font-semibold tabular-nums ${isActive ? cfg.numColor : "text-foreground"}`}>
                 {count}
               </p>
               {isActive && (
-                <p className="text-[10px] text-gold-400/70 mt-1">filtro ativo · clique para limpar</p>
+                <p className={`text-[10px] mt-1 ${cfg.numColor} opacity-70`}>filtro ativo · clique para limpar</p>
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Results */}
-      {showReviews ? (
-        <ReviewList reviews={reviews} />
-      ) : (
-        <CustomerList
-          rows={filteredCustomers}
-          emptyMessage={
-            active
-              ? `Nenhum cliente em "${FILTER_LABELS[active]}".`
-              : "Selecione um filtro acima para ver os clientes."
-          }
-          showAll={!active}
-          onSelect={setSelectedCustomer}
-        />
-      )}
+      {/* Customer list */}
+      <CustomerList
+        rows={filteredCustomers}
+        emptyMessage={active ? `Nenhum cliente em "${FILTER_CONFIG.find(c => c.key === active)?.label}".` : "Selecione um filtro acima para ver os clientes."}
+        showAll={!active}
+        onSelect={setSelectedCustomer}
+      />
 
       {/* Detail drawer */}
       {selectedCustomer && (
@@ -173,14 +219,9 @@ export function PostSaleClient({ summary, customers, reviews }: Props) {
   );
 }
 
-// ── Customer list (compact mobile cards) ─────────────────────────────────────
+// ── Customer list ─────────────────────────────────────────────
 
-function CustomerList({
-  rows,
-  emptyMessage,
-  showAll,
-  onSelect,
-}: {
+function CustomerList({ rows, emptyMessage, showAll, onSelect }: {
   rows: CustomerSummary[];
   emptyMessage: string;
   showAll: boolean;
@@ -200,87 +241,77 @@ function CustomerList({
     <div className="space-y-2">
       {showAll && (
         <p className="text-xs text-muted-foreground">
-          Mostrando todos os clientes com status pós-venda. Clique em uma caixa acima para filtrar.
+          Mostrando todos os clientes com status pós-venda. Clique em um filtro acima para ver por categoria.
         </p>
       )}
-      {display.map((c) => (
-        <button
-          key={c.id}
-          onClick={() => onSelect(c)}
-          className="w-full rounded-lg border border-border/60 bg-surface-900 hover:border-border hover:bg-surface-800 transition-colors text-left"
-        >
-          <div className="px-4 py-3 flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              {/* Status badge on top */}
-              <div className="flex items-center gap-2 mb-1">
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] px-1.5 py-0 leading-5 ${statusBadgeClass(c.postSaleStatus)}`}
-                >
-                  {statusLabel(c.postSaleStatus)}
-                </Badge>
+      {display.map((c) => {
+        const actions    = STATUS_ACTIONS[c.postSaleStatus] ?? [];
+        const doneCount  = actions.filter((a) => isActionDone(a, c)).length;
+        const allDone    = actions.length > 0 && doneCount === actions.length;
+        return (
+          <button
+            key={c.id}
+            onClick={() => onSelect(c)}
+            className="w-full rounded-lg border border-border/60 bg-surface-900 hover:border-border hover:bg-surface-800 transition-colors text-left"
+          >
+            <div className="px-4 py-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 leading-5 ${statusBadgeClass(c.postSaleStatus)}`}>
+                    {statusLabel(c.postSaleStatus)}
+                  </Badge>
+                  {allDone && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 leading-5 text-green-400 border-green-400/30">
+                      ✓ FUP completo
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                {c.lastVisitAt && (
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    {relativeTime(c.lastVisitAt)}
+                    {c.serviceName && ` · ${c.serviceName}`}
+                  </p>
+                )}
               </div>
-              {/* Name */}
-              <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
-              {/* Last visit */}
-              {c.lastVisitAt && (
-                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                  <Clock className="h-3 w-3 shrink-0" />
-                  {relativeTime(c.lastVisitAt)}
-                  {c.serviceName && ` · ${c.serviceName}`}
-                </p>
-              )}
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </div>
-        </button>
-      ))}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-// ── Customer detail sheet (slide-up) ─────────────────────────────────────────
+// ── Customer detail sheet ─────────────────────────────────────
 
-function CustomerDetailSheet({
-  customer,
-  onClose,
-}: {
+function CustomerDetailSheet({ customer, onClose }: {
   customer: CustomerSummary;
   onClose: () => void;
 }) {
-  const [showWhatsApp, setShowWhatsApp] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<ActionConfig | null>(null);
+  const [showWhatsApp,    setShowWhatsApp]    = useState(false);
+  const [selectedAction,  setSelectedAction]  = useState<ActionConfig | null>(null);
+  const [localCustomer,   setLocalCustomer]   = useState(customer);
 
-  const actions = STATUS_ACTIONS[customer.postSaleStatus] ?? [];
+  const actions  = STATUS_ACTIONS[localCustomer.postSaleStatus] ?? [];
+  const allDone  = actions.length > 0 && actions.every((a) => isActionDone(a, localCustomer));
 
-  // WhatsApp button disabled logic
-  const isWhatsAppDisabled = Boolean(
-    customer.lastWhatsappSentAt &&
-    customer.lastCompletedAppointmentAt &&
-    new Date(customer.lastWhatsappSentAt) > new Date(customer.lastCompletedAppointmentAt)
-  );
-
-  function handleActionClick(action: ActionConfig) {
-    if (action.id === "schedule" || action.id === "followup") {
-      setSelectedAction(action);
-      setShowWhatsApp(false);
-    } else {
-      setSelectedAction(action);
-      setShowWhatsApp(false);
-    }
+  function handleSent(action: ActionConfig) {
+    // Optimistically mark action as done locally
+    setLocalCustomer((prev) => {
+      const newTypes = [...(prev.sentTypes ?? []), action.type];
+      const newReviewStatus = action.id === "review" ? "enviado" : prev.reviewStatus;
+      return { ...prev, sentTypes: newTypes, reviewStatus: newReviewStatus };
+    });
+    setSelectedAction(null);
+    setShowWhatsApp(false);
   }
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 z-40"
-        onClick={onClose}
-      />
-
-      {/* Sheet */}
+      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
       <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-border bg-card shadow-xl max-h-[85vh] overflow-y-auto">
-        {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-border" />
         </div>
@@ -289,31 +320,24 @@ function CustomerDetailSheet({
         <div className="flex items-start justify-between px-5 py-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Badge
-                variant="outline"
-                className={`text-[10px] ${statusBadgeClass(customer.postSaleStatus)}`}
-              >
-                {statusLabel(customer.postSaleStatus)}
+              <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(localCustomer.postSaleStatus)}`}>
+                {statusLabel(localCustomer.postSaleStatus)}
               </Badge>
             </div>
-            <h2 className="text-base font-semibold text-foreground">{customer.name}</h2>
-            {customer.phone && (
+            <h2 className="text-base font-semibold text-foreground">{localCustomer.name}</h2>
+            {localCustomer.phone && (
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                <Phone className="h-3 w-3" />
-                {customer.phone}
+                <Phone className="h-3 w-3" />{localCustomer.phone}
               </p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-800 transition-colors"
-          >
+          <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-800 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="px-5 pb-6 space-y-4">
-          {/* Last visit info */}
+          {/* Last visit */}
           <div className="rounded-lg border border-border/60 bg-surface-900 p-3 space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Último atendimento</p>
             <div className="flex items-center gap-3">
@@ -321,103 +345,98 @@ function CustomerDetailSheet({
                 <Scissors className="h-4 w-4 text-gold-400" />
               </div>
               <div>
-                {customer.serviceName ? (
-                  <p className="text-sm font-medium text-foreground">{customer.serviceName}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Serviço não registrado</p>
-                )}
+                {localCustomer.serviceName
+                  ? <p className="text-sm font-medium text-foreground">{localCustomer.serviceName}</p>
+                  : <p className="text-sm text-muted-foreground italic">Serviço não registrado</p>
+                }
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {customer.lastVisitAt && (
+                  {localCustomer.lastVisitAt && (
                     <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {relativeTime(customer.lastVisitAt)}
+                      <Clock className="h-3 w-3" />{relativeTime(localCustomer.lastVisitAt)}
                     </span>
                   )}
-                  {customer.servicePrice != null && (
-                    <span>· R$ {customer.servicePrice.toFixed(2).replace(".", ",")}</span>
+                  {localCustomer.servicePrice != null && (
+                    <span>· R$ {localCustomer.servicePrice.toFixed(2).replace(".", ",")}</span>
                   )}
                 </div>
               </div>
             </div>
-
-            {/* Stats row */}
-            {(customer.ticketMedio != null || customer.frequencia != null) && (
+            {(localCustomer.ticketMedio != null || localCustomer.frequencia != null) && (
               <div className="flex gap-4 pt-1 border-t border-border/40">
-                {customer.ticketMedio != null && (
+                {localCustomer.ticketMedio != null && (
                   <div>
                     <p className="text-[10px] text-muted-foreground">Ticket médio</p>
-                    <p className="text-xs font-medium text-foreground">
-                      R$ {customer.ticketMedio.toFixed(2).replace(".", ",")}
-                    </p>
+                    <p className="text-xs font-medium text-foreground">R$ {localCustomer.ticketMedio.toFixed(2).replace(".", ",")}</p>
                   </div>
                 )}
-                {customer.frequencia != null && (
+                {localCustomer.frequencia != null && (
                   <div>
                     <p className="text-[10px] text-muted-foreground">Visitas totais</p>
-                    <p className="text-xs font-medium text-foreground">{customer.frequencia}</p>
+                    <p className="text-xs font-medium text-foreground">{localCustomer.frequencia}</p>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* WhatsApp button (disabled if already sent since last appointment) */}
+          {/* FUP status */}
           {actions.length > 0 && (
-            <div>
-              <Button
-                className="w-full gap-2"
-                variant={isWhatsAppDisabled ? "outline" : "default"}
-                disabled={isWhatsAppDisabled}
-                onClick={() => setShowWhatsApp(true)}
-              >
-                <MessageCircle className="h-4 w-4" />
-                {isWhatsAppDisabled ? "Mensagem enviada · aguardando próximo atendimento" : "Enviar mensagem"}
-              </Button>
-              {isWhatsAppDisabled && customer.lastWhatsappSentAt && (
-                <p className="text-[10px] text-muted-foreground text-center mt-1">
-                  Último envio: {relativeTime(customer.lastWhatsappSentAt)}
-                </p>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Follow-up</p>
+
+              {/* Actions done */}
+              {actions.filter((a) => isActionDone(a, localCustomer)).length > 0 && (
+                <div className="space-y-1.5">
+                  {actions.filter((a) => isActionDone(a, localCustomer)).map((a) => (
+                    <div key={a.id} className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                      <span className="text-xs text-green-400">{a.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Send button or all-done message */}
+              {allDone ? (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 text-center">
+                  <p className="text-sm font-medium text-green-400">FUP completo</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Todas as ações foram realizadas para este atendimento.</p>
+                </div>
+              ) : (
+                <Button className="w-full gap-2" onClick={() => setShowWhatsApp(true)}>
+                  <MessageCircle className="h-4 w-4" />
+                  Enviar mensagem
+                </Button>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* WhatsApp action sheet */}
       {showWhatsApp && (
         <WhatsAppActionSheet
-          customer={customer}
-          actions={actions}
+          customer={localCustomer}
+          actions={actions.filter((a) => !isActionDone(a, localCustomer))}
           onClose={() => setShowWhatsApp(false)}
-          onAction={handleActionClick}
+          onAction={(a) => { setSelectedAction(a); setShowWhatsApp(false); }}
         />
       )}
 
-      {/* Template message modal */}
       {selectedAction && (
         <TemplateMessageModal
-          customer={customer}
+          customer={localCustomer}
           action={selectedAction}
           onClose={() => setSelectedAction(null)}
-          onSent={() => {
-            setSelectedAction(null);
-            setShowWhatsApp(false);
-            onClose();
-          }}
+          onSent={() => handleSent(selectedAction)}
         />
       )}
     </>
   );
 }
 
-// ── WhatsApp action sheet ─────────────────────────────────────────────────────
+// ── WhatsApp action sheet ─────────────────────────────────────
 
-function WhatsAppActionSheet({
-  customer,
-  actions,
-  onClose,
-  onAction,
-}: {
+function WhatsAppActionSheet({ customer, actions, onClose, onAction }: {
   customer: CustomerSummary;
   actions:  ActionConfig[];
   onClose:  () => void;
@@ -437,53 +456,32 @@ function WhatsAppActionSheet({
           <div className="space-y-2">
             {actions.map((action) => {
               const Icon = action.icon;
-              const isSchedule = action.id === "schedule" || action.id === "followup";
               return (
-                <button
-                  key={action.id}
-                  onClick={() => onAction(action)}
+                <button key={action.id} onClick={() => onAction(action)}
                   className="w-full flex items-center gap-3 rounded-lg border border-border/60 bg-surface-900 hover:border-border hover:bg-surface-800 px-4 py-3 text-sm text-left transition-colors"
                 >
                   <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="flex-1 text-foreground">{action.label}</span>
-                  {isSchedule && (
-                    <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-400/30">
-                      Agendada
-                    </Badge>
+                  {action.scheduled && (
+                    <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-400/30">Agendada</Badge>
                   )}
                 </button>
               );
             })}
           </div>
-          <Button variant="ghost" className="w-full mt-3 text-muted-foreground" onClick={onClose}>
-            Cancelar
-          </Button>
+          <Button variant="ghost" className="w-full mt-3 text-muted-foreground" onClick={onClose}>Cancelar</Button>
         </div>
       </div>
     </>
   );
 }
 
-// ── Template variable type ────────────────────────────────────────────────────
+// ── Template message modal ────────────────────────────────────
 
-interface WaTemplate {
-  id:        string;
-  metaName:  string;
-  label:     string;
-  body:      string;
-  variables: string; // JSON: [{key,label,defaultValue}]
-}
-
+interface WaTemplate { id: string; metaName: string; label: string; body: string; variables: string }
 interface TemplateVar { key: string; label: string; defaultValue: string }
 
-// ── Template message modal (used for ALL post-sale sends) ─────────────────────
-
-function TemplateMessageModal({
-  customer,
-  action,
-  onClose,
-  onSent,
-}: {
+function TemplateMessageModal({ customer, action, onClose, onSent }: {
   customer: CustomerSummary;
   action:   ActionConfig;
   onClose:  () => void;
@@ -500,7 +498,6 @@ function TemplateMessageModal({
   const [sending,      setSending]      = useState(false);
   const [error,        setError]        = useState("");
 
-  // Load templates on mount
   useEffect(() => {
     fetch("/api/whatsapp/templates")
       .then((r) => r.json())
@@ -537,21 +534,22 @@ function TemplateMessageModal({
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
-          customerId:   customer.id,
-          customerName: customer.name,
-          phone:        customer.phone,
-          message:      previewBody(),
-          type:         action.type,
-          messageKind:  "template",
-          templateName: selectedTpl.metaName,
-          templateVars: varValues,
-          scheduledFor: isScheduled && scheduledFor ? scheduledFor : undefined,
+          customerId:    customer.id,
+          customerName:  customer.name,
+          phone:         customer.phone,
+          message:       previewBody(),
+          type:          action.type,
+          messageKind:   "template",
+          templateName:  selectedTpl.metaName,
+          templateVars:  varValues,
+          scheduledFor:  isScheduled && scheduledFor ? scheduledFor : undefined,
+          appointmentId: customer.lastAppointmentId ?? undefined,
         }),
       });
-      if (!res.ok) throw new Error("Falha ao agendar");
+      if (!res.ok) throw new Error("Falha ao enviar");
       onSent();
     } catch {
-      setError("Erro ao agendar mensagem.");
+      setError("Erro ao enviar mensagem.");
     } finally {
       setSending(false);
     }
@@ -573,21 +571,16 @@ function TemplateMessageModal({
           </button>
         </div>
 
-        {/* Date picker */}
         {isScheduled && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Data de envio</label>
-            <input
-              type="date"
-              value={scheduledFor}
-              min={todayStr}
+            <input type="date" value={scheduledFor} min={todayStr}
               onChange={(e) => setScheduledFor(e.target.value)}
               className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         )}
 
-        {/* Template selector */}
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando templates...
@@ -600,40 +593,26 @@ function TemplateMessageModal({
         ) : (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Template</label>
-            <select
-              value={selectedTpl?.id ?? ""}
-              onChange={(e) => {
-                const t = templates.find((t) => t.id === e.target.value);
-                if (t) selectTemplate(t);
-              }}
+            <select value={selectedTpl?.id ?? ""}
+              onChange={(e) => { const t = templates.find((t) => t.id === e.target.value); if (t) selectTemplate(t); }}
               className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">Selecione um template…</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
           </div>
         )}
 
-        {/* Variable inputs */}
         {vars.length > 0 && vars.map((v, i) => (
           <div key={v.key} className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">{v.label}</label>
-            <input
-              type="text"
-              value={varValues[i] ?? ""}
-              onChange={(e) => {
-                const next = [...varValues];
-                next[i] = e.target.value;
-                setVarValues(next);
-              }}
+            <input type="text" value={varValues[i] ?? ""}
+              onChange={(e) => { const next = [...varValues]; next[i] = e.target.value; setVarValues(next); }}
               className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         ))}
 
-        {/* Preview */}
         {selectedTpl && (
           <div className="rounded-lg border border-border/40 bg-surface-800/50 px-3 py-2 space-y-1">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pré-visualização</p>
@@ -644,11 +623,8 @@ function TemplateMessageModal({
         {error && <p className="text-xs text-red-400">{error}</p>}
 
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>
-            Cancelar
-          </Button>
-          <Button
-            className="flex-1 gap-2"
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>Cancelar</Button>
+          <Button className="flex-1 gap-2"
             disabled={!selectedTpl || !customer.phone || sending || (isScheduled && !scheduledFor) || templates.length === 0}
             onClick={handleSend}
           >
@@ -661,113 +637,12 @@ function TemplateMessageModal({
   );
 }
 
-// ── Review list ───────────────────────────────────────────────────────────────
-
-function ReviewList({ reviews }: { reviews: ReviewItem[] }) {
-  const [sendingId, setSendingId] = useState<string | null>(null);
-  const [sentIds,   setSentIds]   = useState<Set<string>>(new Set());
-
-  async function sendReview(r: ReviewItem) {
-    if (!r.customerPhone) return;
-    setSendingId(r.id);
-    setReviewTemplate(r.id);
-  }
-
-  function setReviewTemplate(reviewId: string) {
-    setSendingId(null);
-    setOpenReviewId(reviewId);
-  }
-
-  const [openReviewId, setOpenReviewId] = useState<string | null>(null);
-
-  if (reviews.length === 0) {
-    return (
-      <div className="rounded-lg border border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-        Nenhuma avaliação pendente nas últimas 48h.
-      </div>
-    );
-  }
-
-  const openReview = openReviewId ? reviews.find((r) => r.id === openReviewId) : null;
-
-  return (
-    <>
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Clientes atendidos nas últimas 48h aguardando solicitação de avaliação Google.
-        </p>
-        {reviews.map((r) => (
-          <div key={r.id} className="rounded-lg border border-border/60 bg-surface-900">
-            <div className="py-3 px-4 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{r.customerName}</p>
-                <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-0.5">
-                  {r.customerPhone && <span>{r.customerPhone}</span>}
-                  {r.completedAt && <span>Atendido {relativeTime(r.completedAt)}</span>}
-                  {r.serviceName && <span>{r.serviceName}</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {sentIds.has(r.id) ? (
-                  <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-400/30">
-                    Agendado
-                  </Badge>
-                ) : (
-                  <>
-                    <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/30">
-                      Pendente
-                    </Badge>
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs gap-1"
-                      disabled={!r.customerPhone}
-                      onClick={() => sendReview(r)}
-                    >
-                      <MessageCircle className="h-3 w-3" />
-                      Pedir avaliação
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {openReview && (
-        <TemplateMessageModal
-          customer={{
-            id: openReview.customerId,
-            name: openReview.customerName,
-            phone: openReview.customerPhone ?? null,
-            postSaleStatus: "RECENTE",
-            lastVisitAt: openReview.completedAt ?? null,
-            serviceName: openReview.serviceName ?? null,
-            servicePrice: null,
-            lastWhatsappSentAt: null,
-            lastCompletedAppointmentAt: null,
-          }}
-          action={{ id: "review", label: "Pedir avaliação Google", type: "post_sale_review", icon: MessageCircle }}
-          onClose={() => setOpenReviewId(null)}
-          onSent={() => {
-            setSentIds((prev) => new Set([...prev, openReview.id]));
-            setOpenReviewId(null);
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
 
 function statusLabel(s: string) {
   const map: Record<string, string> = {
-    RECENTE:      "Recente",
-    EM_RISCO:     "Em risco",
-    INATIVO:      "Inativo",
-    REATIVADO:    "Reativado",
-    NAO_CONTATAR: "Não contatar",
+    RECENTE: "Recente", EM_RISCO: "Em risco", INATIVO: "Inativo",
+    REATIVADO: "Reativado", NAO_CONTATAR: "Não contatar",
   };
   return map[s] ?? s;
 }
