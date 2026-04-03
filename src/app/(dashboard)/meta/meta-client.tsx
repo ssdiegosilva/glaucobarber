@@ -485,10 +485,11 @@ export function MetaClient({
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
 
   // Annual chart
-  const [annualYear,  setAnnualYear]  = useState(year);
-  const [annualData,  setAnnualData]  = useState(initialAnnualMonths);
-  const [loadingYear, setLoadingYear] = useState(false);
-  const [showAnnual,  setShowAnnual]  = useState(false);
+  const [annualYear,       setAnnualYear]       = useState(year);
+  const [annualData,       setAnnualData]        = useState(initialAnnualMonths);
+  const [loadingYear,      setLoadingYear]       = useState(false);
+  const [showAnnual,       setShowAnnual]        = useState(false);
+  const [selectedAnnualM,  setSelectedAnnualM]   = useState<number | null>(null);
 
   // ── Derived ──────────────────────────────────────────────
 
@@ -594,6 +595,7 @@ export function MetaClient({
 
   async function loadYear(y: number) {
     setLoadingYear(true);
+    setSelectedAnnualM(null);
     try {
       const res = await fetch(`/api/financeiro/annual?year=${y}`);
       const data = await res.json();
@@ -853,12 +855,19 @@ export function MetaClient({
             </div>
             <div className="flex items-end gap-2 h-32">
               {annualData.map((m) => {
-                const revPct  = (m.revenue / maxAnnual) * 100;
-                const goalPct = m.goal ? (m.goal / maxAnnual) * 100 : null;
-                const hit     = m.goal && m.revenue >= m.goal;
+                const revPct   = (m.revenue / maxAnnual) * 100;
+                const goalPct  = m.goal ? (m.goal / maxAnnual) * 100 : null;
+                const hit      = m.goal && m.revenue >= m.goal;
                 const isFuture = annualYear === year && m.month > month;
+                const isSelected = selectedAnnualM === m.month;
                 return (
-                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                  <button
+                    key={m.month}
+                    type="button"
+                    disabled={isFuture}
+                    onClick={() => setSelectedAnnualM(isSelected ? null : m.month)}
+                    className={`flex-1 flex flex-col items-center gap-1 rounded-sm transition-opacity ${isFuture ? "cursor-default opacity-50" : "cursor-pointer hover:opacity-80"} ${isSelected ? "ring-1 ring-gold-400 rounded" : ""}`}
+                  >
                     <div className="w-full flex flex-col justify-end h-24 relative">
                       {goalPct !== null && (
                         <div className="absolute w-full border-t-2 border-dashed border-gold-500/50" style={{ bottom: `${goalPct}%` }} />
@@ -866,14 +875,81 @@ export function MetaClient({
                       <div
                         className={`w-full rounded-sm transition-all ${isFuture ? "bg-surface-700" : hit ? "bg-green-500/70" : m.revenue > 0 ? "bg-gold-500/60" : "bg-surface-700"}`}
                         style={{ height: m.revenue > 0 ? `${Math.max(revPct, 4)}%` : "4px" }}
-                        title={`${m.label}: ${formatBRL(m.revenue)}${m.goal ? ` / meta ${formatBRL(m.goal)}` : ""}`}
                       />
                     </div>
-                    <span className="text-[9px] text-muted-foreground">{m.label}</span>
-                  </div>
+                    <span className={`text-[9px] ${isSelected ? "text-gold-400 font-semibold" : "text-muted-foreground"}`}>{m.label}</span>
+                  </button>
                 );
               })}
             </div>
+
+            {/* Month detail panel */}
+            {selectedAnnualM !== null && (() => {
+              const m = annualData.find((x) => x.month === selectedAnnualM);
+              if (!m) return null;
+              const pct       = m.goal && m.goal > 0 ? Math.min(m.revenue / m.goal, 1) : null;
+              const avgTicket = m.count > 0 ? m.revenue / m.count : null;
+              const goalRow   = annualYear === year ? allGoals.find((g) => g.month === m.month) : null;
+              return (
+                <div className="rounded-lg border border-gold-500/20 bg-gold-500/5 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{MONTH_NAMES[m.month - 1]} {annualYear}</p>
+                    <button onClick={() => setSelectedAnnualM(null)} className="text-muted-foreground hover:text-foreground">
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground">Receita realizada</p>
+                      <p className="text-sm font-bold text-foreground tabular-nums">{formatBRL(m.revenue)}</p>
+                    </div>
+                    {m.goal ? (
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground">Meta</p>
+                        <p className="text-sm font-bold text-gold-400 tabular-nums">{formatBRL(m.goal)}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground">Meta</p>
+                        <p className="text-sm text-muted-foreground">—</p>
+                      </div>
+                    )}
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground">Atendimentos</p>
+                      <p className="text-sm font-bold text-foreground">{m.count}</p>
+                    </div>
+                    {avgTicket !== null && (
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground">Ticket médio</p>
+                        <p className="text-sm font-bold text-foreground tabular-nums">{formatBRL(avgTicket)}</p>
+                      </div>
+                    )}
+                    {goalRow?.workingDaysCount && (
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground">Dias úteis</p>
+                        <p className="text-sm font-bold text-foreground">{goalRow.workingDaysCount}</p>
+                      </div>
+                    )}
+                    {goalRow?.workingDaysCount && m.revenue > 0 && (
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground">Média/dia</p>
+                        <p className="text-sm font-bold text-foreground tabular-nums">{formatBRL(m.revenue / goalRow.workingDaysCount)}</p>
+                      </div>
+                    )}
+                  </div>
+                  {pct !== null && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>{Math.round(pct * 100)}% da meta atingida</span>
+                        {pct >= 1 && <span className="text-green-400 font-semibold">✓ Meta batida!</span>}
+                      </div>
+                      <ProgressBar value={pct} />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-gold-500/60 inline-block" />Receita</span>
               <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-green-500/70 inline-block" />Meta atingida</span>
