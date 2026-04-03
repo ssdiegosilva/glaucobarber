@@ -156,6 +156,7 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   price_recommend:  "Recomendação de Preço",
   opportunities:    "Oportunidades de Serviço",
   campaign_image:   "Imagem de Campanha",
+  campaign_text:    "Texto de Campanha",
   brand_style_improve: "Identidade visual (texto)",
   brand_style_logo:    "Identidade visual (logo)",
 };

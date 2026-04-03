@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
 import { uploadCampaignImageFromUrl } from "@/lib/storage";
+import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -10,6 +11,12 @@ export async function POST(req: NextRequest) {
 
   const { theme, objective, channel, offerId } = await req.json();
   if (!theme || !objective) return NextResponse.json({ error: "Tema e objetivo são obrigatórios" }, { status: 400 });
+
+  // Verifica saldo para texto + imagem (2 créditos)
+  const allowanceText = await checkAiAllowance(session.user.barbershopId);
+  if (!allowanceText.allowed) {
+    return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
+  }
 
   // Build offer context for AI if offer is linked
   let offerContext = "";
@@ -27,6 +34,7 @@ export async function POST(req: NextRequest) {
   const provider = getAIProvider();
   const context = `Barbearia: ${session.user.barbershopId}. Tema: ${theme}. Objetivo: ${objective}.${offerContext}`;
   const ai = await provider.generateCampaignText(objective, context);
+  await consumeAiCredit(session.user.barbershopId, "campaign_text");
 
   const campaign = await prisma.campaign.create({
     data: {
@@ -43,6 +51,11 @@ export async function POST(req: NextRequest) {
 
   // Gera arte imediatamente para reduzir atrito
   try {
+    const allowanceImage = await checkAiAllowance(session.user.barbershopId);
+    if (!allowanceImage.allowed) {
+      return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
+    }
+
     const barbershop = await prisma.barbershop.findUnique({
       where:  { id: session.user.barbershopId },
       select: { name: true, brandStyle: true, campaignReferenceImageUrl: true },
@@ -95,6 +108,7 @@ Important:
 
     await prisma.campaign.update({ where: { id: campaign.id }, data: { imageUrl: stored.url } });
     campaign.imageUrl = stored.url;
+    await consumeAiCredit(session.user.barbershopId, "campaign_image");
   } catch (err) {
     console.error("Erro ao gerar imagem da campanha", err);
   }
