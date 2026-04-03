@@ -95,6 +95,87 @@ export default async function DashboardPage({
       ? await getPeriodStats(barbershopId, startOfMonth(now), endOfMonth(now), revenueGoal)
       : null;
 
+  // Widget preferences
+  const DEFAULT_WIDGETS = ["revenue_today", "occupancy_today", "inactive_clients"];
+  let selectedWidgets: string[] = DEFAULT_WIDGETS;
+  try {
+    const raw = JSON.parse(barbershop?.dashboardWidgets ?? "[]");
+    if (Array.isArray(raw) && raw.length > 0) selectedWidgets = raw;
+  } catch { /* keep default */ }
+
+  // Extra widget data (only fetch what's needed)
+  const monthStart = startOfMonth(now);
+  const monthEnd   = endOfMonth(now);
+  const weekStart  = startOfWeek(now, { weekStartsOn: 1 });
+
+  const [avgTicketData, newClientsCount, returnRateData, weeklyRevenueData, topServiceData, whatsappQueueCount] =
+    await Promise.all([
+      // avg_ticket: average of completed appointments this month
+      selectedWidgets.includes("avg_ticket")
+        ? prisma.appointment.aggregate({
+            where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: monthStart, lte: monthEnd } },
+            _avg:  { price: true },
+            _count: { _all: true },
+          })
+        : null,
+
+      // new_clients: customers created in last 30 days
+      selectedWidgets.includes("new_clients")
+        ? prisma.customer.count({ where: { barbershopId, createdAt: { gte: new Date(Date.now() - 30 * 86400_000) } } })
+        : null,
+
+      // return_rate: clients who visited in last 45 days / total active clients
+      selectedWidgets.includes("return_rate")
+        ? Promise.all([
+            prisma.customer.count({ where: { barbershopId, status: "ACTIVE", lastVisitAt: { gte: new Date(Date.now() - 45 * 86400_000) } } }),
+            prisma.customer.count({ where: { barbershopId, status: "ACTIVE" } }),
+          ])
+        : null,
+
+      // weekly_revenue: sum of completed appointments this week
+      selectedWidgets.includes("weekly_revenue")
+        ? prisma.appointment.aggregate({
+            where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: weekStart, lte: now } },
+            _sum: { price: true },
+          })
+        : null,
+
+      // top_service: most common service name this month
+      selectedWidgets.includes("top_service")
+        ? prisma.appointment.groupBy({
+            by:    ["serviceName"],
+            where: { barbershopId, scheduledAt: { gte: monthStart, lte: monthEnd } },
+            _count: { _all: true },
+            orderBy: { _count: { serviceName: "desc" } },
+            take: 1,
+          })
+        : null,
+
+      // whatsapp_queue: count of QUEUED messages
+      selectedWidgets.includes("whatsapp_queue")
+        ? prisma.whatsappMessage.count({ where: { barbershopId, status: "QUEUED" } })
+        : null,
+    ]);
+
+  // Compute return rate
+  const returnRatePct = returnRateData
+    ? (returnRateData[1] > 0 ? Math.round((returnRateData[0] / returnRateData[1]) * 100) : 0)
+    : null;
+
+  // Monthly goal progress
+  const monthlyGoalPct = revenueGoal && periodStats
+    ? periodStats.goalProgress
+    : revenueGoal
+    ? await (async () => {
+        const monthRevenue = await prisma.appointment.aggregate({
+          where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: monthStart, lte: monthEnd } },
+          _sum:  { price: true },
+        });
+        const actual = Number(monthRevenue._sum.price ?? 0);
+        return revenueGoal > 0 ? actual / revenueGoal : null;
+      })()
+    : null;
+
   // Map trinksId → offer title for badge display
   const offerByTrinksId = new Map(
     offerAppointments
@@ -167,6 +248,16 @@ export default async function DashboardPage({
           goalProgress:      periodStats.goalProgress,
           dailyRevenue:      periodStats.dailyRevenue,
         } : null}
+        initialWidgets={selectedWidgets}
+        widgetData={{
+          avgTicket:       avgTicketData?._count._all ? Number(avgTicketData._avg.price ?? 0) : null,
+          newClients:      newClientsCount ?? null,
+          returnRate:      returnRatePct,
+          weeklyRevenue:   weeklyRevenueData ? Number(weeklyRevenueData._sum.price ?? 0) : null,
+          topService:      topServiceData?.[0]?.serviceName ?? null,
+          whatsappQueue:   whatsappQueueCount ?? null,
+          monthlyGoalPct,
+        }}
       />
     </div>
   );

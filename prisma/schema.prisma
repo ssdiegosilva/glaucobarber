@@ -99,6 +99,9 @@ model Barbershop {
   // Daily gift: first AI suggestion generation of the day is free
   lastDailyGiftAt  DateTime?
 
+  // Dashboard widget preferences: JSON array of up to 3 widget keys
+  dashboardWidgets String    @default("[]")
+
   // Agenda display settings
   agendaStartHour Int @default(6)   // 0–23
   agendaEndHour   Int @default(24)  // 1–24 (exclusive upper bound)

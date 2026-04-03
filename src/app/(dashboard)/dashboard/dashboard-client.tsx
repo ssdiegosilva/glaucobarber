@@ -11,7 +11,8 @@ import {
   RefreshCw, ChevronRight, ArrowUpRight, BarChart3,
   Scissors, CreditCard, Plus, Trash2,
   ThumbsUp, Play, Flag, UserX, Ban, CalendarClock as CalendarClockIcon,
-  MessageCircle, Zap, ChevronDown,
+  MessageCircle, Zap, ChevronDown, Settings2, Star, MessageSquare,
+  UserPlus, Repeat2, Target, X,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -92,6 +93,16 @@ interface PeriodStats {
   dailyRevenue:      { day: string; revenue: number; count: number }[];
 }
 
+interface WidgetData {
+  avgTicket:       number | null;
+  newClients:      number | null;
+  returnRate:      number | null;
+  weeklyRevenue:   number | null;
+  topService:      string | null;
+  whatsappQueue:   number | null;
+  monthlyGoalPct:  number | null;
+}
+
 interface Props {
   view:                  "today" | "week" | "month";
   barbershopName:        string;
@@ -105,7 +116,28 @@ interface Props {
   campaign:              Campaign | null;
   periodStats:           PeriodStats | null;
   dailyGiftAvailable?:   boolean;
+  initialWidgets?:       string[];
+  widgetData?:           WidgetData;
 }
+
+// ── Widget registry ──────────────────────────────────────────
+
+const DEFAULT_WIDGETS = ["revenue_today", "occupancy_today", "inactive_clients"];
+const MAX_WIDGETS = 3;
+
+const WIDGET_META: Record<string, { label: string; description: string }> = {
+  revenue_today:    { label: "Faturamento hoje",      description: "Receita prevista do dia com barra de meta" },
+  occupancy_today:  { label: "Ocupação hoje",          description: "% de slots ocupados e total de agendamentos" },
+  inactive_clients: { label: "Clientes inativos",      description: "Clientes sem visita há mais de 30 dias" },
+  monthly_goal:     { label: "Meta mensal",            description: "% da meta de receita atingida no mês" },
+  avg_ticket:       { label: "Ticket médio",           description: "Valor médio por atendimento concluído no mês" },
+  new_clients:      { label: "Novos clientes",         description: "Clientes cadastrados nos últimos 30 dias" },
+  return_rate:      { label: "Taxa de retorno",        description: "% de clientes ativos que voltaram em 45 dias" },
+  pending_apts:     { label: "Agendados hoje",         description: "Atendimentos confirmados ainda não iniciados" },
+  weekly_revenue:   { label: "Faturamento da semana",  description: "Receita de atendimentos concluídos esta semana" },
+  top_service:      { label: "Serviço mais popular",   description: "Serviço com mais atendimentos este mês" },
+  whatsapp_queue:   { label: "WhatsApp na fila",       description: "Mensagens aguardando envio" },
+};
 
 // ── Status helpers ───────────────────────────────────────────
 
@@ -158,6 +190,8 @@ export function DashboardClient({
   campaign,
   periodStats,
   dailyGiftAvailable = false,
+  initialWidgets = DEFAULT_WIDGETS,
+  widgetData,
 }: Props) {
   const [localSuggestions, setLocalSuggestions] = useState(suggestions);
   const [localApproved] = useState(approvedSuggestions);
@@ -185,6 +219,27 @@ export function DashboardClient({
 
   // Track post-approval state per suggestion (id → whatsappQueued)
   const [approvedMap, setApprovedMap] = useState<Record<string, boolean>>({});
+
+  // Widget preferences
+  const [widgetKeys, setWidgetKeys]       = useState<string[]>(initialWidgets);
+  const [showWidgetPicker, setShowWidgetPicker] = useState(false);
+  const [savingWidgets, setSavingWidgets]   = useState(false);
+
+  async function saveWidgets(keys: string[]) {
+    setSavingWidgets(true);
+    try {
+      await fetch("/api/barbershop/widgets", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ widgets: keys }),
+      });
+      setWidgetKeys(keys);
+    } catch {
+      toast({ title: "Erro ao salvar widgets", variant: "destructive" });
+    } finally {
+      setSavingWidgets(false);
+    }
+  }
 
   // Daily gift: auto-generate suggestions on first access of the day (free, no credit deducted)
   useEffect(() => {
@@ -572,50 +627,42 @@ export function DashboardClient({
           </div>
         </div>
       ) : view === "today" ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Featured: Faturamento (spans 2 on large) */}
-          <Card className="hover:border-gold-500/20 transition-colors col-span-2 lg:col-span-2">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-muted-foreground font-medium">Faturamento previsto hoje</p>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-3xl font-bold tabular-nums text-foreground">{formatBRL(stats.projectedRevenue)}</p>
-              {stats.revenueGoal ? (() => {
-                const workDays = stats.workingDaysCount ?? 30;
-                const dailyGoal = stats.revenueGoal / workDays;
-                const pct = Math.min(stats.projectedRevenue / dailyGoal, 1);
-                const color = pct >= 1 ? "bg-green-500" : pct >= 0.6 ? "bg-gold-500" : "bg-red-500";
-                return (
-                  <div className="mt-3 space-y-1">
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>Meta diária: {formatBRL(dailyGoal)} <span className="opacity-60">({workDays} dias úteis)</span></span>
-                      <span className={pct >= 1 ? "text-green-400" : ""}>{Math.round(pct * 100)}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.round(pct * 100)}%` }} />
-                    </div>
-                  </div>
-                );
-              })() : <p className="text-xs text-muted-foreground mt-2">Sem meta definida — <a href="/financeiro" className="text-gold-400 hover:underline">definir meta</a></p>}
-            </CardContent>
-          </Card>
+        <>
+          {/* Widget picker modal */}
+          {showWidgetPicker && (
+            <WidgetPickerModal
+              current={widgetKeys}
+              onSave={(keys) => { saveWidgets(keys); setShowWidgetPicker(false); }}
+              onClose={() => setShowWidgetPicker(false)}
+              saving={savingWidgets}
+            />
+          )}
 
-          <KpiCard
-            label="Ocupação hoje"
-            value={`${Math.round(stats.occupancyRate * 100)}%`}
-            subValue={`${stats.bookedSlots} de ${stats.totalSlots} slots`}
-            icon={<Calendar className="h-4 w-4" />}
-            valueClass={occupancyColor}
-          />
-          <KpiCard
-            label="Clientes inativos"
-            value={String(stats.inactiveClients)}
-            subValue="+30 dias sem vir"
-            icon={<Users className="h-4 w-4" />}
-            valueClass={stats.inactiveClients > 0 ? "text-yellow-400" : "text-green-400"}
-          />
-        </div>
+          {/* Widget grid header */}
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">Indicadores do dia</span>
+            <button
+              onClick={() => setShowWidgetPicker(true)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Personalizar
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {widgetKeys.map((key) => (
+              <WidgetCard
+                key={key}
+                widgetKey={key}
+                stats={stats}
+                widgetData={widgetData}
+                appointments={appointments}
+                occupancyColor={occupancyColor}
+              />
+            ))}
+          </div>
+        </>
       ) : periodStats ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <KpiCard
@@ -1245,6 +1292,290 @@ const APPROVAL_LINK: Record<string, { href: string; label: string } | undefined>
   OFFER_OPPORTUNITY:  { href: "/offers",    label: "Ver ofertas" },
   COMMERCIAL_INSIGHT: undefined,
 };
+
+// ── WidgetCard ───────────────────────────────────────────────
+
+function WidgetCard({
+  widgetKey,
+  stats,
+  widgetData,
+  appointments,
+  occupancyColor,
+}: {
+  widgetKey:      string;
+  stats:          Stats;
+  widgetData?:    WidgetData;
+  appointments:   Appointment[];
+  occupancyColor: string;
+}) {
+  const pendingCount = appointments.filter(
+    (a) => a.status === "SCHEDULED" || a.status === "CONFIRMED" || a.status === "agendado" || a.status === "confirmado"
+  ).length;
+
+  switch (widgetKey) {
+    case "revenue_today": {
+      const workDays  = stats.workingDaysCount ?? 30;
+      const dailyGoal = stats.revenueGoal ? stats.revenueGoal / workDays : null;
+      const pct       = dailyGoal ? Math.min(stats.projectedRevenue / dailyGoal, 1) : null;
+      const barColor  = pct == null ? "bg-gold-500" : pct >= 1 ? "bg-green-500" : pct >= 0.6 ? "bg-gold-500" : "bg-red-500";
+      return (
+        <Card className="hover:border-gold-500/20 transition-colors col-span-2 lg:col-span-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground font-medium">Faturamento previsto hoje</p>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-bold tabular-nums text-foreground">{formatBRL(stats.projectedRevenue)}</p>
+            {dailyGoal ? (
+              <div className="mt-3 space-y-1">
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>Meta diária: {formatBRL(dailyGoal)} <span className="opacity-60">({workDays} dias úteis)</span></span>
+                  <span className={pct != null && pct >= 1 ? "text-green-400" : ""}>{pct != null ? Math.round(pct * 100) : 0}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct != null ? Math.round(pct * 100) : 0}%` }} />
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2">Sem meta definida — <a href="/financeiro" className="text-gold-400 hover:underline">definir meta</a></p>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    case "occupancy_today":
+      return (
+        <KpiCard
+          label="Ocupação hoje"
+          value={`${Math.round(stats.occupancyRate * 100)}%`}
+          subValue={`${stats.bookedSlots} de ${stats.totalSlots} slots`}
+          icon={<Calendar className="h-4 w-4" />}
+          valueClass={occupancyColor}
+        />
+      );
+
+    case "inactive_clients":
+      return (
+        <KpiCard
+          label="Clientes inativos"
+          value={String(stats.inactiveClients)}
+          subValue="+30 dias sem vir"
+          icon={<Users className="h-4 w-4" />}
+          valueClass={stats.inactiveClients > 0 ? "text-yellow-400" : "text-green-400"}
+        />
+      );
+
+    case "monthly_goal": {
+      const pct = widgetData?.monthlyGoalPct;
+      const pctNum = pct != null ? Math.round(pct * 100) : null;
+      return (
+        <KpiCard
+          label="Meta mensal"
+          value={pctNum != null ? `${pctNum}%` : "—"}
+          subValue="da meta atingida"
+          icon={<Target className="h-4 w-4" />}
+          valueClass={pctNum == null ? "" : pctNum >= 80 ? "text-green-400" : pctNum >= 50 ? "text-yellow-400" : "text-red-400"}
+        />
+      );
+    }
+
+    case "avg_ticket":
+      return (
+        <KpiCard
+          label="Ticket médio"
+          value={widgetData?.avgTicket != null ? formatBRL(widgetData.avgTicket) : "—"}
+          subValue="por atendimento este mês"
+          icon={<BarChart3 className="h-4 w-4" />}
+        />
+      );
+
+    case "new_clients":
+      return (
+        <KpiCard
+          label="Novos clientes"
+          value={widgetData?.newClients != null ? String(widgetData.newClients) : "—"}
+          subValue="últimos 30 dias"
+          icon={<UserPlus className="h-4 w-4" />}
+          valueClass="text-green-400"
+        />
+      );
+
+    case "return_rate":
+      return (
+        <KpiCard
+          label="Taxa de retorno"
+          value={widgetData?.returnRate != null ? `${widgetData.returnRate}%` : "—"}
+          subValue="retornaram em 45 dias"
+          icon={<Repeat2 className="h-4 w-4" />}
+          valueClass={
+            widgetData?.returnRate == null ? "" :
+            widgetData.returnRate >= 60 ? "text-green-400" :
+            widgetData.returnRate >= 40 ? "text-yellow-400" : "text-red-400"
+          }
+        />
+      );
+
+    case "pending_apts":
+      return (
+        <KpiCard
+          label="Agendados hoje"
+          value={String(pendingCount)}
+          subValue="confirmados ou aguardando"
+          icon={<Calendar className="h-4 w-4" />}
+          valueClass="text-blue-400"
+        />
+      );
+
+    case "weekly_revenue":
+      return (
+        <KpiCard
+          label="Receita da semana"
+          value={widgetData?.weeklyRevenue != null ? formatBRL(widgetData.weeklyRevenue) : "—"}
+          subValue="atendimentos concluídos"
+          icon={<TrendingUp className="h-4 w-4" />}
+        />
+      );
+
+    case "top_service":
+      return (
+        <KpiCard
+          label="Serviço mais popular"
+          value={widgetData?.topService ?? "—"}
+          subValue="mais agendado este mês"
+          icon={<Star className="h-4 w-4" />}
+          valueClass="text-gold-400"
+        />
+      );
+
+    case "whatsapp_queue":
+      return (
+        <KpiCard
+          label="WhatsApp na fila"
+          value={widgetData?.whatsappQueue != null ? String(widgetData.whatsappQueue) : "—"}
+          subValue="mensagens aguardando envio"
+          icon={<MessageSquare className="h-4 w-4" />}
+          valueClass={widgetData?.whatsappQueue ? "text-amber-400" : "text-green-400"}
+        />
+      );
+
+    default:
+      return null;
+  }
+}
+
+// ── WidgetPickerModal ────────────────────────────────────────
+
+function WidgetPickerModal({
+  current,
+  onSave,
+  onClose,
+  saving,
+}: {
+  current:  string[];
+  onSave:   (keys: string[]) => void;
+  onClose:  () => void;
+  saving:   boolean;
+}) {
+  const [selected, setSelected] = useState<string[]>(current);
+  const [limitWarn, setLimitWarn] = useState(false);
+
+  function toggle(key: string) {
+    if (selected.includes(key)) {
+      setSelected(selected.filter((k) => k !== key));
+      setLimitWarn(false);
+    } else {
+      if (selected.length >= MAX_WIDGETS) {
+        setLimitWarn(true);
+        return;
+      }
+      setSelected([...selected, key]);
+      setLimitWarn(false);
+    }
+  }
+
+  const allKeys = Object.keys(WIDGET_META);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <h2 className="font-semibold text-foreground text-sm">Personalizar widgets</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Escolha até {MAX_WIDGETS} indicadores para exibir</p>
+          </div>
+          <button onClick={onClose} className="rounded p-1.5 hover:bg-surface-700 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          {/* Slots indicator */}
+          <div className="flex items-center gap-2">
+            {Array.from({ length: MAX_WIDGETS }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${i < selected.length ? "bg-gold-500" : "bg-surface-700"}`}
+              />
+            ))}
+            <span className="text-[11px] text-muted-foreground shrink-0">{selected.length}/{MAX_WIDGETS}</span>
+          </div>
+
+          {limitWarn && (
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-400">
+              Você já tem {MAX_WIDGETS} widgets selecionados. Remova um para adicionar outro.
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {allKeys.map((key) => {
+              const meta    = WIDGET_META[key];
+              const active  = selected.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggle(key)}
+                  className={`text-left rounded-lg border p-3 transition-all ${
+                    active
+                      ? "border-gold-500/50 bg-gold-500/8 ring-1 ring-gold-500/30"
+                      : "border-border hover:border-border/80 hover:bg-surface-800/50"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground leading-snug">{meta.label}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{meta.description}</p>
+                    </div>
+                    <div className={`shrink-0 mt-0.5 h-4 w-4 rounded-full border-2 transition-colors ${active ? "border-gold-500 bg-gold-500" : "border-muted-foreground/40"}`}>
+                      {active && <CheckCircle2 className="h-3 w-3 text-black" />}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-border px-5 py-3 flex gap-2 justify-end">
+          <Button variant="ghost" size="sm" className="text-xs" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button
+            size="sm"
+            className="text-xs gap-1"
+            onClick={() => onSave(selected)}
+            disabled={saving || selected.length === 0}
+          >
+            {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SuggestionCard ───────────────────────────────────────────
 
 function SuggestionCard({
   suggestion,

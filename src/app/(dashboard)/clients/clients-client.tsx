@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, relativeTime, getInitials } from "@/lib/utils";
-import { Users, Star, Clock, Plus, Pencil, Loader2 } from "lucide-react";
+import { Users, Star, Clock, Plus, Pencil, Loader2, Trash2 } from "lucide-react";
 import { CustomerDrawer, type CustomerRow } from "./customer-drawer";
 
 const STATUS_LABEL   = { ACTIVE: "Ativo", INACTIVE: "Inativo", VIP: "VIP", BLOCKED: "Bloqueado" };
@@ -42,6 +42,7 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
   const [customers, setCustomers]     = useState(initial);
   const [vipCount, setVipCount]       = useState(initialVipCount);
   const [togglingVip, setTogglingVip] = useState<string | null>(null);
+  const [deletingId,  setDeletingId]  = useState<string | null>(null);
   const [drawerMode, setDrawerMode]   = useState<"create" | "edit">("create");
   const [drawerOpen, setDrawerOpen]   = useState(false);
   const [editTarget, setEditTarget]   = useState<CustomerRow | null>(null);
@@ -74,6 +75,19 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
       setVipCount((prev) => newStatus === "VIP" ? prev + 1 : Math.max(prev - 1, 0));
     } finally {
       setTogglingVip(null);
+    }
+  }
+
+  async function deleteCustomer(c: Customer) {
+    if (!confirm(`Excluir "${c.name}"? Esta ação não pode ser desfeita.`)) return;
+    setDeletingId(c.id);
+    try {
+      const res = await fetch(`/api/customers/${c.id}`, { method: "DELETE" });
+      if (!res.ok) return;
+      setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+      if (c.status === "VIP") setVipCount((prev) => Math.max(prev - 1, 0));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -151,6 +165,15 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
               >
                 <Pencil className="h-4 w-4" />
               </button>
+              <button
+                onClick={() => deleteCustomer(c)}
+                disabled={deletingId === c.id}
+                className="rounded p-1.5 text-muted-foreground hover:text-destructive"
+              >
+                {deletingId === c.id
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Trash2 className="h-4 w-4" />}
+              </button>
             </div>
           </div>
         ))}
@@ -226,6 +249,16 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
                         title="Editar cliente"
                       >
                         <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => deleteCustomer(c)}
+                        disabled={deletingId === c.id}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-1.5 hover:bg-surface-700 text-muted-foreground hover:text-destructive"
+                        title="Excluir cliente"
+                      >
+                        {deletingId === c.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Trash2 className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </td>

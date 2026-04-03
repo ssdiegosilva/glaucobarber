@@ -33,3 +33,22 @@ export async function PATCH(
 
   return NextResponse.json({ customer: updated });
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+
+  const customer = await prisma.customer.findFirst({
+    where: { id, barbershopId: session.user.barbershopId },
+  });
+  if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+
+  await prisma.customer.delete({ where: { id } });
+
+  return NextResponse.json({ ok: true });
+}
