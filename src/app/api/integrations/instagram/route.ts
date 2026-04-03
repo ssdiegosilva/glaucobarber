@@ -33,3 +33,20 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE() {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await prisma.integration.updateMany({
+    where: { barbershopId: session.user.barbershopId },
+    data: {
+      instagramPageAccessToken: null,
+      instagramBusinessId:      null,
+      instagramPageId:          null,
+      instagramUsername:        null,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}

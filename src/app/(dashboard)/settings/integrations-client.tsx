@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
-import { RefreshCw, CheckCircle2, AlertTriangle, Plug, Clock, Settings, ChevronDown, Copy, Check } from "lucide-react";
+import {
+  RefreshCw, CheckCircle2, AlertTriangle, Plug, Clock,
+  Settings, ChevronDown, Copy, Check, Unplug,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface IntegrationInfo {
@@ -40,37 +43,44 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   syncRuns:     SyncRunInfo[];
   barbershopId: string;
 }) {
-  const [syncing,    setSyncing]    = useState(false);
-  const [runs,       setRuns]       = useState(syncRuns);
-  const [showForm,   setShowForm]   = useState(!integration?.configured);
-  const [apiKey,     setApiKey]     = useState("");
-  const [estabId,    setEstabId]    = useState("");
-  const [saving,     setSaving]     = useState(false);
-  const [formError,  setFormError]  = useState("");
-  const [estabs,     setEstabs]     = useState<{ id: string; nome: string }[]>([]);
+  const [syncing,      setSyncing]      = useState(false);
+  const [runs,         setRuns]         = useState(syncRuns.slice(0, 5));
+  const [showForm,     setShowForm]     = useState(!integration?.configured);
+  const [apiKey,       setApiKey]       = useState("");
+  const [estabId,      setEstabId]      = useState("");
+  const [saving,       setSaving]       = useState(false);
+  const [formError,    setFormError]    = useState("");
+  const [estabs,       setEstabs]       = useState<{ id: string; nome: string }[]>([]);
   const [loadingEstab, setLoadingEstab] = useState(false);
-  const [expandedRun, setExpandedRun] = useState<string | null>(null);
-  const [igToken,       setIgToken]       = useState("");
-  const [igBizId,       setIgBizId]       = useState("");
-  const [igPageId,      setIgPageId]      = useState("");
-  const [igSelectedName, setIgSelectedName] = useState("");
-  const [savingIg,      setSavingIg]      = useState(false);
-  const [editingIg,     setEditingIg]     = useState(!integration?.instagramBusinessId);
-  const [displayBizId,  setDisplayBizId]  = useState(integration?.instagramBusinessId ?? "");
+  const [expandedRun,  setExpandedRun]  = useState<string | null>(null);
+  const [showHistory,  setShowHistory]  = useState(false);
+
+  // Instagram
+  const [igToken,         setIgToken]         = useState("");
+  const [igBizId,         setIgBizId]         = useState("");
+  const [igPageId,        setIgPageId]        = useState("");
+  const [igSelectedName,  setIgSelectedName]  = useState("");
+  const [savingIg,        setSavingIg]        = useState(false);
+  const [editingIg,       setEditingIg]       = useState(!integration?.instagramBusinessId);
+  const [displayBizId,    setDisplayBizId]    = useState(integration?.instagramBusinessId ?? "");
   const [displayUsername, setDisplayUsername] = useState(integration?.instagramUsername ?? "");
-  const [discovering, setDiscovering] = useState(false);
-  const [igAccounts,  setIgAccounts]  = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
+  const [discovering,     setDiscovering]     = useState(false);
+  const [igAccounts,      setIgAccounts]      = useState<{ pageId: string; pageName: string; instagramId: string; instagramName: string; pageToken: string }[]>([]);
+  const [disconnectingIg, setDisconnectingIg] = useState(false);
 
   // WhatsApp
   const [waConfigured,   setWaConfigured]   = useState(integration?.whatsappConfigured ?? false);
-  const [waEditing,      setWaEditing]       = useState(!integration?.whatsappConfigured);
-  const [waToken,        setWaToken]         = useState("");
-  const [waPhoneId,      setWaPhoneId]       = useState("");
-  const [waSaving,       setWaSaving]        = useState(false);
-  const [waWebhookUrl,   setWaWebhookUrl]    = useState("");
-  const [waVerifyToken,  setWaVerifyToken]   = useState(integration?.whatsappVerifyToken ?? "");
-  const [waCopied,       setWaCopied]        = useState<"url" | "token" | null>(null);
-  const [waLoadingSetup, setWaLoadingSetup]  = useState(false);
+  const [waEditing,      setWaEditing]      = useState(!integration?.whatsappConfigured);
+  const [waToken,        setWaToken]        = useState("");
+  const [waPhoneId,      setWaPhoneId]      = useState("");
+  const [waSaving,       setWaSaving]       = useState(false);
+  const [waWebhookUrl,   setWaWebhookUrl]   = useState("");
+  const [waVerifyToken,  setWaVerifyToken]  = useState(integration?.whatsappVerifyToken ?? "");
+  const [waCopied,       setWaCopied]       = useState<"url" | "token" | null>(null);
+  const [waLoadingSetup, setWaLoadingSetup] = useState(false);
+  const [disconnectingWa, setDisconnectingWa] = useState(false);
+
+  // ── Trinks ────────────────────────────────────────────────────
 
   async function handleSave() {
     setFormError("");
@@ -121,7 +131,6 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         title: "Sync concluído",
         description: `${data.customersUpserted} clientes, ${data.servicesUpserted} serviços, ${data.appointmentsUpserted} agendamentos.`,
       });
-      // Refresh page to show new run
       window.location.reload();
     } catch (e) {
       toast({ title: "Erro no sync", description: String(e), variant: "destructive" });
@@ -129,6 +138,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       setSyncing(false);
     }
   }
+
+  // ── Instagram ─────────────────────────────────────────────────
 
   async function handleDiscoverInstagram() {
     setDiscovering(true);
@@ -146,7 +157,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         setIgBizId(data.accounts[0].instagramId);
         setIgPageId(data.accounts[0].pageId);
       }
-      toast({ title: `${data.accounts.length} conta(s) encontrada(s)`, description: "Selecione a conta para publicar." });
+      toast({ title: `${data.accounts.length} conta(s) encontrada(s)` });
     } catch (e) {
       toast({ title: "Erro ao buscar contas", description: String(e), variant: "destructive" });
     } finally {
@@ -164,7 +175,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar Instagram");
-      toast({ title: "Instagram conectado", description: "Dados salvos com sucesso." });
+      toast({ title: "Instagram conectado" });
       setDisplayBizId(igBizId);
       setDisplayUsername(igSelectedName);
       setEditingIg(false);
@@ -174,6 +185,27 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       setSavingIg(false);
     }
   }
+
+  async function handleDisconnectInstagram() {
+    if (!confirm("Desconectar Instagram? Campanhas via Instagram vão parar de funcionar.")) return;
+    setDisconnectingIg(true);
+    try {
+      const res = await fetch("/api/integrations/instagram", {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Erro ao desconectar");
+      toast({ title: "Instagram desconectado" });
+      setDisplayBizId("");
+      setDisplayUsername("");
+      setEditingIg(true);
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setDisconnectingIg(false);
+    }
+  }
+
+  // ── WhatsApp ──────────────────────────────────────────────────
 
   async function handleLoadWaSetup() {
     setWaLoadingSetup(true);
@@ -198,7 +230,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         body: JSON.stringify({ accessToken: waToken, phoneNumberId: waPhoneId }),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
-      toast({ title: "WhatsApp configurado!", description: "Credenciais salvas com sucesso." });
+      toast({ title: "WhatsApp configurado!" });
       setWaConfigured(true);
       setWaEditing(false);
     } catch (e) {
@@ -208,62 +240,78 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
     }
   }
 
+  async function handleDisconnectWhatsApp() {
+    if (!confirm("Desconectar WhatsApp? O envio automático de mensagens vai parar.")) return;
+    setDisconnectingWa(true);
+    try {
+      const res = await fetch("/api/whatsapp/setup", { method: "DELETE" });
+      if (!res.ok) throw new Error("Erro ao desconectar");
+      toast({ title: "WhatsApp desconectado" });
+      setWaConfigured(false);
+      setWaEditing(true);
+      setWaToken("");
+      setWaPhoneId("");
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setDisconnectingWa(false);
+    }
+  }
+
   function handleCopy(value: string, type: "url" | "token") {
     navigator.clipboard.writeText(value);
     setWaCopied(type);
     setTimeout(() => setWaCopied(null), 2000);
   }
 
-  const statusColor = {
-    ACTIVE:       "text-green-400",
-    ERROR:        "text-red-400",
-    PAUSED:       "text-yellow-400",
-    UNCONFIGURED: "text-muted-foreground",
-  };
+  // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Status Card */}
+    <div className="p-4 sm:p-6 space-y-5">
+
+      {/* ── Trinks ────────────────────────────────────────── */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20">
                 <Plug className="h-5 w-5 text-gold-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <CardTitle className="text-base">Trinks</CardTitle>
                 <p className="text-xs text-muted-foreground">Plataforma operacional principal</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
                 {integration?.status ?? "UNCONFIGURED"}
               </Badge>
               <Button onClick={handleSync} disabled={syncing || !integration?.configured} size="sm">
                 <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Sincronizando..." : "Sync Manual"}
+                <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync Manual"}</span>
+                <span className="sm:hidden">{syncing ? "..." : "Sync"}</span>
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground mb-1">Último sync</p>
-              <p className="text-foreground">
+              <p className="text-foreground text-sm">
                 {integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Configurada</p>
-              <p className={integration?.configured ? "text-green-400" : "text-yellow-400"}>
-                {integration?.configured ? "Sim" : "Não – configure via variáveis de ambiente"}
+              <p className={`text-sm ${integration?.configured ? "text-green-400" : "text-yellow-400"}`}>
+                {integration?.configured ? "Sim" : "Não"}
               </p>
             </div>
           </div>
+
           {integration?.errorMsg && (
-            <div className="mt-4 rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
+            <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
               <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
               <p className="text-xs text-red-300">{integration.errorMsg}</p>
             </div>
@@ -271,14 +319,12 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
 
           {/* Config form */}
           {showForm ? (
-            <div className="mt-4 space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
+            <div className="space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
               <p className="text-xs font-semibold text-foreground">Configurar credenciais da Trinks</p>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">API Key</label>
                 <input
-                  type="text"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  type="text" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
                   placeholder="Cole sua API Key da Trinks aqui"
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
@@ -286,76 +332,119 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs text-muted-foreground">ID do Estabelecimento</label>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    className="text-[11px]"
-                    onClick={handleFetchEstabs}
-                    disabled={!apiKey || loadingEstab}
-                    title="Buscar lista com a API Key"
-                  >
-                    {loadingEstab ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  <Button size="icon-sm" variant="ghost" onClick={handleFetchEstabs} disabled={!apiKey || loadingEstab}>
+                    <RefreshCw className={`h-3 w-3 ${loadingEstab ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
                 {estabs.length > 0 ? (
-                  <select
-                    value={estabId}
-                    onChange={(e) => setEstabId(e.target.value)}
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
+                  <select value={estabId} onChange={(e) => setEstabId(e.target.value)}
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                     <option value="">Selecione</option>
-                    {estabs.map((e) => (
-                      <option key={e.id} value={e.id}>{e.nome} (ID {e.id})</option>
-                    ))}
+                    {estabs.map((e) => <option key={e.id} value={e.id}>{e.nome} (ID {e.id})</option>)}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    value={estabId}
-                    onChange={(e) => setEstabId(e.target.value)}
+                  <input type="text" value={estabId} onChange={(e) => setEstabId(e.target.value)}
                     placeholder="Ex: 123456"
                     className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 )}
               </div>
-              {formError && (
-                <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{formError}</p>
-              )}
+              {formError && <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{formError}</p>}
               <div className="flex gap-2">
                 <Button size="sm" className="text-xs" onClick={handleSave} disabled={saving || !apiKey || !estabId}>
                   {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar e validar"}
                 </Button>
                 {integration?.configured && (
-                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowForm(false)}>
-                    Cancelar
-                  </Button>
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowForm(false)}>Cancelar</Button>
                 )}
               </div>
             </div>
           ) : (
-            <div className="mt-4 flex justify-end">
+            <div className="flex justify-end">
               <Button size="sm" variant="ghost" className="text-xs gap-1" onClick={() => setShowForm(true)}>
                 <Settings className="h-3.5 w-3.5" /> Reconfigurar
               </Button>
             </div>
           )}
+
+          {/* Sync history (collapsible, last 5) */}
+          {runs.length > 0 && (
+            <div className="border-t border-border pt-3">
+              <button
+                onClick={() => setShowHistory((v) => !v)}
+                className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Histórico de sincronizações ({runs.length})
+                </span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`} />
+              </button>
+
+              {showHistory && (
+                <div className="mt-3 space-y-2">
+                  {runs.map((r) => (
+                    <div key={r.id}>
+                      <button
+                        onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
+                        className="w-full text-left rounded-lg border border-border bg-surface-900 px-3 py-2.5 hover:bg-surface-800/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-muted-foreground">{relativeTime(r.startedAt)}</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={RUN_STATUS_VARIANT[r.status as keyof typeof RUN_STATUS_VARIANT] as never} className="text-[10px]">
+                              {RUN_STATUS_LABEL[r.status as keyof typeof RUN_STATUS_LABEL] ?? r.status}
+                            </Badge>
+                            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${expandedRun === r.id ? "rotate-180" : ""}`} />
+                          </div>
+                        </div>
+                        <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-foreground/70">
+                          <span>Clientes: {r.customersUpserted}</span>
+                          <span>Serviços: {r.servicesUpserted}</span>
+                          <span>Agendamentos: {r.appointmentsUpserted}</span>
+                          <span className={r.errorsCount > 0 ? "text-red-400" : "text-green-400"}>
+                            Erros: {r.errorsCount}
+                          </span>
+                          {r.durationMs && <span>Duração: {(r.durationMs / 1000).toFixed(1)}s</span>}
+                        </div>
+                      </button>
+
+                      {expandedRun === r.id && r.errorDetails && (() => {
+                        const details = (() => { try { return JSON.parse(r.errorDetails!); } catch { return r.errorDetails; } })();
+                        return (
+                          <div className="rounded-b-lg border border-t-0 border-border bg-surface-900 px-3 py-2 space-y-1">
+                            {Array.isArray(details)
+                              ? details.map((d: any, i: number) => (
+                                  <p key={i} className="text-xs text-red-300">• {d.entity ?? "?"}: {d.message ?? JSON.stringify(d)}</p>
+                                ))
+                              : <p className="text-xs text-red-300">{String(details)}</p>
+                            }
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Instagram Integration */}
+      {/* ── Instagram ─────────────────────────────────────── */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
                 <Plug className="h-5 w-5 text-indigo-300" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <CardTitle className="text-base">Instagram</CardTitle>
                 <p className="text-xs text-muted-foreground">Necessário para publicar campanhas</p>
               </div>
             </div>
-            <Badge variant="outline" className="text-xs">Canal de campanhas</Badge>
+            <Badge variant="outline" className="text-xs self-start sm:self-auto">Canal de campanhas</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -365,13 +454,12 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 <label className="text-xs text-muted-foreground">Page Access Token</label>
                 <div className="flex gap-2">
                   <input
-                    value={igToken}
-                    onChange={(e) => { setIgToken(e.target.value); setIgAccounts([]); }}
+                    value={igToken} onChange={(e) => { setIgToken(e.target.value); setIgAccounts([]); }}
                     placeholder="EAAG..."
                     className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                   />
                   <Button size="sm" variant="outline" onClick={handleDiscoverInstagram} disabled={!igToken || discovering} className="text-xs shrink-0">
-                    {discovering ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Buscar contas"}
+                    {discovering ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Buscar"}
                   </Button>
                 </div>
               </div>
@@ -380,98 +468,86 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                   <label className="text-xs text-muted-foreground">Conta do Instagram</label>
                   <div className="space-y-1">
                     {igAccounts.map((acc) => (
-                      <button
-                        key={acc.instagramId}
-                        type="button"
+                      <button key={acc.instagramId} type="button"
                         onClick={() => { setIgBizId(acc.instagramId); setIgPageId(acc.pageId); setIgSelectedName(acc.instagramName); }}
                         className={`w-full text-left rounded-md border px-3 py-2 text-xs transition-colors ${igBizId === acc.instagramId ? "border-gold-500/60 bg-gold-500/10 text-foreground" : "border-border bg-surface-800 text-muted-foreground hover:text-foreground"}`}
                       >
                         <span className="font-medium">@{acc.instagramName}</span>
-                        <span className="ml-2 text-[11px] opacity-60">via {acc.pageName} · ID: {acc.instagramId}</span>
+                        <span className="ml-2 text-[11px] opacity-60">via {acc.pageName}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               )}
               {igAccounts.length === 0 && igBizId && (
-                <div className="grid md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Instagram Business ID</label>
-                    <input
-                      value={igBizId}
-                      onChange={(e) => setIgBizId(e.target.value)}
-                      placeholder="ex: 1784..."
-                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                    />
+                    <input value={igBizId} onChange={(e) => setIgBizId(e.target.value)} placeholder="ex: 1784..."
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Page ID (opcional)</label>
-                    <input
-                      value={igPageId}
-                      onChange={(e) => setIgPageId(e.target.value)}
-                      placeholder="ID da página do Facebook"
-                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                    />
+                    <input value={igPageId} onChange={(e) => setIgPageId(e.target.value)} placeholder="ID da página do Facebook"
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
                   </div>
                 </div>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 {displayBizId && (
-                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingIg(false)}>
-                    Cancelar
-                  </Button>
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingIg(false)}>Cancelar</Button>
                 )}
                 <Button size="sm" onClick={handleSaveInstagram} disabled={savingIg || !igToken || !igBizId} className="text-xs ml-auto">
                   {savingIg ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar Instagram"}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">Cole o token e clique em &quot;Buscar contas&quot; para detectar automaticamente o Instagram Business ID.</p>
+              <p className="text-[11px] text-muted-foreground">Cole o token e clique em &quot;Buscar&quot; para detectar o Instagram Business ID automaticamente.</p>
             </>
           ) : (
             <div className="rounded-md border border-green-500/30 bg-green-500/8 px-4 py-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                <div className="text-xs space-y-0.5">
+                <div className="text-xs space-y-0.5 min-w-0">
                   <p className="font-semibold text-green-400">Conectado</p>
-                  {displayUsername ? (
-                    <p className="text-foreground font-medium">
-                      <a
-                        href={`https://instagram.com/${displayUsername}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
-                      >
+                  {displayUsername && (
+                    <p className="text-foreground font-medium truncate">
+                      <a href={`https://instagram.com/${displayUsername}`} target="_blank" rel="noopener noreferrer"
+                        className="text-indigo-400 hover:text-indigo-300 hover:underline transition-colors">
                         @{displayUsername}
                       </a>
                     </p>
-                  ) : null}
-                  <p className="text-muted-foreground">
-                    Business ID: <span className="font-mono text-foreground/70">{displayBizId}</span>
-                  </p>
+                  )}
+                  <p className="text-muted-foreground truncate">Business ID: <span className="font-mono text-foreground/70">{displayBizId}</span></p>
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="text-xs shrink-0 gap-1" onClick={() => setEditingIg(true)}>
-                <Settings className="h-3.5 w-3.5" /> Editar
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setEditingIg(true)}>
+                  <Settings className="h-3.5 w-3.5" /> Editar
+                </Button>
+                <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                  onClick={handleDisconnectInstagram} disabled={disconnectingIg} title="Desconectar Instagram">
+                  {disconnectingIg ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* WhatsApp Integration */}
+      {/* ── WhatsApp ──────────────────────────────────────── */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10 border border-green-500/20">
                 <Plug className="h-5 w-5 text-green-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <CardTitle className="text-base">WhatsApp Business</CardTitle>
                 <p className="text-xs text-muted-foreground">Envio de mensagens automáticas para clientes</p>
               </div>
             </div>
-            <Badge variant={waConfigured ? "success" : "outline"} className="text-xs">
+            <Badge variant={waConfigured ? "success" : "outline"} className="text-xs self-start sm:self-auto">
               {waConfigured ? "Conectado" : "Não configurado"}
             </Badge>
           </div>
@@ -479,7 +555,6 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         <CardContent className="space-y-3">
           {waEditing ? (
             <>
-              {/* Webhook info */}
               <div className="rounded-md border border-border bg-surface-800/50 p-3 space-y-2">
                 <p className="text-xs font-semibold text-foreground">1. Configure o webhook no painel Meta</p>
                 <div className="space-y-1.5">
@@ -517,26 +592,17 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 )}
               </div>
 
-              {/* Credentials */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-foreground">2. Cole suas credenciais da Meta</p>
                 <div className="space-y-1.5">
                   <label className="text-xs text-muted-foreground">Access Token (permanente)</label>
-                  <input
-                    value={waToken}
-                    onChange={(e) => setWaToken(e.target.value)}
-                    placeholder="EAAGm..."
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                  />
+                  <input value={waToken} onChange={(e) => setWaToken(e.target.value)} placeholder="EAAGm..."
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs text-muted-foreground">Phone Number ID</label>
-                  <input
-                    value={waPhoneId}
-                    onChange={(e) => setWaPhoneId(e.target.value)}
-                    placeholder="ex: 123456789012345"
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
-                  />
+                  <input value={waPhoneId} onChange={(e) => setWaPhoneId(e.target.value)} placeholder="ex: 123456789012345"
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
                 </div>
               </div>
 
@@ -546,9 +612,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                   Salvar
                 </Button>
                 {waConfigured && (
-                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setWaEditing(false)}>
-                    Cancelar
-                  </Button>
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setWaEditing(false)}>Cancelar</Button>
                 )}
               </div>
             </>
@@ -558,131 +622,21 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
                 <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
               </div>
-              <Button size="sm" variant="outline" className="text-xs shrink-0 gap-1" onClick={() => { setWaEditing(true); handleLoadWaSetup(); }}>
-                <Settings className="h-3.5 w-3.5" /> Editar
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" className="text-xs gap-1 shrink-0"
+                  onClick={() => { setWaEditing(true); handleLoadWaSetup(); }}>
+                  <Settings className="h-3.5 w-3.5" /> Editar
+                </Button>
+                <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                  onClick={handleDisconnectWhatsApp} disabled={disconnectingWa} title="Desconectar WhatsApp">
+                  {disconnectingWa ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Sync History */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <Clock className="h-4 w-4 text-gold-400" />
-          Histórico de sincronizações
-        </h2>
-
-        {runs.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Nenhum sync realizado ainda</p>
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className="rounded-lg border border-border bg-card overflow-hidden hidden md:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-surface-800/50">
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Data</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Clientes</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Serviços</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Agendamentos</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Erros</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Duração</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Origem</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {runs.map((r) => (
-                    <tr
-                      key={r.id}
-                      className="hover:bg-surface-800/30 cursor-pointer"
-                      onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
-                    >
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{relativeTime(r.startedAt)}</td>
-                      <td className="px-4 py-2.5">
-                        <Badge variant={RUN_STATUS_VARIANT[r.status as keyof typeof RUN_STATUS_VARIANT] as never} className="text-[10px]">
-                          {RUN_STATUS_LABEL[r.status as keyof typeof RUN_STATUS_LABEL] ?? r.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-2.5 text-xs tabular-nums">{r.customersUpserted}</td>
-                      <td className="px-4 py-2.5 text-xs tabular-nums">{r.servicesUpserted}</td>
-                      <td className="px-4 py-2.5 text-xs tabular-nums">{r.appointmentsUpserted}</td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {r.errorsCount > 0 ? (
-                          <span className="text-red-400">{r.errorsCount}</span>
-                        ) : <span className="text-green-400">0</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                        {r.durationMs ? `${(r.durationMs / 1000).toFixed(1)}s` : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground flex items-center gap-1">
-                        {r.triggeredBy ?? "auto"}
-                        <ChevronDown className={`h-3 w-3 transition-transform ${expandedRun === r.id ? "rotate-180" : ""}`} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="space-y-2 md:hidden">
-              {runs.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
-                  className="w-full text-left rounded-lg border border-border bg-surface-900 p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{relativeTime(r.startedAt)}</span>
-                    <Badge variant={RUN_STATUS_VARIANT[r.status as keyof typeof RUN_STATUS_VARIANT] as never} className="text-[10px]">
-                      {RUN_STATUS_LABEL[r.status as keyof typeof RUN_STATUS_LABEL] ?? r.status}
-                    </Badge>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-foreground/90">
-                    <span>Clientes: {r.customersUpserted}</span>
-                    <span>Serviços: {r.servicesUpserted}</span>
-                    <span>Agends: {r.appointmentsUpserted}</span>
-                    <span className={r.errorsCount > 0 ? "text-red-400" : "text-green-400"}>Erros: {r.errorsCount}</span>
-                    <span>Duração: {r.durationMs ? `${(r.durationMs / 1000).toFixed(1)}s` : "—"}</span>
-                    <span>Origem: {r.triggeredBy ?? "auto"}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      {expandedRun && (() => {
-        const run = runs.find((r) => r.id === expandedRun);
-        if (!run) return null;
-        const details = run.errorsCount > 0 && run.errorDetails ? (() => {
-          try { return JSON.parse(run.errorDetails); } catch { return run.errorDetails; }
-        })() : null;
-        return (
-          <div className="rounded-lg border border-border bg-surface-900 p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-foreground">Detalhes do sync</p>
-              <Badge variant={RUN_STATUS_VARIANT[run.status as keyof typeof RUN_STATUS_VARIANT] as never}>{RUN_STATUS_LABEL[run.status as keyof typeof RUN_STATUS_LABEL]}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">ID: {run.id}</p>
-            <p className="text-xs text-muted-foreground">Erros: {run.errorsCount}</p>
-            {details && Array.isArray(details) ? (
-              <div className="bg-surface-800 rounded-md border border-border p-3 space-y-1">
-                {details.map((d: any, idx: number) => (
-                  <p key={idx} className="text-xs text-red-300">• {d.entity ?? "?"}: {d.message ?? JSON.stringify(d)}</p>
-                ))}
-              </div>
-            ) : details ? (
-              <p className="text-xs text-red-300">{String(details)}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Sem detalhes adicionais.</p>
-            )}
-          </div>
-        );
-      })()}
     </div>
   );
 }

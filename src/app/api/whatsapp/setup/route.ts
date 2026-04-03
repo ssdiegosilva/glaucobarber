@@ -76,3 +76,19 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+// DELETE: remove as credenciais WhatsApp
+export async function DELETE() {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await prisma.integration.updateMany({
+    where: { barbershopId: session.user.barbershopId },
+    data: {
+      whatsappAccessToken:   null,
+      whatsappPhoneNumberId: null,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}
