@@ -24,10 +24,10 @@ export async function GET(req: NextRequest) {
   let customers: CustomerResult[] = [];
 
   if (filter === "post_sale") {
-    // Clientes com atendimento concluído nos últimos 7 dias
+    // Clientes com atendimento concluído nos últimos 14 dias (igual ao pós-venda)
     // E que não receberam WhatsApp nas últimas 48h (ou nunca)
     const cutoff48h = subDays(now, 2);
-    const cutoff7d  = subDays(now, 7);
+    const cutoff7d  = subDays(now, 14);
 
     const rows = await prisma.customer.findMany({
       where: {

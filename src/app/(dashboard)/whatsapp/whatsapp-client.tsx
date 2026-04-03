@@ -244,13 +244,13 @@ type TargetCustomer = { id: string; name: string; phone: string | null; lastAppo
 type ActiveTemplate  = { id: string; metaName: string; label: string; body: string; variables: string };
 
 const FILTER_OPTIONS = [
-  { key: "post_sale",   label: "Pós-venda (7 dias)",    desc: "Atendidos nos últimos 7 dias" },
-  { key: "inactive_30", label: "Inativos 30 dias",       desc: "Sem visita há 30 dias ou mais" },
-  { key: "inactive_60", label: "Inativos 60 dias",       desc: "Sem visita há 60 dias ou mais" },
-  { key: "all",         label: "Todos os clientes",      desc: "Com telefone cadastrado" },
+  { key: "post_sale",    label: "Recém-atendidos",   desc: "Atendidos nos últimos 14 dias" },
+  { key: "inactive_30",  label: "Inativos 30 dias",  desc: "Sem visita há 30 dias ou mais" },
+  { key: "inactive_60",  label: "Inativos 60 dias",  desc: "Sem visita há 60 dias ou mais" },
+  { key: "all",          label: "Todos os clientes", desc: "Com telefone cadastrado" },
 ] as const;
 
-function BotMessageModal({ onClose, onScheduled }: { onClose: () => void; onScheduled: (count: number) => void }) {
+function BotMessageModal({ onClose, onScheduled, hasTemplates }: { onClose: () => void; onScheduled: (count: number) => void; hasTemplates: boolean }) {
   const [step,            setStep]            = useState<1 | 2 | 3>(1);
   const [filter,          setFilter]          = useState<string>("post_sale");
   const [customers,       setCustomers]       = useState<TargetCustomer[]>([]);
@@ -343,13 +343,25 @@ function BotMessageModal({ onClose, onScheduled }: { onClose: () => void; onSche
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Envio em massa via bot 🤖</h3>
+            <h3 className="text-sm font-semibold text-foreground">Enviar com bot</h3>
             <p className="text-[11px] text-muted-foreground">
-              {step === 1 ? "Selecione os clientes" : step === 2 ? "Escolha o template e data" : "Confirmação"}
+              {step === 1 ? "1. Selecione os clientes pelo filtro" : step === 2 ? "2. Escolha o template e agende" : "3. Confirme o envio"}
             </p>
           </div>
           <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
+
+        {/* Aviso se sem templates */}
+        {!hasTemplates && (
+          <div className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-300">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>
+              Nenhum template configurado. Vá em{" "}
+              <a href="/settings" className="underline font-medium">Integrações → Templates</a>
+              {" "}para adicionar o WABA ID e sincronizar seus templates aprovados na Meta.
+            </span>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           {/* ── Etapa 1: filtro + lista ── */}
@@ -485,8 +497,9 @@ function BotMessageModal({ onClose, onScheduled }: { onClose: () => void; onSche
           )}
           <div className="flex-1" />
           {step === 1 && (
-            <button onClick={() => setStep(2)} disabled={selectedIds.size === 0}
-              className="rounded-lg bg-gold-500 px-4 py-2 text-xs font-semibold text-[#080810] hover:bg-gold-400 transition-colors disabled:opacity-40">
+            <button onClick={() => setStep(2)} disabled={selectedIds.size === 0 || !hasTemplates}
+              className="rounded-lg bg-gold-500 px-4 py-2 text-xs font-semibold text-[#080810] hover:bg-gold-400 transition-colors disabled:opacity-40"
+              title={!hasTemplates ? "Configure templates antes de continuar" : undefined}>
               Próximo · {selectedIds.size} selecionado{selectedIds.size !== 1 ? "s" : ""}
             </button>
           )}
@@ -972,13 +985,13 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
           </button>
         ))}
         <div className="flex-1" />
-        {hasAutoSend && whatsappConfigured && hasTemplates && (
+        {hasAutoSend && whatsappConfigured && (
           <button
             onClick={() => setShowBotModal(true)}
             className="shrink-0 flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium text-green-400 hover:bg-green-500/20 transition-colors"
           >
             <Users className="h-3.5 w-3.5 shrink-0" />
-            <span className="hidden sm:inline">Envio em massa 🤖</span>
+            <span className="hidden sm:inline">Enviar com bot</span>
           </button>
         )}
         <button
@@ -995,6 +1008,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
         <BotMessageModal
           onClose={() => setShowBotModal(false)}
           onScheduled={() => { setShowBotModal(false); setTab("queue"); window.location.reload(); }}
+          hasTemplates={hasTemplates}
         />
       )}
 
