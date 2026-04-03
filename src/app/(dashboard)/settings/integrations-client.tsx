@@ -83,9 +83,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
 
     if (ig === "connected") {
       toast({ title: "Instagram conectado com sucesso!" });
-      setEditingIg(false);
-      router.replace("/settings");
-      window.location.reload();
+      window.location.replace("/settings");
     } else if (ig === "pending") {
       setIgPendingLoading(true);
       fetch("/api/integrations/instagram/pending")
