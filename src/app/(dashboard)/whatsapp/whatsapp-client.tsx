@@ -587,8 +587,8 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
 
       {/* Tab description */}
       {tab === "sent"    && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens enviadas com sucesso hoje. O registro é mantido por 10 dias.</p>}
-      {tab === "queue"   && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens aguardando envio. Use "Enviar tudo" para processar a fila agora ou aguarde o envio automático.</p>}
-      {tab === "failed"  && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens que falharam no envio. Use "Tentar novamente" para reagendar para daqui 1 hora. Itens com mais de 1 dia são removidos automaticamente.</p>}
+      {tab === "queue"   && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens aguardando envio. Use &quot;Enviar tudo&quot; para processar a fila agora ou aguarde o envio automático.</p>}
+      {tab === "failed"  && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens que falharam no envio. Use &quot;Tentar novamente&quot; para reagendar para daqui 1 hora. Itens com mais de 1 dia são removidos automaticamente.</p>}
       {tab === "history" && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Histórico de mensagens enviadas nos últimos 10 dias.</p>}
 
       {/* ── Enviadas hoje ──────────────────────────────────── */}
