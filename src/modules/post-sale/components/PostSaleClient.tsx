@@ -1,25 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
 import type { CustomerSummary, PostSaleStatus } from "../types";
 import {
-  X, MessageCircle, Clock, Scissors,
-  ChevronRight, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
-  UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles,
+  MessageCircle, Clock, Scissors,
+  ChevronDown, ChevronUp, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
+  UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles, X,
 } from "lucide-react";
-
-// ── Portal ────────────────────────────────────────────────────
-
-function Portal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  if (!mounted) return null;
-  return createPortal(children, document.body);
-}
 
 // ── Status actions ────────────────────────────────────────────
 
@@ -28,7 +18,7 @@ interface ActionConfig {
   label:      string;
   type:       string;
   icon:       React.ComponentType<{ className?: string }>;
-  isReview?:  boolean; // needs Google review URL
+  isReview?:  boolean;
 }
 
 const STATUS_ACTIONS: Record<PostSaleStatus, ActionConfig[]> = {
@@ -160,8 +150,7 @@ interface Props {
 // ── Root component ────────────────────────────────────────────
 
 export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
-  const [active,           setActive]           = useState<FilterKey | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null);
+  const [active, setActive] = useState<FilterKey | null>(null);
 
   const filteredCustomers = active
     ? customers.filter((c) => c.postSaleStatus === FILTER_STATUS[active])
@@ -206,35 +195,35 @@ export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
         })}
       </div>
 
-      {/* Customer list */}
+      {/* Customer list — expandable inline */}
       <CustomerList
         rows={filteredCustomers}
         emptyMessage={active ? `Nenhum cliente em "${FILTER_CONFIG.find(c => c.key === active)?.label}".` : "Selecione um filtro acima para ver os clientes."}
         showAll={!active}
-        onSelect={setSelectedCustomer}
+        googleReviewUrl={googleReviewUrl}
       />
-
-      {/* Detail drawer */}
-      {selectedCustomer && (
-        <CustomerDetailSheet
-          customer={selectedCustomer}
-          googleReviewUrl={googleReviewUrl}
-          onClose={() => setSelectedCustomer(null)}
-        />
-      )}
     </div>
   );
 }
 
 // ── Customer list ─────────────────────────────────────────────
 
-function CustomerList({ rows, emptyMessage, showAll, onSelect }: {
-  rows: CustomerSummary[];
-  emptyMessage: string;
-  showAll: boolean;
-  onSelect: (c: CustomerSummary) => void;
+function CustomerList({ rows, emptyMessage, showAll, googleReviewUrl }: {
+  rows:            CustomerSummary[];
+  emptyMessage:    string;
+  showAll:         boolean;
+  googleReviewUrl: string | null;
 }) {
-  const display = showAll ? rows.slice(0, 30) : rows;
+  const [expandedId,    setExpandedId]    = useState<string | null>(null);
+  const [localRows,     setLocalRows]     = useState<CustomerSummary[]>(rows);
+
+  // keep in sync when rows prop changes (filter switch)
+  useEffect(() => {
+    setLocalRows(rows);
+    setExpandedId(null);
+  }, [rows]);
+
+  const display = showAll ? localRows.slice(0, 30) : localRows;
 
   if (display.length === 0) {
     return (
@@ -244,6 +233,15 @@ function CustomerList({ rows, emptyMessage, showAll, onSelect }: {
     );
   }
 
+  function handleSent(customerId: string, action: ActionConfig) {
+    setLocalRows((prev) => prev.map((c) => {
+      if (c.id !== customerId) return c;
+      const newTypes        = [...(c.sentTypes ?? []), action.type];
+      const newReviewStatus = action.isReview ? "enviado" : c.reviewStatus;
+      return { ...c, sentTypes: newTypes, reviewStatus: newReviewStatus };
+    }));
+  }
+
   return (
     <div className="space-y-2">
       {showAll && (
@@ -251,301 +249,210 @@ function CustomerList({ rows, emptyMessage, showAll, onSelect }: {
           Mostrando todos os clientes com status pós-venda. Clique em um filtro acima para ver por categoria.
         </p>
       )}
-      {display.map((c) => {
-        const actions   = STATUS_ACTIONS[c.postSaleStatus] ?? [];
-        const doneCount = actions.filter((a) => isActionDone(a, c)).length;
-        const allDone   = actions.length > 0 && doneCount === actions.length;
-        return (
-          <button
-            key={c.id}
-            onClick={() => onSelect(c)}
-            className="w-full rounded-lg border border-border/60 bg-surface-900 hover:border-border hover:bg-surface-800 transition-colors text-left"
-          >
-            <div className="px-4 py-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 leading-5 ${statusBadgeClass(c.postSaleStatus)}`}>
-                    {statusLabel(c.postSaleStatus)}
-                  </Badge>
-                  {allDone && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 leading-5 text-green-400 border-green-400/30">
-                      ✓ FUP completo
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
-                {c.lastVisitAt && (
-                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                    <Clock className="h-3 w-3 shrink-0" />
-                    {relativeTime(c.lastVisitAt)}
-                    {c.serviceName && ` · ${c.serviceName}`}
-                  </p>
-                )}
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            </div>
-          </button>
-        );
-      })}
+      {display.map((c) => (
+        <CustomerRow
+          key={c.id}
+          customer={c}
+          isExpanded={expandedId === c.id}
+          onToggle={() => setExpandedId((prev) => prev === c.id ? null : c.id)}
+          googleReviewUrl={googleReviewUrl}
+          onSent={(action) => handleSent(c.id, action)}
+        />
+      ))}
     </div>
   );
 }
 
-// ── Customer detail sheet ─────────────────────────────────────
+// ── Customer row (expandable) ─────────────────────────────────
 
-function CustomerDetailSheet({ customer, googleReviewUrl, onClose }: {
+function CustomerRow({ customer, isExpanded, onToggle, googleReviewUrl, onSent }: {
   customer:        CustomerSummary;
+  isExpanded:      boolean;
+  onToggle:        () => void;
   googleReviewUrl: string | null;
-  onClose:         () => void;
+  onSent:          (action: ActionConfig) => void;
 }) {
-  const [showActions,     setShowActions]     = useState(false);
-  const [selectedAction,  setSelectedAction]  = useState<ActionConfig | null>(null);
-  const [localCustomer,   setLocalCustomer]   = useState(customer);
+  const rowRef                = useRef<HTMLDivElement>(null);
+  const [composing, setComposing] = useState<ActionConfig | null>(null);
+  const actions               = STATUS_ACTIONS[customer.postSaleStatus] ?? [];
+  const doneCount             = actions.filter((a) => isActionDone(a, customer)).length;
+  const allDone               = actions.length > 0 && doneCount === actions.length;
 
-  const actions = STATUS_ACTIONS[localCustomer.postSaleStatus] ?? [];
-  const allDone = actions.length > 0 && actions.every((a) => isActionDone(a, localCustomer));
-
-  function handleSent(action: ActionConfig) {
-    setLocalCustomer((prev) => {
-      const newTypes       = [...(prev.sentTypes ?? []), action.type];
-      const newReviewStatus = action.isReview ? "enviado" : prev.reviewStatus;
-      return { ...prev, sentTypes: newTypes, reviewStatus: newReviewStatus };
-    });
-    setSelectedAction(null);
-    setShowActions(false);
-  }
-
-  const hasSubModal = showActions || !!selectedAction;
+  // Scroll into view when expanded
+  useEffect(() => {
+    if (isExpanded) {
+      setTimeout(() => rowRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+    } else {
+      setComposing(null);
+    }
+  }, [isExpanded]);
 
   return (
-    <Portal>
-      <div
-        className="fixed inset-0 bg-black/60 z-40"
-        onClick={hasSubModal ? undefined : onClose}
-        style={hasSubModal ? { pointerEvents: "none" } : undefined}
-      />
-      <div
-        className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-border bg-card shadow-xl max-h-[85vh] overflow-y-auto"
-        style={hasSubModal ? { pointerEvents: "none", overflow: "hidden" } : undefined}
+    <div
+      ref={rowRef}
+      className={`rounded-lg border transition-colors ${
+        isExpanded ? "border-border bg-surface-800/80" : "border-border/60 bg-surface-900 hover:border-border"
+      }`}
+    >
+      {/* Collapsed header — always visible */}
+      <button
+        onClick={onToggle}
+        className="w-full text-left px-4 py-3 flex items-center gap-3"
       >
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-border" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 py-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(localCustomer.postSaleStatus)}`}>
-                {statusLabel(localCustomer.postSaleStatus)}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 leading-5 ${statusBadgeClass(customer.postSaleStatus)}`}>
+              {statusLabel(customer.postSaleStatus)}
+            </Badge>
+            {allDone && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 leading-5 text-green-400 border-green-400/30">
+                ✓ FUP completo
               </Badge>
-            </div>
-            <h2 className="text-base font-semibold text-foreground">{localCustomer.name}</h2>
-            {localCustomer.phone && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                <Phone className="h-3 w-3" />{localCustomer.phone}
-              </p>
             )}
           </div>
-          <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-800 transition-colors">
-            <X className="h-4 w-4" />
-          </button>
+          <p className="text-sm font-medium text-foreground truncate">{customer.name}</p>
+          {customer.lastVisitAt && (
+            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+              <Clock className="h-3 w-3 shrink-0" />
+              {relativeTime(customer.lastVisitAt)}
+              {customer.serviceName && ` · ${customer.serviceName}`}
+            </p>
+          )}
         </div>
+        {isExpanded
+          ? <ChevronUp   className="h-4 w-4 text-muted-foreground shrink-0" />
+          : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        }
+      </button>
 
-        <div className="px-5 pb-6 space-y-4">
-          {/* Last visit */}
+      {/* Expanded content */}
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border/40 pt-3">
+
+          {/* Last visit card */}
           <div className="rounded-lg border border-border/60 bg-surface-900 p-3 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Último atendimento</p>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Último atendimento</p>
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20 shrink-0">
                 <Scissors className="h-4 w-4 text-gold-400" />
               </div>
-              <div>
-                {localCustomer.serviceName
-                  ? <p className="text-sm font-medium text-foreground">{localCustomer.serviceName}</p>
+              <div className="min-w-0">
+                {customer.serviceName
+                  ? <p className="text-sm font-medium text-foreground truncate">{customer.serviceName}</p>
                   : <p className="text-sm text-muted-foreground italic">Serviço não registrado</p>
                 }
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {localCustomer.lastVisitAt && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                  {customer.lastVisitAt && (
                     <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />{relativeTime(localCustomer.lastVisitAt)}
+                      <Clock className="h-3 w-3" />{relativeTime(customer.lastVisitAt)}
                     </span>
                   )}
-                  {localCustomer.servicePrice != null && (
-                    <span>· R$ {localCustomer.servicePrice.toFixed(2).replace(".", ",")}</span>
+                  {customer.servicePrice != null && (
+                    <span>· R$ {customer.servicePrice.toFixed(2).replace(".", ",")}</span>
                   )}
                 </div>
               </div>
             </div>
-            {(localCustomer.ticketMedio != null || localCustomer.frequencia != null) && (
+            {(customer.ticketMedio != null || customer.frequencia != null) && (
               <div className="flex gap-4 pt-1 border-t border-border/40">
-                {localCustomer.ticketMedio != null && (
+                {customer.ticketMedio != null && (
                   <div>
                     <p className="text-[10px] text-muted-foreground">Ticket médio</p>
-                    <p className="text-xs font-medium text-foreground">R$ {localCustomer.ticketMedio.toFixed(2).replace(".", ",")}</p>
+                    <p className="text-xs font-medium text-foreground">R$ {customer.ticketMedio.toFixed(2).replace(".", ",")}</p>
                   </div>
                 )}
-                {localCustomer.frequencia != null && (
+                {customer.frequencia != null && (
                   <div>
                     <p className="text-[10px] text-muted-foreground">Visitas totais</p>
-                    <p className="text-xs font-medium text-foreground">{localCustomer.frequencia}</p>
+                    <p className="text-xs font-medium text-foreground">{customer.frequencia}</p>
+                  </div>
+                )}
+                {customer.phone && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Telefone</p>
+                    <p className="text-xs font-medium text-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" />{customer.phone}
+                    </p>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* FUP status */}
+          {/* FUP actions */}
           {actions.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Follow-up</p>
-
-              {actions.filter((a) => isActionDone(a, localCustomer)).length > 0 && (
-                <div className="space-y-1.5">
-                  {actions.filter((a) => isActionDone(a, localCustomer)).map((a) => (
-                    <div key={a.id} className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
-                      <span className="text-xs text-green-400">{a.label}</span>
-                    </div>
-                  ))}
+              {/* Done actions */}
+              {actions.filter((a) => isActionDone(a, customer)).map((a) => (
+                <div key={a.id} className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                  <span className="text-xs text-green-400">{a.label}</span>
                 </div>
-              )}
+              ))}
 
               {allDone ? (
                 <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 text-center">
                   <p className="text-sm font-medium text-green-400">FUP completo</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Todas as ações foram realizadas para este atendimento.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Todas as ações foram realizadas.</p>
                 </div>
+              ) : composing ? (
+                /* Inline message composer */
+                <MessageComposer
+                  customer={customer}
+                  action={composing}
+                  googleReviewUrl={googleReviewUrl}
+                  onCancel={() => setComposing(null)}
+                  onSent={() => { onSent(composing); setComposing(null); }}
+                />
               ) : (
-                <Button className="w-full gap-2" onClick={() => setShowActions(true)}>
-                  <MessageCircle className="h-4 w-4" />
-                  Enviar mensagem
-                </Button>
+                /* Pending action buttons */
+                <div className="space-y-1.5">
+                  {actions.filter((a) => !isActionDone(a, customer)).map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => setComposing(action)}
+                        className="w-full flex items-center gap-3 rounded-lg border border-purple-500/20 bg-purple-500/5 hover:border-purple-500/40 hover:bg-purple-500/10 px-4 py-3 text-sm text-left transition-colors"
+                      >
+                        <Icon className="h-4 w-4 text-purple-400 shrink-0" />
+                        <span className="flex-1 text-foreground">{action.label}</span>
+                        <Sparkles className="h-3.5 w-3.5 text-purple-400/60" />
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
         </div>
-      </div>
-
-      {showActions && (
-        <ActionSheet
-          customer={localCustomer}
-          actions={actions.filter((a) => !isActionDone(a, localCustomer))}
-          onClose={() => setShowActions(false)}
-          onAction={(a) => { setSelectedAction(a); setShowActions(false); }}
-        />
       )}
-
-      {selectedAction && (
-        selectedAction.isReview && !googleReviewUrl ? (
-          <MissingReviewUrlModal
-            onClose={() => setSelectedAction(null)}
-          />
-        ) : (
-          <AiWhatsAppModal
-            customer={localCustomer}
-            action={selectedAction}
-            googleReviewUrl={googleReviewUrl}
-            onClose={() => setSelectedAction(null)}
-            onSent={() => handleSent(selectedAction)}
-          />
-        )
-      )}
-    </Portal>
+    </div>
   );
 }
 
-// ── Action sheet ──────────────────────────────────────────────
+// ── Inline message composer ───────────────────────────────────
 
-function ActionSheet({ customer, actions, onClose, onAction }: {
-  customer: CustomerSummary;
-  actions:  ActionConfig[];
-  onClose:  () => void;
-  onAction: (a: ActionConfig) => void;
-}) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/60 z-[60]" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-[70] rounded-t-2xl border-t border-border bg-card shadow-xl">
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-border" />
-        </div>
-        <div className="px-5 pt-2 pb-8">
-          <p className="text-xs text-muted-foreground mb-4">
-            O que deseja enviar para <span className="text-foreground font-medium">{customer.name}</span>?
-          </p>
-          <div className="space-y-2">
-            {actions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button key={action.id} onClick={() => onAction(action)}
-                  className="w-full flex items-center gap-3 rounded-lg border border-purple-500/20 bg-purple-500/5 hover:border-purple-500/40 hover:bg-purple-500/10 px-4 py-3 text-sm text-left transition-colors"
-                >
-                  <Icon className="h-4 w-4 text-purple-400 shrink-0" />
-                  <span className="flex-1 text-foreground">{action.label}</span>
-                  <Sparkles className="h-3.5 w-3.5 text-purple-400/60" />
-                </button>
-              );
-            })}
-          </div>
-          <Button variant="ghost" className="w-full mt-3 text-muted-foreground" onClick={onClose}>Cancelar</Button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ── Missing review URL modal ───────────────────────────────────
-
-function MissingReviewUrlModal({ onClose }: { onClose: () => void }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/70 z-[80]" onClick={onClose} />
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[90] rounded-xl border border-amber-500/30 bg-card shadow-2xl p-5 space-y-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
-            <Star className="h-4 w-4 text-amber-400" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Link do Google não configurado</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Para enviar pedidos de avaliação, cadastre o link da sua página do Google Business nas configurações.
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1 text-xs" onClick={onClose}>Fechar</Button>
-          <Button
-            className="flex-1 text-xs gap-1.5 bg-gold-500 hover:bg-gold-400 text-black"
-            onClick={() => { window.location.href = "/settings"; }}
-          >
-            <ExternalLink className="h-3.5 w-3.5" /> Ir para configurações
-          </Button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ── AI WhatsApp modal ─────────────────────────────────────────
-
-function AiWhatsAppModal({ customer, action, googleReviewUrl, onClose, onSent }: {
+function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }: {
   customer:        CustomerSummary;
   action:          ActionConfig;
   googleReviewUrl: string | null;
-  onClose:         () => void;
+  onCancel:        () => void;
   onSent:          () => void;
 }) {
-  const [message,   setMessage]   = useState("");
-  const [loading,   setLoading]   = useState(true);
-  const [sending,   setSending]   = useState(false);
-  const [error,     setError]     = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error,   setError]   = useState("");
+
+  const missingReviewUrl = action.isReview && !googleReviewUrl;
 
   const daysSinceVisit = customer.lastVisitAt
     ? Math.floor((Date.now() - new Date(customer.lastVisitAt).getTime()) / 86_400_000)
     : undefined;
 
   useEffect(() => {
+    if (missingReviewUrl) { setLoading(false); return; }
     async function generate() {
       setLoading(true);
       setError("");
@@ -562,10 +469,7 @@ function AiWhatsAppModal({ customer, action, googleReviewUrl, onClose, onSent }:
           }),
         });
         const data = await res.json();
-        if (!res.ok) {
-          setError(data.message ?? data.error ?? "Erro ao gerar mensagem.");
-          return;
-        }
+        if (!res.ok) { setError(data.message ?? data.error ?? "Erro ao gerar mensagem."); return; }
         setMessage(data.message);
       } catch {
         setError("Erro ao gerar mensagem. Tente novamente.");
@@ -581,13 +485,9 @@ function AiWhatsAppModal({ customer, action, googleReviewUrl, onClose, onSent }:
     if (!customer.phone || !message.trim()) return;
     setSending(true);
     setError("");
-
-    // Format phone: digits only, add 55 prefix if needed
-    const digits = customer.phone.replace(/\D/g, "");
+    const digits  = customer.phone.replace(/\D/g, "");
     const waPhone = digits.startsWith("55") ? digits : `55${digits}`;
-
     try {
-      // Record as manually sent in the queue
       await fetch("/api/whatsapp/messages", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -601,8 +501,6 @@ function AiWhatsAppModal({ customer, action, googleReviewUrl, onClose, onSent }:
           sentManually: true,
         }),
       });
-
-      // Open WhatsApp with pre-filled message
       window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(message.trim())}`, "_blank");
       onSent();
     } catch {
@@ -613,72 +511,86 @@ function AiWhatsAppModal({ customer, action, googleReviewUrl, onClose, onSent }:
   }
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black/70 z-[80]" onClick={onClose} />
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[90] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-              <h3 className="text-sm font-semibold text-foreground">{action.label}</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">{customer.name}</p>
-          </div>
-          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
+    <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+          <span className="text-xs font-medium text-foreground">{action.label}</span>
         </div>
-
-        {loading ? (
-          <div className="flex flex-col items-center gap-3 py-6">
-            <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
-            <p className="text-xs text-muted-foreground">Gerando mensagem com IA...</p>
-          </div>
-        ) : error ? (
-          <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-3 text-xs text-red-400 space-y-2">
-            <p>{error}</p>
-            <Button size="sm" variant="outline" className="text-xs h-7" onClick={onClose}>Fechar</Button>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground">Mensagem gerada</label>
-                <span className="text-[10px] text-purple-400/70 flex items-center gap-1">
-                  <Sparkles className="h-2.5 w-2.5" /> IA
-                </span>
-              </div>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={6}
-                className="w-full rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-2.5 text-sm text-foreground leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-none"
-              />
-            </div>
-
-            {!customer.phone && (
-              <p className="text-xs text-amber-400 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> Cliente sem telefone cadastrado.
-              </p>
-            )}
-
-            {error && <p className="text-xs text-red-400">{error}</p>}
-
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>Cancelar</Button>
-              <Button
-                className="flex-1 gap-2 bg-purple-600 hover:bg-purple-500 text-white"
-                disabled={!customer.phone || !message.trim() || sending}
-                onClick={handleSend}
-              >
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Abrir WhatsApp
-              </Button>
-            </div>
-          </>
-        )}
+        <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors">
+          <X className="h-3.5 w-3.5" />
+        </button>
       </div>
-    </>
+
+      {/* Missing review URL */}
+      {missingReviewUrl ? (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-300 leading-relaxed">
+              Configure o link do Google Business nas configurações para enviar pedidos de avaliação.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={onCancel}>Cancelar</Button>
+            <Button size="sm" className="flex-1 text-xs gap-1.5 bg-gold-500 hover:bg-gold-400 text-black"
+              onClick={() => { window.location.href = "/settings"; }}>
+              <ExternalLink className="h-3 w-3" /> Ir para configurações
+            </Button>
+          </div>
+        </div>
+      ) : loading ? (
+        <div className="flex items-center gap-2 py-4 justify-center">
+          <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+          <span className="text-xs text-muted-foreground">Gerando mensagem com IA...</span>
+        </div>
+      ) : error && !message ? (
+        <div className="space-y-2">
+          <p className="text-xs text-red-400">{error}</p>
+          <Button size="sm" variant="outline" className="text-xs h-7" onClick={onCancel}>Fechar</Button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">Mensagem gerada pela IA — edite se quiser</span>
+              <span className="text-[10px] text-purple-400/70 flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" /> IA
+              </span>
+            </div>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={5}
+              className="w-full rounded-lg border border-purple-500/20 bg-card px-3 py-2.5 text-sm text-foreground leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-none"
+            />
+          </div>
+
+          {!customer.phone && (
+            <p className="text-xs text-amber-400 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" /> Cliente sem telefone cadastrado.
+            </p>
+          )}
+          {error && <p className="text-xs text-red-400">{error}</p>}
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={onCancel} disabled={sending}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 text-xs gap-1.5 bg-purple-600 hover:bg-purple-500 text-white"
+              disabled={!customer.phone || !message.trim() || sending}
+              onClick={handleSend}
+            >
+              {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+              Abrir WhatsApp
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -702,4 +614,3 @@ function statusBadgeClass(s: string) {
   };
   return map[s] ?? "";
 }
-
