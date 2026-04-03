@@ -78,6 +78,20 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+// PATCH: atualiza só o WABA ID (sem mexer no token/phoneId)
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { wabaId } = await req.json();
+  await prisma.integration.update({
+    where: { barbershopId: session.user.barbershopId },
+    data:  { whatsappWabaId: wabaId || null },
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
 // DELETE: remove as credenciais WhatsApp
 export async function DELETE() {
   const session = await auth();

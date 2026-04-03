@@ -110,13 +110,19 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   const [waEditing,      setWaEditing]      = useState(!integration?.whatsappConfigured);
   const [waToken,        setWaToken]        = useState("");
   const [waPhoneId,      setWaPhoneId]      = useState("");
-  const [waWabaId,       setWaWabaId]       = useState(integration?.whatsappWabaId ?? "");
   const [waSaving,       setWaSaving]       = useState(false);
   const [waWebhookUrl,   setWaWebhookUrl]   = useState("");
   const [waVerifyToken,  setWaVerifyToken]  = useState(integration?.whatsappVerifyToken ?? "");
   const [waCopied,       setWaCopied]       = useState<"url" | "token" | null>(null);
   const [waLoadingSetup, setWaLoadingSetup] = useState(false);
   const [disconnectingWa, setDisconnectingWa] = useState(false);
+
+  // WABA / Templates (seção separada)
+  const [wabaId,       setWabaId]       = useState(integration?.whatsappWabaId ?? "");
+  const [wabaEditing,  setWabaEditing]  = useState(false);
+  const [wabaSaving,   setWabaSaving]   = useState(false);
+  const [wabaSyncing,  setWabaSyncing]  = useState(false);
+  const [wabaSyncMsg,  setWabaSyncMsg]  = useState<string | null>(null);
 
   // ── Trinks ────────────────────────────────────────────────────
 
@@ -265,7 +271,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       const res = await fetch("/api/whatsapp/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: waToken, phoneNumberId: waPhoneId, wabaId: waWabaId || undefined }),
+        body: JSON.stringify({ accessToken: waToken, phoneNumberId: waPhoneId }),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
       toast({ title: "WhatsApp configurado!" });
@@ -275,6 +281,39 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       toast({ title: "Erro ao salvar WhatsApp", description: String(e), variant: "destructive" });
     } finally {
       setWaSaving(false);
+    }
+  }
+
+  async function handleSaveWaba() {
+    setWabaSaving(true);
+    try {
+      const res = await fetch("/api/whatsapp/setup", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wabaId }),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar WABA ID");
+      toast({ title: "WABA ID salvo!" });
+      setWabaEditing(false);
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setWabaSaving(false);
+    }
+  }
+
+  async function handleSyncTemplates() {
+    setWabaSyncing(true);
+    setWabaSyncMsg(null);
+    try {
+      const res  = await fetch("/api/whatsapp/templates/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao sincronizar");
+      setWabaSyncMsg(`${data.synced} template${data.synced !== 1 ? "s" : ""} sincronizado${data.synced !== 1 ? "s" : ""}`);
+    } catch (e) {
+      toast({ title: "Erro ao sincronizar templates", description: String(e), variant: "destructive" });
+    } finally {
+      setWabaSyncing(false);
     }
   }
 
@@ -707,14 +746,6 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                   <input value={waPhoneId} onChange={(e) => setWaPhoneId(e.target.value)} placeholder="ex: 123456789012345"
                     className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">
-                    WABA ID <span className="text-muted-foreground/60">(opcional — para sincronizar templates)</span>
-                  </label>
-                  <input value={waWabaId} onChange={(e) => setWaWabaId(e.target.value)} placeholder="ex: 102938475665544"
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
-                  <p className="text-[10px] text-muted-foreground/60">Encontre em Meta Business Manager → Contas → WhatsApp → ID da conta</p>
-                </div>
               </div>
 
               <div className="flex gap-2">
@@ -728,20 +759,82 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
               </div>
             </>
           ) : (
-            <div className="rounded-md border border-green-500/30 bg-green-500/8 px-4 py-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
+            <div className="space-y-3">
+              {/* Credenciais configuradas */}
+              <div className="rounded-md border border-green-500/30 bg-green-500/8 px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                  <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button size="sm" variant="outline" className="text-xs gap-1 shrink-0"
+                    onClick={() => { setWaEditing(true); handleLoadWaSetup(); }}>
+                    <Settings className="h-3.5 w-3.5" /> Editar
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                    onClick={handleDisconnectWhatsApp} disabled={disconnectingWa} title="Desconectar WhatsApp">
+                    {disconnectingWa ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" variant="outline" className="text-xs gap-1 shrink-0"
-                  onClick={() => { setWaEditing(true); handleLoadWaSetup(); }}>
-                  <Settings className="h-3.5 w-3.5" /> Editar
-                </Button>
-                <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
-                  onClick={handleDisconnectWhatsApp} disabled={disconnectingWa} title="Desconectar WhatsApp">
-                  {disconnectingWa ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
-                </Button>
+
+              {/* Seção de Templates — separada e sempre editável */}
+              <div className="rounded-md border border-border bg-surface-800/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Templates de mensagem</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Configure o WABA ID para importar templates aprovados da Meta
+                    </p>
+                  </div>
+                  {!wabaEditing && (
+                    <Button size="sm" variant="ghost" className="text-xs gap-1 shrink-0"
+                      onClick={() => setWabaEditing(true)}>
+                      <Settings className="h-3.5 w-3.5" /> {wabaId ? "Editar" : "Configurar"}
+                    </Button>
+                  )}
+                </div>
+
+                {wabaEditing ? (
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">WABA ID</label>
+                      <input
+                        value={wabaId}
+                        onChange={(e) => setWabaId(e.target.value)}
+                        placeholder="ex: 102938475665544"
+                        className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                      />
+                      <p className="text-[10px] text-muted-foreground/60">Meta Business Manager → Contas → WhatsApp → ID da conta</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="text-xs" onClick={handleSaveWaba} disabled={wabaSaving}>
+                        {wabaSaving ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Salvar
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => setWabaEditing(false)}>Cancelar</Button>
+                    </div>
+                  </div>
+                ) : wabaId ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <code className="text-xs text-muted-foreground font-mono">{wabaId}</code>
+                    <Button size="sm" variant="outline" className="text-xs gap-1 shrink-0"
+                      onClick={handleSyncTemplates} disabled={wabaSyncing}>
+                      {wabaSyncing
+                        ? <RefreshCw className="h-3 w-3 animate-spin" />
+                        : <RefreshCw className="h-3 w-3" />}
+                      Sincronizar templates
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground/60">WABA ID não configurado — clique em Configurar para adicionar</p>
+                )}
+
+                {wabaSyncMsg && (
+                  <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> {wabaSyncMsg}
+                  </p>
+                )}
               </div>
             </div>
           )}
