@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
-import { uploadCampaignImageFromUrl } from "@/lib/storage";
+import { uploadCampaignImage, uploadCampaignImageFromUrl } from "@/lib/storage";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -67,11 +67,20 @@ Important:
       styleHint,
       referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
     });
-    const stored = await uploadCampaignImageFromUrl({
-      barbershopId: campaign.barbershopId,
-      campaignId: campaign.id,
-      sourceUrl: img.url,
-    });
+
+    const stored = "b64" in img
+      ? await uploadCampaignImage({
+          barbershopId: campaign.barbershopId,
+          campaignId:   campaign.id,
+          fileName:     `${campaign.id}.png`,
+          buffer:       Buffer.from(img.b64, "base64"),
+          contentType:  "image/png",
+        })
+      : await uploadCampaignImageFromUrl({
+          barbershopId: campaign.barbershopId,
+          campaignId:   campaign.id,
+          sourceUrl:    img.url,
+        });
 
     await prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } });
     await consumeAiCredit(session.user.barbershopId, "campaign_image");

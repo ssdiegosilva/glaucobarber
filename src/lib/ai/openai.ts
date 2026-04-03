@@ -76,34 +76,43 @@ export class OpenAIProvider implements AIProvider {
     return { text: raw.text ?? "", artBriefing: raw.artBriefing ?? "" };
   }
 
-  async generateCampaignImage(input: { prompt: string; styleHint?: string; referenceImageUrl?: string }): Promise<{ url: string }> {
+  async generateCampaignImage(input: { prompt: string; styleHint?: string; referenceImageUrl?: string }): Promise<{ url: string } | { b64: string }> {
     const prompt = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
-    const configuredModel = process.env.IMAGE_MODEL ?? "dall-e-3";
 
-    let imageBase64: string | undefined;
+    // ── With reference image: use gpt-image-1 via images.edit ────────────────
     if (input.referenceImageUrl) {
       try {
-        const res = await fetch(input.referenceImageUrl);
-        if (res.ok) {
-          const buffer = Buffer.from(await res.arrayBuffer());
-          imageBase64 = buffer.toString("base64");
-        }
-      } catch {
-        // keep undefined if fetch fails
+        const { toFile } = await import("openai");
+        const refRes = await fetch(input.referenceImageUrl);
+        if (!refRes.ok) throw new Error("Não foi possível baixar a imagem de referência");
+        const refBuffer  = Buffer.from(await refRes.arrayBuffer());
+        const contentType = refRes.headers.get("content-type") || "image/png";
+        const ext = contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
+
+        const img = await this.client.images.edit({
+          model:  "gpt-image-1",
+          image:  await toFile(refBuffer, `reference.${ext}`, { type: contentType }),
+          prompt,
+          size:   "1024x1024",
+          n:      1,
+        } as Parameters<typeof this.client.images.edit>[0]);
+
+        const b64 = img.data?.[0]?.b64_json;
+        if (!b64) throw new Error("gpt-image-1 não retornou imagem");
+        return { b64 };
+      } catch (err) {
+        throw new Error(`Erro ao gerar imagem com referência: ${String((err as any)?.message ?? err)}`);
       }
     }
 
-    const model = imageBase64 && configuredModel.startsWith("dall-e")
-      ? "gpt-image-1"
-      : configuredModel;
-
+    // ── Without reference: use dall-e-3 (returns URL) ───────────────────────
+    const model = process.env.IMAGE_MODEL ?? "dall-e-3";
     try {
       const img = await this.client.images.generate({
         model,
         prompt,
         size: "1024x1024",
-        n: 1,
-        ...(imageBase64 ? { image: imageBase64 } : {}),
+        n:    1,
       });
       const url = img.data?.[0]?.url;
       if (!url) throw new Error("Falha ao gerar imagem");

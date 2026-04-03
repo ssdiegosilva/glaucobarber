@@ -37,7 +37,7 @@ export interface AIProvider {
     prompt: string;
     styleHint?: string;
     referenceImageUrl?: string;
-  }): Promise<{ url: string }>;
+  }): Promise<{ url: string } | { b64: string }>;
   generateClientMessage(clientName: string, daysSinceVisit: number, services: string[]): Promise<string>;
   generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;
   improveBrandStyle(rawStyle: string): Promise<string>;
