@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const barbershopId = session.user.barbershopId;
   const filter = req.nextUrl.searchParams.get("filter") ?? "all";
 
-  const baseWhere = { barbershopId, deletedAt: null, phone: { not: null }, doNotContact: false };
+  const baseWhere = { barbershopId, deletedAt: null, phone: { not: null }, doNotContact: { not: true } };
 
   const select = {
     id: true,

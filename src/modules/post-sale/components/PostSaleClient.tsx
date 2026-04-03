@@ -305,10 +305,19 @@ function CustomerDetailSheet({ customer, googleReviewUrl, onClose }: {
     setShowActions(false);
   }
 
+  const hasSubModal = showActions || !!selectedAction;
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-border bg-card shadow-xl max-h-[85vh] overflow-y-auto">
+      <div
+        className="fixed inset-0 bg-black/60 z-40"
+        onClick={hasSubModal ? undefined : onClose}
+        style={hasSubModal ? { pointerEvents: "none" } : undefined}
+      />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-border bg-card shadow-xl max-h-[85vh] overflow-y-auto"
+        style={hasSubModal ? { pointerEvents: "none", overflow: "hidden" } : undefined}
+      >
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-border" />
         </div>
@@ -446,8 +455,8 @@ function ActionSheet({ customer, actions, onClose, onAction }: {
 }) {
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-border bg-card shadow-xl">
+      <div className="fixed inset-0 bg-black/60 z-[60]" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-[70] rounded-t-2xl border-t border-border bg-card shadow-xl">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-border" />
         </div>
@@ -481,8 +490,8 @@ function ActionSheet({ customer, actions, onClose, onAction }: {
 function MissingReviewUrlModal({ onClose }: { onClose: () => void }) {
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 z-[60]" onClick={onClose} />
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[70] rounded-xl border border-amber-500/30 bg-card shadow-2xl p-5 space-y-4">
+      <div className="fixed inset-0 bg-black/70 z-[80]" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[90] rounded-xl border border-amber-500/30 bg-card shadow-2xl p-5 space-y-4">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
             <Star className="h-4 w-4 text-amber-400" />
@@ -595,8 +604,8 @@ function AiWhatsAppModal({ customer, action, googleReviewUrl, onClose, onSent }:
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 z-[60]" onClick={onClose} />
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[70] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/70 z-[80]" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[90] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
