@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
 import {
   RefreshCw, CheckCircle2, AlertTriangle, Plug, Clock,
-  Settings, ChevronDown, Copy, Check, Unplug, LogIn,
+  Settings, ChevronDown, Copy, Check, Unplug, LogIn, Link2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -304,6 +304,13 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
+
+      {/* ── Section header ────────────────────────────────── */}
+      <div className="flex items-center gap-2">
+        <Link2 className="h-4 w-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold text-foreground">Integrações</h2>
+        <div className="flex-1 border-t border-border/40" />
+      </div>
 
       {/* ── Trinks ────────────────────────────────────────── */}
       <Card>
