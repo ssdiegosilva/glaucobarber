@@ -51,7 +51,7 @@ export async function fetchInstagramAccounts(userToken: string): Promise<IgAccou
     `https://graph.facebook.com/v21.0/me/accounts?access_token=${userToken}&fields=id,name,access_token&limit=100`;
 
   while (url) {
-    const res  = await fetch(url);
+    const res: Response = await fetch(url);
     const json = await res.json();
     if (!res.ok || json.error) throw new Error(json.error?.message ?? "Token inválido ou sem permissão pages_show_list");
     pages.push(...(json.data ?? []));
