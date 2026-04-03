@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
@@ -10,6 +11,15 @@ import {
   ChevronRight, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
   UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles,
 } from "lucide-react";
+
+// ── Portal ────────────────────────────────────────────────────
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
 
 // ── Status actions ────────────────────────────────────────────
 
@@ -308,7 +318,7 @@ function CustomerDetailSheet({ customer, googleReviewUrl, onClose }: {
   const hasSubModal = showActions || !!selectedAction;
 
   return (
-    <>
+    <Portal>
       <div
         className="fixed inset-0 bg-black/60 z-40"
         onClick={hasSubModal ? undefined : onClose}
@@ -441,7 +451,7 @@ function CustomerDetailSheet({ customer, googleReviewUrl, onClose }: {
           />
         )
       )}
-    </>
+    </Portal>
   );
 }
 
