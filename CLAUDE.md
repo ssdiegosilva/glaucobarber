@@ -101,6 +101,28 @@ Durante TRIALING → `effectiveTier = PRO` (acesso total).
 
 ---
 
+## Identidade visual — Botões de ação com IA
+
+Todo botão que dispara uma ação de IA (gera texto, imagem, análise, sugestão, etc.) deve usar obrigatoriamente a cor **roxa**:
+
+```
+bg-purple-600 hover:bg-purple-500 text-white
+```
+
+Ícones e destaques relacionados a IA usam `text-purple-400`, bordas `border-purple-500/30`, fundos `bg-purple-500/10`.
+
+Botões de ação normais (salvar, confirmar, primário não-IA) continuam usando `bg-gold-500 hover:bg-gold-400 text-black`.
+
+**Exemplos corretos:**
+- Botão "Gerar campanha" → roxo (`bg-purple-600`)
+- Botão "Analisar foto" → roxo (`bg-purple-600`)
+- Botão "Salvar configurações" → dourado (`bg-gold-500`)
+- Botão "Aprovar" → dourado ou neutro
+
+Essa distinção visual sinaliza ao usuário que a ação vai consumir créditos de IA.
+
+---
+
 ## Geração de imagens
 
 - Sempre usa `gpt-image-1` (retorna `b64_json`)
