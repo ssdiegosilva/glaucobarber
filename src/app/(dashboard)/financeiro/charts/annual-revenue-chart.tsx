@@ -53,8 +53,8 @@ export default function AnnualRevenueChart({ months, currentMonth, currentYear, 
         />
         <Tooltip
           contentStyle={{ background: "#111", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
-          formatter={(value: number, name: string) => [
-            name === "avgTicket" ? formatBRL(value) : formatBRL(value),
+          formatter={(value, name) => [
+            formatBRL(Number(value ?? 0)),
             name === "avgTicket" ? "Ticket médio" : "Receita",
           ]}
         />
