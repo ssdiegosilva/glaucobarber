@@ -874,12 +874,14 @@ function MessageRow({
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-[10px] text-muted-foreground">{timeStr}</span>
-            {/* sent manually / auto tag */}
-            {localMsg.status === "SENT" && (
-              localMsg.sentManually
-                ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-1.5 py-0.5 text-[9px] text-amber-400">👤 manual</span>
-                : <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-1.5 py-0.5 text-[9px] text-green-400">🤖 automático</span>
-            )}
+            {/* manual / auto tag — shown for queued and sent */}
+            {localMsg.messageKind !== "template" ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-1.5 py-0.5 text-[9px] text-amber-400">👤 manual</span>
+            ) : localMsg.status === "SENT" && !localMsg.sentManually ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-1.5 py-0.5 text-[9px] text-green-400">🤖 automático</span>
+            ) : localMsg.status === "SENT" && localMsg.sentManually ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-1.5 py-0.5 text-[9px] text-amber-400">👤 manual</span>
+            ) : null}
             {localMsg.metaMessageId && (
               <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-1.5 py-0.5 text-[9px] text-green-400">
                 <ExternalLink className="h-2.5 w-2.5" />
@@ -1149,8 +1151,8 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       {tab === "queue" && (
         <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">
           {botActive
-            ? "Bot envia automaticamente a cada 15 min. Você pode antecipar clicando em \"Via bot agora\" ou abrir o WhatsApp manualmente."
-            : "Envio manual necessário — clique em cada mensagem para abrir o WhatsApp e enviar."}
+            ? "Mensagens automáticas (templates) são enviadas pelo bot a cada 15 min. Mensagens manuais (texto livre, copilot, pós-venda) precisam ser enviadas por você via WhatsApp."
+            : "Todas as mensagens precisam de envio manual — clique em cada uma para abrir o WhatsApp."}
         </p>
       )}
       {tab === "failed"  && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens que falharam no envio. Use &quot;Tentar novamente&quot; para reagendar para daqui 1 hora. Itens com mais de 1 dia são removidos automaticamente.</p>}
@@ -1220,37 +1222,53 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                 </div>
               )}
               {(() => {
-                const todayStr = new Date().toISOString().slice(0, 10);
-                const todayMsgs  = queue.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) <= todayStr);
-                const futureMsgs = queue.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) >  todayStr);
+                const todayStr   = new Date().toISOString().slice(0, 10);
+                const botMsgs    = queue.filter((m) => m.messageKind === "template");
+                const manualMsgs = queue.filter((m) => m.messageKind !== "template");
+
+                function renderGroup(msgs: WaMessage[], label: string, icon: React.ReactNode, color: string) {
+                  if (msgs.length === 0) return null;
+                  const today  = msgs.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) <= todayStr);
+                  const future = msgs.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) >  todayStr);
+                  return (
+                    <div className="space-y-2">
+                      <div className={`flex items-center gap-1.5 text-[11px] font-semibold pt-1 ${color}`}>
+                        {icon}
+                        {label} · {msgs.length}
+                      </div>
+                      {today.map((m) => (
+                        <MessageRow key={m.id} msg={m} showActions isToday
+                          hasAutoSend={hasAutoSend} whatsappConfigured={whatsappConfigured}
+                          onManualSent={markManualSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
+                      ))}
+                      {future.length > 0 && today.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground pt-1">Próximos dias</p>
+                      )}
+                      {future.map((m) => (
+                        <MessageRow key={m.id} msg={m} showActions
+                          hasAutoSend={hasAutoSend} whatsappConfigured={whatsappConfigured}
+                          onManualSent={markManualSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
+                      ))}
+                    </div>
+                  );
+                }
+
                 return (
                   <>
-                    {todayMsgs.length > 0 && (
-                      <>
-                        <p className="text-[11px] font-semibold text-amber-400 flex items-center gap-1.5 pt-1">
-                          <Clock className="h-3 w-3" />
-                          {botActive ? `Bot envia hoje (${todayMsgs.length})` : `Ação manual necessária (${todayMsgs.length})`}
-                        </p>
-                        {todayMsgs.map((m) => (
-                          <MessageRow key={m.id} msg={m} showActions isToday
-                            hasAutoSend={hasAutoSend} whatsappConfigured={whatsappConfigured}
-                            onManualSent={markManualSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
-                        ))}
-                      </>
+                    {renderGroup(
+                      botMsgs,
+                      "Automático — bot envia",
+                      <Bot className="h-3 w-3" />,
+                      "text-green-400",
                     )}
-                    {futureMsgs.length > 0 && (
-                      <>
-                        {todayMsgs.length > 0 && (
-                          <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 pt-2">
-                            Próximos dias ({futureMsgs.length})
-                          </p>
-                        )}
-                        {futureMsgs.map((m) => (
-                          <MessageRow key={m.id} msg={m} showActions
-                            hasAutoSend={hasAutoSend} whatsappConfigured={whatsappConfigured}
-                            onManualSent={markManualSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
-                        ))}
-                      </>
+                    {botMsgs.length > 0 && manualMsgs.length > 0 && (
+                      <div className="border-t border-border/40 pt-1" />
+                    )}
+                    {renderGroup(
+                      manualMsgs,
+                      "Manual — você envia",
+                      <Send className="h-3 w-3" />,
+                      "text-amber-400",
                     )}
                   </>
                 );
