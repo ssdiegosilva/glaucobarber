@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,51 @@ export interface CampaignDto {
   scheduledAt: string | null;
   imageUrl: string | null;
   instagramPermalink: string | null;
+}
+
+// ── LaunchCountdown ───────────────────────────────────────────
+
+function useSecondsUntil(scheduledAt: string | null): number | null {
+  const [secs, setSecs] = useState<number | null>(() => {
+    if (!scheduledAt) return null;
+    return Math.floor((new Date(scheduledAt).getTime() - Date.now()) / 1000);
+  });
+  useEffect(() => {
+    if (!scheduledAt) return;
+    const tick = () => {
+      setSecs(Math.floor((new Date(scheduledAt).getTime() - Date.now()) / 1000));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [scheduledAt]);
+  return secs;
+}
+
+function LaunchCountdown({ scheduledAt }: { scheduledAt: string }) {
+  const secs = useSecondsUntil(scheduledAt);
+  if (secs === null) return null;
+
+  if (secs > 0) {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    const label = h > 0
+      ? `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`
+      : `${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-amber-400 tabular-nums shrink-0">
+        <Clock className="h-2.5 w-2.5 shrink-0" /> {label}
+      </span>
+    );
+  }
+
+  // Countdown reached zero — waiting for the cron bus
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-green-500/40 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400 shrink-0 animate-pulse">
+      <Send className="h-2.5 w-2.5 shrink-0" /> Na fila — chega em até 15 min 🚌
+    </span>
+  );
 }
 
 // ── ApproveModal ──────────────────────────────────────────────
@@ -522,10 +567,8 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-xs font-semibold text-foreground truncate">{c.title}</p>
-                          {today && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400 shrink-0">
-                              <Clock className="h-2.5 w-2.5" /> Hoje
-                            </span>
+                          {today && c.scheduledAt && (
+                            <LaunchCountdown scheduledAt={c.scheduledAt} />
                           )}
                           {!c.imageUrl && (
                             <span className="text-[10px] text-red-400/80 shrink-0">sem imagem</span>
@@ -582,7 +625,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {campaigns.filter((c) => c.status === "PUBLISHED").map((c) => (
+              {campaigns.filter((c) => c.status === "PUBLISHED").slice(0, 10).map((c) => (
                 <div key={c.id}>
                   <button
                     type="button"
@@ -669,15 +712,14 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
                             <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            {c.imageUrl && <Badge variant="outline" className="text-[10px]">Pronto para aprovar</Badge>}
                             {c.imageUrl && (
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="h-7 text-[11px]"
+                                variant="outline"
+                                className="h-7 text-[11px] gap-1.5"
                                 onClick={(e) => { e.stopPropagation(); setEditingImage(openEditor ? null : c.id); }}
                               >
-                                {openEditor ? "Fechar" : "Mudar imagem"}
+                                {openEditor ? <><X className="h-3 w-3" />Fechar</> : <><Wand2 className="h-3 w-3" />Mudar imagem</>}
                               </Button>
                             )}
                           </div>
