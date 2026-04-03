@@ -260,6 +260,9 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [approveModal, setApproveModal]     = useState<string | null>(null); // campaignId
   const [rescheduleModal, setRescheduleModal] = useState<string | null>(null);
   const [schedulingId, setSchedulingId]     = useState<string | null>(null);
+  const [editingText, setEditingText]       = useState<string | null>(null);
+  const [editedText, setEditedText]         = useState<Record<string, string>>({});
+  const [savingText, setSavingText]         = useState<string | null>(null);
 
   async function createCampaign() {
     setLoadingCreate(true);
@@ -401,6 +404,28 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       toast({ title: "Erro ao agendar", description: String(e), variant: "destructive" });
     } finally {
       setSchedulingId(null);
+    }
+  }
+
+  async function saveText(id: string) {
+    const text = editedText[id];
+    if (text === undefined) return;
+    setSavingText(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar texto");
+      setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, text } : c)));
+      setEditingText(null);
+      toast({ title: "Texto salvo", description: "Copy da campanha atualizado." });
+    } catch (e) {
+      toast({ title: "Erro ao salvar texto", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingText(null);
     }
   }
 
@@ -714,8 +739,36 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                   <p className="text-xs text-foreground/80">{c.objective}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Copy</p>
-                  <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.text}</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Copy</p>
+                    {editingText !== c.id && (
+                      <button
+                        className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Editar texto"
+                        onClick={(e) => { e.stopPropagation(); setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  {editingText === c.id ? (
+                    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                      <textarea
+                        value={editedText[c.id] ?? c.text}
+                        onChange={(e) => setEditedText((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                        rows={6}
+                        className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditingText(null)} disabled={savingText === c.id}>Cancelar</Button>
+                        <Button size="sm" className="h-7 text-[11px]" onClick={() => saveText(c.id)} disabled={savingText === c.id}>
+                          {savingText === c.id ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.text}</p>
+                  )}
                 </div>
                 {c.artBriefing && (
                   <div className="rounded-md bg-surface-800 p-3">
