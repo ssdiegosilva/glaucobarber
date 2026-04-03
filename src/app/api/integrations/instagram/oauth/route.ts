@@ -11,7 +11,6 @@ const SCOPES = [
   "pages_read_engagement",
   "instagram_basic",
   "instagram_content_publish",
-  "pages_manage_posts",
 ].join(",");
 
 export async function GET() {
