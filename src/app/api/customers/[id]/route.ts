@@ -27,6 +27,7 @@ export async function PATCH(
       ...(doNotContact  != null ? { doNotContact: Boolean(doNotContact) }: {}),
       ...(tags          != null ? { tags }                               : {}),
       ...(status        != null ? { status }                             : {}),
+      locallyModifiedAt: new Date(),
     },
     select: { id: true, name: true, phone: true, email: true, notes: true, doNotContact: true, tags: true },
   });

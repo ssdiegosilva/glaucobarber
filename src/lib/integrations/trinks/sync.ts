@@ -42,11 +42,20 @@ export async function syncBarbershop(
         for (const raw of res.data) {
           try {
             const data = mapTrinksCustomer(raw, barbershopId);
-            await prisma.customer.upsert({
+            const existing = await prisma.customer.upsert({
               where:  { barbershopId_trinksId: { barbershopId, trinksId: String(raw.id) } },
               create: data,
-              update: { name: data.name, phone: data.phone, email: data.email, notes: data.notes, tags: data.tags, lastSyncedAt: new Date() },
+              // Only update the sync timestamp here — user-editable fields are protected below
+              update: { lastSyncedAt: new Date() },
+              select: { id: true, locallyModifiedAt: true },
             });
+            // Only overwrite user-editable fields if the customer was never edited locally
+            if (!existing.locallyModifiedAt) {
+              await prisma.customer.update({
+                where: { id: existing.id },
+                data:  { name: data.name, phone: data.phone, email: data.email, notes: data.notes, tags: data.tags },
+              });
+            }
             customersUpserted++;
           } catch (err) {
             errors.push({ entity: "Customer", entityId: String(raw.id), message: String(err) });

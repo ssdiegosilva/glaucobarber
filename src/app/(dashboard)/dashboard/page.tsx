@@ -30,7 +30,7 @@ export default async function DashboardPage({
 
       prisma.barbershop.findUnique({
         where:  { id: barbershopId },
-        select: { name: true, trinksConfigured: true, lastDailyGiftAt: true },
+        select: { name: true, trinksConfigured: true, lastDailyGiftAt: true, dashboardWidgets: true },
       }),
 
       prisma.suggestion.findMany({
@@ -140,13 +140,13 @@ export default async function DashboardPage({
           })
         : null,
 
-      // top_service: most common service name this month
+      // top_service: most booked service this month
       selectedWidgets.includes("top_service")
         ? prisma.appointment.groupBy({
-            by:    ["serviceName"],
-            where: { barbershopId, scheduledAt: { gte: monthStart, lte: monthEnd } },
+            by:    ["serviceId"],
+            where: { barbershopId, serviceId: { not: null }, scheduledAt: { gte: monthStart, lte: monthEnd } },
             _count: { _all: true },
-            orderBy: { _count: { serviceName: "desc" } },
+            orderBy: { _count: { serviceId: "desc" } },
             take: 1,
           })
         : null,
@@ -254,7 +254,12 @@ export default async function DashboardPage({
           newClients:      newClientsCount ?? null,
           returnRate:      returnRatePct,
           weeklyRevenue:   weeklyRevenueData ? Number(weeklyRevenueData._sum.price ?? 0) : null,
-          topService:      topServiceData?.[0]?.serviceName ?? null,
+          topService:      await (async () => {
+            const topId = topServiceData?.[0]?.serviceId;
+            if (!topId) return null;
+            const svc = await prisma.service.findUnique({ where: { id: topId }, select: { name: true } });
+            return svc?.name ?? null;
+          })(),
           whatsappQueue:   whatsappQueueCount ?? null,
           monthlyGoalPct,
         }}

@@ -335,8 +335,9 @@ model Customer {
   avgTicketLast60d    Decimal? @db.Decimal(10, 2)
 
   // Source tracking
-  syncedFromTrinks Boolean  @default(false)
-  lastSyncedAt     DateTime?
+  syncedFromTrinks  Boolean   @default(false)
+  lastSyncedAt      DateTime?
+  locallyModifiedAt DateTime? // set when user edits locally — prevents sync from overwriting
 
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   appointments Appointment[]
