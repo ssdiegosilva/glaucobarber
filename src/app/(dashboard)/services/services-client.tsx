@@ -507,7 +507,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                     {!isEditing && (
                       <button
                         onClick={() => startEdit(s)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-1 hover:bg-surface-700"
+                        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity rounded p-1 hover:bg-surface-700"
                         title="Editar preço"
                       >
                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
@@ -559,7 +559,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                     <button
                       onClick={() => rec ? setExpandedRec(isExpanded ? null : s.id) : fetchRecommendation(s)}
                       disabled={loadingAI === s.id}
-                      className="mt-3 flex items-center gap-1.5 text-[11px] text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50"
+                      className="mt-3 flex items-center gap-1.5 text-[11px] text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50 py-2 -my-2"
                     >
                       {loadingAI === s.id
                         ? <Loader2 className="h-3 w-3 animate-spin" />
