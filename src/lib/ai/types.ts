@@ -36,6 +36,7 @@ export interface AIProvider {
   generateCampaignImage(input: {
     prompt: string;
     styleHint?: string;
+    referenceImageUrl?: string;
   }): Promise<{ url: string }>;
   generateClientMessage(clientName: string, daysSinceVisit: number, services: string[]): Promise<string>;
   generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;
