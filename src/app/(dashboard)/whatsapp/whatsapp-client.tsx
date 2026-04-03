@@ -148,7 +148,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
     setShowDropdown(false);
   }
 
-  async function useTemplate(tpl: TextTemplate) {
+  async function applyTemplate(tpl: TextTemplate) {
     if (name.trim()) {
       // Cliente selecionado → IA personaliza
       setPersonalizing(tpl.id);
@@ -317,7 +317,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
                         <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{tpl.body}</p>
                       </div>
                       <button
-                        onClick={() => useTemplate(tpl)}
+                        onClick={() => applyTemplate(tpl)}
                         disabled={personalizing === tpl.id}
                         className="shrink-0 flex items-center gap-1 rounded-md border border-gold-500/40 bg-gold-500/10 px-2 py-1 text-[11px] text-gold-400 hover:bg-gold-500/20 transition-colors disabled:opacity-50"
                       >
