@@ -267,23 +267,42 @@ function ActionCard({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 pt-0.5">
-        <Button
-          size="sm"
-          className="h-8 text-xs gap-1"
-          onClick={onApprove}
-        >
-          <CheckCircle2 className="h-3.5 w-3.5" /> Aprovar
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
-          onClick={onDismiss}
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Excluir
-        </Button>
-      </div>
+      {action.type === "define_goal" ? (
+        <div className="flex items-center gap-2 pt-0.5">
+          <Link
+            href="/meta"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md bg-gold-500 hover:bg-gold-400 text-black text-xs font-medium transition-colors"
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> Ir para Metas
+          </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
+            onClick={onDismiss}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 pt-0.5">
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1"
+            onClick={onApprove}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" /> Aprovar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
+            onClick={onDismiss}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Excluir
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
