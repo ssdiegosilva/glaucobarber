@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, CheckCircle2, XCircle, Play, MessageSquare, Sparkles, PanelsTopLeft, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Send, CheckCircle2, MessageSquare, Sparkles, PanelsTopLeft, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 type Thread = {
   id: string;
@@ -323,15 +323,14 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
                         </div>
                       )}
                       <p className="text-[10px] text-muted-foreground">Tipo: {a.type}</p>
-                      <div className="flex gap-2 pt-0.5">
-                        <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "approve")} title="Aprovar">
+                      <div className="grid grid-cols-2 gap-2 pt-0.5">
+                        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => updateAction(a.id, "approve")}>
                           <CheckCircle2 className="h-3.5 w-3.5" />
+                          Aprovar
                         </Button>
-                        <Button size="icon-sm" variant="outline" onClick={() => updateAction(a.id, "execute")} title="Executar">
-                          <Play className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="icon-sm" variant="ghost" onClick={() => updateAction(a.id, "dismiss")} title="Dispensar">
-                          <XCircle className="h-3.5 w-3.5" />
+                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40" onClick={() => updateAction(a.id, "dismiss")}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Excluir
                         </Button>
                       </div>
                     </div>
