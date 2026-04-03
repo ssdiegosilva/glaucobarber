@@ -250,10 +250,22 @@ export function BillingClient({
         </div>
 
         {isTrialing ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span>Ilimitado durante o trial — aproveite para explorar todos os recursos.</span>
-          </div>
+          aiUsed >= aiLimit ? (
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5">
+              <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="text-red-400 font-medium">Limite de uso do trial atingido</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  Você explorou bastante durante o período gratuito. Assine um plano para continuar usando a IA.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>IA disponível durante o trial — aproveite para explorar todos os recursos.</span>
+            </div>
+          )
         ) : (
         <div>
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">

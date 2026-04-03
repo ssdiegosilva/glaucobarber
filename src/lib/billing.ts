@@ -18,6 +18,9 @@ export const PLAN_LIMITS: Record<
   ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly", featureGates: [],             appointmentFee: false },
 };
 
+// Limite de segurança do trial (invisível para o usuário)
+export const TRIAL_AI_LIMIT = 300;
+
 // R$1,50 por atendimento concluído no plano PRO
 export const APPOINTMENT_FEE_CENTS = 150;
 // Cap: máximo R$400 em taxas de atendimento/mês (total PRO = R$149 + R$400 = R$549)
@@ -108,9 +111,14 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
 
-  // During trial: unlimited AI (no tracking)
+  // During trial: 300-call safety cap (invisible to user — not shown in UI)
   if (plan.status === "TRIALING") {
-    return { allowed: true, used: 0, limit: Infinity, creditsRemaining: 0, planTier: plan.tier };
+    const usage = await prisma.aiUsageMonth.findUnique({
+      where: { barbershopId_yearMonth: { barbershopId, yearMonth: "trialing" } },
+    });
+    const used    = usage?.usageCount ?? 0;
+    const allowed = used < TRIAL_AI_LIMIT;
+    return { allowed, used, limit: TRIAL_AI_LIMIT, creditsRemaining: 0, planTier: plan.tier };
   }
 
   if (limits.aiPerPeriod === Infinity) {
@@ -143,8 +151,15 @@ export async function consumeAiCredit(barbershopId: string): Promise<void> {
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
 
-  // During trial: unlimited, nothing to track
-  if (plan.status === "TRIALING") return;
+  // During trial: track against the 300-call safety cap under key "trialing"
+  if (plan.status === "TRIALING") {
+    await prisma.aiUsageMonth.upsert({
+      where:  { barbershopId_yearMonth: { barbershopId, yearMonth: "trialing" } },
+      create: { barbershopId, yearMonth: "trialing", usageCount: 1 },
+      update: { usageCount: { increment: 1 } },
+    });
+    return;
+  }
 
   if (limits.aiPerPeriod === Infinity) return;
 

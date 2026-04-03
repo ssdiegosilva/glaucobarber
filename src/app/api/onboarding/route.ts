@@ -39,9 +39,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Auto-create TRIAL subscription — 15 days full access, then migrates to FREE via cron
+    // Auto-create TRIAL subscription — 10 days full access, then migrates to FREE via cron
     const now        = new Date();
-    const trialEnd   = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+    const trialEnd   = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
     await tx.platformSubscription.create({
       data: {
         barbershopId:       shop.id,
