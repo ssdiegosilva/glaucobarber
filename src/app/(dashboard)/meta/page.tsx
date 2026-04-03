@@ -118,6 +118,7 @@ export default async function MetaPage() {
   const allGoalsSerialized = allGoals.map((g) => ({
     id:               g.id,
     month:            g.month,
+    year:             g.year,
     monthLabel:       MONTH_LABELS[g.month - 1] ?? String(g.month),
     revenueTarget:    g.revenueTarget ? Number(g.revenueTarget) : null,
     revenueActual:    revenueByMonth.get(g.month) ?? 0,
@@ -140,9 +141,9 @@ export default async function MetaPage() {
   const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       <Header title="Metas" subtitle={`Mês atual: ${monthLabel}`} userName={session.user.name} />
-      <div className="p-6 overflow-y-auto">
+      <div className="p-4 sm:p-6">
         <MetaClient
           month={month}
           year={year}
