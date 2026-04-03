@@ -55,7 +55,11 @@ export default async function SettingsPage() {
           />
         )}
 
-        <BrandStyleCard initialStyle={barbershop?.brandStyle ?? null} />
+        <BrandStyleCard
+          initialStyle={barbershop?.brandStyle ?? null}
+          barbershopName={barbershop?.name ?? null}
+          logoUrl={barbershop?.logoUrl ?? null}
+        />
 
         <Suspense>
         <IntegrationsClient

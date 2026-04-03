@@ -13,6 +13,7 @@ import type {
 } from "./types";
 
 const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
+const VISION_MODEL = process.env.AI_VISION_MODEL ?? MODEL;
 
 export class OpenAIProvider implements AIProvider {
   readonly name = "openai";
@@ -160,6 +161,35 @@ export class OpenAIProvider implements AIProvider {
     });
 
     return (completion.choices[0]?.message?.content ?? rawStyle).trim().slice(0, 300);
+  }
+
+  async generateBrandStyleFromLogo(logoUrl: string, barbershopName?: string): Promise<string> {
+    const prompt = [
+      "Analise o logo da barbearia e descreva a identidade visual em até 300 caracteres.",
+      "Foque em paleta de cores, materiais, mood, iluminação e tipografia que o logo sugere.",
+      barbershopName ? `Nome da barbearia: ${barbershopName}.` : null,
+      "Responda apenas com a descrição, em PT-BR, sem bullet points."
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const completion = await this.client.chat.completions.create({
+      model: VISION_MODEL,
+      max_tokens: 200,
+      messages: [
+        { role: "system", content: "Você é um diretor de arte que extrai identidade visual a partir de logos." },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: logoUrl } },
+          ],
+        },
+      ],
+    });
+
+    const text = completion.choices[0]?.message?.content ?? "";
+    return text.trim().slice(0, 300);
   }
 }
 
