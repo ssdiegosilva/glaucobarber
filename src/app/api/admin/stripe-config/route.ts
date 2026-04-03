@@ -7,6 +7,9 @@ const CONFIG_KEYS = [
   "stripe_price_pro_monthly",
   "stripe_price_enterprise_monthly",
   "stripe_price_ai_credits_pack",
+  "stripe_price_pro_metered",
+  "pro_appointment_fee_cents",
+  "pro_appointment_fee_cap_cents",
 ] as const;
 
 export async function GET() {
