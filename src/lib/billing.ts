@@ -39,11 +39,15 @@ function periodKey(tier: PlanTier): string {
 // ── getPlan ────────────────────────────────────────────────────────────────────
 
 export interface PlanInfo {
-  tier:            PlanTier;
-  status:          SubscriptionStatus;
-  aiCreditBalance: number;
-  stripeSubId:     string | null;
-  stripeCustomerId: string | null;
+  tier:              PlanTier;
+  effectiveTier:     PlanTier;   // = "PRO" during TRIALING, same as tier otherwise
+  status:            SubscriptionStatus;
+  aiCreditBalance:   number;
+  stripeSubId:       string | null;
+  stripeCustomerId:  string | null;
+  trialEndsAt:       Date | null;
+  currentPeriodEnd:  Date | null;
+  cancelAtPeriodEnd: boolean;
 }
 
 export async function getPlan(barbershopId: string): Promise<PlanInfo> {
@@ -58,8 +62,8 @@ export async function getPlan(barbershopId: string): Promise<PlanInfo> {
       where:  { barbershopId },
       create: {
         barbershopId,
-        planTier:          "FREE",
-        status:            "ACTIVE",
+        planTier:           "FREE",
+        status:             "ACTIVE",
         currentPeriodStart: new Date(),
         currentPeriodEnd:   new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       },
@@ -68,12 +72,19 @@ export async function getPlan(barbershopId: string): Promise<PlanInfo> {
     });
   }
 
+  // During trial, effective tier = PRO (full feature access)
+  const effectiveTier: PlanTier = sub.status === "TRIALING" ? "PRO" : sub.planTier;
+
   return {
-    tier:             sub.planTier,
-    status:           sub.status,
-    aiCreditBalance:  sub.aiCreditBalance,
-    stripeSubId:      sub.stripeSubId ?? null,
-    stripeCustomerId: sub.barbershop.stripeCustomerId ?? null,
+    tier:              sub.planTier,
+    effectiveTier,
+    status:            sub.status,
+    aiCreditBalance:   sub.aiCreditBalance,
+    stripeSubId:       sub.stripeSubId ?? null,
+    stripeCustomerId:  sub.barbershop.stripeCustomerId ?? null,
+    trialEndsAt:       sub.trialEndsAt ?? null,
+    currentPeriodEnd:  sub.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
   };
 }
 
@@ -96,6 +107,11 @@ export interface AiAllowance {
 export async function checkAiAllowance(barbershopId: string): Promise<AiAllowance> {
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
+
+  // During trial: unlimited AI (no tracking)
+  if (plan.status === "TRIALING") {
+    return { allowed: true, used: 0, limit: Infinity, creditsRemaining: 0, planTier: plan.tier };
+  }
 
   if (limits.aiPerPeriod === Infinity) {
     return { allowed: true, used: 0, limit: Infinity, creditsRemaining: 0, planTier: plan.tier };
@@ -126,6 +142,9 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
 export async function consumeAiCredit(barbershopId: string): Promise<void> {
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
+
+  // During trial: unlimited, nothing to track
+  if (plan.status === "TRIALING") return;
 
   if (limits.aiPerPeriod === Infinity) return;
 

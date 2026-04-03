@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
-  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2, Pencil, X, PenLine,
+  Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2, Pencil, X, PenLine, Search,
 } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 
@@ -80,14 +80,71 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
 
 // ── Compose custom message modal ─────────────────────────────
 
+type CustomerSuggestion = { id: string; name: string; phone: string | null };
+
 function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: WaMessage) => void }) {
+  const [customerId,   setCustomerId]   = useState<string | null>(null);
   const [name,         setName]         = useState("");
   const [phone,        setPhone]        = useState("");
   const [text,         setText]         = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [sending,      setSending]      = useState(false);
   const [error,        setError]        = useState("");
+
+  // Customer search
+  const [query,        setQuery]        = useState("");
+  const [suggestions,  setSuggestions]  = useState<CustomerSuggestion[]>([]);
+  const [searching,    setSearching]    = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef   = useRef<HTMLDivElement>(null);
+
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  function handleQueryChange(val: string) {
+    setQuery(val);
+    setCustomerId(null);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (val.trim().length < 2) { setSuggestions([]); setShowDropdown(false); return; }
+    searchTimeout.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res  = await fetch(`/api/customers/search?q=${encodeURIComponent(val.trim())}`);
+        const data = await res.json();
+        setSuggestions(data.customers ?? []);
+        setShowDropdown(true);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  }
+
+  function selectCustomer(c: CustomerSuggestion) {
+    setCustomerId(c.id);
+    setQuery(c.name);
+    setName(c.name);
+    setPhone(c.phone ?? "");
+    setSuggestions([]);
+    setShowDropdown(false);
+  }
+
+  function clearCustomer() {
+    setCustomerId(null);
+    setQuery("");
+    setName("");
+    setPhone("");
+  }
 
   async function send() {
     if (!name.trim() || !phone.trim() || !text.trim()) return;
@@ -98,6 +155,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
+          customerId:   customerId ?? undefined,
           customerName: name.trim(),
           phone:        phone.trim(),
           message:      text.trim(),
@@ -129,26 +187,71 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
         </div>
 
         <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Nome do cliente</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="João Silva"
-              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+          {/* Customer search */}
+          <div ref={dropdownRef} className="relative">
+            <label className="text-xs font-medium text-muted-foreground">Buscar cliente</label>
+            <div className="mt-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => handleQueryChange(e.target.value)}
+                onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+                placeholder="Digite o nome ou telefone..."
+                className="w-full rounded-md border border-border bg-surface-900 pl-9 pr-8 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              {customerId && !searching && (
+                <button onClick={clearCustomer} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {showDropdown && suggestions.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden">
+                {suggestions.map((c) => (
+                  <button
+                    key={c.id}
+                    onMouseDown={() => selectCustomer(c)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-surface-800 transition-colors text-left"
+                  >
+                    <span className="font-medium text-foreground truncate">{c.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0 ml-2">{c.phone ?? "sem telefone"}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {showDropdown && suggestions.length === 0 && !searching && query.trim().length >= 2 && (
+              <div className="absolute z-10 mt-1 w-full rounded-md border border-border bg-card shadow-lg px-3 py-2">
+                <p className="text-xs text-muted-foreground">Nenhum cliente encontrado.</p>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Telefone (com DDD)</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="11999998888"
-              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+
+          {/* Name & phone — preenchidos pelo cliente selecionado ou manual */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Nome</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => { setName(e.target.value); setCustomerId(null); }}
+                placeholder="João Silva"
+                className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Telefone (DDD)</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setCustomerId(null); }}
+                placeholder="11999998888"
+                className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
+
           <div>
             <label className="text-xs font-medium text-muted-foreground">Mensagem</label>
             <textarea
