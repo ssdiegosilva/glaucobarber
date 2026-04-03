@@ -291,10 +291,11 @@ function EditMessageModal({ msg, onClose, onSaved }: { msg: WaMessage; onClose: 
 // ── Message row ───────────────────────────────────────────────
 
 function MessageRow({
-  msg, showActions, onSent, onFailed, onDelete, onEdit,
+  msg, showActions, isToday, onSent, onFailed, onDelete, onEdit,
 }: {
   msg:         WaMessage;
   showActions?: boolean;
+  isToday?:    boolean;
   onSent?:     (id: string) => void;
   onFailed?:   (id: string) => void;
   onDelete?:   (id: string) => void;
@@ -350,7 +351,11 @@ function MessageRow({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-surface-800/60 p-2.5 sm:p-3 space-y-1.5 sm:space-y-2">
+      <div className={`rounded-lg border p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 ${
+        isToday
+          ? "border-amber-500/40 bg-amber-500/5 ring-1 ring-amber-500/20"
+          : "border-border bg-surface-800/60"
+      }`}>
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col min-w-0">
@@ -358,13 +363,19 @@ function MessageRow({
             <span className="text-[11px] text-muted-foreground">{localMsg.phone}</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {isToday && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+                <Clock className="h-2.5 w-2.5" />
+                Hoje
+              </span>
+            )}
             <span className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
               {typeIcon(localMsg.type)}
               <span className="hidden sm:inline">{typeLabel(localMsg.type)}</span>
             </span>
             {localMsg.status === "SENT"   && <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />}
             {localMsg.status === "FAILED" && <XCircle      className="h-3.5 w-3.5 text-red-400"   />}
-            {localMsg.status === "QUEUED" && <Clock        className="h-3.5 w-3.5 text-yellow-400" />}
+            {localMsg.status === "QUEUED" && !isToday && <Clock className="h-3.5 w-3.5 text-yellow-400" />}
           </div>
         </div>
 
@@ -574,10 +585,40 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                   {" — atualizando..."}
                 </div>
               )}
-              {queue.map((m) => (
-                <MessageRow key={m.id} msg={m} showActions
-                  onSent={markSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
-              ))}
+              {(() => {
+                const todayStr = new Date().toISOString().slice(0, 10);
+                const todayMsgs  = queue.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) <= todayStr);
+                const futureMsgs = queue.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) >  todayStr);
+                return (
+                  <>
+                    {todayMsgs.length > 0 && (
+                      <>
+                        <p className="text-[11px] font-semibold text-amber-400 flex items-center gap-1.5 pt-1">
+                          <Clock className="h-3 w-3" />
+                          Enviar hoje ({todayMsgs.length})
+                        </p>
+                        {todayMsgs.map((m) => (
+                          <MessageRow key={m.id} msg={m} showActions isToday
+                            onSent={markSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
+                        ))}
+                      </>
+                    )}
+                    {futureMsgs.length > 0 && (
+                      <>
+                        {todayMsgs.length > 0 && (
+                          <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 pt-2">
+                            Próximos dias ({futureMsgs.length})
+                          </p>
+                        )}
+                        {futureMsgs.map((m) => (
+                          <MessageRow key={m.id} msg={m} showActions
+                            onSent={markSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
+                        ))}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </>
           )}
         </div>
