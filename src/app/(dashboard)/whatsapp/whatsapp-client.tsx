@@ -1056,7 +1056,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
     return acc;
   }, []);
 
-  const botActive = hasAutoSend && whatsappConfigured;
+  const botActive = hasAutoSend && whatsappConfigured && hasWabaId;
 
   return (
     <div className="px-3 py-3 sm:px-6 sm:py-5 space-y-3">
@@ -1112,7 +1112,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
           </button>
         ))}
         <div className="flex-1" />
-        {hasAutoSend && whatsappConfigured && (
+        {botActive && (
           <button
             onClick={() => setShowBotModal(true)}
             className="shrink-0 flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium text-green-400 hover:bg-green-500/20 transition-colors"
