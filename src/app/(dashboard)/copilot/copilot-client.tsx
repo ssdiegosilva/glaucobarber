@@ -129,7 +129,7 @@ function getActionLinks(
   }
   switch (type) {
     case "campaign":    return [{ label: "Ver campanhas", href: "/campaigns" }];
-    case "define_goal": return [{ label: "Definir meta",  href: "/financeiro" }];
+    case "define_goal": return [{ label: "Definir meta",  href: "/meta" }];
     case "agenda":      return [{ label: "Ver agenda",    href: "/agenda" }];
     case "crm":         return [{ label: "Ver clientes",  href: "/clients" }];
     case "pricing":     return [{ label: "Ver serviços",  href: "/services" }];
