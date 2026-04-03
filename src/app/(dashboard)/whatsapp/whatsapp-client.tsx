@@ -450,19 +450,20 @@ function MessageRow({
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-surface-800/60 p-3 space-y-2">
+      <div className="rounded-lg border border-border bg-surface-800/60 p-2.5 sm:p-3 space-y-1.5 sm:space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-semibold text-foreground truncate">{localMsg.customerName}</span>
-            <span className="text-xs text-muted-foreground shrink-0">{localMsg.phone}</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-semibold text-foreground truncate leading-snug">{localMsg.customerName}</span>
+            <span className="text-[11px] text-muted-foreground">{localMsg.phone}</span>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-              {typeIcon(localMsg.type)}{typeLabel(localMsg.type)}
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {typeIcon(localMsg.type)}
+              <span className="hidden sm:inline">{typeLabel(localMsg.type)}</span>
             </span>
-            {localMsg.status === "SENT"   && <CheckCircle2 className="h-4 w-4 text-green-400" />}
-            {localMsg.status === "FAILED" && <XCircle      className="h-4 w-4 text-red-400"   />}
-            {localMsg.status === "QUEUED" && <Clock        className="h-4 w-4 text-yellow-400" />}
+            {localMsg.status === "SENT"   && <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />}
+            {localMsg.status === "FAILED" && <XCircle      className="h-3.5 w-3.5 text-red-400"   />}
+            {localMsg.status === "QUEUED" && <Clock        className="h-3.5 w-3.5 text-yellow-400" />}
           </div>
         </div>
 
@@ -612,34 +613,36 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
   }
 
   return (
-    <div className="flex-1 p-6 space-y-5 overflow-y-auto">
-      {/* Header with compose button */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                tab === t.id
-                  ? "border-gold-500/40 bg-gold-500/10 text-gold-400"
-                  : "border-border text-muted-foreground hover:border-gold-500/20 hover:text-foreground"
-              }`}
-            >
-              <t.icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden sm:inline">{t.label}</span>
-              {t.badge !== null && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                  tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"
-                }`}>{t.badge}</span>
-              )}
-            </button>
-          ))}
-        </div>
-        <Button size="sm" onClick={() => setShowCompose(true)} className="gap-1.5 shrink-0">
-          <PenLine className="h-4 w-4" />
-          Mensagem personalizada
-        </Button>
+    <div className="flex-1 px-3 py-3 sm:px-6 sm:py-5 space-y-3 sm:space-y-5 overflow-y-auto">
+      {/* Tabs + compose — single scrollable row */}
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`shrink-0 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium transition-colors ${
+              tab === t.id
+                ? "border-gold-500/40 bg-gold-500/10 text-gold-400"
+                : "border-border text-muted-foreground hover:border-gold-500/20 hover:text-foreground"
+            }`}
+          >
+            <t.icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">{t.label}</span>
+            {t.badge !== null && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"
+              }`}>{t.badge}</span>
+            )}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button
+          onClick={() => setShowCompose(true)}
+          className="shrink-0 flex items-center gap-1.5 rounded-lg border border-gold-500/40 bg-gold-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium text-gold-400 hover:bg-gold-500/20 transition-colors"
+        >
+          <PenLine className="h-3.5 w-3.5 shrink-0" />
+          <span className="hidden sm:inline">Mensagem personalizada</span>
+        </button>
       </div>
 
       {showCompose && (
@@ -648,29 +651,30 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
 
       {/* TODAY */}
       {tab === "today" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-2 sm:space-y-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {([
-              { status: "SENT"   as const, label: "Enviadas", value: sentToday,   icon: <CheckCircle2 className="h-4 w-4 text-green-400"  />, color: "bg-green-500/10 border-green-500/20",   active: "border-green-400 ring-1 ring-green-400/40"   },
-              { status: "QUEUED" as const, label: "Na fila",  value: queuedToday, icon: <Clock        className="h-4 w-4 text-yellow-400" />, color: "bg-yellow-500/10 border-yellow-500/20", active: "border-yellow-400 ring-1 ring-yellow-400/40" },
-              { status: "FAILED" as const, label: "Falha",    value: failedToday, icon: <XCircle      className="h-4 w-4 text-red-400"    />, color: "bg-red-500/10 border-red-500/20",       active: "border-red-400 ring-1 ring-red-400/40"       },
+              { status: "SENT"   as const, label: "Enviadas", value: sentToday,   icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-400"  />, color: "bg-green-500/10 border-green-500/20",   active: "border-green-400 ring-1 ring-green-400/40"   },
+              { status: "QUEUED" as const, label: "Na fila",  value: queuedToday, icon: <Clock        className="h-3.5 w-3.5 text-yellow-400" />, color: "bg-yellow-500/10 border-yellow-500/20", active: "border-yellow-400 ring-1 ring-yellow-400/40" },
+              { status: "FAILED" as const, label: "Falha",    value: failedToday, icon: <XCircle      className="h-3.5 w-3.5 text-red-400"    />, color: "bg-red-500/10 border-red-500/20",       active: "border-red-400 ring-1 ring-red-400/40"       },
             ]).map(({ status, label, value, icon, color, active }) => (
               <button
                 key={status}
                 onClick={() => toggleTodayFilter(status)}
-                className={`rounded-xl border p-4 text-left transition-all focus:outline-none cursor-pointer ${
+                className={`rounded-xl border p-2.5 sm:p-4 text-left transition-all focus:outline-none cursor-pointer ${
                   todayFilter === status ? active : color
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <span className={`inline-flex items-center justify-center rounded-lg p-2 border ${color}`}>{icon}</span>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className={`hidden sm:inline-flex items-center justify-center rounded-lg p-2 border ${color}`}>{icon}</span>
+                  <span className={`sm:hidden inline-flex items-center justify-center rounded-md p-1 border ${color}`}>{icon}</span>
                   <div>
-                    <p className="text-2xl font-bold text-foreground">{value}</p>
-                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-foreground leading-none">{value}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{label}</p>
                   </div>
                 </div>
                 {todayFilter === status && (
-                  <p className="text-[10px] text-muted-foreground mt-1.5">filtro ativo · clique para limpar</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-1.5">ativo · limpar</p>
                 )}
               </button>
             ))}
