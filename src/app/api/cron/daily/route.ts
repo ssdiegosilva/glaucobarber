@@ -1,6 +1,6 @@
 // ============================================================
 // Daily Cron – runs at 06:00 every day (configured in vercel.json)
-// - Data cleanup: WhatsApp (7d), AuditLog (90d), Suggestion/Action (90d), SyncRun (180d), AiCallLog (keep 30)
+// - Data cleanup: WhatsApp (10d), AuditLog (90d), Suggestion/Action (90d), SyncRun (180d), AiCallLog (keep 30)
 // - Trial expiration: TRIALING → FREE after trialEndsAt
 // - AI suggestions: generates for all active barbershops
 // - On the 1st of the month: runs monthly billing for PRO plans
@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const ago = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-  // WhatsApp messages: 7 days (sent/failed only)
+  // WhatsApp messages: 10 days (sent/failed only)
   await prisma.whatsappMessage.deleteMany({
-    where: { createdAt: { lt: ago(7) }, status: { in: ["SENT", "FAILED"] } },
+    where: { createdAt: { lt: ago(10) }, status: { in: ["SENT", "FAILED"] } },
   });
 
   // AuditLog: 90 days

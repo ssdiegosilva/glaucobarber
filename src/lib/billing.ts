@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan limits ────────────────────────────────────────────────────────────────
@@ -21,8 +22,8 @@ export const PLAN_LIMITS: Record<
 // Limite de segurança do trial (invisível para o usuário)
 export const TRIAL_AI_LIMIT = 300;
 
-// R$1,50 por atendimento concluído no plano PRO
-export const APPOINTMENT_FEE_CENTS = 150;
+// R$1,00 por atendimento concluído no plano PRO
+export const APPOINTMENT_FEE_CENTS = 100;
 // Cap: máximo R$400 em taxas de atendimento/mês (total PRO = R$149 + R$400 = R$549)
 export const APPOINTMENT_FEE_CAP_CENTS = 40_000;
 
@@ -266,9 +267,34 @@ export async function createAppointmentBillingEvent(
   if (totalSoFar >= APPOINTMENT_FEE_CAP_CENTS) return; // cap reached
 
   // Idempotent upsert: won't duplicate if called twice
-  await prisma.billingEvent.upsert({
+  const result = await prisma.billingEvent.upsert({
     where:  { appointmentId },
     create: { barbershopId, appointmentId, yearMonth, amountCents: APPOINTMENT_FEE_CENTS },
     update: {}, // already exists → no-op
+    select: { id: true, createdAt: true },
   });
+
+  // Only report to Stripe on first creation (createdAt = now, not older)
+  const isNew = Date.now() - result.createdAt.getTime() < 5_000;
+  if (!isNew) return;
+
+  // Report metered usage to Stripe Meters API
+  const barbershop = await prisma.barbershop.findUnique({
+    where:  { id: barbershopId },
+    select: { stripeCustomerId: true },
+  });
+
+  if (barbershop?.stripeCustomerId) {
+    try {
+      await (stripe.billing as any).meterEvents.create({
+        event_name: "atendimentos_pro",
+        payload: {
+          stripe_customer_id: barbershop.stripeCustomerId,
+          value: "1",
+        },
+      });
+    } catch (err) {
+      console.error("[Stripe Meter] Failed to report usage:", err);
+    }
+  }
 }

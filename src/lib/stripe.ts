@@ -47,12 +47,12 @@ export const PLANS = {
     description: "Para barbearias que querem crescer",
     priceId:     process.env.STRIPE_PRICE_PRO_MONTHLY ?? "",
     monthlyBRL:  14900,           // R$149/mês base
-    appointmentFeeCents: 150,     // +R$1,50 por atendimento concluído
+    appointmentFeeCents: 100,     // +R$1,00 por atendimento concluído
     appointmentCapCents: 40000,   // cap em R$400/mês
     features: [
       "300 chamadas de IA por mês",
       "Gestão financeira com metas",
-      "R$1,50 por atendimento concluído (cap R$400/mês)",
+      "R$1,00 por atendimento concluído (cap R$400/mês)",
       "Sync automático com Trinks",
       "Todos os recursos desbloqueados",
     ],
@@ -90,9 +90,19 @@ export async function createCheckoutSession({
   successUrl:       string;
   cancelUrl:        string;
 }) {
+  const proMeteredPriceId = process.env.STRIPE_PRICE_PRO_METERED ?? "";
+  const isProPlan = priceId === (process.env.STRIPE_PRICE_PRO_MONTHLY ?? "");
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    { price: priceId, quantity: 1 },
+  ];
+  if (isProPlan && proMeteredPriceId) {
+    lineItems.push({ price: proMeteredPriceId }); // metered — no quantity
+  }
+
   const params: Stripe.Checkout.SessionCreateParams = {
     mode:        "subscription",
-    line_items:  [{ price: priceId, quantity: 1 }],
+    line_items:  lineItems,
     success_url: successUrl,
     cancel_url:  cancelUrl,
     metadata:    { barbershopId },
