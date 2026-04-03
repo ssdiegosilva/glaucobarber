@@ -50,7 +50,6 @@ export default async function FinanceiroPage() {
     goal,
     byService,
     discountPayments,
-    allGoals,
     yearAppointments,
     dailyRevenueRaw,
     dailyScheduledRaw,
@@ -82,11 +81,6 @@ export default async function FinanceiroPage() {
         appointment: { select: { scheduledAt: true, service: { select: { name: true } } } },
       },
       orderBy: { createdAt: "desc" },
-    }),
-    // All goals for current year (Metas tab)
-    prisma.goal.findMany({
-      where:   { barbershopId, year },
-      orderBy: { month: "asc" },
     }),
     // Full year appointments for annual chart
     prisma.appointment.findMany({
@@ -150,7 +144,6 @@ export default async function FinanceiroPage() {
     revenueByMonth.set(m, (revenueByMonth.get(m) ?? 0) + Number(a.price ?? 0));
     countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
   }
-  const goalByMonth = new Map(allGoals.map((g) => [g.month, Number(g.revenueTarget ?? 0)]));
   const annualMonths = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
     return {
@@ -158,7 +151,7 @@ export default async function FinanceiroPage() {
       label:   format(new Date(year, i, 1), "MMM", { locale: ptBR }),
       revenue: revenueByMonth.get(m) ?? 0,
       count:   countByMonth.get(m) ?? 0,
-      goal:    goalByMonth.get(m) ?? null,
+      goal:    null as number | null,
     };
   });
 
@@ -175,22 +168,6 @@ export default async function FinanceiroPage() {
     const d = a.scheduledAt.getDate();
     scheduledByDay[d] = (scheduledByDay[d] ?? 0) + 1;
   }
-
-  // ── All goals serialized ────────────────────────────────────
-  const MONTH_LABELS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-  const allGoalsSerialized = allGoals.map((g) => ({
-    id:               g.id,
-    month:            g.month,
-    monthLabel:       MONTH_LABELS[g.month - 1] ?? String(g.month),
-    revenueTarget:    g.revenueTarget ? Number(g.revenueTarget) : null,
-    revenueActual:    revenueByMonth.get(g.month) ?? 0,
-    isPast:           g.month < month,
-    isCurrent:        g.month === month,
-    offDaysOfWeek:    g.offDaysOfWeek ?? [],
-    extraOffDays:     g.extraOffDays  ?? [],
-    extraWorkDays:    g.extraWorkDays ?? [],
-    workingDaysCount: g.workingDaysCount ?? null,
-  }));
 
   const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
 
@@ -227,7 +204,6 @@ export default async function FinanceiroPage() {
           discountList={discountList}
           totalDiscountMonth={totalDiscountMonth}
           annualMonths={annualMonths}
-          allGoals={allGoalsSerialized}
         />
       </div>
     </div>

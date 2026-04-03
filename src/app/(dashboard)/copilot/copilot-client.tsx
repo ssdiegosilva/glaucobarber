@@ -228,7 +228,7 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
               {QUICK_QUESTIONS.map((q) => (
                 <button
                   key={q}
-                  onClick={() => { setInput(q); inputRef.current?.focus(); }}
+                  onClick={() => sendMessage(q)}
                   disabled={loading}
                   className="shrink-0 snap-start rounded-full border border-gold-500/30 bg-gold-500/8 px-3 py-1.5 text-xs text-gold-400 hover:bg-gold-500/20 transition-colors disabled:opacity-40 whitespace-nowrap"
                 >
