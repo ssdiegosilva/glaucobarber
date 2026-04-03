@@ -13,6 +13,7 @@ const FEATURES = [
   "agenda",
   "copilot",
   "financeiro",
+  "meta",
   "clients",
   "services",
   "offers",
@@ -28,7 +29,7 @@ const PLANS = ["FREE", "STARTER", "PRO", "PLATFORM_ADMIN"];
 
 // By default everything is enabled, except:
 const DISABLED: Record<string, string[]> = {
-  FREE:     ["financeiro"],
+  FREE:     ["financeiro", "meta"],
   STARTER:  ["financeiro"],
   PRO:      [],
   PLATFORM_ADMIN: [],

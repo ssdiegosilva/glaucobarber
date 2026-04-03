@@ -42,7 +42,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         aiCredits={aiCredits}
       />
       <main className="flex-1 overflow-y-auto">
-        <MobileNav barbershopName={barbershopName} />
+        <MobileNav barbershopName={barbershopName} userName={session.user.name ?? null} />
         {children}
       </main>
     </div>

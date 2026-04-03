@@ -5,6 +5,7 @@ export const ALL_FEATURES = [
   { key: "agenda",       label: "Agenda",        description: "Agendamentos" },
   { key: "copilot",      label: "Copilot IA",    description: "Assistente com inteligência artificial" },
   { key: "financeiro",   label: "Financeiro",    description: "Relatórios e gestão financeira" },
+  { key: "meta",         label: "Metas",         description: "Acompanhamento de metas diárias e mensais" },
   { key: "clients",      label: "Clientes",      description: "Gestão de clientes" },
   { key: "services",     label: "Serviços",      description: "Catálogo de serviços" },
   { key: "offers",       label: "Ofertas",       description: "Promoções e descontos" },

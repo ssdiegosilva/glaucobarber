@@ -116,13 +116,13 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
   const unread = notifs.length;
 
   return (
-    <header className="flex items-center justify-between border-b border-border px-6 py-4 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+    <header className="flex items-center justify-between border-b border-border px-6 py-4 bg-card/50 backdrop-blur-sm md:sticky md:top-0 z-10">
       <div>
         <h1 className="text-lg font-bold text-foreground">{title}</h1>
         {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="hidden md:flex items-center gap-3">
         {actions}
 
         {/* Bell */}
