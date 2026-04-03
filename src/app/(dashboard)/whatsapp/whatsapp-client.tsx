@@ -7,22 +7,24 @@ import { Button } from "@/components/ui/button";
 import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
   Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2, Pencil, X, PenLine, Search,
+  CalendarCheck, History, FileText, ExternalLink,
 } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 import { TemplatesTab } from "./templates-tab";
 
 type WaMessage = {
-  id:           string;
-  customerId:   string | null;
-  customerName: string;
-  phone:        string;
-  message:      string;
-  type:         string;
-  status:       string;
-  actionId:     string | null;
-  sentAt:       string | null;
-  scheduledFor: string | null;
-  createdAt:    string;
+  id:            string;
+  customerId:    string | null;
+  customerName:  string;
+  phone:         string;
+  message:       string;
+  type:          string;
+  status:        string;
+  actionId:      string | null;
+  sentAt:        string | null;
+  scheduledFor:  string | null;
+  createdAt:     string;
+  metaMessageId: string | null | undefined;
 };
 
 interface Props {
@@ -135,7 +137,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
     setCustomerId(c.id);
     setQuery(c.name);
     setName(c.name);
-    setPhone(c.phone ?? "");
+    setPhone(c.phone ? c.phone.replace(/\D/g, "") : "");
     setSuggestions([]);
     setShowDropdown(false);
   }
@@ -467,13 +469,21 @@ function MessageRow({
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{localMsg.message}</p>
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] text-muted-foreground">
-            {localMsg.sentAt
-              ? `Enviado ${formatDate(localMsg.sentAt)}`
-              : localMsg.scheduledFor
-              ? `Agendado para ${formatDate(localMsg.scheduledFor)}`
-              : formatDate(localMsg.createdAt)}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] text-muted-foreground">
+              {localMsg.sentAt
+                ? `Enviado ${formatDate(localMsg.sentAt)}`
+                : localMsg.scheduledFor
+                ? `Agendado para ${formatDate(localMsg.scheduledFor)}`
+                : formatDate(localMsg.createdAt)}
+            </span>
+            {localMsg.metaMessageId && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-1.5 py-0.5 text-[9px] text-green-400">
+                <ExternalLink className="h-2.5 w-2.5" />
+                Meta ID: {localMsg.metaMessageId.slice(-8)}
+              </span>
+            )}
+          </div>
 
           {showActions && localMsg.status === "QUEUED" && (
             <div className="flex gap-1.5">
@@ -583,17 +593,22 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
   const todayFiltered = todayFilter === "all" ? today : today.filter((m) => m.status === todayFilter);
 
   const TABS = [
-    { id: "today"     as const, label: "Hoje",      badge: today.length     },
-    { id: "queue"     as const, label: "Fila",      badge: queue.length     },
-    { id: "scheduled" as const, label: "Agendadas", badge: scheduled.length },
-    { id: "history"   as const, label: "Histórico", badge: history.length   },
-    { id: "templates" as const, label: "Templates", badge: null             },
+    { id: "today"     as const, label: "Hoje",      icon: CalendarDays,   badge: today.length     },
+    { id: "queue"     as const, label: "Fila",      icon: Clock,          badge: queue.length     },
+    { id: "scheduled" as const, label: "Agendadas", icon: CalendarCheck,  badge: scheduled.length },
+    { id: "history"   as const, label: "Histórico", icon: History,        badge: history.length   },
+    { id: "templates" as const, label: "Templates", icon: FileText,       badge: null             },
   ];
 
   function handleComposeSent(msg: WaMessage) {
     setToday((prev) => [msg, ...prev]);
-    if (msg.scheduledFor) setScheduled((prev) => [msg, ...prev]);
-    else setQueue((prev) => [msg, ...prev]);
+    if (msg.scheduledFor) {
+      setScheduled((prev) => [msg, ...prev]);
+    } else if (msg.status === "SENT" || msg.status === "FAILED") {
+      setHistory((prev) => [msg, ...prev]);
+    } else {
+      setQueue((prev) => [msg, ...prev]);
+    }
   }
 
   return (
@@ -605,13 +620,14 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                 tab === t.id
                   ? "border-gold-500/40 bg-gold-500/10 text-gold-400"
                   : "border-border text-muted-foreground hover:border-gold-500/20 hover:text-foreground"
               }`}
             >
-              {t.label}
+              <t.icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">{t.label}</span>
               {t.badge !== null && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                   tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"

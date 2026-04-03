@@ -5,11 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
 import {
-  TrendingUp, TrendingDown, Target, Scissors, BarChart3,
-  Loader2, Tag, ChevronLeft, ChevronRight, CheckCircle2,
-  Sparkles, X as XIcon, Calendar,
+  TrendingUp, TrendingDown, Scissors, BarChart3,
+  Loader2, Tag, ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 import { getDaysInMonth } from "date-fns";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -34,16 +32,6 @@ interface DiscountEntry  {
 interface AnnualMonth {
   month: number; label: string; revenue: number; count: number; goal: number | null;
 }
-interface GoalRow {
-  id: string; month: number; monthLabel: string;
-  revenueTarget: number | null; revenueActual: number;
-  isPast: boolean; isCurrent: boolean;
-  offDaysOfWeek:    number[];
-  extraOffDays:     number[];
-  extraWorkDays:    number[];
-  workingDaysCount: number | null;
-}
-
 interface Props {
   month: number; year: number; monthLabel: string;
   revenueThisMonth: number; revenuePrevMonth: number;
@@ -56,42 +44,21 @@ interface Props {
   discountList: DiscountEntry[];
   totalDiscountMonth: number;
   annualMonths: AnnualMonth[];
-  allGoals: GoalRow[];
   revenueByDay:   Record<number, number>;
   scheduledByDay: Record<number, number>;
 }
 
-// ── Day helpers ───────────────────────────────────────────────
+type Tab = "overview" | "services" | "discounts" | "annual";
 
-const DOW_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-const DOW_FULL   = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+const CATEGORY_LABEL: Record<string, string> = {
+  HAIRCUT: "Corte", BEARD: "Barba", COMBO: "Combo", TREATMENT: "Tratamento", OTHER: "Outro",
+};
 
-/** Interactive/colored calendar for a month */
-function DaysCalendar({
-  month, year,
-  offDaysOfWeek,
-  extraOffDays = [],
-  extraWorkDays = [],
-  setExtraOffDays,
-  setExtraWorkDays,
-  revenueByDay,
-  scheduledByDay,
-  dailyGoal,
-  today,
-  readOnly = false,
-}: {
-  month: number; year: number;
-  offDaysOfWeek: number[];
-  extraOffDays?: number[];
-  extraWorkDays?: number[];
-  setExtraOffDays?: (v: number[]) => void;
-  setExtraWorkDays?: (v: number[]) => void;
-  revenueByDay?: Record<number, number>;
-  scheduledByDay?: Record<number, number>;
-  dailyGoal?: number | null;
-  today?: number;    // day-of-month number for current month only
-  readOnly?: boolean;
-}) {
+const MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+// ── Placeholder to avoid compile error — remove block below ──
+
+function _unusedPlaceholder({
   const daysInMonth = getDaysInMonth(new Date(year, month - 1, 1));
   const firstDow    = new Date(year, month - 1, 1).getDay();
   const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
