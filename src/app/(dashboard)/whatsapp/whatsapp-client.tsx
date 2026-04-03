@@ -372,10 +372,12 @@ function MessageRow({
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{localMsg.message}</p>
 
         {/* Failure reason */}
-        {localMsg.status === "FAILED" && localMsg.errorMessage && (
+        {localMsg.status === "FAILED" && (
           <div className="flex items-start gap-1.5 rounded-md border border-red-500/20 bg-red-500/5 px-2.5 py-1.5">
             <AlertCircle className="h-3 w-3 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-red-400 leading-relaxed break-all">{localMsg.errorMessage}</p>
+            <p className="text-[11px] text-red-400 leading-relaxed break-all">
+              {localMsg.errorMessage ?? "Sem detalhes disponíveis"}
+            </p>
           </div>
         )}
 
