@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
   Building2, RefreshCw, Save, Pencil, MapPin, Phone, Globe,
-  Share2, Camera, X, Instagram, Download, Star, ExternalLink,
+  Share2, Camera, X, Instagram, Download, Star,
 } from "lucide-react";
 
 export interface BarbershopData {
@@ -331,39 +331,6 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
             helper="ex: @suabarbearia"
             placeholder="@suabarbearia ou URL"
           />
-        </div>
-
-        {/* Google Review — seção separada */}
-        <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            {/* Google "G" badge */}
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm text-[13px] font-bold leading-none select-none" style={{ fontFamily: "sans-serif" }}>
-              <span style={{ color: "#4285F4" }}>G</span>
-            </span>
-            <div>
-              <p className="text-xs font-semibold text-blue-300">Link de Avaliação Google</p>
-              <p className="text-[10px] text-muted-foreground">Enviado automaticamente nas mensagens de pós-venda</p>
-            </div>
-          </div>
-          <div className="space-y-1">
-            <input
-              type="url"
-              value={values.googleReviewUrl ?? ""}
-              onChange={(e) => onChange("googleReviewUrl", e.target.value)}
-              placeholder="https://g.page/r/..."
-              className="w-full rounded-md border border-blue-500/30 bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-            />
-            {values.googleReviewUrl && (
-              <a
-                href={values.googleReviewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                <ExternalLink className="h-3 w-3" /> Testar link
-              </a>
-            )}
-          </div>
         </div>
 
         <div className="space-y-1">

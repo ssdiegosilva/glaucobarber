@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { Building2, Palette, Plug, CheckCircle2, AlertCircle } from "lucide-react";
 import { BarbershopCard } from "./barbershop-card";
+import { GoogleReviewCard } from "./google-review-card";
 import { BrandStyleCard } from "./brand-style-card";
 import { CampaignReferenceImageCard } from "./campaign-reference-image-card";
 import { IntegrationsClient } from "./integrations-client";
@@ -57,23 +58,26 @@ export default async function SettingsPage() {
           }
         >
           {barbershop && (
-            <BarbershopCard
-              barbershop={{
-                id:              barbershop.id,
-                name:            barbershop.name,
-                email:           barbershop.email,
-                phone:           barbershop.phone,
-                city:            barbershop.city,
-                state:           barbershop.state,
-                address:         barbershop.address,
-                websiteUrl:      barbershop.websiteUrl,
-                description:     barbershop.description,
-                slug:            barbershop.slug,
-                logoUrl:         barbershop.logoUrl,
-                instagramUrl:    barbershop.instagramUrl,
-                googleReviewUrl: barbershop.googleReviewUrl ?? null,
-              }}
-            />
+            <div className="space-y-3">
+              <BarbershopCard
+                barbershop={{
+                  id:              barbershop.id,
+                  name:            barbershop.name,
+                  email:           barbershop.email,
+                  phone:           barbershop.phone,
+                  city:            barbershop.city,
+                  state:           barbershop.state,
+                  address:         barbershop.address,
+                  websiteUrl:      barbershop.websiteUrl,
+                  description:     barbershop.description,
+                  slug:            barbershop.slug,
+                  logoUrl:         barbershop.logoUrl,
+                  instagramUrl:    barbershop.instagramUrl,
+                  googleReviewUrl: barbershop.googleReviewUrl ?? null,
+                }}
+              />
+              <GoogleReviewCard initialUrl={barbershop.googleReviewUrl ?? null} />
+            </div>
           )}
         </CollapsibleSection>
 
