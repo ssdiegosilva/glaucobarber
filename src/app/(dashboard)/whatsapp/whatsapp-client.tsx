@@ -6,7 +6,7 @@ import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
   Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw,
   Loader2, Pencil, X, PenLine, Search, FileText,
-  ExternalLink, AlertCircle, Sparkles, LayoutTemplate,
+  ExternalLink, AlertCircle, Sparkles, LayoutTemplate, Bot,
 } from "lucide-react";
 import { TemplatesTab } from "./templates-tab";
 
@@ -1115,9 +1115,9 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
         {botActive && (
           <button
             onClick={() => setShowBotModal(true)}
-            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium text-green-400 hover:bg-green-500/20 transition-colors"
+            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium text-purple-400 hover:bg-purple-500/20 transition-colors"
           >
-            <Users className="h-3.5 w-3.5 shrink-0" />
+            <Bot className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">Enviar com bot</span>
           </button>
         )}
