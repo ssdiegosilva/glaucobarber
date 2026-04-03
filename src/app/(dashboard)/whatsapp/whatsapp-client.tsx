@@ -9,6 +9,7 @@ import {
   Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw, Loader2, Pencil, X, PenLine, Search,
 } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
+import { TemplatesTab } from "./templates-tab";
 
 type WaMessage = {
   id:           string;
@@ -516,7 +517,7 @@ function MessageRow({
 // ── Main client ───────────────────────────────────────────────
 
 export function WhatsappClient({ todayMessages, queueMessages, historyMessages, scheduledMessages }: Props) {
-  const [tab, setTab] = useState<"today" | "queue" | "scheduled" | "history">("today");
+  const [tab, setTab] = useState<"today" | "queue" | "scheduled" | "history" | "templates">("today");
   const [today,     setToday]     = useState<WaMessage[]>(todayMessages);
   const [queue,     setQueue]     = useState<WaMessage[]>(queueMessages);
   const [history,   setHistory]   = useState<WaMessage[]>(historyMessages);
@@ -586,6 +587,7 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
     { id: "queue"     as const, label: "Fila",      badge: queue.length     },
     { id: "scheduled" as const, label: "Agendadas", badge: scheduled.length },
     { id: "history"   as const, label: "Histórico", badge: history.length   },
+    { id: "templates" as const, label: "Templates", badge: null             },
   ];
 
   function handleComposeSent(msg: WaMessage) {
@@ -610,9 +612,11 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
               }`}
             >
               {t.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"
-              }`}>{t.badge}</span>
+              {t.badge !== null && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                  tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"
+                }`}>{t.badge}</span>
+              )}
             </button>
           ))}
         </div>
@@ -767,7 +771,7 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
       {/* HISTORY */}
       {tab === "history" && (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">Mensagens enviadas nos últimos 30 dias.</p>
+          <p className="text-xs text-muted-foreground">Mensagens enviadas nos últimos 7 dias.</p>
           {history.length === 0 ? (
             <div className="rounded-lg border border-border p-8 text-center">
               <p className="text-sm text-muted-foreground">Nenhuma mensagem enviada ainda.</p>
@@ -777,6 +781,8 @@ export function WhatsappClient({ todayMessages, queueMessages, historyMessages, 
           )}
         </div>
       )}
+
+      {tab === "templates" && <TemplatesTab />}
     </div>
   );
 }

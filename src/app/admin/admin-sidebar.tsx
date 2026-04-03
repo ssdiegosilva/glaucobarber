@@ -12,16 +12,14 @@ import {
   ScrollText,
   ShieldCheck,
   ToggleLeft,
-  MessageSquare,
 } from "lucide-react";
 
 const NAV = [
   { href: "/admin",              label: "Overview",       icon: LayoutDashboard },
   { href: "/admin/barbershops",  label: "Barbearias",     icon: Store            },
   { href: "/admin/users",        label: "Usuários",       icon: Users            },
-  { href: "/admin/features",           label: "Funcionalidades",  icon: ToggleLeft    },
-  { href: "/admin/whatsapp-templates", label: "WA Templates",     icon: MessageSquare },
-  { href: "/admin/stripe",       label: "Config Stripe",  icon: CreditCard       },
+  { href: "/admin/features",     label: "Funcionalidades", icon: ToggleLeft },
+  { href: "/admin/stripe",       label: "Config Stripe",   icon: CreditCard },
   { href: "/admin/ai-usage",     label: "Uso de IA",      icon: Brain            },
   { href: "/admin/billing",      label: "Cobrança",       icon: Receipt          },
   { href: "/admin/logs",         label: "Audit Logs",     icon: ScrollText       },
