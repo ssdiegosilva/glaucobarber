@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, Clock, AlertTriangle, Receipt, ChevronDown, ChevronUp } from "lucide-react";
+import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, Clock, AlertTriangle, Receipt, ChevronDown, ChevronUp, Info } from "lucide-react";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan display config ──────────────────────────────────────────────────────
@@ -73,6 +73,24 @@ const TIER_STYLE: Record<string, { label: string; badge: string; highlight: bool
   PRO:     { label: "Pro",   badge: "text-gold-400 border-gold-500/30",        highlight: true  },
 };
 
+// What you can do in each section — shown when user clicks a feature row
+const FEATURE_DETAIL: Record<string, string> = {
+  dashboard:     "Painel com indicadores do dia em tempo real: faturamento, atendimentos realizados, ticket médio, taxa de ocupação e sugestões automáticas da IA. Veja o que está acontecendo na sua barbearia sem precisar abrir a Trinks.",
+  agenda:        "Visualize todos os agendamentos do dia com horário, cliente, serviço e status. Acompanhe o fluxo ao vivo, reagende ou cancele direto da plataforma — tudo sincronizado com a Trinks.",
+  copilot:       "Assistente de IA que analisa os dados da barbearia e gera sugestões acionáveis: mensagens para clientes, oportunidades de promoção, insights de negócio e recomendações de serviço. Quanto mais você usa, mais personalizado fica.",
+  financeiro:    "Relatórios de faturamento por dia, semana e mês. Compare períodos, identifique os serviços mais rentáveis, veja o ticket médio por cliente e monitore o crescimento da receita ao longo do tempo.",
+  meta:          "Defina metas de faturamento e número de atendimentos para o dia e para o mês. Acompanhe o progresso com barra de status em tempo real e alertas quando você está perto de bater — ou em risco de não bater.",
+  clients:       "Histórico completo de cada cliente: visitas, serviços realizados, ticket médio, última visita e status pós-venda. Filtre por inativos, em risco ou recém-atendidos para saber quem precisa de atenção.",
+  services:      "Catálogo de serviços com nome, preço e duração. Veja quais serviços geram mais receita e quais têm melhor ticket médio. Sincronizado automaticamente com a Trinks.",
+  offers:        "Crie promoções com validade, desconto e público-alvo. Use o Copilot para gerar o texto da oferta e acompanhe quantas vezes foi aplicada.",
+  campaigns:     "Crie campanhas de marketing completas: texto gerado por IA com base no seu objetivo, imagem criada automaticamente e publicação direta no Instagram. Programe a data de lançamento e acompanhe o status.",
+  whatsapp:      "Envie mensagens de WhatsApp para clientes individualmente usando templates ou texto livre. Gerencie a fila de mensagens agendadas, veja o histórico de enviadas e acompanhe falhas de entrega.",
+  whatsapp_auto: "Bot que processa a fila de templates de WhatsApp automaticamente a cada 15 minutos — sem você precisar fazer nada. Ideal para pós-venda, reativação de inativos e campanhas em massa.",
+  "post-sale":   "Painel de retenção com clientes segmentados por risco: em risco de sair (14–60 dias sem visita), recém-atendidos (janela ideal para pedir avaliação), inativos há mais de 60 dias e clientes reativados. Acione mensagens com um clique.",
+  settings:      "Configure os dados da barbearia, conecte com a Trinks (chave de API), integre o WhatsApp Business (token e Phone ID), conecte o Instagram e gerencie preferências gerais do sistema.",
+  billing:       "Acompanhe seu plano atual, uso de IA, próxima fatura estimada e histórico de cobranças. Gerencie assinatura e dados de pagamento pelo portal da Stripe.",
+};
+
 export function BillingClient({
   planTier,
   planStatus,
@@ -94,8 +112,10 @@ export function BillingClient({
   priceIdStart,
   priceIdPro,
 }: Props) {
-  const [loadingCredits, setLoadingCredits] = useState(false);
-  const [loadingPortal,  setLoadingPortal]  = useState(false);
+  const [loadingCredits,   setLoadingCredits]   = useState(false);
+  const [loadingPortal,    setLoadingPortal]    = useState(false);
+  const [showComparison,   setShowComparison]   = useState(false);
+  const [expandedFeature,  setExpandedFeature]  = useState<string | null>(null);
 
   const info       = PLAN_INFO[planTier];
   const totalAi    = aiLimit + aiCreditsRemaining;
@@ -306,55 +326,94 @@ export function BillingClient({
         </Button>
       </div>
 
-      {/* Plan comparison */}
+      {/* Plan comparison — collapsible */}
       <div className="rounded-xl border border-border/60 bg-surface-900 overflow-hidden">
-        <div className="px-4 md:px-5 py-4 border-b border-border/40">
-          <p className="text-sm font-medium text-foreground">Comparativo de planos</p>
-          <p className="text-xs text-muted-foreground mt-0.5">O que está incluso em cada plano</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[340px]">
-            <thead>
-              <tr className="border-b border-border/30">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Funcionalidade</th>
-                {COMPARISON_TIERS.map((tier) => (
-                  <th key={tier} className="text-center px-3 py-3 w-16">
-                    <Badge
-                      variant="outline"
-                      className={`text-[11px] ${TIER_STYLE[tier].badge} ${planTier === tier ? "ring-1 ring-offset-1 ring-current" : ""}`}
-                    >
-                      {TIER_STYLE[tier].label}
-                    </Badge>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {allFeatures
-                .filter((f) => !["billing", "settings"].includes(f.key))
-                .map((f, i) => (
-                  <tr
-                    key={f.key}
-                    className={`border-b border-border/20 last:border-0 ${i % 2 === 0 ? "" : "bg-surface-800/20"}`}
-                  >
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{f.label}</td>
-                    {COMPARISON_TIERS.map((tier) => {
-                      const enabled = featureMatrix[f.key]?.[tier] ?? true;
-                      return (
-                        <td key={tier} className="text-center px-3 py-2.5">
-                          {enabled ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <button
+          onClick={() => { setShowComparison((v) => !v); setExpandedFeature(null); }}
+          className="w-full flex items-center justify-between px-4 md:px-5 py-4 hover:bg-surface-800/40 transition-colors text-left"
+        >
+          <div>
+            <p className="text-sm font-medium text-foreground">Comparativo de planos</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {showComparison ? "Clique em cada linha para ver o que é possível fazer" : "Veja o que está incluso em cada plano"}
+            </p>
+          </div>
+          {showComparison
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          }
+        </button>
+
+        {showComparison && (
+          <div className="border-t border-border/40 overflow-x-auto">
+            <table className="w-full text-sm min-w-[340px]">
+              <thead>
+                <tr className="border-b border-border/30">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Funcionalidade</th>
+                  {COMPARISON_TIERS.map((tier) => (
+                    <th key={tier} className="text-center px-3 py-3 w-16">
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] ${TIER_STYLE[tier].badge} ${planTier === tier ? "ring-1 ring-offset-1 ring-current" : ""}`}
+                      >
+                        {TIER_STYLE[tier].label}
+                      </Badge>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allFeatures
+                  .filter((f) => !["billing", "settings"].includes(f.key))
+                  .map((f, i) => {
+                    const isExpanded = expandedFeature === f.key;
+                    const detail = FEATURE_DETAIL[f.key];
+                    return (
+                      <>
+                        <tr
+                          key={f.key}
+                          onClick={() => setExpandedFeature(isExpanded ? null : f.key)}
+                          className={`border-b border-border/20 cursor-pointer transition-colors ${
+                            isExpanded
+                              ? "bg-surface-800/60 border-border/40"
+                              : i % 2 === 0 ? "hover:bg-surface-800/30" : "bg-surface-800/20 hover:bg-surface-800/40"
+                          }`}
+                        >
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-xs font-medium ${isExpanded ? "text-foreground" : "text-muted-foreground"}`}>
+                                {f.label}
+                              </span>
+                              <Info className={`h-3 w-3 shrink-0 transition-colors ${isExpanded ? "text-gold-400" : "text-muted-foreground/40"}`} />
+                            </div>
+                          </td>
+                          {COMPARISON_TIERS.map((tier) => {
+                            const enabled = featureMatrix[f.key]?.[tier] ?? true;
+                            return (
+                              <td key={tier} className="text-center px-3 py-2.5">
+                                {enabled ? (
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        {isExpanded && detail && (
+                          <tr key={`${f.key}-detail`} className="border-b border-border/20 bg-surface-800/60">
+                            <td colSpan={COMPARISON_TIERS.length + 1} className="px-4 py-3">
+                              <p className="text-xs text-muted-foreground leading-relaxed">{detail}</p>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Statement (PRO only) */}
