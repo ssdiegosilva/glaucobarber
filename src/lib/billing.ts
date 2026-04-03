@@ -44,7 +44,7 @@ function periodKey(tier: PlanTier): string {
 
 export interface PlanInfo {
   tier:              PlanTier;
-  effectiveTier:     PlanTier;   // = "TRIAL" during TRIALING, same as tier otherwise
+  effectiveTier:     PlanTier;   // = "PRO" during TRIALING (full access), same as tier otherwise
   status:            SubscriptionStatus;
   aiCreditBalance:   number;
   stripeSubId:       string | null;
@@ -77,7 +77,7 @@ export async function getPlan(barbershopId: string): Promise<PlanInfo> {
   }
 
   // During trial, effective tier = PRO (full feature access)
-  const effectiveTier: PlanTier = sub.status === "TRIALING" ? ("TRIAL" as PlanTier) : sub.planTier;
+  const effectiveTier: PlanTier = sub.status === "TRIALING" ? "PRO" : sub.planTier;
 
   return {
     tier:              sub.planTier,
