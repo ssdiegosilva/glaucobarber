@@ -6,10 +6,6 @@
     {
       "path": "/api/cron/daily",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/campaigns-publish",
-      "schedule": "*/30 * * * *"
     }
   ]
 }
