@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { status, imageUrl, templateId } = await req.json();
+  const { status, imageUrl, templateId, scheduledAt } = await req.json();
 
   const campaign = await prisma.campaign.findUnique({ where: { id } });
   if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -38,8 +38,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!allowed.includes(status)) return NextResponse.json({ error: "Status inválido" }, { status: 400 });
     data.status = status;
   }
-  if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
-  if (templateId !== undefined) data.templateId = templateId || null;
+  if (imageUrl    !== undefined) data.imageUrl   = imageUrl   || null;
+  if (templateId  !== undefined) data.templateId = templateId || null;
+  if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nada para atualizar" }, { status: 400 });
 
   await prisma.campaign.update({ where: { id }, data });

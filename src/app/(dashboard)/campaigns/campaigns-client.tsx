@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
-import { CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Megaphone, Send, Settings, Wand2, Sparkles, XCircle, Tag } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Megaphone, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
 const STATUS_VARIANT: Record<string, string> = { DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
@@ -36,9 +36,162 @@ export interface CampaignDto {
   channel: string | null;
   createdAt: string | Date;
   publishedAt: string | Date | null;
+  scheduledAt: string | null;
   imageUrl: string | null;
   instagramPermalink: string | null;
 }
+
+// ── ApproveModal ──────────────────────────────────────────────
+
+function ApproveModal({
+  onClose, onScheduled, loading,
+}: {
+  onClose:     () => void;
+  onScheduled: (date: Date) => void;
+  loading:     boolean;
+}) {
+  const [mode, setMode] = useState<"today" | "date">("today");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("09:00");
+  const today = new Date().toISOString().slice(0, 10);
+
+  function confirm() {
+    if (mode === "today") {
+      onScheduled(new Date());
+    } else {
+      if (!date) return;
+      onScheduled(new Date(`${date}T${time}:00`));
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[60] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-w-sm mx-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Quando lançar esta campanha?</h3>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <button
+            onClick={() => setMode("today")}
+            className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+              mode === "today" ? "border-gold-500/40 bg-gold-500/10" : "border-border hover:border-border/60"
+            }`}
+          >
+            <Send className={`h-4 w-4 shrink-0 ${mode === "today" ? "text-gold-400" : "text-muted-foreground"}`} />
+            <div>
+              <p className="text-sm font-medium text-foreground">Lançar hoje</p>
+              <p className="text-[11px] text-muted-foreground">Entra na fila e pode ser enviado agora</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setMode("date")}
+            className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+              mode === "date" ? "border-gold-500/40 bg-gold-500/10" : "border-border hover:border-border/60"
+            }`}
+          >
+            <CalendarDays className={`h-4 w-4 shrink-0 ${mode === "date" ? "text-gold-400" : "text-muted-foreground"}`} />
+            <div>
+              <p className="text-sm font-medium text-foreground">Agendar para outra data</p>
+              <p className="text-[11px] text-muted-foreground">Publicado automaticamente na data escolhida</p>
+            </div>
+          </button>
+
+          {mode === "date" && (
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="space-y-1">
+                <label className="text-[11px] text-muted-foreground">Data</label>
+                <input
+                  type="date" value={date} min={today}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-muted-foreground">Horário</label>
+                <input
+                  type="time" value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={loading}>Cancelar</Button>
+          <Button
+            className="flex-1"
+            onClick={confirm}
+            disabled={loading || (mode === "date" && !date)}
+          >
+            {loading ? "Agendando..." : "Confirmar"}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── RescheduleModal ───────────────────────────────────────────
+
+function RescheduleModal({
+  current, onClose, onSave,
+}: {
+  current: string | null;
+  onClose: () => void;
+  onSave:  (date: Date) => void;
+}) {
+  const today   = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(current ? current.slice(0, 10) : today);
+  const [time, setTime] = useState(current ? current.slice(11, 16) : "09:00");
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[60] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-w-xs mx-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Alterar data de lançamento</h3>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground">Data</label>
+            <input
+              type="date" value={date} min={today}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground">Horário</label>
+            <input
+              type="time" value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
+          <Button className="flex-1" onClick={() => { onSave(new Date(`${date}T${time}:00`)); }} disabled={!date}>
+            Salvar
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Main client ───────────────────────────────────────────────
 
 export function CampaignsClient({ campaigns: initial, instagramConfigured, availableOffers = [] }: {
   campaigns: CampaignDto[];
@@ -56,7 +209,10 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [imagePrompt, setImagePrompt] = useState<Record<string, string>>({});
+  const [imagePrompt, setImagePrompt]       = useState<Record<string, string>>({});
+  const [approveModal, setApproveModal]     = useState<string | null>(null); // campaignId
+  const [rescheduleModal, setRescheduleModal] = useState<string | null>(null);
+  const [schedulingId, setSchedulingId]     = useState<string | null>(null);
 
   async function createCampaign() {
     setLoadingCreate(true);
@@ -179,6 +335,28 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
     }
   }
 
+  async function scheduleFor(id: string, scheduledAt: Date) {
+    setSchedulingId(id);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ status: "SCHEDULED", scheduledAt: scheduledAt.toISOString() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao agendar");
+      setCampaigns((prev) => prev.map((c) =>
+        c.id === id ? { ...c, status: "SCHEDULED", scheduledAt: scheduledAt.toISOString() } : c
+      ));
+      const isToday = scheduledAt.toDateString() === new Date().toDateString();
+      toast({ title: "Campanha agendada", description: isToday ? "Pronta para envio — aparece na fila" : `Agendada para ${scheduledAt.toLocaleDateString("pt-BR")}` });
+    } catch (e) {
+      toast({ title: "Erro ao agendar", description: String(e), variant: "destructive" });
+    } finally {
+      setSchedulingId(null);
+    }
+  }
+
   async function remove(id: string) {
     setDeletingId(id);
     try {
@@ -197,8 +375,40 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
     }
   }
 
+  // ── Helpers ────────────────────────────────────────────────
+  const queueCampaigns = campaigns.filter((c) => ["SCHEDULED", "APPROVED"].includes(c.status));
+
+  function isToday(dateStr: string | null) {
+    if (!dateStr) return false;
+    return new Date(dateStr).toDateString() === new Date().toDateString();
+  }
+
+  function formatScheduled(dateStr: string | null) {
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
   return (
     <div className="space-y-4">
+
+      {/* ── Approve modal ──────────────────────────────────── */}
+      {approveModal && (
+        <ApproveModal
+          onClose={() => setApproveModal(null)}
+          onScheduled={(date) => { scheduleFor(approveModal, date); setApproveModal(null); }}
+          loading={schedulingId === approveModal}
+        />
+      )}
+
+      {/* ── Reschedule modal ───────────────────────────────── */}
+      {rescheduleModal && (
+        <RescheduleModal
+          current={campaigns.find((c) => c.id === rescheduleModal)?.scheduledAt ?? null}
+          onClose={() => setRescheduleModal(null)}
+          onSave={(date) => { scheduleFor(rescheduleModal, date); setRescheduleModal(null); }}
+        />
+      )}
+
       <Card className="border-gold-500/20 bg-gradient-to-br from-surface-900 to-surface-800/60">
         <CardHeader className="pb-3">
           <div className="flex items-start gap-3">
@@ -291,6 +501,77 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
         </CardContent>
       </Card>
 
+      {/* ── Fila de lançamento ─────────────────────────────── */}
+      {queueCampaigns.length > 0 && (
+        <Card className="border-gold-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-gold-400" />
+              Fila de lançamento
+              <span className="ml-auto rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{queueCampaigns.length}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {queueCampaigns.map((c) => {
+                const today   = isToday(c.scheduledAt);
+                const dateStr = formatScheduled(c.scheduledAt);
+                return (
+                  <div key={c.id} className={`px-4 py-3 ${today ? "bg-amber-500/5" : ""}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs font-semibold text-foreground truncate">{c.title}</p>
+                          {today && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400 shrink-0">
+                              <Clock className="h-2.5 w-2.5" /> Hoje
+                            </span>
+                          )}
+                          {!c.imageUrl && (
+                            <span className="text-[10px] text-red-400/80 shrink-0">sem imagem</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.objective}</p>
+                        {dateStr ? (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{dateStr}</p>
+                        ) : (
+                          <p className="text-[11px] text-amber-400/70 mt-0.5">Sem data definida</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          size="sm"
+                          className="h-7 text-[11px] gap-1"
+                          onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                          disabled={!instagramConfigured || publishingId === c.id || !c.imageUrl}
+                          title={!instagramConfigured ? "Configure o Instagram em Integrações" : !c.imageUrl ? "Adicione uma imagem primeiro" : undefined}
+                        >
+                          {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
+                        </Button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setRescheduleModal(c.id); }}
+                          className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
+                          title="Alterar data"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); remove(c.id); }}
+                          className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Published campaigns table */}
       {campaigns.some((c) => c.status === "PUBLISHED") && (
         <Card>
@@ -343,16 +624,16 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
         </Card>
       )}
 
-      {campaigns.filter((c) => c.status !== "PUBLISHED").length === 0 && !campaigns.some((c) => c.status === "PUBLISHED") ? (
+      {campaigns.filter((c) => ["DRAFT", "DISMISSED"].includes(c.status)).length === 0 && !campaigns.some((c) => c.status === "PUBLISHED") && queueCampaigns.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gold-500/20 bg-card p-12 text-center">
           <Megaphone className="h-8 w-8 text-gold-400/50 mx-auto mb-3" />
           <h3 className="font-semibold text-foreground mb-1">Nenhuma campanha ainda</h3>
           <p className="text-sm text-muted-foreground">Crie uma campanha manual ou aprove uma sugestão da IA.</p>
         </div>
-      ) : campaigns.filter((c) => c.status !== "PUBLISHED").length === 0 ? null : (
+      ) : campaigns.filter((c) => ["DRAFT", "DISMISSED"].includes(c.status)).length === 0 ? null : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {campaigns.filter((c) => c.status !== "PUBLISHED").map((c) => (
-            <Card key={c.id} className={c.status === "APPROVED" ? "border-gold-500/25" : ""}>
+          {campaigns.filter((c) => ["DRAFT", "DISMISSED"].includes(c.status)).map((c) => (
+            <Card key={c.id}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <CardTitle className="text-sm leading-snug">{c.title}</CardTitle>
@@ -529,18 +810,13 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
                     </div>
                     <div className="flex gap-2">
                       {c.status === "DRAFT" && (
-                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); setStatus(c.id, "APPROVED"); }}>Aprovar</Button>
-                      )}
-                      {c.status === "APPROVED" && (
                         <Button
                           size="sm"
-                          variant="default"
+                          variant="outline"
                           className="h-7 text-[11px]"
-                          onClick={(e) => { e.stopPropagation(); publish(c.id); }}
-                          disabled={!instagramConfigured || publishingId === c.id}
-                          title={!instagramConfigured ? "Configure o Instagram em Integrações" : undefined}
+                          onClick={(e) => { e.stopPropagation(); setApproveModal(c.id); }}
                         >
-                          {publishingId === c.id ? "Publicando..." : "Publicar"}
+                          Aprovar
                         </Button>
                       )}
                       {c.status !== "PUBLISHED" && (

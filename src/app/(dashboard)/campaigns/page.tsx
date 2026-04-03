@@ -34,8 +34,9 @@ export default async function CampaignsPage() {
         <CampaignsClient
           campaigns={campaigns.map((c) => ({
             ...c,
-            createdAt:   c.createdAt.toISOString(),
-            publishedAt: c.publishedAt?.toISOString() ?? null,
+            createdAt:          c.createdAt.toISOString(),
+            publishedAt:        c.publishedAt?.toISOString() ?? null,
+            scheduledAt:        c.scheduledAt?.toISOString() ?? null,
             instagramPermalink: c.instagramPermalink ?? null,
           }))}
           instagramConfigured={!!(integration?.instagramPageAccessToken && integration.instagramBusinessId)}

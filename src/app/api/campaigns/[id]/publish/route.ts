@@ -2,53 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { signCampaignImage, deleteCampaignImage } from "@/lib/storage";
-
-async function waitForMediaReady(containerId: string, token: string, maxWaitMs = 30_000): Promise<void> {
-  const interval = 2_000;
-  const deadline = Date.now() + maxWaitMs;
-  while (Date.now() < deadline) {
-    const res = await fetch(
-      `https://graph.facebook.com/v21.0/${containerId}?fields=status_code&access_token=${token}`
-    );
-    const json = await res.json();
-    const status = json.status_code as string | undefined;
-    if (status === "FINISHED") return;
-    if (status === "ERROR" || status === "EXPIRED") throw new Error(`Media container status: ${status}`);
-    await new Promise((r) => setTimeout(r, interval));
-  }
-  throw new Error("Timeout aguardando processamento da imagem pelo Instagram");
-}
-
-async function publishToInstagram(token: string, businessId: string, imageUrl: string, caption: string) {
-  const mediaRes = await fetch(`https://graph.facebook.com/v21.0/${businessId}/media`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ image_url: imageUrl, caption, access_token: token }),
-  });
-  const mediaJson = await mediaRes.json();
-  if (!mediaRes.ok) throw new Error(mediaJson.error?.message ?? "Erro ao criar media container");
-
-  await waitForMediaReady(mediaJson.id, token);
-
-  const publishRes = await fetch(`https://graph.facebook.com/v21.0/${businessId}/media_publish`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ creation_id: mediaJson.id, access_token: token }),
-  });
-  const publishJson = await publishRes.json();
-  if (!publishRes.ok) throw new Error(publishJson.error?.message ?? "Erro ao publicar");
-  return publishJson.id as string;
-}
-
-async function fetchPermalink(postId: string, token: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://graph.facebook.com/v21.0/${postId}?fields=permalink&access_token=${token}`);
-    const json = await res.json();
-    return json.permalink ?? null;
-  } catch {
-    return null;
-  }
-}
+import { publishCampaignToInstagram, fetchInstagramPermalink } from "@/lib/campaign-publish";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -56,9 +10,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { imageUrl?: string | null };
+
   const campaign = await prisma.campaign.findUnique({ where: { id } });
-  if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (campaign.status !== "APPROVED") return NextResponse.json({ error: "Apenas campanhas aprovadas" }, { status: 400 });
+  if (!campaign || campaign.barbershopId !== session.user.barbershopId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!["APPROVED", "SCHEDULED"].includes(campaign.status)) {
+    return NextResponse.json({ error: "Apenas campanhas aprovadas ou agendadas" }, { status: 400 });
+  }
 
   let imageUrl = body.imageUrl ?? campaign.imageUrl;
   if (!imageUrl && campaign.templateId) {
@@ -70,22 +29,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const freshUrl = await signCampaignImage(imageUrl);
   if (freshUrl) imageUrl = freshUrl;
 
-  const integration = await prisma.integration.findFirst({ where: { barbershopId: session.user.barbershopId, provider: "trinks" } });
+  const integration = await prisma.integration.findFirst({
+    where: { barbershopId: session.user.barbershopId, provider: "trinks" },
+  });
   if (!integration?.instagramPageAccessToken || !integration.instagramBusinessId) {
-    return NextResponse.json({ error: "Instagram não configurado" }, { status: 400, code: "IG_NOT_CONFIGURED" } as any);
+    return NextResponse.json({ error: "Instagram não configurado" }, { status: 400 });
   }
 
   try {
-    const postId = await publishToInstagram(
+    const postId = await publishCampaignToInstagram(
       integration.instagramPageAccessToken,
       integration.instagramBusinessId,
       imageUrl,
       campaign.text,
     );
 
-    const permalink = await fetchPermalink(postId, integration.instagramPageAccessToken);
+    const permalink = await fetchInstagramPermalink(postId, integration.instagramPageAccessToken);
 
-    // Delete image from storage to free space
     if (campaign.imageUrl) {
       await deleteCampaignImage(campaign.imageUrl).catch(() => null);
     }
@@ -93,11 +53,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await prisma.campaign.update({
       where: { id: campaign.id },
       data: {
-        status: "PUBLISHED",
-        publishedAt: new Date(),
-        instagramPostId: postId,
+        status:             "PUBLISHED",
+        publishedAt:        new Date(),
+        instagramPostId:    postId,
         instagramPermalink: permalink,
-        imageUrl: null, // cleared after publish
+        imageUrl:           null,
       },
     });
 
