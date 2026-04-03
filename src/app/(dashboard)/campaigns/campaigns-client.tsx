@@ -639,11 +639,18 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                           {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
                         </Button>
                         <button
+                          onClick={(e) => { e.stopPropagation(); if (editingText === c.id) { setEditingText(null); } else { setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); } }}
+                          className={`rounded-md border p-1.5 transition-colors ${editingText === c.id ? "border-gold-500/40 text-gold-400 bg-gold-500/10" : "border-border text-muted-foreground hover:text-foreground hover:bg-surface-700"}`}
+                          title="Editar texto"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); setRescheduleModal(c.id); }}
                           className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
                           title="Alterar data"
                         >
-                          <Pencil className="h-3 w-3" />
+                          <CalendarDays className="h-3 w-3" />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); remove(c.id); }}
@@ -654,6 +661,22 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                         </button>
                       </div>
                     </div>
+                    {editingText === c.id && (
+                      <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                        <textarea
+                          value={editedText[c.id] ?? c.text}
+                          onChange={(e) => setEditedText((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                          rows={5}
+                          className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditingText(null)} disabled={savingText === c.id}>Cancelar</Button>
+                          <Button size="sm" className="h-7 text-[11px]" onClick={() => saveText(c.id)} disabled={savingText === c.id}>
+                            {savingText === c.id ? "Salvando..." : "Salvar"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
