@@ -114,6 +114,8 @@ export function BillingClient({
 }: Props) {
   const [loadingCredits,   setLoadingCredits]   = useState(false);
   const [loadingPortal,    setLoadingPortal]    = useState(false);
+  const [loadingCheckout,  setLoadingCheckout]  = useState<string | null>(null);
+  const [checkoutError,    setCheckoutError]    = useState("");
   const [showComparison,   setShowComparison]   = useState(false);
   const [expandedFeature,  setExpandedFeature]  = useState<string | null>(null);
 
@@ -138,6 +140,32 @@ export function BillingClient({
       if (res.redirected) window.location.href = res.url;
     } finally {
       setLoadingCredits(false);
+    }
+  }
+
+  async function subscribe(priceId: string) {
+    setLoadingCheckout(priceId);
+    setCheckoutError("");
+    try {
+      const body = new FormData();
+      body.append("priceId", priceId);
+      const res = await fetch("/api/stripe/checkout", { method: "POST", body });
+      if (res.redirected) {
+        window.location.href = res.url;
+        return;
+      }
+      // fallback: try JSON error
+      const ct = res.headers.get("content-type") ?? "";
+      if (ct.includes("application/json")) {
+        const data = await res.json();
+        if (data.error) setCheckoutError(data.error);
+      } else {
+        setCheckoutError("Erro ao iniciar checkout. Tente novamente.");
+      }
+    } catch {
+      setCheckoutError("Erro de conexão. Tente novamente.");
+    } finally {
+      setLoadingCheckout(null);
     }
   }
 
@@ -237,22 +265,28 @@ export function BillingClient({
             {loadingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
             Gerenciar assinatura no Stripe
           </Button>
-        ) : (planTier === "FREE" || isTrialing) && !cancelAtPeriodEnd ? (
-          /* Sem cliente Stripe ainda: precisa do checkout para criar o customer */
-          <div className="flex flex-col sm:flex-row gap-2 pt-2">
-            <form action="/api/stripe/checkout" method="POST" className="flex-1">
-              <input type="hidden" name="priceId" value={priceIdStart} />
-              <Button type="submit" variant="outline" className="w-full" disabled={!priceIdStart}>
+        ) : !cancelAtPeriodEnd ? (
+          /* Sem cliente Stripe: checkout para criar o customer e assinar */
+          <div className="space-y-2 pt-1">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline" className="flex-1"
+                disabled={!priceIdStart || loadingCheckout !== null}
+                onClick={() => subscribe(priceIdStart)}
+              >
+                {loadingCheckout === priceIdStart ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Assinar Start — R$89/mês
               </Button>
-            </form>
-            <form action="/api/stripe/checkout" method="POST" className="flex-1">
-              <input type="hidden" name="priceId" value={priceIdPro} />
-              <Button type="submit" className="w-full gap-1" disabled={!priceIdPro}>
-                <Sparkles className="h-4 w-4" />
+              <Button
+                className="flex-1 gap-1"
+                disabled={!priceIdPro || loadingCheckout !== null}
+                onClick={() => subscribe(priceIdPro)}
+              >
+                {loadingCheckout === priceIdPro ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Assinar Pro — R$149/mês
               </Button>
-            </form>
+            </div>
+            {checkoutError && <p className="text-xs text-red-400">{checkoutError}</p>}
           </div>
         ) : null}
       </div>
