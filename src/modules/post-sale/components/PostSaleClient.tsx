@@ -121,7 +121,8 @@ function CriteriaTooltip({ text }: { text: string }) {
         <Lightbulb className="h-3.5 w-3.5" />
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 z-50 w-64 rounded-lg border border-border bg-card shadow-xl px-3 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
+        <div className="absolute top-full right-0 mt-2 z-50 w-64 rounded-lg border border-border bg-card shadow-xl px-3 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
+          <div className="absolute bottom-full right-3 border-4 border-transparent border-b-border" />
           <div className="flex items-start gap-2">
             <Lightbulb className="h-3 w-3 text-gold-400 shrink-0 mt-0.5" />
             <p>{text}</p>
@@ -130,7 +131,6 @@ function CriteriaTooltip({ text }: { text: string }) {
               <X className="h-3 w-3" />
             </button>
           </div>
-          <div className="absolute top-full right-3 border-4 border-transparent border-t-border" />
         </div>
       )}
     </div>
