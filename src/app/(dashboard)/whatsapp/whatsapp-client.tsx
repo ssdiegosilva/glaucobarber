@@ -480,11 +480,11 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
   const [showCompose,   setShowCompose]   = useState(false);
 
   const TABS = [
-    { id: "sent"      as const, label: "Enviadas hoje", icon: CheckCircle2, badge: sent.length,    color: "text-green-400"  },
-    { id: "queue"     as const, label: "Na fila",       icon: Clock,        badge: queue.length,   color: "text-yellow-400" },
-    { id: "failed"    as const, label: "Com falha",     icon: AlertCircle,  badge: failed.length,  color: "text-red-400"    },
-    { id: "history"   as const, label: "Histórico",     icon: History,      badge: history.length, color: "text-muted-foreground" },
-    { id: "templates" as const, label: "Templates",     icon: FileText,     badge: null,           color: "text-muted-foreground" },
+    { id: "sent"      as const, label: "Enviadas hoje", icon: CheckCircle2, badge: sent.length,    color: "text-green-400",          active: "border-green-500/40 bg-green-500/10 text-green-400",   activeBadge: "bg-green-500/20 text-green-400",   activeIcon: "text-green-400"   },
+    { id: "queue"     as const, label: "Na fila",       icon: Clock,        badge: queue.length,   color: "text-yellow-400",         active: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400", activeBadge: "bg-yellow-500/20 text-yellow-400", activeIcon: "text-yellow-400"  },
+    { id: "failed"    as const, label: "Com falha",     icon: AlertCircle,  badge: failed.length,  color: "text-red-400",            active: "border-red-500/40 bg-red-500/10 text-red-400",          activeBadge: "bg-red-500/20 text-red-400",       activeIcon: "text-red-400"     },
+    { id: "history"   as const, label: "Histórico",     icon: History,      badge: history.length, color: "text-muted-foreground",   active: "border-blue-500/40 bg-blue-500/10 text-blue-400",       activeBadge: "bg-blue-500/20 text-blue-400",     activeIcon: "text-blue-400"    },
+    { id: "templates" as const, label: "Templates",     icon: FileText,     badge: null,           color: "text-muted-foreground",   active: "border-purple-500/40 bg-purple-500/10 text-purple-400", activeBadge: "bg-purple-500/20 text-purple-400", activeIcon: "text-purple-400"  },
   ];
 
   // ── Queue actions ──────────────────────────────────────────
@@ -560,15 +560,15 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
             onClick={() => setTab(t.id)}
             className={`shrink-0 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium transition-colors ${
               tab === t.id
-                ? "border-gold-500/40 bg-gold-500/10 text-gold-400"
-                : "border-border text-muted-foreground hover:border-gold-500/20 hover:text-foreground"
+                ? t.active
+                : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
             }`}
           >
-            <t.icon className={`h-3.5 w-3.5 shrink-0 ${tab === t.id ? "text-gold-400" : t.color}`} />
+            <t.icon className={`h-3.5 w-3.5 shrink-0 ${tab === t.id ? t.activeIcon : t.color}`} />
             <span className="hidden sm:inline">{t.label}</span>
             {t.badge !== null && (
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                tab === t.id ? "bg-gold-500/20 text-gold-400" : "bg-surface-700 text-muted-foreground"
+                tab === t.id ? t.activeBadge : "bg-surface-700 text-muted-foreground"
               }`}>{t.badge}</span>
             )}
           </button>
