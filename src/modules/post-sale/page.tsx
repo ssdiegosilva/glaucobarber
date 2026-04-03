@@ -23,6 +23,7 @@ export default async function PostSalePage() {
     customers,
     recentReviews,
     recentWhatsapps,
+    barbershop,
   ] = await Promise.all([
     prisma.customer.count({ where: { barbershopId, postSaleStatus: "EM_RISCO" } }),
     prisma.customer.count({ where: { barbershopId, postSaleStatus: "INATIVO" } }),
@@ -78,6 +79,12 @@ export default async function PostSalePage() {
         customerId: { not: null },
       },
       select: { customerId: true, type: true, createdAt: true },
+    }),
+
+    // Barbershop config for Google review URL
+    prisma.barbershop.findUnique({
+      where:  { id: barbershopId },
+      select: { googleReviewUrl: true },
     }),
   ]);
 
@@ -135,6 +142,7 @@ export default async function PostSalePage() {
         <PostSaleClient
           summary={{ emRisco, recentes, inativos, reativados }}
           customers={serializedCustomers}
+          googleReviewUrl={barbershop?.googleReviewUrl ?? null}
         />
       </div>
     </div>

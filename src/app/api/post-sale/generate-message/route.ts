@@ -6,70 +6,88 @@ import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
 
-const TYPE_PROMPTS: Record<string, (name: string, days: number, service: string, barbershop: string) => string> = {
-  post_sale_review: (name, _days, service, barbershop) =>
-    `Escreva uma mensagem de WhatsApp pedindo avaliação Google para o cliente ${name} que acabou de ser atendido na barbearia ${barbershop} com o serviço "${service}". Tom: simpático, informal, curto (1-2 frases). Inclua um CTA para avaliar. Retorne apenas o texto da mensagem.`,
-
-  reactivation: (name, days, service, barbershop) =>
-    `Escreva uma mensagem de reativação de WhatsApp para o cliente ${name} da barbearia ${barbershop} que está há ${days} dias sem visitar. Último serviço: "${service}". Tom: amigável, sem pressão, curto (2-3 frases). Inclua CTA para agendar. Retorne apenas o texto.`,
-
-  reactivation_promo: (name, days, service, barbershop) =>
-    `Escreva uma mensagem de WhatsApp com oferta especial para reativar o cliente ${name} da barbearia ${barbershop}, ausente há ${days} dias. Último serviço: "${service}". Mencione desconto ou benefício (genérico). Tom: entusiasmado mas não invasivo. Curto (2-3 frases). Retorne apenas o texto.`,
-
-  post_sale_followup: (name, days, _service, barbershop) =>
-    `Escreva uma mensagem de acompanhamento de WhatsApp para o cliente ${name} da barbearia ${barbershop}, ausente há ${days} dias. Tom: próximo, informal, personalizado. Curto (2 frases). Inclua CTA para agendar. Retorne apenas o texto.`,
-};
-
+// POST /api/post-sale/generate-message
+// Generates a ready-to-send personalized WhatsApp message for post-sale actions.
+// Body: { actionType, customerName, serviceName?, daysSinceVisit?, googleReviewUrl? }
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { allowed } = await checkAiAllowance(session.user.barbershopId);
-  if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
+  const barbershopId = session.user.barbershopId;
 
-  const { customerId, type } = await req.json();
-  if (!customerId || !type) return NextResponse.json({ error: "customerId e type são obrigatórios" }, { status: 400 });
+  const { allowed } = await checkAiAllowance(barbershopId);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "ai_limit_reached", message: "Limite de IA atingido.", upgradeUrl: "/billing" },
+      { status: 402 }
+    );
+  }
 
-  const [customer, barbershop] = await Promise.all([
-    prisma.customer.findFirst({
-      where:  { id: customerId, barbershopId: session.user.barbershopId },
-      select: {
-        name: true,
-        lastCompletedAppointmentAt: true,
-        appointments: {
-          where:   { status: "COMPLETED" },
-          orderBy: { completedAt: "desc" },
-          take:    1,
-          select:  { service: { select: { name: true } } },
-        },
-      },
-    }),
-    prisma.barbershop.findUnique({
-      where:  { id: session.user.barbershopId },
-      select: { name: true },
-    }),
-  ]);
+  const { actionType, customerName, serviceName, daysSinceVisit, googleReviewUrl } = await req.json() as {
+    actionType: string;
+    customerName: string;
+    serviceName?: string;
+    daysSinceVisit?: number;
+    googleReviewUrl?: string;
+  };
 
-  if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+  if (!actionType || !customerName?.trim()) {
+    return NextResponse.json({ error: "actionType e customerName são obrigatórios" }, { status: 400 });
+  }
 
-  const days        = customer.lastCompletedAppointmentAt
-    ? Math.floor((Date.now() - customer.lastCompletedAppointmentAt.getTime()) / 86_400_000)
-    : 0;
-  const serviceName = customer.appointments[0]?.service?.name ?? "corte";
-  const shopName    = barbershop?.name ?? "barbearia";
+  const barbershop = await prisma.barbershop.findUnique({
+    where:  { id: barbershopId },
+    select: { name: true },
+  });
 
-  const promptFn = TYPE_PROMPTS[type] ?? TYPE_PROMPTS.post_sale_followup;
-  const prompt   = promptFn(customer.name, days, serviceName, shopName);
+  const shopName  = barbershop?.name ?? "nossa barbearia";
+  const name      = customerName.trim();
+  const service   = serviceName ?? "corte";
+  const days      = daysSinceVisit ?? 0;
+
+  let systemPrompt = `Você é especialista em comunicação para barbearias. Escreva mensagens de WhatsApp diretas, calorosas e curtas (máximo 3 parágrafos). Sem asteriscos, sem markdown. Termine sempre com "Equipe ${shopName}".`;
+
+  let userPrompt: string;
+
+  switch (actionType) {
+    case "reactivation":
+      userPrompt = `Escreva uma mensagem de reativação para o cliente "${name}" da barbearia "${shopName}". Ele está há ${days} dias sem visitar e o último serviço foi "${service}". Seja saudoso, pessoal e inclua um convite para retornar.`;
+      break;
+
+    case "reactivation_promo":
+      userPrompt = `Escreva uma mensagem com oferta especial para reativar o cliente "${name}" da barbearia "${shopName}". Ele está há ${days} dias sem visitar. Crie uma oferta atrativa (desconto, brinde ou combo) para motivá-lo a voltar.`;
+      break;
+
+    case "post_sale_followup":
+      userPrompt = `Escreva uma mensagem de boas-vindas de volta para o cliente "${name}" da barbearia "${shopName}". Ele voltou depois de um tempo ausente. Celebre o retorno e incentive a regularidade das visitas.`;
+      break;
+
+    case "post_sale_review":
+      if (!googleReviewUrl) {
+        return NextResponse.json({ error: "googleReviewUrl é necessário para este tipo de mensagem" }, { status: 400 });
+      }
+      userPrompt = `Escreva uma mensagem pedindo avaliação no Google para o cliente "${name}" após ser atendido na barbearia "${shopName}" com o serviço "${service}". Inclua este link exatamente: ${googleReviewUrl}. Seja breve e simpático.`;
+      break;
+
+    default:
+      return NextResponse.json({ error: "actionType inválido" }, { status: 400 });
+  }
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await openai.chat.completions.create({
       model:      MODEL,
-      max_tokens: 200,
-      messages:   [{ role: "user", content: prompt }],
+      max_tokens: 350,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user",   content: userPrompt },
+      ],
     });
+
     const message = completion.choices[0]?.message?.content?.trim() ?? "";
-    await consumeAiCredit(session.user.barbershopId, "post_sale");
+    if (!message) return NextResponse.json({ error: "IA não retornou mensagem" }, { status: 500 });
+
+    await consumeAiCredit(barbershopId, "post_sale");
     return NextResponse.json({ message });
   } catch {
     return NextResponse.json({ error: "Erro ao gerar mensagem" }, { status: 500 });

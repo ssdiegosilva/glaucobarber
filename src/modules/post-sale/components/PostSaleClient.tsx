@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
 import type { CustomerSummary, PostSaleStatus } from "../types";
 import {
-  X, MessageCircle, Calendar, Phone, Clock, Scissors,
+  X, MessageCircle, Clock, Scissors,
   ChevronRight, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
-  UserMinus, RefreshCcw,
+  UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles,
 } from "lucide-react";
 
 // ── Status actions ────────────────────────────────────────────
@@ -18,37 +18,32 @@ interface ActionConfig {
   label:      string;
   type:       string;
   icon:       React.ComponentType<{ className?: string }>;
-  scheduled?: boolean;
+  isReview?:  boolean; // needs Google review URL
 }
 
 const STATUS_ACTIONS: Record<PostSaleStatus, ActionConfig[]> = {
   RECENTE: [
-    { id: "review",   label: "Pedir avaliação Google", type: "post_sale_review",   icon: MessageCircle },
-    { id: "followup", label: "Agendar mensagem",        type: "post_sale_followup", icon: Calendar, scheduled: true },
+    { id: "review", label: "Pedir avaliação Google", type: "post_sale_review", icon: Star, isReview: true },
   ],
   EM_RISCO: [
     { id: "reactivation", label: "Mensagem de reativação", type: "reactivation",       icon: MessageCircle },
-    { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: MessageCircle },
-    { id: "schedule",     label: "Agendar mensagem",        type: "reactivation",       icon: Calendar, scheduled: true },
+    { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: Star },
   ],
   INATIVO: [
     { id: "reactivation", label: "Mensagem de reativação", type: "reactivation",       icon: MessageCircle },
-    { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: MessageCircle },
-    { id: "schedule",     label: "Agendar mensagem",        type: "reactivation",       icon: Calendar, scheduled: true },
+    { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: Star },
   ],
   REATIVADO: [
     { id: "followup", label: "Mensagem de acompanhamento", type: "post_sale_followup", icon: MessageCircle },
-    { id: "review",   label: "Pedir avaliação Google",     type: "post_sale_review",   icon: MessageCircle },
-    { id: "schedule", label: "Agendar mensagem",            type: "post_sale_followup", icon: Calendar, scheduled: true },
+    { id: "review",   label: "Pedir avaliação Google",     type: "post_sale_review",   icon: Star, isReview: true },
   ],
   NAO_CONTATAR: [],
 };
 
-// For a given action, which WA type (or review status) marks it as done?
 function isActionDone(action: ActionConfig, customer: CustomerSummary): boolean {
-  const sentTypes   = customer.sentTypes   ?? [];
+  const sentTypes    = customer.sentTypes   ?? [];
   const reviewStatus = customer.reviewStatus ?? null;
-  if (action.id === "review") {
+  if (action.isReview) {
     return sentTypes.includes("post_sale_review") ||
       (reviewStatus !== null && reviewStatus !== "pendente");
   }
@@ -90,10 +85,10 @@ const FILTER_CONFIG: {
 ];
 
 const FILTER_STATUS: Record<FilterKey, PostSaleStatus> = {
-  emRisco:   "EM_RISCO",
-  recentes:  "RECENTE",
-  inativos:  "INATIVO",
-  reativados:"REATIVADO",
+  emRisco:    "EM_RISCO",
+  recentes:   "RECENTE",
+  inativos:   "INATIVO",
+  reativados: "REATIVADO",
 };
 
 // ── Lightbulb tooltip ─────────────────────────────────────────
@@ -147,13 +142,14 @@ interface SummaryData {
 }
 
 interface Props {
-  summary:   SummaryData;
-  customers: CustomerSummary[];
+  summary:         SummaryData;
+  customers:       CustomerSummary[];
+  googleReviewUrl: string | null;
 }
 
 // ── Root component ────────────────────────────────────────────
 
-export function PostSaleClient({ summary, customers }: Props) {
+export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
   const [active,           setActive]           = useState<FilterKey | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null);
 
@@ -212,6 +208,7 @@ export function PostSaleClient({ summary, customers }: Props) {
       {selectedCustomer && (
         <CustomerDetailSheet
           customer={selectedCustomer}
+          googleReviewUrl={googleReviewUrl}
           onClose={() => setSelectedCustomer(null)}
         />
       )}
@@ -245,9 +242,9 @@ function CustomerList({ rows, emptyMessage, showAll, onSelect }: {
         </p>
       )}
       {display.map((c) => {
-        const actions    = STATUS_ACTIONS[c.postSaleStatus] ?? [];
-        const doneCount  = actions.filter((a) => isActionDone(a, c)).length;
-        const allDone    = actions.length > 0 && doneCount === actions.length;
+        const actions   = STATUS_ACTIONS[c.postSaleStatus] ?? [];
+        const doneCount = actions.filter((a) => isActionDone(a, c)).length;
+        const allDone   = actions.length > 0 && doneCount === actions.length;
         return (
           <button
             key={c.id}
@@ -286,26 +283,26 @@ function CustomerList({ rows, emptyMessage, showAll, onSelect }: {
 
 // ── Customer detail sheet ─────────────────────────────────────
 
-function CustomerDetailSheet({ customer, onClose }: {
-  customer: CustomerSummary;
-  onClose: () => void;
+function CustomerDetailSheet({ customer, googleReviewUrl, onClose }: {
+  customer:        CustomerSummary;
+  googleReviewUrl: string | null;
+  onClose:         () => void;
 }) {
-  const [showWhatsApp,    setShowWhatsApp]    = useState(false);
+  const [showActions,     setShowActions]     = useState(false);
   const [selectedAction,  setSelectedAction]  = useState<ActionConfig | null>(null);
   const [localCustomer,   setLocalCustomer]   = useState(customer);
 
-  const actions  = STATUS_ACTIONS[localCustomer.postSaleStatus] ?? [];
-  const allDone  = actions.length > 0 && actions.every((a) => isActionDone(a, localCustomer));
+  const actions = STATUS_ACTIONS[localCustomer.postSaleStatus] ?? [];
+  const allDone = actions.length > 0 && actions.every((a) => isActionDone(a, localCustomer));
 
   function handleSent(action: ActionConfig) {
-    // Optimistically mark action as done locally
     setLocalCustomer((prev) => {
-      const newTypes = [...(prev.sentTypes ?? []), action.type];
-      const newReviewStatus = action.id === "review" ? "enviado" : prev.reviewStatus;
+      const newTypes       = [...(prev.sentTypes ?? []), action.type];
+      const newReviewStatus = action.isReview ? "enviado" : prev.reviewStatus;
       return { ...prev, sentTypes: newTypes, reviewStatus: newReviewStatus };
     });
     setSelectedAction(null);
-    setShowWhatsApp(false);
+    setShowActions(false);
   }
 
   return (
@@ -384,7 +381,6 @@ function CustomerDetailSheet({ customer, onClose }: {
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Follow-up</p>
 
-              {/* Actions done */}
               {actions.filter((a) => isActionDone(a, localCustomer)).length > 0 && (
                 <div className="space-y-1.5">
                   {actions.filter((a) => isActionDone(a, localCustomer)).map((a) => (
@@ -396,14 +392,13 @@ function CustomerDetailSheet({ customer, onClose }: {
                 </div>
               )}
 
-              {/* Send button or all-done message */}
               {allDone ? (
                 <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 text-center">
                   <p className="text-sm font-medium text-green-400">FUP completo</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Todas as ações foram realizadas para este atendimento.</p>
                 </div>
               ) : (
-                <Button className="w-full gap-2" onClick={() => setShowWhatsApp(true)}>
+                <Button className="w-full gap-2" onClick={() => setShowActions(true)}>
                   <MessageCircle className="h-4 w-4" />
                   Enviar mensagem
                 </Button>
@@ -413,30 +408,37 @@ function CustomerDetailSheet({ customer, onClose }: {
         </div>
       </div>
 
-      {showWhatsApp && (
-        <WhatsAppActionSheet
+      {showActions && (
+        <ActionSheet
           customer={localCustomer}
           actions={actions.filter((a) => !isActionDone(a, localCustomer))}
-          onClose={() => setShowWhatsApp(false)}
-          onAction={(a) => { setSelectedAction(a); setShowWhatsApp(false); }}
+          onClose={() => setShowActions(false)}
+          onAction={(a) => { setSelectedAction(a); setShowActions(false); }}
         />
       )}
 
       {selectedAction && (
-        <TemplateMessageModal
-          customer={localCustomer}
-          action={selectedAction}
-          onClose={() => setSelectedAction(null)}
-          onSent={() => handleSent(selectedAction)}
-        />
+        selectedAction.isReview && !googleReviewUrl ? (
+          <MissingReviewUrlModal
+            onClose={() => setSelectedAction(null)}
+          />
+        ) : (
+          <AiWhatsAppModal
+            customer={localCustomer}
+            action={selectedAction}
+            googleReviewUrl={googleReviewUrl}
+            onClose={() => setSelectedAction(null)}
+            onSent={() => handleSent(selectedAction)}
+          />
+        )
       )}
     </>
   );
 }
 
-// ── WhatsApp action sheet ─────────────────────────────────────
+// ── Action sheet ──────────────────────────────────────────────
 
-function WhatsAppActionSheet({ customer, actions, onClose, onAction }: {
+function ActionSheet({ customer, actions, onClose, onAction }: {
   customer: CustomerSummary;
   actions:  ActionConfig[];
   onClose:  () => void;
@@ -458,13 +460,11 @@ function WhatsAppActionSheet({ customer, actions, onClose, onAction }: {
               const Icon = action.icon;
               return (
                 <button key={action.id} onClick={() => onAction(action)}
-                  className="w-full flex items-center gap-3 rounded-lg border border-border/60 bg-surface-900 hover:border-border hover:bg-surface-800 px-4 py-3 text-sm text-left transition-colors"
+                  className="w-full flex items-center gap-3 rounded-lg border border-purple-500/20 bg-purple-500/5 hover:border-purple-500/40 hover:bg-purple-500/10 px-4 py-3 text-sm text-left transition-colors"
                 >
-                  <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Icon className="h-4 w-4 text-purple-400 shrink-0" />
                   <span className="flex-1 text-foreground">{action.label}</span>
-                  {action.scheduled && (
-                    <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-400/30">Agendada</Badge>
-                  )}
+                  <Sparkles className="h-3.5 w-3.5 text-purple-400/60" />
                 </button>
               );
             })}
@@ -476,94 +476,133 @@ function WhatsAppActionSheet({ customer, actions, onClose, onAction }: {
   );
 }
 
-// ── Template message modal ────────────────────────────────────
+// ── Missing review URL modal ───────────────────────────────────
 
-interface WaTemplate { id: string; metaName: string; label: string; body: string; variables: string }
-interface TemplateVar { key: string; label: string; defaultValue: string }
+function MissingReviewUrlModal({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-[60]" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[70] rounded-xl border border-amber-500/30 bg-card shadow-2xl p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
+            <Star className="h-4 w-4 text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Link do Google não configurado</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Para enviar pedidos de avaliação, cadastre o link da sua página do Google Business nas configurações.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1 text-xs" onClick={onClose}>Fechar</Button>
+          <Button
+            className="flex-1 text-xs gap-1.5 bg-gold-500 hover:bg-gold-400 text-black"
+            onClick={() => { window.location.href = "/settings"; }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> Ir para configurações
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
 
-function TemplateMessageModal({ customer, action, onClose, onSent }: {
-  customer: CustomerSummary;
-  action:   ActionConfig;
-  onClose:  () => void;
-  onSent:   () => void;
+// ── AI WhatsApp modal ─────────────────────────────────────────
+
+function AiWhatsAppModal({ customer, action, googleReviewUrl, onClose, onSent }: {
+  customer:        CustomerSummary;
+  action:          ActionConfig;
+  googleReviewUrl: string | null;
+  onClose:         () => void;
+  onSent:          () => void;
 }) {
-  const isScheduled = !!action.scheduled;
-  const todayStr    = new Date().toISOString().slice(0, 10);
+  const [message,   setMessage]   = useState("");
+  const [loading,   setLoading]   = useState(true);
+  const [sending,   setSending]   = useState(false);
+  const [error,     setError]     = useState("");
 
-  const [templates,    setTemplates]    = useState<WaTemplate[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [selectedTpl,  setSelectedTpl]  = useState<WaTemplate | null>(null);
-  const [varValues,    setVarValues]    = useState<string[]>([]);
-  const [scheduledFor, setScheduledFor] = useState(isScheduled ? todayStr : "");
-  const [sending,      setSending]      = useState(false);
-  const [error,        setError]        = useState("");
+  const daysSinceVisit = customer.lastVisitAt
+    ? Math.floor((Date.now() - new Date(customer.lastVisitAt).getTime()) / 86_400_000)
+    : undefined;
 
   useEffect(() => {
-    fetch("/api/whatsapp/templates")
-      .then((r) => r.json())
-      .then((data: WaTemplate[]) => {
-        setTemplates(data);
-        if (data.length === 1) selectTemplate(data[0]);
-      })
-      .catch(() => setError("Erro ao carregar templates."))
-      .finally(() => setLoading(false));
+    async function generate() {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/post-sale/generate-message", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            actionType:      action.type,
+            customerName:    customer.name,
+            serviceName:     customer.serviceName ?? undefined,
+            daysSinceVisit,
+            googleReviewUrl: action.isReview ? googleReviewUrl : undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.message ?? data.error ?? "Erro ao gerar mensagem.");
+          return;
+        }
+        setMessage(data.message);
+      } catch {
+        setError("Erro ao gerar mensagem. Tente novamente.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    generate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function selectTemplate(tpl: WaTemplate) {
-    setSelectedTpl(tpl);
-    const vars: TemplateVar[] = JSON.parse(tpl.variables || "[]");
-    setVarValues(vars.map((v) => {
-      if (v.key === "customer_name" || v.key === "nome") return customer.name;
-      return v.defaultValue ?? "";
-    }));
-    setError("");
-  }
-
-  function previewBody() {
-    if (!selectedTpl) return "";
-    return selectedTpl.body.replace(/\{\{(\d+)\}\}/g, (_, i) => varValues[Number(i) - 1] ?? `{{${i}}}`);
-  }
-
   async function handleSend() {
-    if (!selectedTpl || !customer.phone) return;
+    if (!customer.phone || !message.trim()) return;
     setSending(true);
     setError("");
+
+    // Format phone: digits only, add 55 prefix if needed
+    const digits = customer.phone.replace(/\D/g, "");
+    const waPhone = digits.startsWith("55") ? digits : `55${digits}`;
+
     try {
-      const res = await fetch("/api/whatsapp/messages", {
+      // Record as manually sent in the queue
+      await fetch("/api/whatsapp/messages", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
-          customerId:    customer.id,
-          customerName:  customer.name,
-          phone:         customer.phone,
-          message:       previewBody(),
-          type:          action.type,
-          messageKind:   "template",
-          templateName:  selectedTpl.metaName,
-          templateVars:  varValues,
-          scheduledFor:  isScheduled && scheduledFor ? scheduledFor : undefined,
-          appointmentId: customer.lastAppointmentId ?? undefined,
+          customerId:   customer.id,
+          customerName: customer.name,
+          phone:        customer.phone,
+          message:      message.trim(),
+          type:         action.type,
+          messageKind:  "text",
+          sentManually: true,
         }),
       });
-      if (!res.ok) throw new Error("Falha ao enviar");
+
+      // Open WhatsApp with pre-filled message
+      window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(message.trim())}`, "_blank");
       onSent();
     } catch {
-      setError("Erro ao enviar mensagem.");
+      setError("Erro ao registrar mensagem.");
     } finally {
       setSending(false);
     }
   }
 
-  const vars: TemplateVar[] = selectedTpl ? JSON.parse(selectedTpl.variables || "[]") : [];
-
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 z-60" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/70 z-[60]" onClick={onClose} />
       <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[70] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">{action.label}</h3>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+              <h3 className="text-sm font-semibold text-foreground">{action.label}</h3>
+            </div>
             <p className="text-xs text-muted-foreground">{customer.name}</p>
           </div>
           <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
@@ -571,67 +610,54 @@ function TemplateMessageModal({ customer, action, onClose, onSent }: {
           </button>
         </div>
 
-        {isScheduled && (
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Data de envio</label>
-            <input type="date" value={scheduledFor} min={todayStr}
-              onChange={(e) => setScheduledFor(e.target.value)}
-              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        )}
-
         {loading ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando templates...
+          <div className="flex flex-col items-center gap-3 py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+            <p className="text-xs text-muted-foreground">Gerando mensagem com IA...</p>
           </div>
-        ) : templates.length === 0 ? (
-          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-3 text-xs text-amber-300 space-y-1">
-            <p className="font-medium">Nenhum template configurado</p>
-            <p>Acesse o painel admin → WhatsApp Templates para cadastrar os templates aprovados pela Meta.</p>
+        ) : error ? (
+          <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-3 text-xs text-red-400 space-y-2">
+            <p>{error}</p>
+            <Button size="sm" variant="outline" className="text-xs h-7" onClick={onClose}>Fechar</Button>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Template</label>
-            <select value={selectedTpl?.id ?? ""}
-              onChange={(e) => { const t = templates.find((t) => t.id === e.target.value); if (t) selectTemplate(t); }}
-              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">Selecione um template…</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-          </div>
+          <>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-muted-foreground">Mensagem gerada</label>
+                <span className="text-[10px] text-purple-400/70 flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5" /> IA
+                </span>
+              </div>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={6}
+                className="w-full rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-2.5 text-sm text-foreground leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500/40 resize-none"
+              />
+            </div>
+
+            {!customer.phone && (
+              <p className="text-xs text-amber-400 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> Cliente sem telefone cadastrado.
+              </p>
+            )}
+
+            {error && <p className="text-xs text-red-400">{error}</p>}
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>Cancelar</Button>
+              <Button
+                className="flex-1 gap-2 bg-purple-600 hover:bg-purple-500 text-white"
+                disabled={!customer.phone || !message.trim() || sending}
+                onClick={handleSend}
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Abrir WhatsApp
+              </Button>
+            </div>
+          </>
         )}
-
-        {vars.length > 0 && vars.map((v, i) => (
-          <div key={v.key} className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">{v.label}</label>
-            <input type="text" value={varValues[i] ?? ""}
-              onChange={(e) => { const next = [...varValues]; next[i] = e.target.value; setVarValues(next); }}
-              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        ))}
-
-        {selectedTpl && (
-          <div className="rounded-lg border border-border/40 bg-surface-800/50 px-3 py-2 space-y-1">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pré-visualização</p>
-            <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{previewBody()}</p>
-          </div>
-        )}
-
-        {error && <p className="text-xs text-red-400">{error}</p>}
-
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>Cancelar</Button>
-          <Button className="flex-1 gap-2"
-            disabled={!selectedTpl || !customer.phone || sending || (isScheduled && !scheduledFor) || templates.length === 0}
-            onClick={handleSend}
-          >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-            {isScheduled ? "Agendar envio" : "Enviar agora"}
-          </Button>
-        </div>
       </div>
     </>
   );
@@ -657,3 +683,4 @@ function statusBadgeClass(s: string) {
   };
   return map[s] ?? "";
 }
+

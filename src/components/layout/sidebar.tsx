@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Users,
   Scissors,
-  Tag,
   Megaphone,
   Settings,
   Sparkles,
