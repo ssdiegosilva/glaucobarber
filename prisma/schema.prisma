@@ -92,6 +92,7 @@ model Barbershop {
   websiteUrl   String?
   description  String?
   instagramUrl String?
+  brandStyle   String?  // Visual identity description used in campaign image prompts
 
   // Trinks: the operational source of truth
   trinksConfigured Boolean @default(false)
