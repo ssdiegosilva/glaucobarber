@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Pencil, Trash2, Plus, Loader2, X, Check, MessageSquare } from "lucide-react";
+import { Pencil, Trash2, Plus, Loader2, X, Check, MessageSquare, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface WaTemplate {
@@ -20,11 +20,13 @@ interface TemplateVar { key: string; label: string; defaultValue: string }
 
 const BLANK_VAR: TemplateVar = { key: "", label: "", defaultValue: "" };
 
-export function TemplatesTab() {
+export function TemplatesTab({ hasWabaId }: { hasWabaId?: boolean }) {
   const [templates, setTemplates] = useState<WaTemplate[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [showForm,  setShowForm]  = useState(false);
   const [editId,    setEditId]    = useState<string | null>(null);
+  const [syncing,   setSyncing]   = useState(false);
+  const [syncMsg,   setSyncMsg]   = useState<string | null>(null);
 
   const [metaName, setMetaName] = useState("");
   const [label,    setLabel]    = useState("");
@@ -90,6 +92,22 @@ export function TemplatesTab() {
     toast({ title: "Template removido" });
   }
 
+  async function syncFromMeta() {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res  = await fetch("/api/whatsapp/templates/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setSyncMsg(data.error ?? "Erro ao sincronizar"); return; }
+      setSyncMsg(`${data.synced} template${data.synced !== 1 ? "s" : ""} sincronizado${data.synced !== 1 ? "s" : ""}`);
+      // Reload templates list
+      const list = await fetch("/api/whatsapp/templates").then((r) => r.json());
+      setTemplates(Array.isArray(list) ? list : []);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   async function toggleActive(t: WaTemplate) {
     const res = await fetch(`/api/whatsapp/templates/${t.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: !t.active }),
@@ -116,10 +134,23 @@ export function TemplatesTab() {
             Templates são usados para mensagens proativas (fora da janela de 24h).
           </p>
         </div>
-        <Button size="sm" onClick={openNew} className="gap-1.5 shrink-0">
-          <Plus className="h-4 w-4" /> Novo template
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          {hasWabaId && (
+            <Button size="sm" variant="outline" onClick={syncFromMeta} disabled={syncing} className="gap-1.5">
+              {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              <span className="hidden sm:inline">Sincronizar da Meta</span>
+            </Button>
+          )}
+          <Button size="sm" onClick={openNew} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Novo template
+          </Button>
+        </div>
       </div>
+      {syncMsg && (
+        <p className={`text-xs rounded-md border px-3 py-2 ${syncMsg.includes("Erro") ? "text-red-400 border-red-500/30 bg-red-500/5" : "text-green-400 border-green-500/30 bg-green-500/5"}`}>
+          {syncMsg}
+        </p>
+      )}
 
       {templates.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">

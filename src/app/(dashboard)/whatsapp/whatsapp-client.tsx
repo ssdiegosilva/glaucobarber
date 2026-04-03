@@ -280,8 +280,8 @@ function BotMessageModal({ onClose, onScheduled }: { onClose: () => void; onSche
     fetch("/api/whatsapp/templates")
       .then((r) => r.json())
       .then((d) => {
-        const active = (d.templates ?? []).filter((t: ActiveTemplate & { active: boolean }) => t.active);
-        setTemplates(active);
+        const list = Array.isArray(d) ? d : [];
+        setTemplates(list.filter((t: ActiveTemplate & { active: boolean }) => t.active));
       });
   }, []);
 
@@ -834,6 +834,18 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
   const [processResult, setProcessResult] = useState<{ sent: number; failed: number } | null>(null);
   const [showCompose,   setShowCompose]   = useState(false);
   const [showBotModal,  setShowBotModal]  = useState(false);
+  const [syncingTpls,   setSyncingTpls]  = useState(false);
+
+  async function syncTemplates() {
+    setSyncingTpls(true);
+    try {
+      await fetch("/api/whatsapp/templates/sync", { method: "POST" });
+      setTab("templates");
+      window.location.reload();
+    } finally {
+      setSyncingTpls(false);
+    }
+  }
 
   const TABS = [
     { id: "sent"      as const, label: "Enviadas",  icon: CheckCircle2, badge: sent.length + history.length, color: "text-green-400",          active: "border-green-500/40 bg-green-500/10 text-green-400",   activeBadge: "bg-green-500/20 text-green-400",   activeIcon: "text-green-400"   },
@@ -926,7 +938,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
           <span>
             Nenhum template configurado — o bot precisa de templates aprovados na Meta para enviar.{" "}
             {hasWabaId
-              ? <button onClick={() => {}} className="underline font-medium">Sincronizar da Meta</button>
+              ? <button onClick={syncTemplates} disabled={syncingTpls} className="underline font-medium">{syncingTpls ? "Sincronizando..." : "Sincronizar da Meta"}</button>
               : <><a href="/settings" className="underline font-medium">Adicione o WABA ID</a> nas Integrações para sincronizar.</>
             }
           </span>
@@ -960,6 +972,15 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
           </button>
         ))}
         <div className="flex-1" />
+        {hasAutoSend && whatsappConfigured && hasTemplates && (
+          <button
+            onClick={() => setShowBotModal(true)}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium text-green-400 hover:bg-green-500/20 transition-colors"
+          >
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">Envio em massa 🤖</span>
+          </button>
+        )}
         <button
           onClick={() => setShowCompose(true)}
           className="shrink-0 flex items-center gap-1.5 rounded-lg border border-gold-500/40 bg-gold-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-sm font-medium text-gold-400 hover:bg-gold-500/20 transition-colors"
@@ -970,6 +991,12 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       </div>
 
       {showCompose && <ComposeModal onClose={() => setShowCompose(false)} onSent={handleComposeSent} />}
+      {showBotModal && (
+        <BotMessageModal
+          onClose={() => setShowBotModal(false)}
+          onScheduled={() => { setShowBotModal(false); setTab("queue"); window.location.reload(); }}
+        />
+      )}
 
       {/* Tab description */}
       {tab === "sent"    && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens enviadas com sucesso. Histórico dos últimos 5 dias.</p>}
@@ -1101,7 +1128,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       )}
 
       {/* ── Templates ─────────────────────────────────────── */}
-      {tab === "templates" && <TemplatesTab />}
+      {tab === "templates" && <TemplatesTab hasWabaId={hasWabaId} />}
     </div>
   );
 }

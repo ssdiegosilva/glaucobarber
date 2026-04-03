@@ -13,7 +13,6 @@ export const ALL_FEATURES = [
   { key: "whatsapp",      label: "WhatsApp",            description: "Mensagens automáticas" },
   { key: "whatsapp_auto", label: "WhatsApp Automático", description: "Bot envia mensagens agendadas automaticamente (a cada 15 min)" },
   { key: "post-sale",    label: "Pós-venda",     description: "Ações pós-atendimento" },
-  { key: "integrations", label: "Integrações",   description: "Conexões com Trinks e outras plataformas" },
   { key: "settings",     label: "Configurações", description: "Ajustes da barbearia" },
   { key: "billing",      label: "Plano",         description: "Assinatura e cobrança" },
 ] as const;
