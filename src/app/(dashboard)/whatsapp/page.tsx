@@ -12,7 +12,7 @@ export default async function WhatsappPage() {
   const barbershopId = session.user.barbershopId;
   const now     = new Date();
   const todayStart = startOfDay(now);
-  const ago10  = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
+  const ago10  = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
 
   const [sentToday, queueMessages, failedToday, historyMessages] = await Promise.all([
     // Enviadas hoje

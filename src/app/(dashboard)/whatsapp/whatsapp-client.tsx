@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
   Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw,
-  Loader2, Pencil, X, PenLine, Search, History, FileText,
+  Loader2, Pencil, X, PenLine, Search, FileText,
   ExternalLink, AlertCircle,
 } from "lucide-react";
 import { TemplatesTab } from "./templates-tab";
@@ -468,7 +468,7 @@ function Empty({ icon, text }: { icon: React.ReactNode; text: string }) {
 // ── Main client ───────────────────────────────────────────────
 
 export function WhatsappClient({ sentToday, queueMessages, failedToday, historyMessages }: Props) {
-  const [tab, setTab] = useState<"sent" | "queue" | "failed" | "history" | "templates">("sent");
+  const [tab, setTab] = useState<"sent" | "queue" | "failed" | "templates">("sent");
 
   const [sent,    setSent]    = useState(sentToday);
   const [queue,   setQueue]   = useState(queueMessages);
@@ -480,11 +480,10 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
   const [showCompose,   setShowCompose]   = useState(false);
 
   const TABS = [
-    { id: "sent"      as const, label: "Enviadas hoje", icon: CheckCircle2, badge: sent.length,    color: "text-green-400",          active: "border-green-500/40 bg-green-500/10 text-green-400",   activeBadge: "bg-green-500/20 text-green-400",   activeIcon: "text-green-400"   },
-    { id: "queue"     as const, label: "Na fila",       icon: Clock,        badge: queue.length,   color: "text-yellow-400",         active: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400", activeBadge: "bg-yellow-500/20 text-yellow-400", activeIcon: "text-yellow-400"  },
-    { id: "failed"    as const, label: "Com falha",     icon: AlertCircle,  badge: failed.length,  color: "text-red-400",            active: "border-red-500/40 bg-red-500/10 text-red-400",          activeBadge: "bg-red-500/20 text-red-400",       activeIcon: "text-red-400"     },
-    { id: "history"   as const, label: "Histórico",     icon: History,      badge: history.length, color: "text-muted-foreground",   active: "border-blue-500/40 bg-blue-500/10 text-blue-400",       activeBadge: "bg-blue-500/20 text-blue-400",     activeIcon: "text-blue-400"    },
-    { id: "templates" as const, label: "Templates",     icon: FileText,     badge: null,           color: "text-muted-foreground",   active: "border-purple-500/40 bg-purple-500/10 text-purple-400", activeBadge: "bg-purple-500/20 text-purple-400", activeIcon: "text-purple-400"  },
+    { id: "sent"      as const, label: "Enviadas",  icon: CheckCircle2, badge: sent.length + history.length, color: "text-green-400",          active: "border-green-500/40 bg-green-500/10 text-green-400",   activeBadge: "bg-green-500/20 text-green-400",   activeIcon: "text-green-400"   },
+    { id: "queue"     as const, label: "Na fila",   icon: Clock,        badge: queue.length,                 color: "text-yellow-400",         active: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400", activeBadge: "bg-yellow-500/20 text-yellow-400", activeIcon: "text-yellow-400"  },
+    { id: "failed"    as const, label: "Com falha", icon: AlertCircle,  badge: failed.length,                color: "text-red-400",            active: "border-red-500/40 bg-red-500/10 text-red-400",          activeBadge: "bg-red-500/20 text-red-400",       activeIcon: "text-red-400"     },
+    { id: "templates" as const, label: "Templates", icon: FileText,     badge: null,                         color: "text-muted-foreground",   active: "border-purple-500/40 bg-purple-500/10 text-purple-400", activeBadge: "bg-purple-500/20 text-purple-400", activeIcon: "text-purple-400"  },
   ];
 
   // ── Queue actions ──────────────────────────────────────────
@@ -586,18 +585,39 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       {showCompose && <ComposeModal onClose={() => setShowCompose(false)} onSent={handleComposeSent} />}
 
       {/* Tab description */}
-      {tab === "sent"    && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens enviadas com sucesso hoje. O registro é mantido por 10 dias.</p>}
+      {tab === "sent"    && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens enviadas com sucesso. Histórico dos últimos 5 dias.</p>}
       {tab === "queue"   && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens aguardando envio. Use &quot;Enviar tudo&quot; para processar a fila agora ou aguarde o envio automático.</p>}
       {tab === "failed"  && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens que falharam no envio. Use &quot;Tentar novamente&quot; para reagendar para daqui 1 hora. Itens com mais de 1 dia são removidos automaticamente.</p>}
-      {tab === "history" && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Histórico de mensagens enviadas nos últimos 10 dias.</p>}
 
-      {/* ── Enviadas hoje ──────────────────────────────────── */}
+      {/* ── Enviadas (hoje + histórico) ────────────────────── */}
       {tab === "sent" && (
-        <div className="space-y-2">
-          {sent.length === 0
-            ? <Empty icon={<CheckCircle2 className="h-8 w-8" />} text="Nenhuma mensagem enviada hoje." />
-            : sent.map((m) => <MessageRow key={m.id} msg={m} />)
-          }
+        <div className="space-y-4">
+          {sent.length === 0 && history.length === 0 ? (
+            <Empty icon={<CheckCircle2 className="h-8 w-8" />} text="Nenhuma mensagem enviada ainda." />
+          ) : (
+            <>
+              {/* Hoje */}
+              {sent.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-400">
+                      <Clock className="h-3 w-3" />
+                      Hoje · {sent.length} mensagem{sent.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  {sent.map((m) => <MessageRow key={m.id} msg={m} isToday />)}
+                </div>
+              )}
+
+              {/* Dias anteriores agrupados */}
+              {historyByDay.map((group) => (
+                <div key={group.day} className="space-y-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide capitalize">{group.day}</p>
+                  {group.msgs.map((m) => <MessageRow key={m.id} msg={m} />)}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -678,22 +698,6 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
             : failed.map((m) => (
                 <MessageRow key={m.id} msg={m} showActions
                   onDelete={removeFromFailed} onRetry={retryMessage} />
-              ))
-          }
-        </div>
-      )}
-
-      {/* ── Histórico ─────────────────────────────────────── */}
-      {tab === "history" && (
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">Mensagens enviadas nos últimos 10 dias. Registros são apagados automaticamente após esse período.</p>
-          {historyByDay.length === 0
-            ? <Empty icon={<History className="h-8 w-8" />} text="Nenhuma mensagem no histórico." />
-            : historyByDay.map((group) => (
-                <div key={group.day} className="space-y-2">
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide capitalize">{group.day}</p>
-                  {group.msgs.map((m) => <MessageRow key={m.id} msg={m} />)}
-                </div>
               ))
           }
         </div>
