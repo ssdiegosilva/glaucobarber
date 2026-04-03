@@ -198,6 +198,8 @@ export function DashboardClient({
   const [approving, setApproving]   = useState<string | null>(null);
   const [syncing, setSyncing]       = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [offDay, setOffDay]         = useState(isOffDay);
+  const [unlocking, setUnlocking]   = useState(false);
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [details, setDetails]       = useState<Record<string, AppointmentDetail | null>>({});
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
@@ -613,18 +615,40 @@ export function DashboardClient({
       )}
 
       {/* ── KPI Grid ──────────────────────────────────────── */}
-      {view === "today" && isOffDay ? (
+      {view === "today" && offDay ? (
         /* ── Off-day banner ──────────────────────────────── */
-        <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 p-6 flex flex-col items-center text-center gap-3">
-          <div className="text-5xl">☕</div>
-          <h2 className="text-xl font-bold text-foreground">Hoje você está de folga!</h2>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            Aproveite para descansar, cuidar de você e recarregar as energias. Amanhã a barbearia volta a todo vapor!
-          </p>
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground border border-border rounded-full px-4 py-1.5">
-            <Scissors className="h-3.5 w-3.5 text-gold-400" />
-            <span>Você configurou este dia como folga na sua meta mensal</span>
+        <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-indigo-500/8 p-8 flex flex-col items-center text-center gap-4">
+          <div className="text-6xl select-none">☕</div>
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-bold text-foreground">Hoje é dia de folga!</h2>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              Aproveite para descansar, cuidar de você e recarregar as energias. Amanhã a barbearia volta a todo vapor!
+            </p>
           </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground border border-blue-500/20 rounded-full px-4 py-1.5 bg-blue-500/5">
+            <Scissors className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+            <span>Configurado como folga na sua meta de {new Date().toLocaleString("pt-BR", { month: "long" })}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-1 gap-2 border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:text-blue-200"
+            disabled={unlocking}
+            onClick={async () => {
+              setUnlocking(true);
+              try {
+                const res = await fetch("/api/goals/unlock-today", { method: "PATCH" });
+                if (res.ok) setOffDay(false);
+              } finally {
+                setUnlocking(false);
+              }
+            }}
+          >
+            {unlocking
+              ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              : <span>🙋</span>}
+            Me enganei — vou trabalhar hoje
+          </Button>
         </div>
       ) : view === "today" ? (
         <>
