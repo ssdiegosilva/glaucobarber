@@ -59,8 +59,8 @@ export default async function BillingPage() {
         trialEndsAt={plan.trialEndsAt?.toISOString() ?? null}
         currentPeriodEnd={plan.currentPeriodEnd?.toISOString() ?? null}
         cancelAtPeriodEnd={plan.cancelAtPeriodEnd}
-        priceIdStart={process.env.STRIPE_PRICE_START ?? process.env.NEXT_PUBLIC_STRIPE_PRICE_START ?? ""}
-        priceIdPro={process.env.STRIPE_PRICE_PRO ?? process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO ?? ""}
+        priceIdStart={process.env.STRIPE_PRICE_STARTER_MONTHLY ?? ""}
+        priceIdPro={process.env.STRIPE_PRICE_PRO_MONTHLY ?? ""}
       />
     </div>
   );
