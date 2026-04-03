@@ -3,13 +3,19 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CreditCard, ExternalLink, Save } from "lucide-react";
+import { CreditCard, ExternalLink, Save, Percent } from "lucide-react";
 
-const FIELDS = [
+const PRICE_FIELDS = [
   { key: "stripe_price_starter_monthly",    label: "Price ID — Starter (R$89/mês)",       hint: "price_..." },
   { key: "stripe_price_pro_monthly",        label: "Price ID — Pro (R$149/mês)",           hint: "price_..." },
+  { key: "stripe_price_pro_metered",        label: "Price ID — Pro Metered (por atendimento)", hint: "price_..." },
   { key: "stripe_price_enterprise_monthly", label: "Price ID — Enterprise (custom)",       hint: "price_..." },
   { key: "stripe_price_ai_credits_pack",    label: "Price ID — Pacote IA (R$29 único)",    hint: "price_..." },
+] as const;
+
+const FEE_FIELDS = [
+  { key: "pro_appointment_fee_cents",     label: "Taxa por atendimento PRO (em centavos)", hint: "100  →  R$1,00" },
+  { key: "pro_appointment_fee_cap_cents", label: "Cap mensal de taxas PRO (em centavos)",  hint: "40000  →  R$400,00" },
 ] as const;
 
 export function StripeConfigClient({ current }: { current: Record<string, string> }) {
@@ -51,7 +57,7 @@ export function StripeConfigClient({ current }: { current: Record<string, string
           <span className="text-sm font-semibold text-foreground">Price IDs</span>
         </div>
 
-        {FIELDS.map(({ key, label, hint }) => (
+        {PRICE_FIELDS.map(({ key, label, hint }) => (
           <div key={key} className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">{label}</label>
             <Input
@@ -70,6 +76,32 @@ export function StripeConfigClient({ current }: { current: Record<string, string
           </Button>
           {msg && <span className="text-sm">{msg}</span>}
         </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface-800/60 p-5 space-y-4">
+        <div className="flex items-center gap-2 pb-1">
+          <Percent className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold text-foreground">Tarifas PRO por atendimento</span>
+        </div>
+
+        {FEE_FIELDS.map(({ key, label, hint }) => (
+          <div key={key} className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">{label}</label>
+            <Input
+              value={values[key] ?? ""}
+              onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+              placeholder={hint}
+              className="font-mono text-sm"
+              type="number"
+              min={0}
+            />
+          </div>
+        ))}
+
+        <p className="text-[11px] text-muted-foreground">
+          Deixe em branco para usar os valores padrão do código (R$1,00 por atendimento, cap R$400/mês).
+          Alterações entram em vigor imediatamente nos próximos atendimentos concluídos.
+        </p>
       </div>
 
       <div className="rounded-lg border border-border bg-surface-800/40 p-4 text-xs text-muted-foreground space-y-1">

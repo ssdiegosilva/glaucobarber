@@ -255,6 +255,13 @@ export async function createAppointmentBillingEvent(
   const plan = await getPlan(barbershopId);
   if (!PLAN_LIMITS[plan.tier].appointmentFee) return;
 
+  // Read configurable fee values from DB, fallback to code constants
+  const feeConfigs = await prisma.platformConfig.findMany({
+    where: { key: { in: ["pro_appointment_fee_cents", "pro_appointment_fee_cap_cents"] } },
+  });
+  const feeCents    = parseInt(feeConfigs.find((c) => c.key === "pro_appointment_fee_cents")?.value    ?? "") || APPOINTMENT_FEE_CENTS;
+  const feeCap      = parseInt(feeConfigs.find((c) => c.key === "pro_appointment_fee_cap_cents")?.value ?? "") || APPOINTMENT_FEE_CAP_CENTS;
+
   const yearMonth = currentYearMonth();
 
   // Check monthly cap: sum of uninvoiced + already invoiced this month
@@ -264,12 +271,12 @@ export async function createAppointmentBillingEvent(
   });
 
   const totalSoFar = monthTotal._sum.amountCents ?? 0;
-  if (totalSoFar >= APPOINTMENT_FEE_CAP_CENTS) return; // cap reached
+  if (totalSoFar >= feeCap) return; // cap reached
 
   // Idempotent upsert: won't duplicate if called twice
   const result = await prisma.billingEvent.upsert({
     where:  { appointmentId },
-    create: { barbershopId, appointmentId, yearMonth, amountCents: APPOINTMENT_FEE_CENTS },
+    create: { barbershopId, appointmentId, yearMonth, amountCents: feeCents },
     update: {}, // already exists → no-op
     select: { id: true, createdAt: true },
   });
