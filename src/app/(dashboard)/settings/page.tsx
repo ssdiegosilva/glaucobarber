@@ -59,18 +59,19 @@ export default async function SettingsPage() {
           {barbershop && (
             <BarbershopCard
               barbershop={{
-                id:           barbershop.id,
-                name:         barbershop.name,
-                email:        barbershop.email,
-                phone:        barbershop.phone,
-                city:         barbershop.city,
-                state:        barbershop.state,
-                address:      barbershop.address,
-                websiteUrl:   barbershop.websiteUrl,
-                description:  barbershop.description,
-                slug:         barbershop.slug,
-                logoUrl:      barbershop.logoUrl,
-                instagramUrl: barbershop.instagramUrl,
+                id:              barbershop.id,
+                name:            barbershop.name,
+                email:           barbershop.email,
+                phone:           barbershop.phone,
+                city:            barbershop.city,
+                state:           barbershop.state,
+                address:         barbershop.address,
+                websiteUrl:      barbershop.websiteUrl,
+                description:     barbershop.description,
+                slug:            barbershop.slug,
+                logoUrl:         barbershop.logoUrl,
+                instagramUrl:    barbershop.instagramUrl,
+                googleReviewUrl: barbershop.googleReviewUrl ?? null,
               }}
             />
           )}

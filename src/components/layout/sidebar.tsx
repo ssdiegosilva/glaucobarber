@@ -33,7 +33,6 @@ export const NAV = [
   { href: "/meta",         label: "Metas",       icon: Target },
   { href: "/clients",      label: "Clientes",    icon: Users },
   { href: "/services",     label: "Serviços",    icon: Scissors },
-  { href: "/offers",       label: "Ofertas",     icon: Tag },
   { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
   { href: "/criar-visual", label: "Criar Visual", icon: Wand2 },
   { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },

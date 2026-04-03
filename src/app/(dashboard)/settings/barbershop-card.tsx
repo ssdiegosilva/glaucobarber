@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
   Building2, RefreshCw, Save, Pencil, MapPin, Phone, Globe,
-  Share2, Camera, X, Instagram, Download,
+  Share2, Camera, X, Instagram, Download, Star,
 } from "lucide-react";
 
 export interface BarbershopData {
@@ -21,6 +21,7 @@ export interface BarbershopData {
   slug: string;
   logoUrl: string | null;
   instagramUrl: string | null;
+  googleReviewUrl: string | null;
 }
 
 function getInitials(name: string) {
@@ -146,6 +147,19 @@ function CardView({ data, onEdit }: { data: BarbershopData; onEdit: () => void }
                     {data.instagramUrl?.startsWith("http")
                       ? data.instagramUrl.replace(/^https?:\/\/(www\.)?instagram\.com\//, "@").replace(/\/$/, "")
                       : data.instagramUrl}
+                  </a>
+                </div>
+              )}
+              {data.googleReviewUrl && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Star className="h-3.5 w-3.5 text-gold-400/70 shrink-0" />
+                  <a
+                    href={data.googleReviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate hover:text-gold-400 transition-colors"
+                  >
+                    Avaliação Google configurada
                   </a>
                 </div>
               )}
@@ -314,6 +328,13 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
             onChange={(v) => onChange("instagramUrl", v)}
             helper="ex: @suabarbearia"
             placeholder="@suabarbearia ou URL"
+          />
+          <Field
+            label="Link de avaliação Google"
+            value={values.googleReviewUrl ?? ""}
+            onChange={(v) => onChange("googleReviewUrl", v)}
+            helper="usado nas mensagens de pós-venda"
+            placeholder="https://g.page/r/..."
           />
         </div>
 

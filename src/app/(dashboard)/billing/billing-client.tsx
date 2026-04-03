@@ -184,12 +184,6 @@ export function BillingClient({
               </>
             )}
           </div>
-          {stripeCustomerId && (
-            <Button variant="outline" size="sm" onClick={openPortal} disabled={loadingPortal} className="shrink-0">
-              {loadingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              <span className="ml-1.5">Portal de cobrança</span>
-            </Button>
-          )}
         </div>
 
         {/* Trial countdown */}
@@ -236,8 +230,15 @@ export function BillingClient({
           )}
         </div>
 
-        {/* Upgrade CTAs — hidden when there's already a pending Stripe change */}
-        {!cancelAtPeriodEnd && (planTier === "FREE" || isTrialing) && (
+        {/* CTA principal de assinatura */}
+        {stripeCustomerId ? (
+          /* Já tem cliente Stripe: tudo pelo portal (upgrade, downgrade, cancelar, pagamento) */
+          <Button variant="outline" className="w-full gap-2" onClick={openPortal} disabled={loadingPortal}>
+            {loadingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+            Gerenciar assinatura no Stripe
+          </Button>
+        ) : (planTier === "FREE" || isTrialing) && !cancelAtPeriodEnd ? (
+          /* Sem cliente Stripe ainda: precisa do checkout para criar o customer */
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <form action="/api/stripe/checkout" method="POST" className="flex-1">
               <input type="hidden" name="priceId" value={priceIdStart} />
@@ -253,16 +254,7 @@ export function BillingClient({
               </Button>
             </form>
           </div>
-        )}
-        {!cancelAtPeriodEnd && planTier === "STARTER" && !isTrialing && (
-          <form action="/api/stripe/checkout" method="POST">
-            <input type="hidden" name="priceId" value={priceIdPro} />
-            <Button type="submit" className="w-full gap-1" disabled={!priceIdPro}>
-              <Sparkles className="h-4 w-4" />
-              Fazer upgrade para Pro — R$149/mês base
-            </Button>
-          </form>
-        )}
+        ) : null}
       </div>
 
       {/* AI usage */}
