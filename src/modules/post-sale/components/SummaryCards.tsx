@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Star, Clock, UserMinus, RefreshCcw, Lightbulb, X } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { AlertTriangle, Star, Clock, UserMinus, RefreshCcw, Lightbulb } from "lucide-react";
+import { useState } from "react";
 
 const cards = [
   {
@@ -64,55 +64,16 @@ const cards = [
   },
 ] as const;
 
-function CriteriaTooltip({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onOut(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onOut);
-    return () => document.removeEventListener("mousedown", onOut);
-  }, [open]);
-
-  return (
-    <div className="relative inline-flex" ref={ref}>
-      <button
-        type="button"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); }}
-        className="text-muted-foreground/70 hover:text-gold-400 transition-colors"
-        aria-label="Ver critério"
-      >
-        <Lightbulb className="h-3.5 w-3.5" />
-      </button>
-      {open && (
-        <div className="absolute bottom-full right-0 mb-2 z-50 w-60 rounded-lg border border-border bg-card shadow-xl px-3 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
-          <div className="flex items-start gap-2">
-            <Lightbulb className="h-3 w-3 text-gold-400 shrink-0 mt-0.5" />
-            <p>{text}</p>
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }}
-              className="shrink-0 text-muted-foreground/50 hover:text-foreground ml-1"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-          <div className="absolute top-full right-3 border-4 border-transparent border-t-border" />
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function SummaryCards({ data }: { data: Record<string, number> }) {
   const pathname = usePathname();
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {cards.map((c) => {
-        const value = data[c.key] ?? 0;
+        const value   = data[c.key] ?? 0;
+        const isOpen  = openKey === c.key;
+
         const content = (
           <Card
             key={c.key}
@@ -130,13 +91,28 @@ export function SummaryCards({ data }: { data: Record<string, number> }) {
                   </span>
                   <CardTitle className="text-xs text-muted-foreground leading-tight">{c.label}</CardTitle>
                 </div>
-                <CriteriaTooltip text={c.tooltip} />
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenKey(isOpen ? null : c.key); }}
+                  className={`transition-colors ${isOpen ? "text-gold-400" : "text-muted-foreground/70 hover:text-gold-400"}`}
+                  aria-label="Ver critério"
+                >
+                  <Lightbulb className="h-3.5 w-3.5" />
+                </button>
               </div>
             </CardHeader>
             <CardContent>
               <p className={`text-2xl font-bold ${value > 0 ? c.numColor : "text-muted-foreground"}`}>
                 {value}
               </p>
+              {isOpen && (
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                  {c.tooltip}
+                </p>
+              )}
+              {isOpen && (
+                <p className="text-[10px] text-muted-foreground/50 mt-1">clique na lâmpada para fechar</p>
+              )}
             </CardContent>
           </Card>
         );
