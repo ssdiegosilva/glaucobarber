@@ -3,14 +3,18 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { BarbershopCard } from "./barbershop-card";
+import { IntegrationsCard } from "./integrations-card";
 
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const barbershop = await prisma.barbershop.findUnique({
-    where: { id: session.user.barbershopId },
-  });
+  const barbershopId = session.user.barbershopId;
+
+  const [barbershop, integration] = await Promise.all([
+    prisma.barbershop.findUnique({ where: { id: barbershopId } }),
+    prisma.integration.findUnique({ where: { barbershopId } }),
+  ]);
 
   return (
     <div className="flex flex-col h-full">
@@ -37,6 +41,20 @@ export default async function SettingsPage() {
           />
         )}
 
+        {/* Integrations */}
+        <IntegrationsCard
+          trinks={{
+            connected: !!integration?.configJson && barbershop?.trinksConfigured === true,
+          }}
+          instagram={{
+            connected: !!integration?.instagramPageAccessToken,
+            username:  integration?.instagramUsername ?? null,
+          }}
+          whatsapp={{
+            connected:     !!integration?.whatsappAccessToken,
+            phoneNumberId: integration?.whatsappPhoneNumberId ?? null,
+          }}
+        />
       </div>
     </div>
   );
