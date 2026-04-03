@@ -74,7 +74,7 @@ export default async function WhatsappPage() {
   });
 
   return (
-    <div>
+    <div className="flex flex-col h-full">
       <Header
         title="WhatsApp"
         subtitle="Gestão de comunicações"

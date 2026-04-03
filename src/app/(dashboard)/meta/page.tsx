@@ -141,7 +141,7 @@ export default async function MetaPage() {
   const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       <Header title="Metas" subtitle={`Mês atual: ${monthLabel}`} userName={session.user.name} />
       <div className="p-4 sm:p-6">
         <MetaClient
