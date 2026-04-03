@@ -82,7 +82,7 @@ function CriteriaTooltip({ text }: { text: string }) {
       <button
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); }}
-        className="text-muted-foreground/50 hover:text-gold-400 transition-colors"
+        className="text-muted-foreground/70 hover:text-gold-400 transition-colors"
         aria-label="Ver critério"
       >
         <Lightbulb className="h-3.5 w-3.5" />
