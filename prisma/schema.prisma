@@ -340,6 +340,7 @@ model Customer {
   syncedFromTrinks  Boolean   @default(false)
   lastSyncedAt      DateTime?
   locallyModifiedAt DateTime? // set when user edits locally — prevents sync from overwriting
+  deletedAt         DateTime? // soft delete: set on DELETE; sync skips records where this is non-null
 
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   appointments Appointment[]

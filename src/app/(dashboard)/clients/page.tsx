@@ -19,6 +19,7 @@ export default async function ClientsPage({
   const skip  = (page - 1) * PAGE_SIZE;
   const where = {
     barbershopId: session.user.barbershopId,
+    deletedAt:    null,
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
   };
 
@@ -35,8 +36,8 @@ export default async function ClientsPage({
       },
     }),
     prisma.customer.count({ where }),
-    prisma.customer.count({ where: { barbershopId: session.user.barbershopId, status: "VIP" } }),
-    prisma.customer.count({ where: { barbershopId: session.user.barbershopId, status: "INACTIVE" } }),
+    prisma.customer.count({ where: { barbershopId: session.user.barbershopId, deletedAt: null, status: "VIP" } }),
+    prisma.customer.count({ where: { barbershopId: session.user.barbershopId, deletedAt: null, status: "INACTIVE" } }),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);

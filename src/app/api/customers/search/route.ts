@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   const customers = await prisma.customer.findMany({
     where: {
       barbershopId: session.user.barbershopId,
+      deletedAt: null,
       OR: [
         { name:  { contains: q, mode: "insensitive" } },
         { phone: { contains: q } },

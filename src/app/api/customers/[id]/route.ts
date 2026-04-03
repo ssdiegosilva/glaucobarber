@@ -13,7 +13,7 @@ export async function PATCH(
   const { name, phone, email, notes, doNotContact, tags, status } = await req.json();
 
   const customer = await prisma.customer.findFirst({
-    where: { id, barbershopId: session.user.barbershopId },
+    where: { id, barbershopId: session.user.barbershopId, deletedAt: null },
   });
   if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
 
@@ -45,11 +45,15 @@ export async function DELETE(
   const { id } = await params;
 
   const customer = await prisma.customer.findFirst({
-    where: { id, barbershopId: session.user.barbershopId },
+    where: { id, barbershopId: session.user.barbershopId, deletedAt: null },
   });
   if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
 
-  await prisma.customer.delete({ where: { id } });
+  // Soft delete — keeps record so Trinks sync cannot resurrect it
+  await prisma.customer.update({
+    where: { id },
+    data:  { deletedAt: new Date() },
+  });
 
   return NextResponse.json({ ok: true });
 }

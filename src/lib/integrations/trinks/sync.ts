@@ -41,6 +41,13 @@ export async function syncBarbershop(
         const res = await client.getCustomers(page, 100);
         for (const raw of res.data) {
           try {
+            // Skip customers that were locally deleted — never resurrect them
+            const isDeleted = await prisma.customer.findFirst({
+              where:  { barbershopId, trinksId: String(raw.id), deletedAt: { not: null } },
+              select: { id: true },
+            });
+            if (isDeleted) continue;
+
             const data = mapTrinksCustomer(raw, barbershopId);
             const existing = await prisma.customer.upsert({
               where:  { barbershopId_trinksId: { barbershopId, trinksId: String(raw.id) } },
@@ -95,7 +102,7 @@ export async function syncBarbershop(
 
       // Build lookup maps from already-synced customers & services
       const [customers, services] = await Promise.all([
-        prisma.customer.findMany({ where: { barbershopId, trinksId: { not: null } }, select: { id: true, trinksId: true } }),
+        prisma.customer.findMany({ where: { barbershopId, trinksId: { not: null }, deletedAt: null }, select: { id: true, trinksId: true } }),
         prisma.service.findMany({  where: { barbershopId, trinksId: { not: null } }, select: { id: true, trinksId: true } }),
       ]);
       const customerMap = new Map(customers.map((c) => [c.trinksId!, c.id]));
@@ -211,7 +218,7 @@ export async function syncBarbershop(
 
       // Limpa nextAppointmentAt de todos (para remover agendamentos cancelados/passados)
       await prisma.customer.updateMany({
-        where: { barbershopId },
+        where: { barbershopId, deletedAt: null },
         data:  { nextAppointmentAt: null },
       });
 
