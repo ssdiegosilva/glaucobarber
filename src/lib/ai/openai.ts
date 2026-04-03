@@ -85,9 +85,9 @@ export class OpenAIProvider implements AIProvider {
         const { toFile } = await import("openai");
         const refRes = await fetch(input.referenceImageUrl);
         if (!refRes.ok) throw new Error("Não foi possível baixar a imagem de referência");
-        const refBuffer  = Buffer.from(await refRes.arrayBuffer());
+        const refBuffer   = Buffer.from(await refRes.arrayBuffer());
         const contentType = refRes.headers.get("content-type") || "image/png";
-        const ext = contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
+        const ext         = contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
 
         const img = await this.client.images.edit({
           model:  "gpt-image-1",
@@ -100,26 +100,39 @@ export class OpenAIProvider implements AIProvider {
         const b64 = img.data?.[0]?.b64_json;
         if (!b64) throw new Error("gpt-image-1 não retornou imagem");
         return { b64 };
-      } catch (err) {
-        throw new Error(`Erro ao gerar imagem com referência: ${String((err as any)?.message ?? err)}`);
+      } catch (editErr) {
+        // Fallback: gpt-image-1 failed with reference — try dall-e-3 without reference
+        console.warn("[AI] gpt-image-1 edit falhou, usando dall-e-3:", editErr);
+        return this._generateWithDallE3(prompt);
       }
     }
 
-    // ── Without reference: use dall-e-3 (returns URL) ───────────────────────
-    const model = process.env.IMAGE_MODEL ?? "dall-e-3";
+    // ── Without reference: try gpt-image-1, fallback to dall-e-3 ───────────
     try {
       const img = await this.client.images.generate({
-        model,
+        model: "gpt-image-1",
         prompt,
-        size: "1024x1024",
-        n:    1,
+        size:  "1024x1024",
+        n:     1,
       });
-      const url = img.data?.[0]?.url;
-      if (!url) throw new Error("Falha ao gerar imagem");
-      return { url };
-    } catch (err) {
-      throw new Error(`Erro ao gerar imagem (${model}): ${String((err as any)?.message ?? err)}`);
+      const b64 = img.data?.[0]?.b64_json;
+      if (!b64) throw new Error("gpt-image-1 não retornou imagem");
+      return { b64 };
+    } catch {
+      return this._generateWithDallE3(prompt);
     }
+  }
+
+  private async _generateWithDallE3(prompt: string): Promise<{ url: string }> {
+    const img = await this.client.images.generate({
+      model:  "dall-e-3",
+      prompt,
+      size:   "1024x1024",
+      n:      1,
+    });
+    const url = img.data?.[0]?.url;
+    if (!url) throw new Error("dall-e-3 não retornou imagem");
+    return { url };
   }
 
   async generateClientMessage(
