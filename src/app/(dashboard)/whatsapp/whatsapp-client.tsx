@@ -6,7 +6,7 @@ import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
   Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw,
   Loader2, Pencil, X, PenLine, Search, FileText,
-  ExternalLink, AlertCircle,
+  ExternalLink, AlertCircle, Sparkles, LayoutTemplate,
 } from "lucide-react";
 import { TemplatesTab } from "./templates-tab";
 

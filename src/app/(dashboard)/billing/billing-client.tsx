@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, Clock, AlertTriangle } from "lucide-react";
+import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, Clock, AlertTriangle, Receipt, ChevronDown, ChevronUp } from "lucide-react";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan display config ──────────────────────────────────────────────────────
@@ -357,41 +357,215 @@ export function BillingClient({
         </div>
       </div>
 
-      {/* Appointment billing (PRO only) */}
-      {hasAppointmentFee && (
-        <div className="rounded-xl border border-border/60 bg-surface-900 p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-gold-400" />
-            <span className="text-sm font-medium text-foreground">Taxa por atendimento</span>
+      {/* Statement (PRO only) */}
+      {hasAppointmentFee && <StatementSection yearMonth={yearMonth} appointmentFeeCents={appointmentFeeCents} capCents={capCents} />}
+    </div>
+  );
+}
+
+// ── Statement section ────────────────────────────────────────────────────────
+
+interface StatementEvent {
+  id:           string;
+  amountCents:  number;
+  customerName: string;
+  serviceName:  string;
+  date:         string;
+}
+interface StatementHistory {
+  yearMonth:   string;
+  count:       number;
+  totalCents:  number;
+}
+interface StatementData {
+  yearMonth:         string;
+  feeCents:          number;
+  feeCap:            number;
+  baseCents:         number;
+  hasApptFee:        boolean;
+  currentEvents:     StatementEvent[];
+  currentTotalCents: number;
+  cappedCents:       number;
+  projectedCents:    number;
+  history:           StatementHistory[];
+}
+
+function formatYM(ym: string) {
+  const [y, m] = ym.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
+function StatementSection({ yearMonth, appointmentFeeCents, capCents }: {
+  yearMonth: string; appointmentFeeCents: number; capCents: number;
+}) {
+  const [tab,      setTab]      = useState<"current" | "history">("current");
+  const [data,     setData]     = useState<StatementData | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/billing/statement")
+      .then((r) => r.json())
+      .then(setData)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const apptPct = data
+    ? Math.min(100, Math.round((data.currentTotalCents / capCents) * 100))
+    : 0;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-surface-900 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+        <div className="flex items-center gap-2">
+          <Receipt className="h-4 w-4 text-gold-400" />
+          <span className="text-sm font-medium text-foreground">Extrato de cobrança</span>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-800/50 p-0.5">
+          <button
+            onClick={() => setTab("current")}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${tab === "current" ? "bg-gold-500/15 text-gold-400" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Mês atual
+          </button>
+          <button
+            onClick={() => setTab("history")}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${tab === "history" ? "bg-gold-500/15 text-gold-400" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Histórico
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : !data ? null : tab === "current" ? (
+        <div className="p-5 space-y-4">
+          {/* Projected invoice */}
+          <div className="rounded-lg border border-gold-500/20 bg-gold-500/5 p-4 space-y-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Próxima fatura estimada</p>
+            <p className="text-2xl font-bold text-gold-400">{formatBRL(data.projectedCents)}</p>
+            <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
+              <div className="flex justify-between">
+                <span>Assinatura base</span>
+                <span className="text-foreground">{formatBRL(data.baseCents)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Taxa atendimentos ({data.currentEvents.length} × {formatBRL(appointmentFeeCents)})</span>
+                <span className={data.currentTotalCents > data.cappedCents ? "text-amber-400" : "text-foreground"}>
+                  {formatBRL(data.cappedCents)}
+                  {data.currentTotalCents > data.cappedCents && " (cap atingido)"}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-2xl font-bold text-foreground">{formatBRL(appointmentCents)}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {appointmentCount} atendimento{appointmentCount !== 1 ? "s" : ""} concluído{appointmentCount !== 1 ? "s" : ""} em {formatYearMonth(yearMonth)}
-              </p>
+          {/* Progress bar */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{data.currentEvents.length} atendimento{data.currentEvents.length !== 1 ? "s" : ""} em {formatYM(yearMonth)}</span>
+              <span>Cap: {formatBRL(capCents)}/mês</span>
             </div>
-            <div className="text-right text-xs text-muted-foreground">
-              <p>Cap: {formatBRL(capCents)}/mês</p>
-              <p>({formatBRL(appointmentFeeCents)}/atend.)</p>
+            <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${apptPct >= 100 ? "bg-amber-500" : "bg-gold-500"}`}
+                style={{ width: `${apptPct}%` }}
+              />
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              {apptPct >= 100
+                ? "Cap atingido — sem cobranças adicionais este mês."
+                : `${formatBRL(capCents - data.currentTotalCents)} para o cap`}
+            </p>
           </div>
 
-          <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${apptPct >= 90 ? "bg-amber-500" : "bg-gold-500"}`}
-              style={{ width: `${apptPct}%` }}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {apptPct >= 100
-              ? "Cap atingido — sem cobranças adicionais este mês."
-              : `Falta ${formatBRL(capCents - appointmentCents)} para o cap mensal.`}
+          {/* Events list (collapsible) */}
+          {data.currentEvents.length > 0 && (
+            <div className="space-y-1.5">
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {expanded ? "Ocultar" : "Ver"} atendimentos cobrados
+              </button>
+              {expanded && (
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border bg-surface-800/50">
+                        <th className="text-left px-3 py-2 text-muted-foreground font-medium">Cliente</th>
+                        <th className="text-left px-3 py-2 text-muted-foreground font-medium hidden sm:table-cell">Serviço</th>
+                        <th className="text-right px-3 py-2 text-muted-foreground font-medium">Data</th>
+                        <th className="text-right px-3 py-2 text-muted-foreground font-medium">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {data.currentEvents.map((e) => (
+                        <tr key={e.id} className="hover:bg-surface-800/30">
+                          <td className="px-3 py-2 text-foreground truncate max-w-[120px]">{e.customerName}</td>
+                          <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">{e.serviceName}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
+                            {new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gold-400 tabular-nums font-medium">{formatBRL(e.amountCents)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border bg-surface-800/30">
+                        <td colSpan={2} className="px-3 py-2 font-semibold text-foreground hidden sm:table-cell">Total</td>
+                        <td className="px-3 py-2 font-semibold text-foreground sm:hidden">Total</td>
+                        <td />
+                        <td className="px-3 py-2 text-right tabular-nums font-bold text-gold-400">{formatBRL(data.currentTotalCents)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="text-[11px] text-muted-foreground/60">
+            Faturado automaticamente via Stripe no fechamento do ciclo mensal. Valor estimado — pode variar até o fechamento.
           </p>
-          <p className="text-[11px] text-muted-foreground/70">
-            Faturado automaticamente via Stripe no fechamento do ciclo mensal.
-          </p>
+        </div>
+      ) : (
+        /* History tab */
+        <div className="p-5 space-y-3">
+          {data.history.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhum histórico faturado ainda.</p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border bg-surface-800/50">
+                    <th className="text-left px-3 py-2.5 text-muted-foreground font-medium">Mês</th>
+                    <th className="text-right px-3 py-2.5 text-muted-foreground font-medium">Atendimentos</th>
+                    <th className="text-right px-3 py-2.5 text-muted-foreground font-medium">Taxa</th>
+                    <th className="text-right px-3 py-2.5 text-muted-foreground font-medium">Total fatura</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {data.history.map((h) => {
+                    const capped = Math.min(h.totalCents, capCents);
+                    return (
+                      <tr key={h.yearMonth} className="hover:bg-surface-800/30">
+                        <td className="px-3 py-2.5 text-foreground font-medium capitalize">{formatYM(h.yearMonth)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{h.count}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatBRL(capped)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-gold-400">{formatBRL(data.baseCents + capped)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground/60">Últimos 6 meses faturados. Acesse o Portal de cobrança para ver faturas completas da Stripe.</p>
         </div>
       )}
     </div>
