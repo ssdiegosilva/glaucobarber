@@ -7,7 +7,7 @@ import { formatBRL } from "@/lib/utils";
 import {
   Target, CheckCircle2, Loader2, Sparkles, X as XIcon,
   Calendar, TrendingUp, ChevronLeft, ChevronRight, Sun,
-  Plus, Pencil,
+  Plus, Pencil, Trash2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getDaysInMonth } from "date-fns";
@@ -564,6 +564,22 @@ export function MetaClient({
     toast({ title: `Meta de ${MONTH_NAMES[targetMonth - 1]} ${targetYear} salva!` });
   }
 
+  async function deleteGoal(g: GoalRow) {
+    if (!confirm(`Excluir meta de ${MONTH_NAMES[g.month - 1]} ${g.year}?`)) return;
+    try {
+      const res = await fetch("/api/goals", {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month: g.month, year: g.year }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Erro");
+      setAllGoals((prev) => prev.filter((x) => !(x.month === g.month && x.year === g.year)));
+      if (g.isCurrent) setGoal(null);
+      toast({ title: `Meta de ${MONTH_NAMES[g.month - 1]} ${g.year} excluída.` });
+    } catch (e) {
+      toast({ title: "Erro ao excluir", description: String(e), variant: "destructive" });
+    }
+  }
+
   async function handleCreateSave(form: { revenueTarget: string; offDaysOfWeek: number[]; extraOffDays: number[]; extraWorkDays: number[] }) {
     if (!createMonthYear) return;
     await saveGoal(createMonthYear.month, createMonthYear.year, form);
@@ -741,6 +757,15 @@ export function MetaClient({
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
+                    {!isEditing && (
+                      <button
+                        onClick={() => deleteGoal(g)}
+                        className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors"
+                        title="Excluir meta"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

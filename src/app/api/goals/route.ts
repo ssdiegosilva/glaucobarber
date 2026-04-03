@@ -63,3 +63,18 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ goal });
 }
+
+/** DELETE a monthly goal */
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { month, year } = await req.json();
+  if (!month || !year) return NextResponse.json({ error: "month e year obrigatórios" }, { status: 400 });
+
+  await prisma.goal.deleteMany({
+    where: { barbershopId: session.user.barbershopId, month: Number(month), year: Number(year) },
+  });
+
+  return NextResponse.json({ ok: true });
+}
