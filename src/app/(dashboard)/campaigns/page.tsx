@@ -8,7 +8,7 @@ export default async function CampaignsPage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const [campaigns, integration, activeOffers] = await Promise.all([
+  const [campaigns, integration, activeOffers, barbershop] = await Promise.all([
     prisma.campaign.findMany({
       where:   { barbershopId: session.user.barbershopId },
       orderBy: { createdAt: "desc" },
@@ -20,6 +20,7 @@ export default async function CampaignsPage() {
       select:  { id: true, title: true, salePrice: true, type: true },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.barbershop.findUnique({ where: { id: session.user.barbershopId }, select: { brandStyle: true } }),
   ]);
 
   return (
@@ -40,6 +41,7 @@ export default async function CampaignsPage() {
             instagramPermalink: c.instagramPermalink ?? null,
           }))}
           instagramConfigured={!!(integration?.instagramPageAccessToken && integration.instagramBusinessId)}
+          hasBrandStyle={!!barbershop?.brandStyle?.trim()}
           availableOffers={activeOffers.map((o) => ({ id: o.id, title: o.title, salePrice: Number(o.salePrice), type: o.type }))}
         />
       </div>

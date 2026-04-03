@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
   Building2, RefreshCw, Save, Pencil, MapPin, Phone, Globe,
-  Share2, Camera, X, Instagram, Download, Sparkles,
+  Share2, Camera, X, Instagram, Download,
 } from "lucide-react";
 
 export interface BarbershopData {
@@ -21,7 +21,6 @@ export interface BarbershopData {
   slug: string;
   logoUrl: string | null;
   instagramUrl: string | null;
-  brandStyle: string | null;
 }
 
 function getInitials(name: string) {
@@ -196,7 +195,6 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
   const [values, setValues]     = useState({ ...barbershop });
   const [snapshot, setSnapshot] = useState({ ...barbershop });
   const [logoPreview, setLogoPreview] = useState<string | null>(barbershop.logoUrl);
-  const [improvingStyle, setImprovingStyle] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function onChange(field: keyof BarbershopData, value: string) {
@@ -224,33 +222,6 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
       setValues((prev) => ({ ...prev, logoUrl: dataUrl }));
     };
     reader.readAsDataURL(file);
-  }
-
-  async function handleImproveStyle() {
-    const raw = values.brandStyle?.trim();
-    if (!raw) {
-      toast({ title: "Escreva algo primeiro", description: "Descreva brevemente o estilo da sua marca.", variant: "destructive" });
-      return;
-    }
-    setImprovingStyle(true);
-    try {
-      const res = await fetch("/api/settings/brand-style/improve", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ rawStyle: raw }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: "Erro", description: data.message ?? "Não foi possível melhorar a descrição.", variant: "destructive" });
-        return;
-      }
-      setValues((p) => ({ ...p, brandStyle: data.brandStyle }));
-      toast({ title: "Estilo melhorado!", description: "A IA expandiu sua descrição visual." });
-    } catch {
-      toast({ title: "Erro de conexão", variant: "destructive" });
-    } finally {
-      setImprovingStyle(false);
-    }
   }
 
   async function onSave() {
@@ -355,34 +326,6 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
             rows={3}
             placeholder="Descreva sua barbearia..."
           />
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-xs text-muted-foreground">Estilo visual da marca</label>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Usado na geração de imagens de campanhas. Descreva cores, mood e elementos visuais.</p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-[11px] gap-1 border-gold-500/30 text-gold-400 hover:bg-gold-500/10 shrink-0 ml-2"
-              onClick={handleImproveStyle}
-              disabled={improvingStyle || saving}
-            >
-              {improvingStyle ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-              {improvingStyle ? "Melhorando..." : "Melhorar com IA"}
-            </Button>
-          </div>
-          <textarea
-            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            value={values.brandStyle ?? ""}
-            onChange={(e) => setValues((p) => ({ ...p, brandStyle: e.target.value.slice(0, 300) }))}
-            rows={2}
-            maxLength={300}
-            placeholder="ex: fundo preto, detalhes dourados, premium masculino, cinematográfico, navalha dourada como símbolo"
-          />
-          <p className="text-[10px] text-muted-foreground/50 text-right">{(values.brandStyle?.length ?? 0)}/300</p>
         </div>
 
         {error && <p className="text-xs text-red-400">{error}</p>}

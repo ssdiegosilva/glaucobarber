@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Megaphone, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
+import Link from "next/link";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
 const STATUS_VARIANT: Record<string, string> = { DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
@@ -238,9 +239,10 @@ function RescheduleModal({
 
 // ── Main client ───────────────────────────────────────────────
 
-export function CampaignsClient({ campaigns: initial, instagramConfigured, availableOffers = [] }: {
+export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [] }: {
   campaigns: CampaignDto[];
   instagramConfigured: boolean;
+  hasBrandStyle?: boolean;
   availableOffers?: OfferOption[];
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
@@ -452,6 +454,26 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
           onClose={() => setRescheduleModal(null)}
           onSave={(date) => { scheduleFor(rescheduleModal, date); setRescheduleModal(null); }}
         />
+      )}
+
+      {!hasBrandStyle && (
+        <div className="flex items-center gap-3 rounded-xl border border-purple-500/25 bg-purple-500/8 px-4 py-3">
+          <div className="shrink-0 h-7 w-7 rounded-lg bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+            <Palette className="h-3.5 w-3.5 text-purple-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-foreground">Defina o estilo visual da sua marca</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Sem estilo configurado, as imagens geradas usam um padrão genérico. Configure uma vez e todas as campanhas refletem sua identidade.
+            </p>
+          </div>
+          <Link
+            href="/settings"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-[11px] font-medium text-purple-400 hover:bg-purple-500/20 transition-colors"
+          >
+            <Sparkles className="h-3 w-3" /> Configurar
+          </Link>
+        </div>
       )}
 
       <Card className="border-gold-500/20 bg-gradient-to-br from-surface-900 to-surface-800/60">
@@ -790,6 +812,15 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
                                   : <><Sparkles className="h-3 w-3" />Gerar com IA</>}
                               </Button>
                             </div>
+                            {!hasBrandStyle && (
+                              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                                <Palette className="h-3 w-3 text-purple-400/60 shrink-0" />
+                                Sem estilo configurado — a imagem usará padrão genérico.{" "}
+                                <Link href="/settings" className="text-purple-400/80 hover:text-purple-400 underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                                  Configurar
+                                </Link>
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

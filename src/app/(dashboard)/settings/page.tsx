@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { BarbershopCard } from "./barbershop-card";
+import { BrandStyleCard } from "./brand-style-card";
 import { IntegrationsClient } from "./integrations-client";
 
 export default async function SettingsPage() {
@@ -50,10 +51,11 @@ export default async function SettingsPage() {
               slug:        barbershop.slug,
               logoUrl:     barbershop.logoUrl,
               instagramUrl: barbershop.instagramUrl,
-              brandStyle:   barbershop.brandStyle,
             }}
           />
         )}
+
+        <BrandStyleCard initialStyle={barbershop?.brandStyle ?? null} />
 
         <Suspense>
         <IntegrationsClient
