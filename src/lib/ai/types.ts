@@ -40,6 +40,7 @@ export interface AIProvider {
   generateClientMessage(clientName: string, daysSinceVisit: number, services: string[]): Promise<string>;
   generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;
   improveBrandStyle(rawStyle: string): Promise<string>;
+  generateBrandStyleFromLogo(logoUrl: string, barbershopName?: string): Promise<string>;
 }
 
 // ── Copilot types ─────────────────────────────────────────
