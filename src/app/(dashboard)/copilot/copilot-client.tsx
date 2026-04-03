@@ -39,6 +39,18 @@ type ActionItem = {
 
 type ActionStatus = "pending" | "approved" | "dismissed";
 
+const WHATSAPP_ACTION_TYPES = new Set([
+  "reactivation_promo", "post_sale_followup", "post_sale_review", "agenda_conflict",
+]);
+
+function deriveStatuses(actions: ActionItem[]): Record<string, ActionStatus> {
+  const out: Record<string, ActionStatus> = {};
+  for (const a of actions) {
+    if (a.status === "APPROVED") out[a.id] = "approved";
+  }
+  return out;
+}
+
 interface Props {
   initialThreads:  Thread[];
   initialMessages: Message[];
@@ -183,13 +195,25 @@ function ActionCard({
   }
 
   if (localStatus === "approved") {
+    const isWhatsApp = WHATSAPP_ACTION_TYPES.has(action.type);
     return (
       <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2 space-y-1.5">
         <div className="flex items-center gap-1.5 text-[11px] text-green-400 font-medium">
           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
           {action.title} — aprovada
         </div>
-        {links.length > 0 && (
+        {isWhatsApp ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-muted-foreground">Mensagens enviadas para a fila do WhatsApp.</span>
+            <Link
+              href="/whatsapp"
+              className="inline-flex items-center gap-1 text-[11px] text-gold-400 hover:text-gold-300 underline underline-offset-2 transition-colors"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Ir para WhatsApp para enviar
+            </Link>
+          </div>
+        ) : links.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {links.map((link) => (
               <Link
@@ -204,7 +228,7 @@ function ActionCard({
               </Link>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -278,7 +302,7 @@ export default function CopilotClient({
   const [activeThreadId, setActiveThreadId] = useState<string | null>(initialThreadId);
   const [input, setInput]                   = useState("");
   const [loading, setLoading]               = useState(false);
-  const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
+  const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>(() => deriveStatuses(initialActions));
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLTextAreaElement>(null);
@@ -305,8 +329,7 @@ export default function CopilotClient({
       setActiveThreadId(data.threadId);
       setMessages(data.messages);
       setActions(data.actionsDraft);
-      // Reset statuses for new actions
-      setActionStatuses({});
+      setActionStatuses(deriveStatuses(data.actionsDraft));
 
       setThreads((prev) => {
         const exists = prev.find((t) => t.id === data.threadId);
@@ -342,10 +365,13 @@ export default function CopilotClient({
   async function loadThread(id: string) {
     if (id === activeThreadId) return;
     setActiveThreadId(id);
-    setActionStatuses({});
     const res  = await fetch(`/api/copilot/thread?threadId=${id}`);
     const data = await res.json();
-    if (res.ok) { setMessages(data.messages); setActions(data.actions); }
+    if (res.ok) {
+      setMessages(data.messages);
+      setActions(data.actions);
+      setActionStatuses(deriveStatuses(data.actions));
+    }
   }
 
   async function updateAction(id: string, path: "approve" | "dismiss") {

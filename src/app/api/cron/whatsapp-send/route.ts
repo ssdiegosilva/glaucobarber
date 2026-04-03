@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
 
 export async function GET(req: NextRequest) {
   // Verifica secret do cron
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const pending = await prisma.whatsappMessage.findMany({
     where: {
       status:      "QUEUED",
+      messageKind: "template",   // bot só envia templates; texto livre é sempre manual
       scheduledFor: { lte: now },
     },
     include: {
@@ -50,7 +51,13 @@ export async function GET(req: NextRequest) {
     };
 
     try {
-      const metaMessageId = await sendWhatsAppMessage(msg.phone, msg.message, creds);
+      let metaMessageId: string;
+      if (msg.messageKind === "template" && msg.templateName) {
+        const vars: string[] = msg.templateVars ? JSON.parse(msg.templateVars) : [];
+        metaMessageId = await sendWhatsAppTemplate(msg.phone, msg.templateName, vars, creds);
+      } else {
+        metaMessageId = await sendWhatsAppMessage(msg.phone, msg.message, creds);
+      }
       await prisma.whatsappMessage.update({
         where: { id: msg.id },
         data:  { status: "SENT", sentAt: new Date(), metaMessageId },

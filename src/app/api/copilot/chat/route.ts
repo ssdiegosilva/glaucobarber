@@ -95,6 +95,17 @@ export async function POST(req: NextRequest) {
     data: { lastMessageAt: new Date() },
   });
 
+  // Prune to max 20 messages — delete oldest beyond limit
+  const allMsgIds = await prisma.copilotMessage.findMany({
+    where:   { threadId: thread.id },
+    orderBy: { createdAt: "asc" },
+    select:  { id: true },
+  });
+  if (allMsgIds.length > 20) {
+    const toDelete = allMsgIds.slice(0, allMsgIds.length - 20).map((m) => m.id);
+    await prisma.copilotMessage.deleteMany({ where: { id: { in: toDelete } } });
+  }
+
   const messages = await prisma.copilotMessage.findMany({
     where: { threadId: thread.id },
     orderBy: { createdAt: "asc" },

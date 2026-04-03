@@ -22,6 +22,7 @@ interface IntegrationInfo {
   instagramUsername?: string | null;
   whatsappConfigured?: boolean;
   whatsappVerifyToken?: string | null;
+  whatsappWabaId?: string | null;
 }
 interface SyncRunInfo {
   id:                  string;
@@ -109,6 +110,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   const [waEditing,      setWaEditing]      = useState(!integration?.whatsappConfigured);
   const [waToken,        setWaToken]        = useState("");
   const [waPhoneId,      setWaPhoneId]      = useState("");
+  const [waWabaId,       setWaWabaId]       = useState(integration?.whatsappWabaId ?? "");
   const [waSaving,       setWaSaving]       = useState(false);
   const [waWebhookUrl,   setWaWebhookUrl]   = useState("");
   const [waVerifyToken,  setWaVerifyToken]  = useState(integration?.whatsappVerifyToken ?? "");
@@ -263,7 +265,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       const res = await fetch("/api/whatsapp/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: waToken, phoneNumberId: waPhoneId }),
+        body: JSON.stringify({ accessToken: waToken, phoneNumberId: waPhoneId, wabaId: waWabaId || undefined }),
       });
       if (!res.ok) throw new Error("Erro ao salvar");
       toast({ title: "WhatsApp configurado!" });
@@ -704,6 +706,14 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                   <label className="text-xs text-muted-foreground">Phone Number ID</label>
                   <input value={waPhoneId} onChange={(e) => setWaPhoneId(e.target.value)} placeholder="ex: 123456789012345"
                     className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    WABA ID <span className="text-muted-foreground/60">(opcional — para sincronizar templates)</span>
+                  </label>
+                  <input value={waWabaId} onChange={(e) => setWaWabaId(e.target.value)} placeholder="ex: 102938475665544"
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground" />
+                  <p className="text-[10px] text-muted-foreground/60">Encontre em Meta Business Manager → Contas → WhatsApp → ID da conta</p>
                 </div>
               </div>
 

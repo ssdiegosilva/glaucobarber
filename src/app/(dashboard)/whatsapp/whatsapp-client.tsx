@@ -23,6 +23,7 @@ type WaMessage = {
   actionId:      string | null;
   sentAt:        string | null;
   sentManually:  boolean;
+  messageKind:   string;
   scheduledFor:  string | null;
   createdAt:     string;
   metaMessageId: string | null | undefined;
@@ -30,12 +31,14 @@ type WaMessage = {
 };
 
 interface Props {
-  sentToday:        WaMessage[];
-  queueMessages:    WaMessage[];
-  failedToday:      WaMessage[];
-  historyMessages:  WaMessage[];
-  hasAutoSend:      boolean;
+  sentToday:          WaMessage[];
+  queueMessages:      WaMessage[];
+  failedToday:        WaMessage[];
+  historyMessages:    WaMessage[];
+  hasAutoSend:        boolean;
   whatsappConfigured: boolean;
+  hasTemplates:       boolean;
+  hasWabaId:          boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -229,6 +232,276 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             {scheduledFor ? "Agendar" : "Enviar agora"}
           </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── BotMessageModal ───────────────────────────────────────────
+
+type TargetCustomer = { id: string; name: string; phone: string | null; lastAppointmentAt: string | null; lastWhatsappSentAt: string | null };
+type ActiveTemplate  = { id: string; metaName: string; label: string; body: string; variables: string };
+
+const FILTER_OPTIONS = [
+  { key: "post_sale",   label: "Pós-venda (7 dias)",    desc: "Atendidos nos últimos 7 dias" },
+  { key: "inactive_30", label: "Inativos 30 dias",       desc: "Sem visita há 30 dias ou mais" },
+  { key: "inactive_60", label: "Inativos 60 dias",       desc: "Sem visita há 60 dias ou mais" },
+  { key: "all",         label: "Todos os clientes",      desc: "Com telefone cadastrado" },
+] as const;
+
+function BotMessageModal({ onClose, onScheduled }: { onClose: () => void; onScheduled: (count: number) => void }) {
+  const [step,            setStep]            = useState<1 | 2 | 3>(1);
+  const [filter,          setFilter]          = useState<string>("post_sale");
+  const [customers,       setCustomers]       = useState<TargetCustomer[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set());
+  const [templates,       setTemplates]       = useState<ActiveTemplate[]>([]);
+  const [selectedTpl,     setSelectedTpl]     = useState<ActiveTemplate | null>(null);
+  const [tplVars,         setTplVars]         = useState<string[]>([]);
+  const [scheduledFor,    setScheduledFor]    = useState("");
+  const [scheduling,      setScheduling]      = useState(false);
+  const [error,           setError]           = useState("");
+
+  const todayStr = new Date().toISOString().slice(0, 16);
+
+  // Carrega clientes ao mudar filtro
+  useEffect(() => {
+    setLoadingCustomers(true);
+    setSelectedIds(new Set());
+    fetch(`/api/whatsapp/message-targets?filter=${filter}`)
+      .then((r) => r.json())
+      .then((d) => setCustomers(d.customers ?? []))
+      .finally(() => setLoadingCustomers(false));
+  }, [filter]);
+
+  // Carrega templates na primeira vez
+  useEffect(() => {
+    fetch("/api/whatsapp/templates")
+      .then((r) => r.json())
+      .then((d) => {
+        const active = (d.templates ?? []).filter((t: ActiveTemplate & { active: boolean }) => t.active);
+        setTemplates(active);
+      });
+  }, []);
+
+  function toggleCustomer(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(customers.map((c) => c.id)));
+  }
+
+  function clearAll() { setSelectedIds(new Set()); }
+
+  function selectTemplate(tpl: ActiveTemplate) {
+    setSelectedTpl(tpl);
+    const vars: { key: string; label: string; defaultValue: string }[] = JSON.parse(tpl.variables || "[]");
+    setTplVars(vars.map((v) => v.defaultValue || ""));
+  }
+
+  async function schedule() {
+    if (!selectedTpl || selectedIds.size === 0) return;
+    setScheduling(true);
+    setError("");
+    try {
+      const res = await fetch("/api/whatsapp/messages/batch", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerIds:    Array.from(selectedIds),
+          templateName:   selectedTpl.metaName,
+          templateVars:   tplVars,
+          scheduledFor:   scheduledFor || null,
+          messagePreview: selectedTpl.body,
+        }),
+      });
+      if (!res.ok) throw new Error("Erro ao agendar");
+      const data = await res.json();
+      onScheduled(data.created ?? 0);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao agendar mensagens");
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  const parsedVars: { key: string; label: string }[] = selectedTpl
+    ? JSON.parse(selectedTpl.variables || "[]")
+    : [];
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-x-3 top-1/2 -translate-y-1/2 z-[60] rounded-xl border border-border bg-card shadow-2xl max-h-[88vh] flex flex-col max-w-lg mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Envio em massa via bot 🤖</h3>
+            <p className="text-[11px] text-muted-foreground">
+              {step === 1 ? "Selecione os clientes" : step === 2 ? "Escolha o template e data" : "Confirmação"}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* ── Etapa 1: filtro + lista ── */}
+          {step === 1 && (
+            <div className="p-4 space-y-3">
+              {/* filtros */}
+              <div className="flex flex-wrap gap-2">
+                {FILTER_OPTIONS.map((f) => (
+                  <button key={f.key} onClick={() => setFilter(f.key)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      filter === f.key
+                        ? "border-gold-500/40 bg-gold-500/10 text-gold-400"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    }`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {loadingCustomers ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : customers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">Nenhum cliente encontrado para esse filtro.</p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{customers.length} cliente{customers.length !== 1 ? "s" : ""} · {selectedIds.size} selecionado{selectedIds.size !== 1 ? "s" : ""}</span>
+                    <div className="flex gap-2">
+                      <button onClick={selectAll}  className="text-gold-400 hover:underline">Todos</button>
+                      <button onClick={clearAll}   className="hover:underline">Limpar</button>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-border rounded-lg border border-border overflow-hidden max-h-60 overflow-y-auto">
+                    {customers.map((c) => (
+                      <label key={c.id} className="flex items-center gap-3 px-3 py-2 hover:bg-surface-800 cursor-pointer">
+                        <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleCustomer(c.id)}
+                          className="rounded border-border accent-gold-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{c.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{c.phone}</p>
+                        </div>
+                        {c.lastAppointmentAt && (
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {Math.floor((Date.now() - new Date(c.lastAppointmentAt).getTime()) / 86400000)}d atrás
+                          </span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Etapa 2: template + data ── */}
+          {step === 2 && (
+            <div className="p-4 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Template</label>
+                {templates.length === 0 ? (
+                  <p className="text-xs text-amber-400">Nenhum template ativo. Configure na aba Templates.</p>
+                ) : (
+                  <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                    {templates.map((tpl) => (
+                      <button key={tpl.id} onClick={() => selectTemplate(tpl)}
+                        className={`w-full text-left px-3 py-2.5 transition-colors ${
+                          selectedTpl?.id === tpl.id ? "bg-gold-500/10 border-l-2 border-gold-500" : "hover:bg-surface-800"
+                        }`}>
+                        <p className="text-xs font-medium text-foreground">{tpl.label}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{tpl.body}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedTpl && parsedVars.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Variáveis do template</label>
+                  {parsedVars.map((v, i) => (
+                    <div key={v.key}>
+                      <label className="text-[10px] text-muted-foreground">{v.label} ({v.key})</label>
+                      <div className="flex gap-2 mt-0.5">
+                        <input value={tplVars[i] ?? ""} onChange={(e) => {
+                          const next = [...tplVars]; next[i] = e.target.value; setTplVars(next);
+                        }} placeholder={`Valor para ${v.key} — use {{name}} para nome do cliente`}
+                          className="flex-1 rounded-md border border-border bg-surface-900 px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-muted-foreground/60">Use <code className="bg-surface-800 px-1 rounded">&#123;&#123;name&#125;&#125;</code> para inserir o nome de cada cliente automaticamente.</p>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Agendar para <span className="text-muted-foreground/60">(deixe vazio para na próxima run do bot)</span>
+                </label>
+                <input type="datetime-local" value={scheduledFor} min={todayStr}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            </div>
+          )}
+
+          {/* ── Etapa 3: confirmação ── */}
+          {step === 3 && selectedTpl && (
+            <div className="p-4 space-y-4">
+              <div className="rounded-lg border border-gold-500/20 bg-gold-500/5 p-4 space-y-2">
+                <p className="text-xs font-semibold text-foreground">Resumo do agendamento</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p><span className="text-foreground font-medium">{selectedIds.size}</span> mensagem{selectedIds.size !== 1 ? "s" : ""} serão agendadas</p>
+                  <p>Template: <span className="text-foreground font-medium">{selectedTpl.label}</span></p>
+                  <p>Envio: <span className="text-foreground font-medium">{scheduledFor ? new Date(scheduledFor).toLocaleString("pt-BR") : "Próxima run do bot (≤ 15 min)"}</span></p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-surface-800/60 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Preview do template</p>
+                <p className="text-xs text-foreground leading-relaxed">{selectedTpl.body}</p>
+              </div>
+              {error && <p className="text-xs text-red-400">{error}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer com botões de navegação */}
+        <div className="flex gap-2 px-5 py-4 border-t border-border shrink-0">
+          {step > 1 && (
+            <button onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+              className="rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Voltar
+            </button>
+          )}
+          <div className="flex-1" />
+          {step === 1 && (
+            <button onClick={() => setStep(2)} disabled={selectedIds.size === 0}
+              className="rounded-lg bg-gold-500 px-4 py-2 text-xs font-semibold text-[#080810] hover:bg-gold-400 transition-colors disabled:opacity-40">
+              Próximo · {selectedIds.size} selecionado{selectedIds.size !== 1 ? "s" : ""}
+            </button>
+          )}
+          {step === 2 && (
+            <button onClick={() => setStep(3)} disabled={!selectedTpl}
+              className="rounded-lg bg-gold-500 px-4 py-2 text-xs font-semibold text-[#080810] hover:bg-gold-400 transition-colors disabled:opacity-40">
+              Revisar
+            </button>
+          )}
+          {step === 3 && (
+            <button onClick={schedule} disabled={scheduling}
+              className="rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-500 transition-colors disabled:opacity-50">
+              {scheduling ? <><Loader2 className="h-3 w-3 animate-spin inline mr-1" />Agendando...</> : "Confirmar e agendar"}
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -481,8 +754,8 @@ function MessageRow({
           {/* QUEUED actions */}
           {showActions && localMsg.status === "QUEUED" && (
             <div className="flex gap-1.5 shrink-0 flex-wrap">
-              {hasAutoSend && whatsappConfigured ? (
-                /* PRO com bot: dois botões */
+              {hasAutoSend && whatsappConfigured && localMsg.messageKind === "template" ? (
+                /* PRO + template: dois botões */
                 <>
                   <button onClick={sendManual} disabled={loading || botLoading}
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors disabled:opacity-50">
@@ -496,7 +769,7 @@ function MessageRow({
                   </button>
                 </>
               ) : (
-                /* Sem auto-send: botão pulsando */
+                /* Texto livre ou sem auto-send: sempre manual, botão pulsando */
                 <button onClick={sendManual} disabled={loading}
                   className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50 animate-pulse">
                   {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
@@ -549,7 +822,7 @@ function Empty({ icon, text }: { icon: React.ReactNode; text: string }) {
 
 // ── Main client ───────────────────────────────────────────────
 
-export function WhatsappClient({ sentToday, queueMessages, failedToday, historyMessages, hasAutoSend, whatsappConfigured }: Props) {
+export function WhatsappClient({ sentToday, queueMessages, failedToday, historyMessages, hasAutoSend, whatsappConfigured, hasTemplates, hasWabaId }: Props) {
   const [tab, setTab] = useState<"sent" | "queue" | "failed" | "templates">("sent");
 
   const [sent,    setSent]    = useState(sentToday);
@@ -560,6 +833,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
   const [processing,    setProcessing]    = useState(false);
   const [processResult, setProcessResult] = useState<{ sent: number; failed: number } | null>(null);
   const [showCompose,   setShowCompose]   = useState(false);
+  const [showBotModal,  setShowBotModal]  = useState(false);
 
   const TABS = [
     { id: "sent"      as const, label: "Enviadas",  icon: CheckCircle2, badge: sent.length + history.length, color: "text-green-400",          active: "border-green-500/40 bg-green-500/10 text-green-400",   activeBadge: "bg-green-500/20 text-green-400",   activeIcon: "text-green-400"   },
@@ -645,6 +919,17 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
         <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
           <Send className="h-3.5 w-3.5 shrink-0" />
           <span>Envio automático disponível no plano PRO — <a href="/billing" className="underline font-medium">ver planos</a>. Você pode enviar manualmente clicando nas mensagens da fila.</span>
+        </div>
+      ) : !hasTemplates ? (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Nenhum template configurado — o bot precisa de templates aprovados na Meta para enviar.{" "}
+            {hasWabaId
+              ? <button onClick={() => {}} className="underline font-medium">Sincronizar da Meta</button>
+              : <><a href="/settings" className="underline font-medium">Adicione o WABA ID</a> nas Integrações para sincronizar.</>
+            }
+          </span>
         </div>
       ) : (
         <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2 text-xs text-green-300">

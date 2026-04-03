@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { accessToken, phoneNumberId } = await req.json();
+  const { accessToken, phoneNumberId, wabaId } = await req.json();
   if (!accessToken || !phoneNumberId) {
     return NextResponse.json({ error: "accessToken e phoneNumberId são obrigatórios" }, { status: 400 });
   }
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
     data: {
       whatsappAccessToken:   accessToken,
       whatsappPhoneNumberId: phoneNumberId,
+      ...(wabaId !== undefined && { whatsappWabaId: wabaId || null }),
     },
   });
 

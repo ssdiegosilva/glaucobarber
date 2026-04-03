@@ -17,7 +17,8 @@ export async function POST() {
   const pending = await prisma.whatsappMessage.findMany({
     where: {
       barbershopId,
-      status:       "QUEUED",
+      status:      "QUEUED",
+      messageKind: "template",   // bot só envia templates; texto livre é sempre manual
       OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
     },
     include: {

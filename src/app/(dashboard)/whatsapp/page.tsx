@@ -20,7 +20,7 @@ export default async function WhatsappPage() {
 
   const [
     sentToday, queueMessages, failedToday, historyMessages,
-    hasAutoSend, integration,
+    hasAutoSend, integration, activeTemplatesCount,
   ] = await Promise.all([
     // Enviadas hoje
     prisma.whatsappMessage.findMany({
@@ -46,11 +46,14 @@ export default async function WhatsappPage() {
     canAccess(barbershopId, effectiveTier, "whatsapp_auto"),
     prisma.integration.findUnique({
       where:  { barbershopId },
-      select: { whatsappAccessToken: true, whatsappPhoneNumberId: true },
+      select: { whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappWabaId: true },
     }),
+    prisma.whatsappTemplate.count({ where: { barbershopId, active: true } }),
   ]);
 
   const whatsappConfigured = !!(integration?.whatsappAccessToken && integration?.whatsappPhoneNumberId);
+  const hasTemplates       = activeTemplatesCount > 0;
+  const hasWabaId          = !!integration?.whatsappWabaId;
 
   const serialize = (m: typeof sentToday[0]) => ({
     id:            m.id,
@@ -63,6 +66,7 @@ export default async function WhatsappPage() {
     actionId:      m.actionId,
     sentAt:        m.sentAt?.toISOString() ?? null,
     sentManually:  m.sentManually ?? false,
+    messageKind:   m.messageKind ?? "text",
     scheduledFor:  (m as any).scheduledFor ? new Date((m as any).scheduledFor).toISOString() : null,
     createdAt:     m.createdAt.toISOString(),
     metaMessageId: (m as any).metaMessageId ?? null,
@@ -83,6 +87,8 @@ export default async function WhatsappPage() {
         historyMessages={historyMessages.map(serialize)}
         hasAutoSend={hasAutoSend}
         whatsappConfigured={whatsappConfigured}
+        hasTemplates={hasTemplates}
+        hasWabaId={hasWabaId}
       />
     </div>
   );

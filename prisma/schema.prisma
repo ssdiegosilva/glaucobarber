@@ -201,6 +201,7 @@ model Integration {
   whatsappAccessToken   String? // token de acesso permanente da Meta API
   whatsappPhoneNumberId String? // ID do número cadastrado no Meta (phone_number_id)
   whatsappVerifyToken   String? // gerado automaticamente pelo sistema; o usuário só copia no painel Meta
+  whatsappWabaId        String? // WhatsApp Business Account ID (para sincronizar templates da Meta)
 
   lastSyncAt DateTime?
   errorMsg   String?
