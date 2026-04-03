@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
   Zap, BarChart3, Users, Sparkles, Calendar,
   TrendingUp, Megaphone, ArrowRight, CheckCircle2,
+  MessageSquare, Bot, Send, Camera, X,
 } from "lucide-react";
 
 export default async function RootPage() {
@@ -23,6 +24,9 @@ export default async function RootPage() {
             <span className="font-display text-lg font-bold text-foreground">GlaucoBarber</span>
           </div>
           <div className="flex items-center gap-3">
+            <a href="#precos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Preços
+            </a>
             <Link
               href="/login"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -45,7 +49,6 @@ export default async function RootPage() {
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-1/4 left-1/4 w-[700px] h-[700px] rounded-full bg-gold-500/6 blur-[160px]" />
           <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-gold-600/4 blur-[120px]" />
-          {/* grid lines */}
           <div
             className="absolute inset-0 opacity-[0.03]"
             style={{
@@ -61,7 +64,7 @@ export default async function RootPage() {
           <div className="animate-fade-in">
             <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/8 px-3 py-1 text-xs text-gold-400 mb-8">
               <Sparkles className="h-3 w-3" />
-              Integrado com Trinks · Movido por IA
+              Integrado com Trinks · IA · WhatsApp automático
             </div>
 
             <h1 className="font-display text-5xl lg:text-6xl xl:text-7xl font-bold leading-none mb-6 tracking-tight">
@@ -75,7 +78,7 @@ export default async function RootPage() {
 
             <p className="text-lg lg:text-xl text-muted-foreground mb-10 max-w-lg leading-relaxed">
               Conecte o Trinks, veja sua agenda em tempo real,
-              entenda cada cliente e deixe a IA sugerir o próximo movimento.
+              e deixe o bot recuperar clientes inativos por WhatsApp enquanto você trabalha.
             </p>
 
             <div className="mb-10 space-y-2 text-sm text-foreground/90">
@@ -104,11 +107,11 @@ export default async function RootPage() {
             </div>
 
             {/* trust row */}
-            <div className="flex items-center gap-6 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               {[
                 "Agenda ao vivo",
                 "+1.500 clientes gerenciados",
-                "IA como parceiro",
+                "Bot de WhatsApp incluso",
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0" />
@@ -121,10 +124,8 @@ export default async function RootPage() {
           {/* Right — photo + stats overlay */}
           <div className="relative flex justify-center lg:justify-end animate-slide-in-left">
             <div className="relative w-[360px] lg:w-[440px]">
-              {/* glow behind photo */}
               <div className="absolute -inset-4 rounded-3xl bg-gold-500/10 blur-2xl" />
 
-              {/* photo */}
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-gold-lg">
                 <Image
                   src="/glauco.jpg"
@@ -134,7 +135,6 @@ export default async function RootPage() {
                   className="object-cover w-full h-[480px] lg:h-[560px]"
                   priority
                 />
-                {/* gradient overlay at bottom */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#080810] via-[#080810]/20 to-transparent" />
               </div>
 
@@ -155,13 +155,19 @@ export default async function RootPage() {
                 ))}
               </div>
 
-              {/* floating card — live badge */}
+              {/* floating badge — live */}
               <div className="absolute -top-4 -right-4 flex items-center gap-2 rounded-xl border border-green-500/30 bg-[#080810]/90 backdrop-blur-sm px-3 py-2 shadow-lg">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
                 </span>
                 <span className="text-xs font-medium text-green-400">Trinks ao vivo</span>
+              </div>
+
+              {/* floating badge — bot */}
+              <div className="absolute -bottom-4 -left-4 flex items-center gap-2 rounded-xl border border-gold-500/30 bg-[#080810]/90 backdrop-blur-sm px-3 py-2 shadow-lg">
+                <Bot className="h-3.5 w-3.5 text-gold-400" />
+                <span className="text-xs font-medium text-gold-400">Bot enviou 12 msgs hoje</span>
               </div>
             </div>
           </div>
@@ -191,12 +197,12 @@ export default async function RootPage() {
               },
               {
                 before: "Clientes inativos esquecidos por meses",
-                after: "Lista de clientes que sumiram + sugestão de mensagem para reativar",
-                icon: <Users className="h-5 w-5" />,
+                after: "Bot manda mensagem no WhatsApp automaticamente. Você não faz nada.",
+                icon: <MessageSquare className="h-5 w-5" />,
               },
               {
                 before: "Sem ideia de quanto faturou na semana",
-                after: "Relatórios de hoje, semana e mês com ticket médio e meta",
+                after: "Relatórios de hoje, semana e mês com ticket médio e meta de faturamento",
                 icon: <BarChart3 className="h-5 w-5" />,
               },
             ].map((item, i) => (
@@ -236,7 +242,7 @@ export default async function RootPage() {
               {
                 icon: <Calendar className="h-6 w-6" />,
                 title: "Agenda ao vivo",
-                desc: "Veja todos os agendamentos do dia diretamente da Trinks, em tempo real. Ocupação, horários livres e receita prevista.",
+                desc: "Todos os agendamentos do dia direto do Trinks em tempo real. Ocupação, horários livres e receita prevista.",
               },
               {
                 icon: <Users className="h-6 w-6" />,
@@ -254,24 +260,24 @@ export default async function RootPage() {
                 desc: "Compare faturamento hoje, esta semana e este mês com sua meta. Ticket médio, serviços mais vendidos e tendências.",
               },
               {
+                icon: <Bot className="h-6 w-6" />,
+                title: "WhatsApp automático",
+                desc: "Bot envia mensagens de reativação, pós-venda e promoção automaticamente a cada 15 min. Você define, ele executa.",
+              },
+              {
+                icon: <Camera className="h-6 w-6" />,
+                title: "Campanhas no Instagram",
+                desc: "Conecte o Instagram em 1 clique. A IA gera o texto e a arte. Você aprova e publica sem sair do sistema.",
+              },
+              {
                 icon: <Megaphone className="h-6 w-6" />,
-                title: "Campanhas prontas",
-                desc: "A IA escreve a mensagem de campanha para Instagram ou WhatsApp. Você aprova, ela publica.",
+                title: "Pós-venda inteligente",
+                desc: "Detecta clientes que acabaram de ser atendidos e sugere mensagem personalizada de avaliação ou retorno.",
               },
               {
                 icon: <Zap className="h-6 w-6" />,
                 title: "Integração Trinks",
-                desc: "Conecte em segundos com sua API Key. Todos os seus dados sincronizados sem retrabalho.",
-              },
-              {
-                icon: <BarChart3 className="h-6 w-6" />,
-                title: "Visão semanal e mensal",
-                desc: "Não sabe quanto faturou na semana? Agora sabe. Gráfico de receita por dia, finalizados vs agendados.",
-              },
-              {
-                icon: <CheckCircle2 className="h-6 w-6" />,
-                title: "Pronto para usar",
-                desc: "Sem configuração complicada. Crie sua conta, conecte a Trinks e comece a tomar decisões mais inteligentes hoje.",
+                desc: "Conecte em segundos com sua API Key. Todos os seus dados sincronizados sem retrabalho manual.",
               },
             ].map((f) => (
               <div
@@ -289,11 +295,142 @@ export default async function RootPage() {
         </div>
       </section>
 
+      {/* ── Preços ───────────────────────────────────────────── */}
+      <section id="precos" className="py-28 border-t border-white/5">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Preços</p>
+            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
+              Simples e sem surpresas
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-md mx-auto">
+              Comece grátis. Evolua quando precisar.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* FREE */}
+            <div className="rounded-2xl border border-border bg-card p-7 flex flex-col">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Trial gratuito</p>
+                <p className="font-display text-4xl font-bold text-foreground">R$0</p>
+                <p className="text-xs text-muted-foreground mt-1">Sem cartão de crédito</p>
+              </div>
+              <ul className="mt-7 space-y-3 flex-1">
+                {[
+                  "30 chamadas de IA",
+                  "Agenda ao vivo (Trinks)",
+                  "Gestão de clientes",
+                  "Copilot IA",
+                  "Campanhas (rascunho)",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+                {[
+                  "WhatsApp automático",
+                  "Instagram publicação",
+                  "Metas e relatórios",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground/40">
+                    <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/signup"
+                className="mt-8 block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-800 transition-colors"
+              >
+                Começar grátis
+              </Link>
+            </div>
+
+            {/* STARTER */}
+            <div className="rounded-2xl border border-border bg-card p-7 flex flex-col">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Starter</p>
+                <p className="font-display text-4xl font-bold text-foreground">R$89<span className="text-lg font-normal text-muted-foreground">/mês</span></p>
+                <p className="text-xs text-muted-foreground mt-1">Ideal para começar</p>
+              </div>
+              <ul className="mt-7 space-y-3 flex-1">
+                {[
+                  "50 chamadas de IA/mês",
+                  "Agenda ao vivo (Trinks)",
+                  "Gestão de clientes",
+                  "Copilot IA",
+                  "Campanhas + publicação Instagram",
+                  "WhatsApp — envio manual",
+                  "Pós-venda inteligente",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+                {[
+                  "WhatsApp automático (bot)",
+                  "Metas e relatórios financeiros",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground/40">
+                    <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/signup"
+                className="mt-8 block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-800 transition-colors"
+              >
+                Assinar Starter
+              </Link>
+            </div>
+
+            {/* PRO */}
+            <div className="rounded-2xl border border-gold-500/40 bg-gradient-to-b from-gold-500/8 to-transparent p-7 flex flex-col relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Mais popular</span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-2">Pro</p>
+                <p className="font-display text-4xl font-bold text-foreground">R$149<span className="text-lg font-normal text-muted-foreground">/mês</span></p>
+                <p className="text-xs text-muted-foreground mt-1">+ R$1 por atendimento concluído</p>
+              </div>
+              <ul className="mt-7 space-y-3 flex-1">
+                {[
+                  "300 chamadas de IA/mês",
+                  "Tudo do Starter",
+                  "WhatsApp BOT automático",
+                  "Metas e relatórios financeiros",
+                  "Suporte prioritário",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-xs text-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/signup"
+                className="mt-8 block text-center rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-bold text-[#080810] hover:bg-gold-400 transition-colors"
+              >
+                Assinar Pro
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground mt-8">
+            *R$1 por atendimento concluído no Pro, limitado a R$400/mês. Cancelamento a qualquer momento.
+          </p>
+        </div>
+      </section>
+
       {/* ── Social Proof ─────────────────────────────────────── */}
       <section className="py-28 border-t border-white/5">
         <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
           <div className="relative rounded-3xl border border-gold-500/20 bg-gradient-to-b from-gold-500/6 to-transparent p-10 lg:p-16">
-            {/* decorative quotes */}
             <span className="absolute top-8 left-8 text-7xl font-serif text-gold-500/15 leading-none select-none">&quot;</span>
 
             <div className="relative">
@@ -318,7 +455,6 @@ export default async function RootPage() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-xs text-muted-foreground">Art Shave Barbearia</p>
                     <span className="text-muted-foreground/30">·</span>
-                    {/* Art Shave logo */}
                     <Image
                       src="https://barbeariaartshave.com.br/wp-content/uploads/2024/08/logo-art-shave.png"
                       alt="Art Shave"
@@ -338,8 +474,6 @@ export default async function RootPage() {
       {/* ── CTA Banner ───────────────────────────────────────── */}
       <section className="py-28 border-t border-white/5">
         <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center">
-          <div className="pointer-events-none absolute inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-gold-500/40 to-transparent" />
-
           <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground mb-5">
             Pronto para transformar<br />
             <span className="bg-gradient-to-r from-gold-400 to-[#e8c870] bg-clip-text text-transparent">
@@ -370,9 +504,12 @@ export default async function RootPage() {
             <span className="text-sm font-semibold text-muted-foreground">GlaucoBarber</span>
           </div>
           <p className="text-xs text-muted-foreground">© 2025 GlaucoBarber</p>
-          <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-            Entrar
-          </Link>
+          <div className="flex items-center gap-4">
+            <a href="#precos" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Preços</a>
+            <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Entrar
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
