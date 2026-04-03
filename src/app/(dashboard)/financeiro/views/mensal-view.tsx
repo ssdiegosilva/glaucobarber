@@ -1,0 +1,423 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Tag, ChevronDown, Lightbulb, Target } from "lucide-react";
+import { formatBRL } from "@/lib/utils";
+import type { MonthlyData } from "@/lib/financeiro/monthly-data";
+import {
+  BENCHMARKS, avgTicketStatus, conversionStatus, revenuePerDayStatus,
+  type BenchmarkStatus,
+} from "@/lib/financeiro/benchmarks";
+
+// ── Recharts (SSR-safe) ───────────────────────────────────────
+const DailyRevenueChart   = dynamic(() => import("../charts/daily-revenue-chart"),   { ssr: false, loading: () => <ChartSkeleton h={200} /> });
+const ServiceMixDonut     = dynamic(() => import("../charts/service-mix-donut"),     { ssr: false, loading: () => <ChartSkeleton h={180} /> });
+const DiscountDailyChart  = dynamic(() => import("../charts/discount-daily-chart"),  { ssr: false, loading: () => <ChartSkeleton h={120} /> });
+
+const MONTH_NAMES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+// ── Helpers ───────────────────────────────────────────────────
+
+function delta(current: number, prev: number) {
+  if (prev === 0) return null;
+  return ((current - prev) / prev) * 100;
+}
+
+function DeltaBadge({ pct, invert = false }: { pct: number | null; invert?: boolean }) {
+  if (pct === null) return null;
+  const positive = invert ? pct < 0 : pct > 0;
+  const color    = Math.abs(pct) < 1 ? "text-muted-foreground" : positive ? "text-emerald-400" : "text-red-400";
+  const Icon     = Math.abs(pct) < 1 ? Minus : positive ? TrendingUp : TrendingDown;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium ${color}`}>
+      <Icon className="h-2.5 w-2.5" />
+      {Math.abs(pct).toFixed(1)}%
+    </span>
+  );
+}
+
+function ChartSkeleton({ h }: { h: number }) {
+  return <div className={`animate-pulse rounded-lg bg-surface-800`} style={{ height: h }} />;
+}
+
+function BenchmarkIndicator({ status, label, value, range }: {
+  status: BenchmarkStatus; label: string; value: string; range: string;
+}) {
+  const cfg = {
+    good:    { color: "text-emerald-400", icon: "▲", bg: "bg-emerald-500/10" },
+    warning: { color: "text-amber-400",   icon: "◆", bg: "bg-amber-500/10"   },
+    bad:     { color: "text-red-400",     icon: "▼", bg: "bg-red-500/10"     },
+    neutral: { color: "text-muted-foreground", icon: "—", bg: "bg-surface-800" },
+  }[status];
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-foreground tabular-nums">{value}</span>
+        <span className={`inline-flex items-center gap-1 text-[10px] rounded-full px-1.5 py-0.5 ${cfg.bg} ${cfg.color}`}>
+          {cfg.icon} {range}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Goal ring (SVG) ───────────────────────────────────────────
+function GoalRing({ pct }: { pct: number }) {
+  const r   = 44;
+  const circ = 2 * Math.PI * r;
+  const fill = Math.min(pct, 1);
+  const color = pct >= 1 ? "#10b981" : pct >= 0.7 ? "#C9A84C" : pct >= 0.4 ? "#f59e0b" : "#ef4444";
+  return (
+    <svg width="110" height="110" className="rotate-[-90deg]">
+      <circle cx="55" cy="55" r={r} fill="none" stroke="currentColor" strokeWidth="8" className="text-surface-700" />
+      <circle cx="55" cy="55" r={r} fill="none" stroke={color} strokeWidth="8"
+        strokeDasharray={circ} strokeDashoffset={circ * (1 - fill)}
+        strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+    </svg>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────
+
+interface Props {
+  data:         MonthlyData;
+  currentMonth: number;
+  currentYear:  number;
+  isLoading?:   boolean;
+  onNavigate:   (month: number, year: number) => void;
+}
+
+export function MensalView({ data, currentMonth, currentYear, isLoading, onNavigate }: Props) {
+  const [showDiscounts, setShowDiscounts] = useState(false);
+
+  const isCurrentMonth = data.month === currentMonth && data.year === currentYear;
+
+  // Navigation
+  function prev() {
+    const d = new Date(data.year, data.month - 2, 1);
+    onNavigate(d.getMonth() + 1, d.getFullYear());
+  }
+  function next() {
+    const d = new Date(data.year, data.month, 1);
+    onNavigate(d.getMonth() + 1, d.getFullYear());
+  }
+
+  // KPIs
+  const conversionRate = data.totalAppointments > 0
+    ? data.completedCount / data.totalAppointments : 0;
+  const conversionPrev = data.totalAppointmentsPrev > 0
+    ? data.completedPrevMonth / data.totalAppointmentsPrev : 0;
+
+  const revenueTarget    = data.goal?.revenueTarget    ?? null;
+  const workingDays      = data.goal?.workingDaysCount ?? null;
+  const goalPct          = revenueTarget && revenueTarget > 0 ? data.revenue / revenueTarget : null;
+  const dailyGoal        = revenueTarget && workingDays && workingDays > 0 ? revenueTarget / workingDays : null;
+  const revenuePerDay    = workingDays && workingDays > 0 ? data.revenue / workingDays : null;
+
+  // Projection for current month
+  const today = new Date();
+  let projection: { amount: number; onTrack: boolean } | null = null;
+  if (isCurrentMonth && revenueTarget && workingDays) {
+    const dayOfMonth   = today.getDate();
+    const daysInMonth  = new Date(data.year, data.month, 0).getDate();
+    const elapsed      = dayOfMonth / daysInMonth;
+    if (elapsed > 0) {
+      const projected = data.revenue / elapsed;
+      projection = { amount: projected, onTrack: projected >= revenueTarget };
+    }
+  }
+
+  // Days remaining
+  const daysRemaining = isCurrentMonth
+    ? new Date(data.year, data.month, 0).getDate() - today.getDate()
+    : 0;
+  const revenueRemaining = revenueTarget ? Math.max(0, revenueTarget - data.revenue) : null;
+  const dailyRemaining   = daysRemaining > 0 && revenueRemaining ? revenueRemaining / daysRemaining : null;
+
+  return (
+    <div className={`space-y-5 transition-opacity ${isLoading ? "opacity-50 pointer-events-none" : ""}`}>
+
+      {/* ── Month navigator ──────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <button onClick={prev} className="rounded-md border border-border p-2 hover:bg-surface-800 transition-colors">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="text-center">
+          <p className="text-base font-semibold text-foreground">
+            {MONTH_NAMES[data.month - 1]} {data.year}
+          </p>
+          {isCurrentMonth && (
+            <span className="text-[10px] text-gold-400 font-medium">mês atual</span>
+          )}
+        </div>
+        <button onClick={next} disabled={isCurrentMonth}
+          className="rounded-md border border-border p-2 hover:bg-surface-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* ── KPI Cards ────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Receita */}
+        <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-1 col-span-2 sm:col-span-1">
+          <p className="text-xs text-muted-foreground">Receita realizada</p>
+          <p className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">{formatBRL(data.revenue)}</p>
+          <DeltaBadge pct={delta(data.revenue, data.revenuePrevMonth)} />
+          {revenueTarget && (
+            <div className="pt-1 space-y-1">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Meta: {formatBRL(revenueTarget)}</span>
+                <span>{Math.round((goalPct ?? 0) * 100)}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${(goalPct ?? 0) >= 1 ? "bg-emerald-500" : (goalPct ?? 0) >= 0.7 ? "bg-gold-500" : (goalPct ?? 0) >= 0.4 ? "bg-amber-500" : "bg-red-500"}`}
+                  style={{ width: `${Math.min((goalPct ?? 0) * 100, 100)}%` }} />
+              </div>
+              {projection && (
+                <p className={`text-[10px] ${projection.onTrack ? "text-emerald-400" : "text-amber-400"}`}>
+                  Projetado: {formatBRL(projection.amount)} — {projection.onTrack ? "no caminho ✓" : "abaixo da meta"}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Atendimentos */}
+        <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-1">
+          <p className="text-xs text-muted-foreground">Atendimentos</p>
+          <p className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">{data.completedCount}</p>
+          <DeltaBadge pct={delta(data.completedCount, data.completedPrevMonth)} />
+          <p className="text-[10px] text-muted-foreground">de {data.totalAppointments} agendados</p>
+        </div>
+
+        {/* Ticket médio */}
+        <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-1">
+          <p className="text-xs text-muted-foreground">Ticket médio</p>
+          <p className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">{formatBRL(data.avgTicket)}</p>
+          <DeltaBadge pct={delta(data.avgTicket, data.avgTicketPrev)} />
+          <p className="text-[10px] text-muted-foreground">Referência: {formatBRL(BENCHMARKS.avgTicket.min)}–{formatBRL(BENCHMARKS.avgTicket.max)}</p>
+        </div>
+
+        {/* Conversão */}
+        <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-1">
+          <p className="text-xs text-muted-foreground">Tx. conversão</p>
+          <p className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">{Math.round(conversionRate * 100)}%</p>
+          <DeltaBadge pct={delta(conversionRate, conversionPrev)} />
+          <p className="text-[10px] text-muted-foreground">Saudável: ≥ 80%</p>
+        </div>
+      </div>
+
+      {/* ── Receita diária ───────────────────────────────── */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <p className="text-sm font-semibold text-foreground">Receita diária</p>
+        <DailyRevenueChart
+          data={data.dailyRevenue}
+          scheduledData={data.dailyScheduled}
+          dailyGoal={dailyGoal}
+          currentDay={isCurrentMonth ? today.getDate() : undefined}
+        />
+      </div>
+
+      {/* ── Meta + Benchmarks ────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Goal ring */}
+        <div className="rounded-xl border border-border bg-card p-4 flex flex-col items-center justify-center gap-3">
+          {revenueTarget ? (
+            <>
+              <p className="text-sm font-semibold text-foreground self-start">Meta do mês</p>
+              <div className="relative flex items-center justify-center">
+                <GoalRing pct={goalPct ?? 0} />
+                <div className="absolute text-center">
+                  <p className="text-xl font-bold text-foreground">{Math.round((goalPct ?? 0) * 100)}%</p>
+                </div>
+              </div>
+              <div className="w-full space-y-1 text-xs text-center text-muted-foreground">
+                <p>{formatBRL(data.revenue)} de {formatBRL(revenueTarget)}</p>
+                {isCurrentMonth && daysRemaining > 0 && dailyRemaining && (
+                  <p className="text-[11px]">
+                    {daysRemaining} dias restantes · Meta/dia: <span className="text-gold-400 font-medium">{formatBRL(dailyRemaining)}</span>
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4 space-y-2">
+              <Target className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+              <p className="text-sm text-muted-foreground">Sem meta definida</p>
+              <p className="text-xs text-muted-foreground">Acesse a aba Metas para definir</p>
+            </div>
+          )}
+        </div>
+
+        {/* Benchmarks */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-gold-400" />
+            <p className="text-sm font-semibold text-foreground">Benchmarks do setor</p>
+          </div>
+          <div className="space-y-0">
+            <BenchmarkIndicator
+              status={avgTicketStatus(data.avgTicket)}
+              label="Ticket médio"
+              value={formatBRL(data.avgTicket)}
+              range={`R$${BENCHMARKS.avgTicket.min}–${BENCHMARKS.avgTicket.max}`}
+            />
+            <BenchmarkIndicator
+              status={conversionStatus(conversionRate)}
+              label="Tx. conversão"
+              value={`${Math.round(conversionRate * 100)}%`}
+              range="≥ 80%"
+            />
+            {revenuePerDay !== null && (
+              <BenchmarkIndicator
+                status={revenuePerDayStatus(revenuePerDay)}
+                label="Receita/dia útil"
+                value={formatBRL(revenuePerDay)}
+                range={`R$${BENCHMARKS.revenuePerDay.min}–${BENCHMARKS.revenuePerDay.max}`}
+              />
+            )}
+            {data.discounts.total > 0 && (
+              <BenchmarkIndicator
+                status={data.discounts.rate >= BENCHMARKS.discountRate.bad ? "bad" : data.discounts.rate >= BENCHMARKS.discountRate.warning ? "warning" : "good"}
+                label="Taxa de desconto"
+                value={`${(data.discounts.rate * 100).toFixed(1)}%`}
+                range="< 10%"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mix de serviços ──────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Donut */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <p className="text-sm font-semibold text-foreground">Mix por categoria</p>
+          {data.byCategory.length > 0
+            ? <ServiceMixDonut data={data.byCategory} totalRevenue={data.revenue} />
+            : <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">Sem dados</div>
+          }
+        </div>
+
+        {/* Top services */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <p className="text-sm font-semibold text-foreground">Top serviços</p>
+          {data.byService.length === 0
+            ? <p className="text-sm text-muted-foreground">Sem atendimentos</p>
+            : (
+              <div className="space-y-2">
+                {data.byService.map((s, i) => {
+                  const pct = data.revenue > 0 ? s.revenue / data.revenue : 0;
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-foreground truncate max-w-[60%]">{s.name}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-muted-foreground">{s.count}×</span>
+                          <span className="font-medium text-gold-400 tabular-nums">{formatBRL(s.revenue)}</span>
+                        </div>
+                      </div>
+                      <div className="h-1 rounded-full bg-surface-700 overflow-hidden">
+                        <div className="h-full rounded-full bg-gold-500/60" style={{ width: `${pct * 100}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          }
+        </div>
+      </div>
+
+      {/* ── Descontos (colapsável) ────────────────────────── */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <button
+          onClick={() => setShowDiscounts((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-800/30 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Descontos</span>
+            {data.discounts.total > 0 && (
+              <span className="text-xs text-red-400 font-medium">{formatBRL(data.discounts.total)}</span>
+            )}
+            {data.discounts.total === 0 && (
+              <span className="text-xs text-muted-foreground">nenhum este mês</span>
+            )}
+          </div>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showDiscounts ? "rotate-180" : ""}`} />
+        </button>
+
+        {showDiscounts && (
+          <div className="border-t border-border p-4 space-y-4">
+            {/* KPI pills */}
+            <div className="flex flex-wrap gap-3">
+              <div className="rounded-lg border border-border bg-surface-900 px-3 py-2">
+                <p className="text-[10px] text-muted-foreground">Total descontado</p>
+                <p className="text-sm font-bold text-red-400">{formatBRL(data.discounts.total)}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-surface-900 px-3 py-2">
+                <p className="text-[10px] text-muted-foreground">Taxa</p>
+                <p className="text-sm font-bold text-foreground">{(data.discounts.rate * 100).toFixed(1)}%</p>
+              </div>
+              <div className="rounded-lg border border-border bg-surface-900 px-3 py-2">
+                <p className="text-[10px] text-muted-foreground">Transações</p>
+                <p className="text-sm font-bold text-foreground">{data.discounts.count}</p>
+              </div>
+            </div>
+
+            {data.discounts.total > 0 && (
+              <>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Por dia</p>
+                  <DiscountDailyChart data={data.discounts.byDay} />
+                </div>
+
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border bg-surface-800/50">
+                        <th className="text-left px-3 py-2 text-muted-foreground font-medium">Cliente</th>
+                        <th className="text-left px-3 py-2 text-muted-foreground font-medium hidden sm:table-cell">Serviço</th>
+                        <th className="text-right px-3 py-2 text-muted-foreground font-medium">Original</th>
+                        <th className="text-right px-3 py-2 text-muted-foreground font-medium">Desconto</th>
+                        <th className="text-right px-3 py-2 text-muted-foreground font-medium">Pago</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {data.discounts.list.map((d) => (
+                        <tr key={d.id} className="hover:bg-surface-800/20">
+                          <td className="px-3 py-2 text-foreground truncate max-w-[120px]">{d.customerName}</td>
+                          <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">{d.serviceName}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatBRL(d.originalAmount)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-red-400">-{formatBRL(d.discountValue)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-foreground">{formatBRL(d.paidValue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border bg-surface-800/30">
+                        <td colSpan={2} className="px-3 py-2 text-xs font-medium text-foreground hidden sm:table-cell">Total</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground font-medium">
+                          {formatBRL(data.discounts.list.reduce((s, d) => s + d.originalAmount, 0))}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-red-400 font-medium">
+                          -{formatBRL(data.discounts.total)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground font-medium">
+                          {formatBRL(data.discounts.list.reduce((s, d) => s + d.paidValue, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

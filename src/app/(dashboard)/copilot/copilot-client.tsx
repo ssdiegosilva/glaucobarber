@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Loader2, Send, CheckCircle2, MessageSquare, Sparkles,
+  Loader2, Send, CheckCircle2, Sparkles,
   Trash2, ChevronDown, ChevronUp, Plus,
+  MessageCircle, Megaphone, Target, Calendar, Users,
+  DollarSign, Trophy, Zap, ExternalLink, X,
 } from "lucide-react";
 
 type Thread = {
@@ -30,8 +33,11 @@ type ActionItem = {
   description?: string | null;
   type: string;
   status: string;
+  payload?: Record<string, unknown> | null;
   createdAt: string;
 };
+
+type ActionStatus = "pending" | "approved" | "dismissed";
 
 interface Props {
   initialThreads:  Thread[];
@@ -49,30 +55,237 @@ const QUICK_QUESTIONS = [
   "Como melhorar minha ocupação?",
 ];
 
-export default function CopilotClient({ initialThreads, initialMessages, initialActions, initialThreadId }: Props) {
+// ── Helpers ───────────────────────────────────────────────────
+
+function getActionIcon(type: string) {
+  switch (type) {
+    case "reactivation_promo":
+    case "post_sale_followup":
+    case "post_sale_review":
+    case "agenda_conflict":
+      return MessageCircle;
+    case "campaign":
+      return Megaphone;
+    case "define_goal":
+      return Target;
+    case "agenda":
+      return Calendar;
+    case "crm":
+      return Users;
+    case "pricing":
+      return DollarSign;
+    case "motivational":
+      return Trophy;
+    default:
+      return Zap;
+  }
+}
+
+function getActionLinks(
+  type: string,
+  payload?: Record<string, unknown> | null
+): { label: string; href: string }[] {
+  if (type === "reactivation_promo" || type === "agenda_conflict") {
+    const phones      = payload?.phones      as string[] | undefined;
+    const clientNames = payload?.clientNames as string[] | undefined;
+    const singlePhone = payload?.phone       as string   | undefined;
+    const message     = (payload?.message ?? payload?.suggestedMessage) as string | undefined;
+
+    if (phones?.length) {
+      return phones.map((phone, i) => {
+        const clean   = phone.replace(/\D/g, "");
+        const waPhone = clean.startsWith("55") ? clean : `55${clean}`;
+        const url     = message
+          ? `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`
+          : `https://wa.me/${waPhone}`;
+        const name = clientNames?.[i];
+        return { label: name ? `WhatsApp · ${name}` : "Abrir WhatsApp", href: url };
+      });
+    }
+    if (singlePhone) {
+      const clean   = singlePhone.replace(/\D/g, "");
+      const waPhone = clean.startsWith("55") ? clean : `55${clean}`;
+      const url     = message
+        ? `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`
+        : `https://wa.me/${waPhone}`;
+      return [{ label: "Abrir WhatsApp", href: url }];
+    }
+    return [];
+  }
+  if (type === "post_sale_followup" || type === "post_sale_review") {
+    return [{ label: "Ver pós-venda", href: "/post-sale" }];
+  }
+  switch (type) {
+    case "campaign":    return [{ label: "Ver campanhas", href: "/campaigns" }];
+    case "define_goal": return [{ label: "Definir meta",  href: "/financeiro" }];
+    case "agenda":      return [{ label: "Ver agenda",    href: "/agenda" }];
+    case "crm":         return [{ label: "Ver clientes",  href: "/clients" }];
+    case "pricing":     return [{ label: "Ver serviços",  href: "/services" }];
+    default:            return [];
+  }
+}
+
+function getPayloadPreview(
+  type: string,
+  payload?: Record<string, unknown> | null
+): string | null {
+  if (!payload) return null;
+  if (type === "reactivation_promo") {
+    const names    = payload.clientNames    as string[] | undefined;
+    const discount = payload.suggestedDiscount as number | undefined;
+    const parts: string[] = [];
+    if (names?.length) {
+      parts.push(
+        names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "")
+      );
+    }
+    if (discount) parts.push(`${discount}% de desconto`);
+    return parts.length ? parts.join(" · ") : null;
+  }
+  if (type === "agenda_conflict") {
+    const clientName  = payload.clientName  as string | undefined;
+    const suggestedDay  = payload.suggestedDay  as string | undefined;
+    const suggestedHour = payload.suggestedHour as string | undefined;
+    if (clientName) {
+      return `${clientName}${suggestedDay ? ` → ${suggestedDay}${suggestedHour ? ` às ${suggestedHour}` : ""}` : ""}`;
+    }
+  }
+  return null;
+}
+
+// ── Action card ───────────────────────────────────────────────
+
+function ActionCard({
+  action,
+  localStatus,
+  onApprove,
+  onDismiss,
+}: {
+  action: ActionItem;
+  localStatus: ActionStatus;
+  onApprove: () => void;
+  onDismiss: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const Icon      = getActionIcon(action.type);
+  const links     = getActionLinks(action.type, action.payload);
+  const preview   = getPayloadPreview(action.type, action.payload);
+  const isLong    = (action.description?.length ?? 0) > 100;
+
+  if (localStatus === "dismissed") {
+    return (
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 py-1">
+        <X className="h-3 w-3 shrink-0" />
+        <span className="line-through">{action.title}</span>
+        <span className="no-underline">— excluída</span>
+      </div>
+    );
+  }
+
+  if (localStatus === "approved") {
+    return (
+      <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2 space-y-1.5">
+        <div className="flex items-center gap-1.5 text-[11px] text-green-400 font-medium">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          {action.title} — aprovada
+        </div>
+        {links.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                target={link.href.startsWith("http") ? "_blank" : undefined}
+                rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                className="inline-flex items-center gap-1 text-[11px] text-gold-400 hover:text-gold-300 underline underline-offset-2 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // pending
+  return (
+    <div className="rounded-xl border border-border bg-surface-900/80 p-3 space-y-2">
+      <div className="flex items-start gap-2">
+        <div className="shrink-0 mt-0.5 rounded-md bg-gold-500/10 p-1.5">
+          <Icon className="h-3.5 w-3.5 text-gold-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground leading-snug">{action.title}</p>
+          {preview && (
+            <p className="text-[10px] text-gold-400/80 mt-0.5">{preview}</p>
+          )}
+        </div>
+      </div>
+
+      {action.description && (
+        <div>
+          <p className={`text-[11px] text-muted-foreground leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>
+            {action.description}
+          </p>
+          {isLong && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="flex items-center gap-0.5 text-[10px] text-gold-400 hover:text-gold-300 mt-0.5"
+            >
+              {expanded
+                ? <><ChevronUp className="h-3 w-3" />Ver menos</>
+                : <><ChevronDown className="h-3 w-3" />Ver mais</>}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2 pt-0.5">
+        <Button
+          size="sm"
+          className="h-8 text-xs gap-1"
+          onClick={onApprove}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" /> Aprovar
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
+          onClick={onDismiss}
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Excluir
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────
+
+export default function CopilotClient({
+  initialThreads,
+  initialMessages,
+  initialActions,
+  initialThreadId,
+}: Props) {
   const [threads, setThreads]               = useState<Thread[]>(initialThreads);
   const [messages, setMessages]             = useState<Message[]>(initialMessages);
   const [actions, setActions]               = useState<ActionItem[]>(initialActions);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(initialThreadId);
   const [input, setInput]                   = useState("");
   const [loading, setLoading]               = useState(false);
-  const [expandedActions, setExpandedActions] = useState<Set<string>>(new Set());
+  const [actionStatuses, setActionStatuses] = useState<Record<string, ActionStatus>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  function toggleActionExpand(id: string) {
-    setExpandedActions((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
+  }, [messages, loading, actions]);
 
   async function sendMessage(text?: string) {
     const msg = (text ?? input).trim();
@@ -80,7 +293,7 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
     setLoading(true);
     setInput("");
     try {
-      const res = await fetch("/api/copilot/chat", {
+      const res  = await fetch("/api/copilot/chat", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ message: msg, threadId: activeThreadId }),
@@ -92,11 +305,20 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
       setActiveThreadId(data.threadId);
       setMessages(data.messages);
       setActions(data.actionsDraft);
+      // Reset statuses for new actions
+      setActionStatuses({});
 
       setThreads((prev) => {
         const exists = prev.find((t) => t.id === data.threadId);
-        if (exists) return prev.map((t) => t.id === data.threadId ? { ...t, lastMessageAt: new Date().toISOString() } : t);
-        return [{ id: data.threadId, title: msg.slice(0, 40), status: "OPEN", lastMessageAt: new Date().toISOString() }, ...prev.slice(0, 4)];
+        if (exists) {
+          return prev.map((t) =>
+            t.id === data.threadId ? { ...t, lastMessageAt: new Date().toISOString() } : t
+          );
+        }
+        return [
+          { id: data.threadId, title: msg.slice(0, 40), status: "OPEN", lastMessageAt: new Date().toISOString() },
+          ...prev.slice(0, 4),
+        ];
       });
     } catch (err) {
       console.error(err);
@@ -109,12 +331,18 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
     const res = await fetch(`/api/copilot/thread?threadId=${id}`, { method: "DELETE" });
     if (!res.ok) return;
     setThreads((prev) => prev.filter((t) => t.id !== id));
-    if (activeThreadId === id) { setActiveThreadId(null); setMessages([]); setActions([]); }
+    if (activeThreadId === id) {
+      setActiveThreadId(null);
+      setMessages([]);
+      setActions([]);
+      setActionStatuses({});
+    }
   }
 
   async function loadThread(id: string) {
     if (id === activeThreadId) return;
     setActiveThreadId(id);
+    setActionStatuses({});
     const res  = await fetch(`/api/copilot/thread?threadId=${id}`);
     const data = await res.json();
     if (res.ok) { setMessages(data.messages); setActions(data.actions); }
@@ -123,7 +351,10 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
   async function updateAction(id: string, path: "approve" | "dismiss") {
     const res = await fetch(`/api/actions/${id}/${path}`, { method: "POST" });
     if (!res.ok) return;
-    setActions((prev) => prev.filter((a) => a.id !== id));
+    setActionStatuses((prev) => ({
+      ...prev,
+      [id]: path === "approve" ? "approved" : "dismissed",
+    }));
   }
 
   const activeMessages = useMemo(
@@ -131,16 +362,23 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
     [messages, activeThreadId]
   );
 
+  // Index of the last ASSISTANT message — actions go there
+  const lastAssistantIdx = useMemo(() => {
+    for (let i = activeMessages.length - 1; i >= 0; i--) {
+      if (activeMessages[i].role === "ASSISTANT") return i;
+    }
+    return -1;
+  }, [activeMessages]);
+
   return (
-    // Full-height fixed layout — no page scroll
     <div className="flex h-full overflow-hidden">
 
-      {/* ── Sidebar (desktop only) ──────────────────────────── */}
+      {/* ── Sidebar (threads, desktop only) ─────────────────── */}
       <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-surface-900/50">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <p className="text-xs font-semibold text-muted-foreground">Conversas</p>
           <button
-            onClick={() => { setActiveThreadId(null); setMessages([]); setActions([]); }}
+            onClick={() => { setActiveThreadId(null); setMessages([]); setActions([]); setActionStatuses({}); }}
             className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
             title="Nova conversa"
           >
@@ -148,17 +386,23 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-          {threads.length === 0 && <p className="text-xs text-muted-foreground px-1">Sem conversas ainda</p>}
+          {threads.length === 0 && (
+            <p className="text-xs text-muted-foreground px-1">Sem conversas ainda</p>
+          )}
           {threads.map((t) => (
             <div
               key={t.id}
               className={`group relative rounded-lg border text-xs transition-colors ${
-                t.id === activeThreadId ? "border-gold-500/40 bg-gold-500/10" : "border-border hover:border-gold-500/20"
+                t.id === activeThreadId
+                  ? "border-gold-500/40 bg-gold-500/10"
+                  : "border-border hover:border-gold-500/20"
               }`}
             >
               <button onClick={() => loadThread(t.id)} className="w-full text-left px-3 py-2 pr-7">
                 <p className="font-medium text-foreground truncate">{t.title || "Sem título"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(t.lastMessageAt).toLocaleDateString("pt-BR")}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {new Date(t.lastMessageAt).toLocaleDateString("pt-BR")}
+                </p>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }}
@@ -171,187 +415,139 @@ export default function CopilotClient({ initialThreads, initialMessages, initial
         </div>
       </aside>
 
-      {/* ── Main area ───────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+      {/* ── Chat column ──────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 overflow-hidden">
 
-        {/* ── Chat column ─────────────────────────────────── */}
-        <div className="flex flex-col flex-1 overflow-hidden">
-
-          {/* Messages — scrolls internally */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {activeMessages.length === 0 && !loading && (
-              <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-12">
-                <div className="rounded-full bg-gold-500/10 border border-gold-500/20 p-4">
-                  <Sparkles className="h-7 w-7 text-gold-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Copilot da Barbearia</p>
-                  <p className="text-xs text-muted-foreground mt-1">Toque em uma sugestão ou escreva sua pergunta</p>
-                </div>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {activeMessages.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-12">
+              <div className="rounded-full bg-gold-500/10 border border-gold-500/20 p-4">
+                <Sparkles className="h-7 w-7 text-gold-400" />
               </div>
-            )}
+              <div>
+                <p className="text-sm font-semibold text-foreground">Copilot da Barbearia</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Toque em uma sugestão ou escreva sua pergunta
+                </p>
+              </div>
+            </div>
+          )}
 
-            {activeMessages.map((m) => (
+          {activeMessages.map((m, idx) => {
+            const isLastAssistant = idx === lastAssistantIdx;
+            const hasActions      = isLastAssistant && actions.length > 0;
+
+            return (
               <div key={m.id} className={`flex ${m.role === "USER" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
-                  m.role === "USER"
-                    ? "bg-gold-500/15 border border-gold-500/25 rounded-br-sm"
-                    : "bg-surface-800 border border-border rounded-bl-sm"
-                }`}>
+                <div
+                  className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm ${
+                    m.role === "USER"
+                      ? "bg-gold-500/15 border border-gold-500/25 rounded-br-sm"
+                      : "bg-surface-800 border border-border rounded-bl-sm"
+                  }`}
+                >
                   <p className="text-[10px] font-semibold text-muted-foreground mb-1">
                     {m.role === "USER" ? "Você" : "Copilot"}
                   </p>
-                  <p className="text-foreground/90 leading-relaxed">{m.content}</p>
+                  <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap">
+                    {m.content}
+                  </p>
+
+                  {/* ── Inline action cards ──────────────────── */}
+                  {hasActions && (
+                    <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1.5 mb-1">
+                        <Sparkles className="h-3 w-3 text-gold-400" />
+                        Ações sugeridas
+                        {actions.filter((a) => (actionStatuses[a.id] ?? "pending") === "pending").length > 0 && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-0.5">
+                            {actions.filter((a) => (actionStatuses[a.id] ?? "pending") === "pending").length}
+                          </Badge>
+                        )}
+                      </p>
+                      {actions.map((action) => (
+                        <ActionCard
+                          key={action.id}
+                          action={action}
+                          localStatus={actionStatuses[action.id] ?? "pending"}
+                          onApprove={() => updateAction(action.id, "approve")}
+                          onDismiss={() => updateAction(action.id, "dismiss")}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+            );
+          })}
 
-            {/* Loading bubble */}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-surface-800 border border-border rounded-2xl rounded-bl-sm px-4 py-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:300ms]" />
-                  </div>
+          {/* Loading bubble */}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-surface-800 border border-border rounded-2xl rounded-bl-sm px-4 py-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:300ms]" />
                 </div>
               </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Suggestion chips — horizontal scroll */}
-          <div className="px-4 pb-2">
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x">
-              {QUICK_QUESTIONS.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => sendMessage(q)}
-                  disabled={loading}
-                  className="shrink-0 snap-start rounded-full border border-gold-500/30 bg-gold-500/8 px-3 py-1.5 text-xs text-gold-400 hover:bg-gold-500/20 transition-colors disabled:opacity-40 whitespace-nowrap"
-                >
-                  {q}
-                </button>
-              ))}
             </div>
-          </div>
+          )}
 
-          {/* Input bar — fixed at bottom of chat column */}
-          <div className="px-4 pb-4 pt-1">
-            <div className="flex items-end gap-2 rounded-xl border border-border bg-surface-900 px-3 py-2 focus-within:border-gold-500/40 focus-within:ring-1 focus-within:ring-gold-500/20 transition-all">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder="Pergunte qualquer coisa..."
-                rows={1}
-                className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none max-h-[120px] leading-relaxed py-0.5"
-                disabled={loading}
-              />
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Suggestion chips */}
+        <div className="px-4 pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x">
+            {QUICK_QUESTIONS.map((q) => (
               <button
-                onClick={() => sendMessage()}
-                disabled={loading || !input.trim()}
-                className="shrink-0 rounded-lg bg-gold-500 p-2 text-black transition-all hover:bg-gold-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                key={q}
+                onClick={() => sendMessage(q)}
+                disabled={loading}
+                className="shrink-0 snap-start rounded-full border border-gold-500/30 bg-gold-500/8 px-3 py-1.5 text-xs text-gold-400 hover:bg-gold-500/20 transition-colors disabled:opacity-40 whitespace-nowrap"
               >
-                {loading
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <Send className="h-4 w-4" />}
+                {q}
               </button>
-            </div>
-            <p className="text-[10px] text-muted-foreground text-center mt-1.5">Enter envia · Shift+Enter nova linha</p>
+            ))}
           </div>
         </div>
 
-        {/* ── Actions column ───────────────────────────────── */}
-        {/* Mobile: horizontal swipeable strip above input (rendered before input col) */}
-        {/* Desktop: vertical column on the right */}
-        {actions.length > 0 && (
-          <div className="md:w-72 md:shrink-0 md:border-l md:border-border md:overflow-y-auto">
-
-            {/* Mobile: horizontal scroll strip */}
-            <div className="md:hidden px-4 pb-3">
-              <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-gold-400" />
-                Ações sugeridas
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{actions.length}</Badge>
-              </p>
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x">
-                {actions.map((a) => (
-                  <div key={a.id} className="shrink-0 snap-start w-72 rounded-xl border border-border bg-card p-3 space-y-2">
-                    <p className="text-xs font-semibold text-foreground leading-snug">{a.title}</p>
-                    {a.description && (
-                      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">{a.description}</p>
-                    )}
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <Button size="sm" className="h-8 text-xs gap-1" onClick={() => updateAction(a.id, "approve")}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Aprovar
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40" onClick={() => updateAction(a.id, "dismiss")}>
-                        <Trash2 className="h-3.5 w-3.5" /> Excluir
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Desktop: vertical list */}
-            <div className="hidden md:block p-4 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-gold-400" />
-                Ações sugeridas
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto">{actions.length}</Badge>
-              </p>
-              {actions.map((a) => {
-                const isExpanded = expandedActions.has(a.id);
-                const isLong     = (a.description?.length ?? 0) > 120;
-                return (
-                  <div key={a.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
-                    <p className="text-xs font-semibold text-foreground leading-snug">{a.title}</p>
-                    {a.description && (
-                      <div>
-                        <p className={`text-[11px] text-muted-foreground leading-relaxed ${isExpanded ? "" : "line-clamp-3"}`}>
-                          {a.description}
-                        </p>
-                        {isLong && (
-                          <button
-                            type="button"
-                            onClick={() => toggleActionExpand(a.id)}
-                            className="flex items-center gap-0.5 text-[10px] text-gold-400 hover:text-gold-300 mt-0.5"
-                          >
-                            {isExpanded ? <><ChevronUp className="h-3 w-3" />Ver menos</> : <><ChevronDown className="h-3 w-3" />Ver mais</>}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2 pt-0.5">
-                      <Button size="sm" className="h-8 text-xs gap-1" onClick={() => updateAction(a.id, "approve")}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Aprovar
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40" onClick={() => updateAction(a.id, "dismiss")}>
-                        <Trash2 className="h-3.5 w-3.5" /> Excluir
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        {/* Input bar */}
+        <div className="px-4 pb-4 pt-1">
+          <div className="flex items-end gap-2 rounded-xl border border-border bg-surface-900 px-3 py-2 focus-within:border-gold-500/40 focus-within:ring-1 focus-within:ring-gold-500/20 transition-all">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+              }}
+              placeholder="Pergunte qualquer coisa..."
+              rows={1}
+              className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none max-h-[120px] leading-relaxed py-0.5"
+              disabled={loading}
+            />
+            <button
+              onClick={() => sendMessage()}
+              disabled={loading || !input.trim()}
+              className="shrink-0 rounded-lg bg-gold-500 p-2 text-black transition-all hover:bg-gold-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Send className="h-4 w-4" />}
+            </button>
           </div>
-        )}
+          <p className="text-[10px] text-muted-foreground text-center mt-1.5">
+            Enter envia · Shift+Enter nova linha
+          </p>
+        </div>
       </div>
     </div>
   );
-}
-
-function badgeVariant(status: string): "default" | "success" | "warning" | "secondary" | "outline" {
-  switch (status) {
-    case "APPROVED":  return "success";
-    case "EXECUTED":  return "default";
-    case "DISMISSED": return "secondary";
-    case "EDITED":    return "warning";
-    default:          return "outline";
-  }
 }

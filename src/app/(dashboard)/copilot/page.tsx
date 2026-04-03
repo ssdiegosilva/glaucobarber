@@ -58,6 +58,7 @@ export default async function CopilotPage() {
     description: a.description,
     type: a.type,
     status: a.status,
+    payload: (a.payload ?? null) as Record<string, unknown> | null,
     createdAt: a.createdAt.toISOString(),
   }));
 

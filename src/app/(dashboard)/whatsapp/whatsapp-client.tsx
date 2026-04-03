@@ -550,7 +550,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
   }, []);
 
   return (
-    <div className="flex-1 px-3 py-3 sm:px-6 sm:py-5 space-y-3 overflow-y-auto">
+    <div className="px-3 py-3 sm:px-6 sm:py-5 space-y-3">
 
       {/* Tab bar + compose button */}
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
