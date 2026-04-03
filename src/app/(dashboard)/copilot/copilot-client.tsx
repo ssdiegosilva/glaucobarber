@@ -40,8 +40,19 @@ type ActionItem = {
 type ActionStatus = "pending" | "approved" | "dismissed";
 
 const WHATSAPP_ACTION_TYPES = new Set([
-  "reactivation_promo", "post_sale_followup", "post_sale_review", "agenda_conflict",
+  "reactivation_promo", "agenda_conflict",
 ]);
+
+// Types that just navigate somewhere — no "Aprovar" needed
+const LINK_ONLY_ACTIONS: Record<string, { label: string; href: string }> = {
+  define_goal:        { label: "Ir para Metas",    href: "/meta" },
+  campaign:           { label: "Ver Campanhas",     href: "/campaigns" },
+  agenda:             { label: "Ver Agenda",         href: "/agenda" },
+  crm:                { label: "Ver Clientes",       href: "/clients" },
+  pricing:            { label: "Ver Serviços",       href: "/services" },
+  post_sale_followup: { label: "Ver Pós-venda",     href: "/post-sale" },
+  post_sale_review:   { label: "Ver Pós-venda",     href: "/post-sale" },
+};
 
 function deriveStatuses(actions: ActionItem[]): Record<string, ActionStatus> {
   const out: Record<string, ActionStatus> = {};
@@ -124,17 +135,10 @@ function getActionLinks(
     }
     return [];
   }
-  if (type === "post_sale_followup" || type === "post_sale_review") {
-    return [{ label: "Ver pós-venda", href: "/post-sale" }];
-  }
-  switch (type) {
-    case "campaign":    return [{ label: "Ver campanhas", href: "/campaigns" }];
-    case "define_goal": return [{ label: "Definir meta",  href: "/meta" }];
-    case "agenda":      return [{ label: "Ver agenda",    href: "/agenda" }];
-    case "crm":         return [{ label: "Ver clientes",  href: "/clients" }];
-    case "pricing":     return [{ label: "Ver serviços",  href: "/services" }];
-    default:            return [];
-  }
+  // Link-only types never reach "approved" state via button, so no post-approve links needed
+  const linkOnly = LINK_ONLY_ACTIONS[type];
+  if (linkOnly) return [{ label: linkOnly.label, href: linkOnly.href }];
+  return [];
 }
 
 function getPayloadPreview(
@@ -267,13 +271,13 @@ function ActionCard({
         </div>
       )}
 
-      {action.type === "define_goal" ? (
+      {LINK_ONLY_ACTIONS[action.type] ? (
         <div className="flex items-center gap-2 pt-0.5">
           <Link
-            href="/meta"
+            href={LINK_ONLY_ACTIONS[action.type].href}
             className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md bg-gold-500 hover:bg-gold-400 text-black text-xs font-medium transition-colors"
           >
-            <ExternalLink className="h-3.5 w-3.5" /> Ir para Metas
+            <ExternalLink className="h-3.5 w-3.5" /> {LINK_ONLY_ACTIONS[action.type].label}
           </Link>
           <Button
             size="sm"
@@ -284,6 +288,15 @@ function ActionCard({
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
+      ) : action.type === "motivational" ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 w-full text-xs gap-1"
+          onClick={onDismiss}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" /> Ok, entendi
+        </Button>
       ) : (
         <div className="grid grid-cols-2 gap-2 pt-0.5">
           <Button
