@@ -291,7 +291,14 @@ function AiWizard({
             className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => setStep("hours")}>← Voltar</Button>
-            <Button size="sm" onClick={suggest}>Gerar sugestão com IA</Button>
+            <Button
+              size="sm"
+              className="gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
+              onClick={suggest}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Gerar sugestão com IA
+            </Button>
           </div>
         </>
       )}

@@ -870,7 +870,12 @@ export function DashboardClient({
           </h2>
 
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={handleGenerate} disabled={generating}>
+            <Button
+              size="sm"
+              className="gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
+              onClick={handleGenerate}
+              disabled={generating}
+            >
               {generating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               Gerar novas
             </Button>

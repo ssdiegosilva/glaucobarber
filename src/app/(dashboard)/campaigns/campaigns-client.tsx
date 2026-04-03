@@ -202,8 +202,8 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
       <Card className="border-gold-500/20 bg-gradient-to-br from-surface-900 to-surface-800/60">
         <CardHeader className="pb-3">
           <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-gold-500/10 border border-gold-500/20 p-2 shrink-0">
-              <Wand2 className="h-4 w-4 text-gold-400" />
+            <div className="rounded-lg bg-purple-500/10 border border-purple-500/20 p-2 shrink-0">
+              <Wand2 className="h-4 w-4 text-purple-400" />
             </div>
             <div>
               <CardTitle className="text-sm text-foreground">Criar campanha com IA</CardTitle>
@@ -262,10 +262,10 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
               <Button
                 onClick={createCampaign}
                 disabled={!theme || !objective || loadingCreate}
-                className={`text-xs gap-2 text-black font-semibold transition-all duration-300 ${
+                className={`text-xs gap-2 font-semibold transition-all duration-300 ${
                   loadingCreate
-                    ? "bg-gold-500 cursor-wait btn-shimmer"
-                    : "bg-gold-500/90 hover:bg-gold-500"
+                    ? "bg-purple-600 cursor-wait text-white opacity-80"
+                    : "bg-purple-600 hover:bg-purple-500 text-white"
                 }`}
               >
                 {loadingCreate ? (
@@ -458,12 +458,13 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, avail
                               </Button>
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="h-8 text-[11px]"
+                                className="h-8 text-[11px] gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
                                 disabled={generatingImage === c.id}
                                 onClick={(e) => { e.stopPropagation(); generateImage(c.id, imagePrompt[c.id]); }}
                               >
-                                {generatingImage === c.id ? "Gerando..." : "Gerar nova"}
+                                {generatingImage === c.id
+                                  ? <><Sparkles className="h-3 w-3 animate-spin" />Gerando...</>
+                                  : <><Sparkles className="h-3 w-3" />Gerar com IA</>}
                               </Button>
                             </div>
                           </div>
