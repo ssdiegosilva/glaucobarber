@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { BarbershopCard } from "./barbershop-card";
-import { IntegrationsClient } from "../integrations/integrations-client";
+import { IntegrationsClient } from "./integrations-client";
 
 export default async function SettingsPage() {
   const session = await auth();
