@@ -133,12 +133,12 @@ export function BillingClient({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-5 max-w-2xl">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 max-w-2xl">
       {/* Current plan */}
-      <div className="rounded-xl border border-border/60 bg-surface-900 p-5 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="rounded-xl border border-border/60 bg-surface-900 p-4 md:p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plano atual</span>
               {isTrialing ? (
                 <Badge variant="outline" className="text-[11px] px-2 text-gold-400 border-gold-500/30">Trial</Badge>
@@ -165,7 +165,7 @@ export function BillingClient({
             )}
           </div>
           {stripeCustomerId && (
-            <Button variant="outline" size="sm" onClick={openPortal} disabled={loadingPortal}>
+            <Button variant="outline" size="sm" onClick={openPortal} disabled={loadingPortal} className="shrink-0">
               {loadingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               <span className="ml-1.5">Portal de cobrança</span>
             </Button>
@@ -218,7 +218,7 @@ export function BillingClient({
 
         {/* Upgrade CTAs — hidden when there's already a pending Stripe change */}
         {!cancelAtPeriodEnd && (planTier === "FREE" || isTrialing) && (
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <form action="/api/stripe/checkout" method="POST" className="flex-1">
               <input type="hidden" name="priceId" value={priceIdStart} />
               <Button type="submit" variant="outline" className="w-full" disabled={!priceIdStart}>
@@ -308,17 +308,17 @@ export function BillingClient({
 
       {/* Plan comparison */}
       <div className="rounded-xl border border-border/60 bg-surface-900 overflow-hidden">
-        <div className="px-5 py-4 border-b border-border/40">
+        <div className="px-4 md:px-5 py-4 border-b border-border/40">
           <p className="text-sm font-medium text-foreground">Comparativo de planos</p>
           <p className="text-xs text-muted-foreground mt-0.5">O que está incluso em cada plano</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[340px]">
             <thead>
               <tr className="border-b border-border/30">
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground w-44">Funcionalidade</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Funcionalidade</th>
                 {COMPARISON_TIERS.map((tier) => (
-                  <th key={tier} className="text-center px-4 py-3">
+                  <th key={tier} className="text-center px-3 py-3 w-16">
                     <Badge
                       variant="outline"
                       className={`text-[11px] ${TIER_STYLE[tier].badge} ${planTier === tier ? "ring-1 ring-offset-1 ring-current" : ""}`}
@@ -337,11 +337,11 @@ export function BillingClient({
                     key={f.key}
                     className={`border-b border-border/20 last:border-0 ${i % 2 === 0 ? "" : "bg-surface-800/20"}`}
                   >
-                    <td className="px-5 py-2.5 text-muted-foreground">{f.label}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{f.label}</td>
                     {COMPARISON_TIERS.map((tier) => {
                       const enabled = featureMatrix[f.key]?.[tier] ?? true;
                       return (
-                        <td key={tier} className="text-center px-4 py-2.5">
+                        <td key={tier} className="text-center px-3 py-2.5">
                           {enabled ? (
                             <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
                           ) : (
@@ -365,7 +365,7 @@ export function BillingClient({
             <span className="text-sm font-medium text-foreground">Taxa por atendimento</span>
           </div>
 
-          <div className="flex items-end justify-between">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-2xl font-bold text-foreground">{formatBRL(appointmentCents)}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
