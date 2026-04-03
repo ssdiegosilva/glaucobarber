@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const [messages, actions] = await Promise.all([
     prisma.copilotMessage.findMany({ where: { threadId }, orderBy: { createdAt: "asc" } }),
     prisma.action.findMany({
-      where: { barbershopId: session.user.barbershopId, status: { in: ["DRAFT", "APPROVED", "EDITED"] } },
+      where: { barbershopId: session.user.barbershopId, status: "DRAFT" },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),

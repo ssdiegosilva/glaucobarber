@@ -36,7 +36,7 @@ export default async function CopilotPage() {
           orderBy: { createdAt: "asc" },
         }),
         prisma.action.findMany({
-          where: { barbershopId: session.user.barbershopId, status: { in: ["DRAFT", "APPROVED", "EDITED"] } },
+          where: { barbershopId: session.user.barbershopId, status: "DRAFT" },
           orderBy: { createdAt: "desc" },
           take: 20,
         }),
