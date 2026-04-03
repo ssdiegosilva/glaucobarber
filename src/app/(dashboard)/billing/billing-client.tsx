@@ -49,6 +49,8 @@ interface Props {
   trialEndsAt:        string | null;
   currentPeriodEnd:   string | null;
   cancelAtPeriodEnd:  boolean;
+  priceIdStart:       string;
+  priceIdPro:         string;
 }
 
 function formatBRL(cents: number) {
@@ -89,6 +91,8 @@ export function BillingClient({
   trialEndsAt,
   currentPeriodEnd,
   cancelAtPeriodEnd,
+  priceIdStart,
+  priceIdPro,
 }: Props) {
   const [loadingCredits, setLoadingCredits] = useState(false);
   const [loadingPortal,  setLoadingPortal]  = useState(false);
@@ -216,12 +220,14 @@ export function BillingClient({
         {!cancelAtPeriodEnd && (planTier === "FREE" || isTrialing) && (
           <div className="flex gap-2 pt-2">
             <form action="/api/stripe/checkout" method="POST" className="flex-1">
-              <input type="hidden" name="priceId" value={process.env.NEXT_PUBLIC_STRIPE_PRICE_START ?? ""} />
-              <Button type="submit" variant="outline" className="w-full">Assinar Start — R$89/mês</Button>
+              <input type="hidden" name="priceId" value={priceIdStart} />
+              <Button type="submit" variant="outline" className="w-full" disabled={!priceIdStart}>
+                Assinar Start — R$89/mês
+              </Button>
             </form>
             <form action="/api/stripe/checkout" method="POST" className="flex-1">
-              <input type="hidden" name="priceId" value={process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO ?? ""} />
-              <Button type="submit" className="w-full gap-1">
+              <input type="hidden" name="priceId" value={priceIdPro} />
+              <Button type="submit" className="w-full gap-1" disabled={!priceIdPro}>
                 <Sparkles className="h-4 w-4" />
                 Assinar Pro — R$149/mês
               </Button>
@@ -230,8 +236,8 @@ export function BillingClient({
         )}
         {!cancelAtPeriodEnd && planTier === "STARTER" && !isTrialing && (
           <form action="/api/stripe/checkout" method="POST">
-            <input type="hidden" name="priceId" value={process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO ?? ""} />
-            <Button type="submit" className="w-full gap-1">
+            <input type="hidden" name="priceId" value={priceIdPro} />
+            <Button type="submit" className="w-full gap-1" disabled={!priceIdPro}>
               <Sparkles className="h-4 w-4" />
               Fazer upgrade para Pro — R$149/mês base
             </Button>
