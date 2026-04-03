@@ -808,12 +808,13 @@ model WhatsappMessage {
 model WhatsappTemplate {
   id           String  @id @default(cuid())
   barbershopId String
-  metaName     String  // exact name in Meta Business Manager (e.g. "review_request")
+  metaName     String  // exact name in Meta Business Manager (e.g. "review_request"); for "text" kind, auto-generated slug
   label        String  // human-readable label (e.g. "Pedir avaliação Google")
-  body         String  // body text with {{1}}, {{2}} for preview in UI
-  // JSON array: [{key,label,defaultValue}] e.g. [{"key":"nome","label":"Nome do cliente","defaultValue":""}]
+  body         String  // body text with {{1}}, {{2}} for "meta"; {{name}} for "text"
+  // JSON array: [{key,label,defaultValue}] — used for "meta" kind variables
   variables    String  @default("[]")
   active       Boolean @default(true)
+  kind         String  @default("meta") // "meta" = bot/HSM (requires Meta approval), "text" = manual compose
 
   barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
 

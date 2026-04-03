@@ -18,7 +18,7 @@ const PLAN_INFO: Record<PlanTier, { label: string; color: string; badgeClass: st
 const PLAN_PRICE: Record<PlanTier, string> = {
   FREE:       "Grátis",
   STARTER:    "R$89/mês",
-  PRO:        "R$149/mês + R$1,50/atendimento",
+  PRO:        "R$149/mês + R$1,00/atendimento",
   ENTERPRISE: "Personalizado",
 };
 
