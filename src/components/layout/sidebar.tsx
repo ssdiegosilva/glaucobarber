@@ -10,7 +10,6 @@ import {
   Scissors,
   Tag,
   Megaphone,
-  Plug,
   Settings,
   Sparkles,
   LogOut,
@@ -37,7 +36,6 @@ export const NAV = [
   { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
   { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },
   { href: "/post-sale",    label: "Pós-venda",   icon: HeartHandshake },
-  { href: "/integrations", label: "Integrações", icon: Plug },
   { href: "/settings",     label: "Configurações",icon: Settings },
   { href: "/billing",      label: "Plano",        icon: CreditCard },
 ];

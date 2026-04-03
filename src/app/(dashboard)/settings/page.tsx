@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { BarbershopCard } from "./barbershop-card";
-import { IntegrationsCard } from "./integrations-card";
+import { IntegrationsClient } from "../integrations/integrations-client";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -11,9 +11,22 @@ export default async function SettingsPage() {
 
   const barbershopId = session.user.barbershopId;
 
-  const [barbershop, integration] = await Promise.all([
+  const [barbershop, integration, syncRuns] = await Promise.all([
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
-    prisma.integration.findUnique({ where: { barbershopId } }),
+    prisma.integration.findUnique({
+      where:  { barbershopId },
+      select: { status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true },
+    }),
+    prisma.syncRun.findMany({
+      where:   { barbershopId },
+      orderBy: { startedAt: "desc" },
+      take:    10,
+      select: {
+        id: true, status: true, triggeredBy: true,
+        customersUpserted: true, servicesUpserted: true, appointmentsUpserted: true,
+        errorsCount: true, durationMs: true, startedAt: true,
+      },
+    }),
   ]);
 
   return (
@@ -21,39 +34,41 @@ export default async function SettingsPage() {
       <Header title="Configurações" userName={session.user.name} />
 
       <div className="p-6 space-y-6 max-w-3xl">
-        {/* Barbershop info */}
         {barbershop && (
           <BarbershopCard
             barbershop={{
-              id: barbershop.id,
-              name: barbershop.name,
-              email: barbershop.email,
-              phone: barbershop.phone,
-              city: barbershop.city,
-              state: barbershop.state,
-              address: barbershop.address,
-              websiteUrl: barbershop.websiteUrl,
+              id:          barbershop.id,
+              name:        barbershop.name,
+              email:       barbershop.email,
+              phone:       barbershop.phone,
+              city:        barbershop.city,
+              state:       barbershop.state,
+              address:     barbershop.address,
+              websiteUrl:  barbershop.websiteUrl,
               description: barbershop.description,
-              slug: barbershop.slug,
-              logoUrl: barbershop.logoUrl,
+              slug:        barbershop.slug,
+              logoUrl:     barbershop.logoUrl,
               instagramUrl: barbershop.instagramUrl,
             }}
           />
         )}
 
-        {/* Integrations */}
-        <IntegrationsCard
-          trinks={{
-            connected: !!integration?.configJson && barbershop?.trinksConfigured === true,
-          }}
-          instagram={{
-            connected: !!integration?.instagramPageAccessToken,
-            username:  integration?.instagramUsername ?? null,
-          }}
-          whatsapp={{
-            connected:     !!integration?.whatsappAccessToken,
-            phoneNumberId: integration?.whatsappPhoneNumberId ?? null,
-          }}
+        <IntegrationsClient
+          integration={integration ? {
+            status:              integration.status,
+            lastSyncAt:          integration.lastSyncAt?.toISOString() ?? null,
+            errorMsg:            integration.errorMsg,
+            configured:          !!integration.configJson,
+            instagramBusinessId: integration.instagramBusinessId,
+            instagramUsername:   integration.instagramUsername,
+            whatsappConfigured:  !!(integration.whatsappAccessToken && integration.whatsappPhoneNumberId),
+            whatsappVerifyToken: integration.whatsappVerifyToken,
+          } : null}
+          barbershopId={barbershopId}
+          syncRuns={syncRuns.map((r) => ({
+            ...r,
+            startedAt: r.startedAt.toISOString(),
+          }))}
         />
       </div>
     </div>
