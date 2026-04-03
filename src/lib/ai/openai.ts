@@ -78,7 +78,7 @@ export class OpenAIProvider implements AIProvider {
 
   async generateCampaignImage(input: { prompt: string; styleHint?: string; referenceImageUrl?: string }): Promise<{ url: string }> {
     const prompt = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
-    const configuredModel = process.env.IMAGE_MODEL ?? "gpt-image-1";
+    const configuredModel = process.env.IMAGE_MODEL ?? "dall-e-3";
 
     let imageBase64: string | undefined;
     if (input.referenceImageUrl) {

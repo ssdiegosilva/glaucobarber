@@ -77,10 +77,11 @@ export async function getPlan(barbershopId: string): Promise<PlanInfo> {
   }
 
   // During trial, effective tier = PRO (full feature access)
-  const effectiveTier: PlanTier = sub.status === "TRIALING" ? "PRO" : sub.planTier;
+  const safeTier: PlanTier      = (sub.planTier in PLAN_LIMITS ? sub.planTier : "FREE") as PlanTier;
+  const effectiveTier: PlanTier = sub.status === "TRIALING" ? "PRO" : safeTier;
 
   return {
-    tier:              sub.planTier,
+    tier:              safeTier,
     effectiveTier,
     status:            sub.status,
     aiCreditBalance:   sub.aiCreditBalance,
