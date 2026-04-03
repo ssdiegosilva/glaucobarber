@@ -162,14 +162,14 @@ export default function CriarVisualClient() {
               />
             </div>
           ) : (
-            <div className="flex items-start gap-6">
-              <div className="relative shrink-0">
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="relative shrink-0 self-center sm:self-start">
                 <Image
                   src={photoPreview}
                   alt="Foto do cliente"
                   width={200}
                   height={200}
-                  className="rounded-xl object-cover w-48 h-48 border border-border"
+                  className="rounded-xl object-cover w-32 h-32 sm:w-48 sm:h-48 border border-border"
                 />
                 <button
                   onClick={clearPhoto}
@@ -179,10 +179,10 @@ export default function CriarVisualClient() {
                 </button>
               </div>
 
-              <div className="flex flex-col gap-3 justify-center pt-2">
+              <div className="flex flex-col gap-3 w-full sm:w-auto sm:justify-center sm:pt-2">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-foreground font-medium">{photo?.name}</span>
+                  <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm text-foreground font-medium truncate">{photo?.name}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {photo ? (photo.size / 1024).toFixed(0) + " KB" : ""}
@@ -191,7 +191,7 @@ export default function CriarVisualClient() {
                 <button
                   onClick={analyze}
                   disabled={loading}
-                  className="flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full sm:w-auto"
                 >
                   <Wand2 className="h-4 w-4" />
                   {loading ? "Analisando..." : "Analisar e Sugerir Corte"}
@@ -199,7 +199,7 @@ export default function CriarVisualClient() {
 
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors w-full sm:w-auto"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                   Trocar foto
@@ -284,10 +284,10 @@ export default function CriarVisualClient() {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={downloadImage}
-                className="flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-gold-400 transition-colors"
+                className="flex items-center justify-center gap-2 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-gold-400 transition-colors"
               >
                 <Download className="h-4 w-4" />
                 Baixar imagem
@@ -295,14 +295,14 @@ export default function CriarVisualClient() {
               <button
                 onClick={analyze}
                 disabled={loading}
-                className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-700 disabled:opacity-50 transition-colors"
+                className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-700 disabled:opacity-50 transition-colors"
               >
                 <RefreshCw className="h-4 w-4" />
                 Gerar novamente
               </button>
               <button
                 onClick={clearPhoto}
-                className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
+                className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
               >
                 <Upload className="h-4 w-4" />
                 Nova foto
