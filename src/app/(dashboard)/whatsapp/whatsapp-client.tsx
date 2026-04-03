@@ -365,10 +365,11 @@ type TargetCustomer = { id: string; name: string; phone: string | null; lastAppo
 type ActiveTemplate  = { id: string; metaName: string; label: string; body: string; variables: string };
 
 const FILTER_OPTIONS = [
-  { key: "post_sale",    label: "Recém-atendidos",   desc: "Atendidos nos últimos 14 dias" },
-  { key: "inactive_30",  label: "Inativos 30 dias",  desc: "Sem visita há 30 dias ou mais" },
-  { key: "inactive_60",  label: "Inativos 60 dias",  desc: "Sem visita há 60 dias ou mais" },
-  { key: "all",          label: "Todos os clientes", desc: "Com telefone cadastrado" },
+  { key: "post_sale",    label: "Recém-atendidos", desc: "Atendidos recentemente" },
+  { key: "em_risco",     label: "Em risco",        desc: "Podem ficar inativos" },
+  { key: "inactive",     label: "Inativos",        desc: "Sem visita há mais de 60 dias" },
+  { key: "reactivated",  label: "Reativados",      desc: "Voltaram recentemente" },
+  { key: "all",          label: "Todos",           desc: "Com telefone cadastrado" },
 ] as const;
 
 function BotMessageModal({ onClose, onScheduled, hasTemplates }: { onClose: () => void; onScheduled: (count: number) => void; hasTemplates: boolean }) {
