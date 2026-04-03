@@ -144,6 +144,23 @@ export class OpenAIProvider implements AIProvider {
       return { answer: "Não consegui gerar uma resposta agora.", actions: [], requireApproval: true };
     }
   }
+
+  async improveBrandStyle(rawStyle: string): Promise<string> {
+    const completion = await this.client.chat.completions.create({
+      model: MODEL,
+      max_tokens: 200,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é um diretor de arte especializado em marcas premium masculinas. Expanda a descrição visual da barbearia em uma descrição rica e técnica de identidade visual, ideal para prompts de geração de imagem com IA (DALL-E). Máximo 300 caracteres. Seja específico: mencione paleta de cores, elementos visuais, mood, iluminação, tipografia. Retorne apenas a descrição, sem explicações.",
+        },
+        { role: "user", content: rawStyle },
+      ],
+    });
+
+    return (completion.choices[0]?.message?.content ?? rawStyle).trim().slice(0, 300);
+  }
 }
 
 function buildSuggestionsPrompt(ctx: AISuggestionRequest): string {
