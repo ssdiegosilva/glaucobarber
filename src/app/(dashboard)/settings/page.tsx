@@ -50,6 +50,7 @@ export default async function SettingsPage() {
               slug:        barbershop.slug,
               logoUrl:     barbershop.logoUrl,
               instagramUrl: barbershop.instagramUrl,
+              brandStyle:   barbershop.brandStyle,
             }}
           />
         )}

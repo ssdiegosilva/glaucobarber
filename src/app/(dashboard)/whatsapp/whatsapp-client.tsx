@@ -82,7 +82,6 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
   const [name,         setName]         = useState("");
   const [phone,        setPhone]        = useState("");
   const [text,         setText]         = useState("");
-  const [scheduledFor, setScheduledFor] = useState("");
   const [sending,      setSending]      = useState(false);
   const [error,        setError]        = useState("");
   const [query,        setQuery]        = useState("");
@@ -99,7 +98,6 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef   = useRef<HTMLDivElement>(null);
-  const todayStr = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -148,33 +146,39 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
     setShowDropdown(false);
   }
 
+  function substituteTemplateName(body: string, clientName: string): string {
+    return body
+      .replace(/\{\{name\}\}/gi,    clientName)
+      .replace(/\{\{cliente\}\}/gi, clientName)
+      .replace(/\{\{1\}\}/g,        clientName);
+  }
+
   async function applyTemplate(tpl: TextTemplate) {
-    if (name.trim()) {
-      // Cliente selecionado → IA personaliza
+    const clientName = name.trim();
+    if (clientName) {
+      // Substituição imediata primeiro
+      const substituted = substituteTemplateName(tpl.body, clientName);
+      setText(substituted);
+      setMode("write");
+      // Tenta enriquecer via IA em background
       setPersonalizing(tpl.id);
       try {
         const res = await fetch("/api/whatsapp/messages/personalize", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ templateBody: tpl.body, customerName: name.trim() }),
+          body:    JSON.stringify({ templateBody: tpl.body, customerName: clientName }),
         });
         const data = await res.json();
-        if (res.ok) {
-          setText(data.message);
-        } else {
-          // Fallback: substituição simples
-          setText(tpl.body.replace(/\{\{name\}\}/gi, name.trim()));
-        }
+        if (res.ok && data.message) setText(data.message);
       } catch {
-        setText(tpl.body.replace(/\{\{name\}\}/gi, name.trim()));
+        // já temos a substituição simples, não faz nada
       } finally {
         setPersonalizing(null);
       }
     } else {
-      // Sem cliente → insere com {{name}} para edição manual
       setText(tpl.body);
+      setMode("write");
     }
-    setMode("write");
   }
 
   async function send() {
@@ -182,6 +186,12 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
     setSending(true);
     setError("");
     try {
+      // Abre WhatsApp com a mensagem pré-preenchida
+      const clean   = phone.trim().replace(/\D/g, "");
+      const waPhone = clean.startsWith("55") ? clean : `55${clean}`;
+      window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text.trim())}`, "_blank");
+
+      // Registra como enviado manualmente no sistema
       const res = await fetch("/api/whatsapp/messages", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -192,7 +202,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
           message:      text.trim(),
           type:         "general",
           messageKind:  "text",
-          scheduledFor: scheduledFor || undefined,
+          sentManually: true,
         }),
       });
       if (!res.ok) throw new Error();
@@ -200,7 +210,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
       onSent(data.message);
       onClose();
     } catch {
-      setError("Erro ao enviar mensagem.");
+      setError("Erro ao registrar mensagem.");
     } finally {
       setSending(false);
     }
@@ -334,23 +344,14 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
             </div>
           )}
 
-          {/* Schedule */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Agendar para (opcional)</label>
-            <input type="date" value={scheduledFor} min={todayStr} onChange={(e) => setScheduledFor(e.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
         </div>
 
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
-          Mensagens de texto só funcionam dentro da janela de 24h de conversa ativa.
-        </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={sending}>Cancelar</Button>
           <Button className="flex-1 gap-2" onClick={send} disabled={sending || !name || !phone || !text}>
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {scheduledFor ? "Agendar" : "Enviar agora"}
+            Enviar agora
           </Button>
         </div>
       </div>
@@ -389,9 +390,14 @@ function BotMessageModal({ onClose, onScheduled, hasTemplates }: { onClose: () =
   useEffect(() => {
     setLoadingCustomers(true);
     setSelectedIds(new Set());
+    setError("");
     fetch(`/api/whatsapp/message-targets?filter=${filter}`)
       .then((r) => r.json())
-      .then((d) => setCustomers(d.customers ?? []))
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setCustomers(d.customers ?? []);
+      })
+      .catch((e) => setError(String(e)))
       .finally(() => setLoadingCustomers(false));
   }, [filter]);
 

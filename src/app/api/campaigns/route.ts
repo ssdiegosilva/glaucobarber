@@ -43,14 +43,37 @@ export async function POST(req: NextRequest) {
 
   // Gera arte imediatamente para reduzir atrito
   try {
-    const barbershop = await prisma.barbershop.findUnique({ where: { id: session.user.barbershopId } });
-    const prompt = `Crie uma arte quadrada (1080x1080) para Instagram de uma barbearia premium.
-- Marca: ${barbershop?.name ?? "Barbearia"}
-- Tema: ${theme}
-- Objetivo: ${objective}
-- Texto base: ${campaign.text}
-- Briefing: ${campaign.artBriefing || "estilo elegante, premium"}
-Use cores e estética premium, legível e moderna.`;
+    const barbershop = await prisma.barbershop.findUnique({ where: { id: session.user.barbershopId }, select: { name: true, brandStyle: true } });
+
+    const brandStyleBlock = barbershop?.brandStyle
+      ? `Brand style: ${barbershop.brandStyle}`
+      : `Brand style: premium barbershop aesthetic — black background, gold metallic accents, elegant contrast, cinematic lighting, masculine and sophisticated`;
+
+    const prompt = `
+Create a premium square marketing image (1080x1080) for a barbershop brand called "${barbershop?.name ?? "Barbearia"}".
+
+Goal: ${objective || "Promote the barbershop services"}
+
+${brandStyleBlock}
+
+Visual direction:
+- strong centered composition
+- luxury badge or emblem feel
+- subtle glow effects
+- visually striking focal point
+- modern technology blended with barber identity
+- possible elements: barber razors, mustache symbol, premium frame, elegant typography
+
+Campaign theme: ${theme}
+Art briefing: ${campaign.artBriefing || "elegant premium design, high contrast"}
+
+Important:
+- do not make it cartoonish or generic
+- do not use cheap promotional aesthetics
+- keep the design premium, polished, and brandable
+- high contrast, glow, symmetry, and iconic elements
+- output must be suitable for a premium social media campaign
+`.trim();
 
     const img = await provider.generateCampaignImage({ prompt });
     const stored = await uploadCampaignImageFromUrl({

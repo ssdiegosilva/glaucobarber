@@ -66,7 +66,7 @@ export class OpenAIProvider implements AIProvider {
         },
         {
           role: "user",
-          content: `Crie um texto de campanha e briefing de arte.\nObjetivo: ${objective}\nContexto: ${context}\n\nRetorne JSON: { "text": "copy da campanha (máx 280 chars)", "artBriefing": "instruções para arte (máx 200 chars)" }`,
+          content: `Crie um texto de campanha e briefing de arte visual para barbearia premium.\nObjetivo: ${objective}\nContexto: ${context}\n\nRetorne JSON:\n{\n  "text": "copy da campanha para Instagram (máx 280 chars)",\n  "artBriefing": "direção de arte específica: descreva composição, símbolos concretos (ex: navalha dourada, bigode, coroa), mood lighting, estilo tipográfico, cores predominantes (máx 200 chars). Evite generalidades."\n}\n\nO artBriefing deve conter elementos visuais concretos que um gerador de imagem possa usar diretamente.`,
         },
       ],
     });

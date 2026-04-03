@@ -12,7 +12,7 @@ function normalizeSlug(input: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-const allowedFields = ["name", "email", "phone", "address", "city", "state", "websiteUrl", "description", "slug", "logoUrl", "instagramUrl"] as const;
+const allowedFields = ["name", "email", "phone", "address", "city", "state", "websiteUrl", "description", "slug", "logoUrl", "instagramUrl", "brandStyle"] as const;
 
 type BarbershopUpdate = Partial<Record<(typeof allowedFields)[number], string>>;
 
