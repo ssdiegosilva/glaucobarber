@@ -3,36 +3,42 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { WhatsappClient } from "./whatsapp-client";
-import { startOfDay, endOfDay, subDays } from "date-fns";
+import { startOfDay } from "date-fns";
 
 export default async function WhatsappPage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
   const barbershopId = session.user.barbershopId;
-  const now = new Date();
+  const now     = new Date();
+  const todayStart = startOfDay(now);
+  const ago10  = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
 
-  const [todayMessages, queueMessages, historyMessages, scheduledMessages] = await Promise.all([
+  const [sentToday, queueMessages, failedToday, historyMessages] = await Promise.all([
+    // Enviadas hoje
     prisma.whatsappMessage.findMany({
-      where: { barbershopId, createdAt: { gte: startOfDay(now), lte: endOfDay(now) } },
-      orderBy: { createdAt: "desc" },
+      where: { barbershopId, status: "SENT", sentAt: { gte: todayStart } },
+      orderBy: { sentAt: "desc" },
     }),
+    // Na fila (queued + scheduled)
     prisma.whatsappMessage.findMany({
-      where: { barbershopId, status: "QUEUED", OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }] },
+      where: { barbershopId, status: "QUEUED" },
       orderBy: { createdAt: "asc" },
     }),
+    // Com falha hoje
     prisma.whatsappMessage.findMany({
-      where: { barbershopId, status: "SENT", sentAt: { gte: subDays(now, 30) } },
-      orderBy: { sentAt: "desc" },
-      take: 200,
+      where: { barbershopId, status: "FAILED", createdAt: { gte: todayStart } },
+      orderBy: { createdAt: "desc" },
     }),
+    // Histórico: SENT dos últimos 10 dias (excluindo hoje)
     prisma.whatsappMessage.findMany({
-      where: { barbershopId, status: "QUEUED", scheduledFor: { gt: now } },
-      orderBy: { scheduledFor: "asc" },
+      where: { barbershopId, status: "SENT", sentAt: { gte: ago10, lt: todayStart } },
+      orderBy: { sentAt: "desc" },
+      take: 300,
     }),
   ]);
 
-  const serialize = (m: typeof todayMessages[0]) => ({
+  const serialize = (m: typeof sentToday[0]) => ({
     id:            m.id,
     customerId:    m.customerId ?? null,
     customerName:  m.customerName,
@@ -45,6 +51,7 @@ export default async function WhatsappPage() {
     scheduledFor:  (m as any).scheduledFor ? new Date((m as any).scheduledFor).toISOString() : null,
     createdAt:     m.createdAt.toISOString(),
     metaMessageId: (m as any).metaMessageId ?? null,
+    errorMessage:  (m as any).errorMessage  ?? null,
   });
 
   return (
@@ -55,10 +62,10 @@ export default async function WhatsappPage() {
         userName={session.user.name}
       />
       <WhatsappClient
-        todayMessages={todayMessages.map(serialize)}
+        sentToday={sentToday.map(serialize)}
         queueMessages={queueMessages.map(serialize)}
+        failedToday={failedToday.map(serialize)}
         historyMessages={historyMessages.map(serialize)}
-        scheduledMessages={scheduledMessages.map(serialize)}
       />
     </div>
   );

@@ -62,11 +62,12 @@ export async function POST() {
       });
       results.push({ id: msg.id, ok: true });
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       await prisma.whatsappMessage.update({
         where: { id: msg.id },
-        data:  { status: "FAILED" },
+        data:  { status: "FAILED", errorMessage },
       });
-      results.push({ id: msg.id, ok: false, error: String(err) });
+      results.push({ id: msg.id, ok: false, error: errorMessage });
     }
   }
 

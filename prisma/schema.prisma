@@ -784,6 +784,7 @@ model WhatsappMessage {
   scheduledFor  DateTime?             // if set: send only after this date/time
   sentAt        DateTime?
   metaMessageId String?               // wamid retornado pela Meta API; usado para rastrear delivery status
+  errorMessage  String?               // motivo da falha de envio (capturado da API da Meta)
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id])

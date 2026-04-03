@@ -19,7 +19,7 @@ export const ALL_FEATURES = [
 
 export type FeatureKey = typeof ALL_FEATURES[number]["key"];
 
-export const PLAN_TIERS = ["FREE", "TRIAL", "STARTER", "PRO"] as const;
+export const PLAN_TIERS = ["TRIAL", "FREE", "STARTER", "PRO"] as const;
 export type PlanTierKey = typeof PLAN_TIERS[number];
 
 /**

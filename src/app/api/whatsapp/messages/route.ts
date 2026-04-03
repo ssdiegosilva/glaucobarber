@@ -82,11 +82,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: { ...msg, status: "SENT", metaMessageId } }, { status: 201 });
     } catch (err) {
       console.error("[WhatsApp] Falha ao enviar mensagem:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
       await prisma.whatsappMessage.update({
         where: { id: msg.id },
-        data:  { status: "FAILED" },
+        data:  { status: "FAILED", errorMessage },
       });
-      return NextResponse.json({ message: { ...msg, status: "FAILED" } }, { status: 201 });
+      return NextResponse.json({ message: { ...msg, status: "FAILED", errorMessage } }, { status: 201 });
     }
   }
 
