@@ -85,7 +85,7 @@ Responda EXCLUSIVAMENTE em JSON com este formato (sem markdown):
     const cleaned = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
     const parsed  = JSON.parse(cleaned);
 
-    await consumeAiCredit(session.user.barbershopId);
+    await consumeAiCredit(session.user.barbershopId, "price_recommend");
     return NextResponse.json({
       serviceId:       service.id,
       currentPrice:    Number(service.price),

@@ -132,8 +132,10 @@ model Barbershop {
   postSaleActions PostSaleAction[]
   customerReviews CustomerReview[]
   serviceOpportunities ServiceOpportunity[]
-  aiUsageMonths  AiUsageMonth[]
-  billingEvents  BillingEvent[]
+  aiUsageMonths       AiUsageMonth[]
+  billingEvents       BillingEvent[]
+  aiCallLogs          AiCallLog[]
+  systemNotifications SystemNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -961,6 +963,7 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 
+  @@index([barbershopId, createdAt])
   @@map("audit_logs")
 }
 
@@ -1032,4 +1035,54 @@ model PlanFeatureGate {
 
   @@unique([feature, planTier])
   @@map("plan_feature_gates")
+}
+
+// ============================================================
+// AI CALL LOG — individual call history per barbershop
+// Max 30 records per barbershop (enforced after each insert).
+// Cron also purges extras daily.
+// ============================================================
+
+model AiCallLog {
+  id           String @id @default(cuid())
+  barbershopId String
+  feature      String // e.g. "copilot_chat", "price_recommend", "campaign_image"
+  label        String // human-readable, stored at write time for stability
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([barbershopId, createdAt])
+  @@map("ai_call_logs")
+}
+
+// ============================================================
+// SYSTEM NOTIFICATIONS — bell icon alerts for barbershop owners
+// Auto-expire after 30 days (cron cleanup).
+// Max retained: driven by cron, no hard insert cap.
+// ============================================================
+
+enum NotificationType {
+  TRIAL_QUOTA_EXCEEDED
+  TRIAL_EXPIRED
+  PAYMENT_FAILED
+  PLAN_CHANGED
+  SYSTEM
+}
+
+model SystemNotification {
+  id           String           @id @default(cuid())
+  barbershopId String
+  type         NotificationType
+  title        String
+  body         String
+  dismissed    Boolean          @default(false)
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([barbershopId, dismissed, createdAt])
+  @@map("system_notifications")
 }

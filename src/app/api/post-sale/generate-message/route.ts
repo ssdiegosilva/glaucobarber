@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       messages:   [{ role: "user", content: prompt }],
     });
     const message = completion.choices[0]?.message?.content?.trim() ?? "";
-    await consumeAiCredit(session.user.barbershopId);
+    await consumeAiCredit(session.user.barbershopId, "post_sale");
     return NextResponse.json({ message });
   } catch {
     return NextResponse.json({ error: "Erro ao gerar mensagem" }, { status: 500 });

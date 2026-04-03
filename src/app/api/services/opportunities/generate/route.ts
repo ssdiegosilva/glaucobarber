@@ -103,7 +103,7 @@ Responda EXCLUSIVAMENTE em JSON sem markdown:
       )
     );
 
-    await consumeAiCredit(barbershopId);
+    await consumeAiCredit(barbershopId, "opportunities");
     return NextResponse.json({ opportunities: created });
   } catch (err) {
     console.error("[opportunities/generate]", err);

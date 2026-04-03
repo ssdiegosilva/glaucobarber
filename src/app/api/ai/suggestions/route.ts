@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         data:  { lastDailyGiftAt: new Date() },
       });
     } else {
-      await consumeAiCredit(barbershopId);
+      await consumeAiCredit(barbershopId, "ai_suggestion");
     }
 
     await prisma.auditLog.create({

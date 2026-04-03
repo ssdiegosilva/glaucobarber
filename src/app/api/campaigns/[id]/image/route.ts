@@ -40,7 +40,7 @@ Use cores e estética premium, legível e moderna.`;
     });
 
     await prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } });
-    await consumeAiCredit(session.user.barbershopId);
+    await consumeAiCredit(session.user.barbershopId, "campaign_image");
     return NextResponse.json({ url: stored.url });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

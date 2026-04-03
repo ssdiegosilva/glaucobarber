@@ -145,19 +145,59 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
   };
 }
 
+// ── Feature labels for AI call log ────────────────────────────────────────────
+
+export const AI_FEATURE_LABELS: Record<string, string> = {
+  copilot_chat:     "Chat com Copilot",
+  goals_suggest:    "Sugestão de Meta",
+  post_sale:        "Mensagem Pós-venda",
+  ai_suggestion:    "Sugestão do Copilot",
+  price_recommend:  "Recomendação de Preço",
+  opportunities:    "Oportunidades de Serviço",
+  campaign_image:   "Imagem de Campanha",
+};
+
+// Max AI call log entries kept per barbershop
+const AI_CALL_LOG_MAX = 30;
+
 // ── consumeAiCredit ────────────────────────────────────────────────────────────
 
-export async function consumeAiCredit(barbershopId: string): Promise<void> {
+export async function consumeAiCredit(barbershopId: string, feature: string): Promise<void> {
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
 
+  // Log this call (async, fire-and-forget style but awaited for safety)
+  await logAiCall(barbershopId, feature);
+
   // During trial: track against the 300-call safety cap under key "trialing"
   if (plan.status === "TRIALING") {
-    await prisma.aiUsageMonth.upsert({
+    const updated = await prisma.aiUsageMonth.upsert({
       where:  { barbershopId_yearMonth: { barbershopId, yearMonth: "trialing" } },
       create: { barbershopId, yearMonth: "trialing", usageCount: 1 },
       update: { usageCount: { increment: 1 } },
     });
+
+    // Crossed the limit on this call → migrate to FREE and notify
+    if (updated.usageCount >= TRIAL_AI_LIMIT) {
+      await prisma.platformSubscription.updateMany({
+        where: { barbershopId, status: "TRIALING" },
+        data:  { status: "ACTIVE", planTier: "FREE", currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) },
+      });
+      // Create notification (idempotent: only if none of this type exists yet)
+      const existing = await prisma.systemNotification.findFirst({
+        where: { barbershopId, type: "TRIAL_QUOTA_EXCEEDED", dismissed: false },
+      });
+      if (!existing) {
+        await prisma.systemNotification.create({
+          data: {
+            barbershopId,
+            type:  "TRIAL_QUOTA_EXCEEDED",
+            title: "Trial encerrado",
+            body:  "Você utilizou todos os créditos disponíveis no período de teste. Assine um plano para continuar usando a IA.",
+          },
+        });
+      }
+    }
     return;
   }
 
@@ -177,6 +217,30 @@ export async function consumeAiCredit(barbershopId: string): Promise<void> {
     await prisma.platformSubscription.update({
       where: { barbershopId },
       data:  { aiCreditBalance: { decrement: 1 } },
+    });
+  }
+}
+
+// ── logAiCall ──────────────────────────────────────────────────────────────────
+
+async function logAiCall(barbershopId: string, feature: string): Promise<void> {
+  const label = AI_FEATURE_LABELS[feature] ?? feature;
+
+  await prisma.aiCallLog.create({
+    data: { barbershopId, feature, label },
+  });
+
+  // Keep only the last AI_CALL_LOG_MAX entries per barbershop
+  const toKeep = await prisma.aiCallLog.findMany({
+    where:   { barbershopId },
+    orderBy: { createdAt: "desc" },
+    take:    AI_CALL_LOG_MAX,
+    select:  { id: true },
+  });
+
+  if (toKeep.length === AI_CALL_LOG_MAX) {
+    await prisma.aiCallLog.deleteMany({
+      where: { barbershopId, id: { notIn: toKeep.map((r) => r.id) } },
     });
   }
 }

@@ -1,6 +1,8 @@
 // ============================================================
 // Daily Cron – runs at 06:00 every day (configured in vercel.json)
-// - Generates AI suggestions for all active barbershops
+// - Data cleanup: WhatsApp (7d), AuditLog (90d), Suggestion/Action (90d), SyncRun (180d), AiCallLog (keep 30)
+// - Trial expiration: TRIALING → FREE after trialEndsAt
+// - AI suggestions: generates for all active barbershops
 // - On the 1st of the month: runs monthly billing for PRO plans
 // ============================================================
 
@@ -18,28 +20,87 @@ export async function GET(req: NextRequest) {
 
   const provider = getAIProvider();
 
-  // Cleanup: remove WhatsApp messages older than 7 days
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // ── Data cleanup ─────────────────────────────────────────────────────────────
+  const now = new Date();
+  const ago = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+  // WhatsApp messages: 7 days (sent/failed only)
   await prisma.whatsappMessage.deleteMany({
-    where: { createdAt: { lt: sevenDaysAgo }, status: { in: ["SENT", "FAILED"] } },
+    where: { createdAt: { lt: ago(7) }, status: { in: ["SENT", "FAILED"] } },
   });
+
+  // AuditLog: 90 days
+  await prisma.auditLog.deleteMany({
+    where: { createdAt: { lt: ago(90) } },
+  });
+
+  // AI suggestions: 90 days for dismissed/executed (active ones kept)
+  await prisma.suggestion.deleteMany({
+    where: { createdAt: { lt: ago(90) }, status: { in: ["DISMISSED"] } },
+  });
+
+  // Actions (copilot): 90 days for dismissed/executed
+  await prisma.action.deleteMany({
+    where: { createdAt: { lt: ago(90) }, status: { in: ["DISMISSED", "EXECUTED"] } },
+  });
+
+  // SyncRun logs: 180 days
+  await prisma.syncRun.deleteMany({
+    where: { startedAt: { lt: ago(180) } },
+  });
+
+  // SystemNotification: 30 days (dismissed or not)
+  await prisma.systemNotification.deleteMany({
+    where: { createdAt: { lt: ago(30) } },
+  });
+
+  // AiCallLog: keep only last 30 per barbershop (safety net — normally enforced on insert)
+  // We purge per-barbershop using a raw query for efficiency
+  await prisma.$executeRaw`
+    DELETE FROM ai_call_logs
+    WHERE id NOT IN (
+      SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY barbershop_id ORDER BY created_at DESC) AS rn
+        FROM ai_call_logs
+      ) ranked
+      WHERE rn <= 30
+    )
+  `;
 
   // ── Trial expiration: TRIALING → FREE ────────────────────────────────────────
   // Barbershops whose trial ended become FREE (30 lifetime AI calls)
   const expiredTrials = await prisma.platformSubscription.findMany({
-    where: { status: "TRIALING", trialEndsAt: { lt: new Date() } },
+    where: { status: "TRIALING", trialEndsAt: { lt: now } },
     select: { barbershopId: true },
   });
 
   if (expiredTrials.length > 0) {
+    const expiredIds = expiredTrials.map((t) => t.barbershopId);
     await prisma.platformSubscription.updateMany({
-      where: { barbershopId: { in: expiredTrials.map((t) => t.barbershopId) } },
+      where: { barbershopId: { in: expiredIds } },
       data: {
-        status:          "ACTIVE",
-        planTier:        "FREE",
+        status:           "ACTIVE",
+        planTier:         "FREE",
         currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       },
     });
+
+    // Notify each shop (skip if already notified)
+    for (const barbershopId of expiredIds) {
+      const already = await prisma.systemNotification.findFirst({
+        where: { barbershopId, type: "TRIAL_EXPIRED", dismissed: false },
+      });
+      if (!already) {
+        await prisma.systemNotification.create({
+          data: {
+            barbershopId,
+            type:  "TRIAL_EXPIRED",
+            title: "Período de trial encerrado",
+            body:  "Seu trial gratuito expirou. Você agora está no plano Free com 30 chamadas de IA. Assine um plano para continuar com acesso completo.",
+          },
+        });
+      }
+    }
   }
 
   // Find all active barbershops with AI enabled

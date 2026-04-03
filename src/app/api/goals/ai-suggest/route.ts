@@ -80,7 +80,7 @@ Responda SOMENTE em JSON com exatamente esse formato:
 
     const text   = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(text);
-    await consumeAiCredit(session.user.barbershopId);
+    await consumeAiCredit(session.user.barbershopId, "goals_suggest");
 
     return NextResponse.json({
       suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.75 * avgTicket),
