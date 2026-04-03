@@ -271,14 +271,14 @@ export function TemplatesTab({ hasWabaId }: { hasWabaId?: boolean }) {
       </div>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="flex-1 min-w-0">
           {subTab === "text" ? (
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-lg">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Templates de texto para mensagens manuais. Use <code className="bg-surface-800 px-1 rounded text-[10px]">{"{{name}}"}</code> onde o nome do cliente deve aparecer — a IA personaliza automaticamente ao enviar.
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-lg">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Templates aprovados na Meta Business. O nome deve ser exatamente igual ao cadastrado lá. Usados pelo bot para envio automático (fora da janela de 24h).
             </p>
           )}
@@ -298,7 +298,8 @@ export function TemplatesTab({ hasWabaId }: { hasWabaId?: boolean }) {
           )}
           {subTab === "text" && (
             <Button size="sm" onClick={openNew} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Novo template
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Novo template</span>
             </Button>
           )}
         </div>
