@@ -508,6 +508,9 @@ function BotMessageModal({ onClose, onScheduled, hasTemplates }: { onClose: () =
                 ))}
               </div>
 
+              {error && (
+                <p className="text-xs text-red-400 py-2">{error}</p>
+              )}
               {loadingCustomers ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
               ) : customers.length === 0 ? (
@@ -810,12 +813,14 @@ function MessageRow({
       {/* swipe wrapper */}
       <div className="relative overflow-hidden rounded-lg">
         {/* delete background revealed on swipe */}
-        <div
-          className="absolute inset-y-0 left-0 flex items-center pl-4 rounded-lg bg-red-500/20 border border-red-500/30"
-          style={{ width: `${Math.max(swipeX, 0)}px`, transition: isSwiping ? "none" : "width 0.2s ease" }}
-        >
-          <Trash2 className={`h-4 w-4 text-red-400 transition-opacity ${swipeX >= SWIPE_THRESHOLD ? "opacity-100" : "opacity-50"}`} />
-        </div>
+        {swipeX > 0 && (
+          <div
+            className="absolute inset-y-0 left-0 flex items-center pl-4 rounded-lg bg-red-500/20 border border-red-500/30"
+            style={{ width: `${swipeX}px`, transition: isSwiping ? "none" : "width 0.2s ease" }}
+          >
+            <Trash2 className={`h-4 w-4 text-red-400 transition-opacity ${swipeX >= SWIPE_THRESHOLD ? "opacity-100" : "opacity-50"}`} />
+          </div>
+        )}
         <div
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
