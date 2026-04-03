@@ -434,6 +434,19 @@ function MessageRow({
               </button>
             </div>
           )}
+          {showActions && localMsg.status === "FAILED" && (
+            <div className="flex gap-1.5 shrink-0">
+              <button onClick={retry} disabled={loading}
+                className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50">
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                Tentar novamente
+              </button>
+              <button onClick={remove} disabled={loading}
+                className="rounded-md border border-border p-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors disabled:opacity-50">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {showEdit && <EditMessageModal msg={localMsg} onClose={() => setShowEdit(false)} onSaved={handleSaved} />}
@@ -503,6 +516,19 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
     setQueue((prev) => prev.filter((m) => m.id !== id));
   }
 
+  function retryMessage(id: string) {
+    const msg = failed.find((m) => m.id === id);
+    setFailed((prev) => prev.filter((m) => m.id !== id));
+    if (msg) {
+      const scheduledFor = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      setQueue((prev) => [{ ...msg, status: "QUEUED", scheduledFor }, ...prev]);
+    }
+  }
+
+  function removeFromFailed(id: string) {
+    setFailed((prev) => prev.filter((m) => m.id !== id));
+  }
+
   function updateMessage(updated: WaMessage) {
     setQueue((prev) => prev.map((m) => m.id === updated.id ? updated : m));
   }
@@ -558,6 +584,12 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       </div>
 
       {showCompose && <ComposeModal onClose={() => setShowCompose(false)} onSent={handleComposeSent} />}
+
+      {/* Tab description */}
+      {tab === "sent"    && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens enviadas com sucesso hoje. O registro é mantido por 10 dias.</p>}
+      {tab === "queue"   && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens aguardando envio. Use "Enviar tudo" para processar a fila agora ou aguarde o envio automático.</p>}
+      {tab === "failed"  && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens que falharam no envio. Use "Tentar novamente" para reagendar para daqui 1 hora. Itens com mais de 1 dia são removidos automaticamente.</p>}
+      {tab === "history" && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Histórico de mensagens enviadas nos últimos 10 dias.</p>}
 
       {/* ── Enviadas hoje ──────────────────────────────────── */}
       {tab === "sent" && (
@@ -642,10 +674,10 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       {tab === "failed" && (
         <div className="space-y-2">
           {failed.length === 0
-            ? <Empty icon={<XCircle className="h-8 w-8" />} text="Nenhuma falha hoje. Ótimo!" />
+            ? <Empty icon={<XCircle className="h-8 w-8" />} text="Nenhuma falha. Ótimo!" />
             : failed.map((m) => (
                 <MessageRow key={m.id} msg={m} showActions
-                  onSent={markSent} onFailed={markFailed} onDelete={removeFromQueue} onEdit={updateMessage} />
+                  onDelete={removeFromFailed} onRetry={retryMessage} />
               ))
           }
         </div>
