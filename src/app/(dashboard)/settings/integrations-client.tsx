@@ -486,6 +486,18 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Requirements notice — always visible when not connected */}
+          {editingIg && (
+            <div className="rounded-md border border-indigo-500/20 bg-indigo-500/5 px-3 py-2.5 space-y-1">
+              <p className="text-xs font-medium text-indigo-300">Pré-requisitos para conectar</p>
+              <ul className="space-y-0.5 text-[11px] text-muted-foreground list-none">
+                <li className="flex items-start gap-1.5"><span className="text-indigo-400 shrink-0 mt-px">•</span>Conta do Instagram deve ser <span className="text-foreground font-medium ml-1">Comercial (Business)</span>, não pessoal</li>
+                <li className="flex items-start gap-1.5"><span className="text-indigo-400 shrink-0 mt-px">•</span>A conta do Instagram precisa estar <span className="text-foreground font-medium ml-1">vinculada a uma Página do Facebook</span></li>
+                <li className="flex items-start gap-1.5"><span className="text-indigo-400 shrink-0 mt-px">•</span>Você vai autorizar o acesso usando seu login do Facebook/Meta</li>
+              </ul>
+            </div>
+          )}
+
           {editingIg ? (
             <>
               {/* OAuth button (only when app is configured) */}
