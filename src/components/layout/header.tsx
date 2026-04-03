@@ -83,6 +83,7 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ id }),
     });
+    router.refresh();
   }
 
   const unread = notifs.length;

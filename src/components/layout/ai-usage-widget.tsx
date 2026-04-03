@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Sparkles, Loader2, Clock } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -37,7 +38,8 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits }: Pro
   const [open,    setOpen]    = useState(false);
   const [logs,    setLogs]    = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(false);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timer  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const router = useRouter();
 
   async function refresh() {
     try {
@@ -117,7 +119,7 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits }: Pro
         </p>
       </button>
 
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) router.refresh(); }}>
         <SheetContent side="right" className="w-80 sm:w-96 flex flex-col gap-0 p-0">
           <SheetHeader className="px-5 py-4 border-b border-border/60">
             <SheetTitle className="flex items-center gap-2 text-sm">
