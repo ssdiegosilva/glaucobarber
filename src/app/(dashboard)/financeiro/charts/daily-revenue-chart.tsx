@@ -41,7 +41,7 @@ export default function DailyRevenueChart({ data, dailyGoal, currentDay }: Props
         <Tooltip
           contentStyle={{ background: "#111", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
           labelFormatter={(d) => `Dia ${d}`}
-          formatter={(v: number) => [formatBRL(v), "Receita"]}
+          formatter={(v) => [formatBRL(Number(v ?? 0)), "Receita"]}
         />
         {dailyGoal != null && dailyGoal > 0 && (
           <ReferenceLine

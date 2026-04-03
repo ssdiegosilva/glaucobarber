@@ -45,7 +45,7 @@ export default function ServiceMixDonut({ data }: Props) {
         </Pie>
         <Tooltip
           contentStyle={{ background: "#111", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
-          formatter={(v: number) => [formatBRL(v), ""]}
+          formatter={(v) => [formatBRL(Number(v ?? 0)), ""]}
         />
         <Legend
           iconType="circle"

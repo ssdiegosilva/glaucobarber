@@ -24,7 +24,7 @@ export default function DiscountDailyChart({ data }: Props) {
         <YAxis hide />
         <Tooltip
           contentStyle={{ background: "#111", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
-          formatter={(v: number) => [formatBRL(v), "Desconto"]}
+          formatter={(v) => [formatBRL(Number(v ?? 0)), "Desconto"]}
         />
         <Bar dataKey="total" fill="#ef4444" fillOpacity={0.65} radius={[2, 2, 0, 0]} />
       </BarChart>

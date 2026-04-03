@@ -55,8 +55,8 @@ export default function AnnualYoYChart({ currentYear, currentData, prevYear, pre
         />
         <Tooltip
           contentStyle={{ background: "#111", border: "1px solid #333", borderRadius: 8, fontSize: 12 }}
-          formatter={(v: number, name: string) => [
-            formatBRL(v),
+          formatter={(v, name) => [
+            formatBRL(Number(v ?? 0)),
             name === "current" ? String(currentYear) : String(prevYear),
           ]}
         />
