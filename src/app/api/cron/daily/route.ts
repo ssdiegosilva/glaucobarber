@@ -24,9 +24,12 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const ago = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-  // WhatsApp messages: 10 days (sent/failed only)
+  // WhatsApp messages: SENT kept 10 days, FAILED purged after 1 day
   await prisma.whatsappMessage.deleteMany({
-    where: { createdAt: { lt: ago(10) }, status: { in: ["SENT", "FAILED"] } },
+    where: { createdAt: { lt: ago(10) }, status: "SENT" },
+  });
+  await prisma.whatsappMessage.deleteMany({
+    where: { createdAt: { lt: ago(1) }, status: "FAILED" },
   });
 
   // AuditLog: 90 days

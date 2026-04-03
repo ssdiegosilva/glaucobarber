@@ -291,7 +291,7 @@ function EditMessageModal({ msg, onClose, onSaved }: { msg: WaMessage; onClose: 
 // ── Message row ───────────────────────────────────────────────
 
 function MessageRow({
-  msg, showActions, isToday, onSent, onFailed, onDelete, onEdit,
+  msg, showActions, isToday, onSent, onFailed, onDelete, onEdit, onRetry,
 }: {
   msg:         WaMessage;
   showActions?: boolean;
@@ -300,6 +300,7 @@ function MessageRow({
   onFailed?:   (id: string) => void;
   onDelete?:   (id: string) => void;
   onEdit?:     (updated: WaMessage) => void;
+  onRetry?:    (id: string) => void;
 }) {
   const [loading,  setLoading]  = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -335,6 +336,19 @@ function MessageRow({
     try {
       await fetch(`/api/whatsapp/messages/${localMsg.id}`, { method: "DELETE" });
       onDelete?.(localMsg.id);
+    } finally { setLoading(false); }
+  }
+
+  async function retry() {
+    setLoading(true);
+    try {
+      const scheduledFor = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // +1h
+      const res = await fetch(`/api/whatsapp/messages/${localMsg.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "QUEUED", scheduledFor }),
+      });
+      if (res.ok) onRetry?.(localMsg.id);
     } finally { setLoading(false); }
   }
 
