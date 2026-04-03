@@ -25,14 +25,14 @@ const FEATURES = [
   "billing",
 ];
 
-const PLANS = ["FREE", "STARTER", "PRO", "PLATFORM_ADMIN"];
+const PLANS = ["FREE", "TRIAL", "STARTER", "PRO"];
 
 // By default everything is enabled, except:
 const DISABLED: Record<string, string[]> = {
   FREE:     ["financeiro", "meta"],
+  TRIAL:    [],
   STARTER:  ["financeiro"],
   PRO:      [],
-  PLATFORM_ADMIN: [],
 };
 
 async function main() {

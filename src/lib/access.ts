@@ -19,7 +19,7 @@ export const ALL_FEATURES = [
 
 export type FeatureKey = typeof ALL_FEATURES[number]["key"];
 
-export const PLAN_TIERS = ["FREE", "STARTER", "PRO", "PLATFORM_ADMIN"] as const;
+export const PLAN_TIERS = ["FREE", "TRIAL", "STARTER", "PRO"] as const;
 export type PlanTierKey = typeof PLAN_TIERS[number];
 
 /**
@@ -33,6 +33,11 @@ export async function getFeatureAccess(
   planTier: string,
   features: string[] = ALL_FEATURES.map((f) => f.key)
 ): Promise<Record<string, boolean>> {
+  // PLATFORM_ADMIN always has access to everything — no DB query needed
+  if (planTier === "PLATFORM_ADMIN") {
+    return Object.fromEntries(features.map((f) => [f, true]));
+  }
+
   const [gates, overrides] = await Promise.all([
     prisma.planFeatureGate.findMany({
       where: { planTier, feature: { in: features } },

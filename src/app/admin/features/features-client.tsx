@@ -4,10 +4,10 @@ import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 
 const TIER_LABELS: Record<string, { label: string; color: string }> = {
-  FREE:           { label: "Free",   color: "text-muted-foreground border-border/60" },
-  STARTER:        { label: "Start",  color: "text-blue-400 border-blue-400/30" },
-  PRO:            { label: "Pro",    color: "text-gold-400 border-gold-500/30" },
-  PLATFORM_ADMIN: { label: "Admin",  color: "text-purple-400 border-purple-400/30" },
+  FREE:    { label: "Free",    color: "text-muted-foreground border-border/60" },
+  TRIAL:   { label: "Trial",   color: "text-emerald-400 border-emerald-400/30" },
+  STARTER: { label: "Starter", color: "text-blue-400 border-blue-400/30" },
+  PRO:     { label: "Pro",     color: "text-gold-400 border-gold-500/30" },
 };
 
 interface Feature {
