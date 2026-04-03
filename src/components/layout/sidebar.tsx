@@ -19,6 +19,7 @@ import {
   MessageCircle,
   HeartHandshake,
   CreditCard,
+  Wand2,
 } from "lucide-react";
 import { AiUsageWidget } from "./ai-usage-widget";
 import { useRouter } from "next/navigation";
@@ -34,6 +35,7 @@ export const NAV = [
   { href: "/services",     label: "Serviços",    icon: Scissors },
   { href: "/offers",       label: "Ofertas",     icon: Tag },
   { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
+  { href: "/criar-visual", label: "Criar Visual", icon: Wand2 },
   { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },
   { href: "/post-sale",    label: "Pós-venda",   icon: HeartHandshake },
   { href: "/settings",     label: "Configurações",icon: Settings },

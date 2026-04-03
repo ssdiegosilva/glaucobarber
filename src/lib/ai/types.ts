@@ -29,6 +29,13 @@ export interface AISuggestion {
   reason:  string;
 }
 
+export interface HaircutSuggestion {
+  faceShape:     string; // e.g. "oval", "redondo", "quadrado"
+  suggestedStyle: string; // e.g. "Fade com topo texturizado"
+  explanation:   string; // por que esse corte combina, em PT-BR
+  imagePrompt:   string; // English prompt for images.edit
+}
+
 export interface AIProvider {
   name: string;
   generateSuggestions(context: AISuggestionRequest): Promise<AISuggestion[]>;
@@ -42,6 +49,8 @@ export interface AIProvider {
   generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;
   improveBrandStyle(rawStyle: string): Promise<string>;
   generateBrandStyleFromLogo(logoUrl: string, barbershopName?: string): Promise<string>;
+  analyzeAndSuggestHaircut(imageBase64: string): Promise<HaircutSuggestion>;
+  generateHaircutVisual(imageBuffer: Buffer, imagePrompt: string): Promise<{ url: string } | { b64: string }>;
 }
 
 // ── Copilot types ─────────────────────────────────────────

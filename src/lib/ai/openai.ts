@@ -10,6 +10,7 @@ import type {
   CopilotContext,
   CopilotResponse,
   CopilotActionSuggestion,
+  HaircutSuggestion,
 } from "./types";
 
 const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
@@ -201,6 +202,80 @@ export class OpenAIProvider implements AIProvider {
     });
 
     return (completion.choices[0]?.message?.content ?? rawStyle).trim().slice(0, 300);
+  }
+
+  async analyzeAndSuggestHaircut(imageBase64: string): Promise<HaircutSuggestion> {
+    const completion = await this.client.chat.completions.create({
+      model: VISION_MODEL,
+      max_tokens: 512,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é um barbeiro especialista com 20 anos de experiência. Analisa fotos de clientes e sugere o melhor corte de cabelo masculino. Responda sempre em JSON válido.",
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analise o rosto desta pessoa e sugira o melhor corte de cabelo masculino.
+
+Retorne JSON com:
+{
+  "faceShape": "formato do rosto (oval, redondo, quadrado, triangular, losango, oblongo)",
+  "suggestedStyle": "nome do estilo recomendado (ex: Fade médio com franja texturizada)",
+  "explanation": "explicação em 2-3 frases em português de por que esse corte combina com o formato do rosto e características da pessoa",
+  "imagePrompt": "English prompt for AI image editing: describe exactly what haircut to apply, keeping the face identical. Be specific about fade level, top length, texture. Format: 'Give this person a [detailed haircut description], keep the face and all facial features identical, photorealistic professional photo, studio lighting'"
+}`,
+            },
+            {
+              type: "image_url",
+              image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
+            },
+          ],
+        },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        faceShape:      parsed.faceShape      ?? "indefinido",
+        suggestedStyle: parsed.suggestedStyle ?? "Corte clássico",
+        explanation:    parsed.explanation    ?? "",
+        imagePrompt:    parsed.imagePrompt    ?? "Give this person a classic short haircut, keep face identical, photorealistic",
+      };
+    } catch {
+      return {
+        faceShape:      "indefinido",
+        suggestedStyle: "Corte clássico",
+        explanation:    "Corte clássico adequado para o seu formato de rosto.",
+        imagePrompt:    "Give this person a classic short haircut, keep face identical, photorealistic",
+      };
+    }
+  }
+
+  async generateHaircutVisual(imageBuffer: Buffer, imagePrompt: string): Promise<{ url: string } | { b64: string }> {
+    try {
+      const { toFile } = await import("openai");
+      const img = await this.client.images.edit({
+        model:  "gpt-image-1",
+        image:  await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
+        prompt: imagePrompt,
+        size:   "1024x1024",
+        n:      1,
+      } as Parameters<typeof this.client.images.edit>[0]);
+
+      const b64 = img.data?.[0]?.b64_json;
+      if (!b64) throw new Error("gpt-image-1 não retornou imagem");
+      return { b64 };
+    } catch (err) {
+      console.warn("[AI] gpt-image-1 haircut edit falhou, usando dall-e-3:", err);
+      return this._generateWithDallE3(imagePrompt);
+    }
   }
 
   async generateBrandStyleFromLogo(logoUrl: string, barbershopName?: string): Promise<string> {

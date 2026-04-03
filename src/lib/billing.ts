@@ -160,6 +160,8 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   campaign_text:    "Texto de Campanha",
   brand_style_improve: "Identidade visual (texto)",
   brand_style_logo:    "Identidade visual (logo)",
+  visual_style_analyze: "Criar Visual (análise)",
+  visual_style_generate: "Criar Visual (geração)",
 };
 
 // Max AI call log entries kept per barbershop
