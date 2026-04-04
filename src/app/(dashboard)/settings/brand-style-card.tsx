@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { Sparkles, RefreshCw, Save, Palette, CheckCircle2, Edit3 } from "lucide-react";
 
 interface BrandStyleCardProps {
@@ -37,6 +38,7 @@ export function BrandStyleCard({ initialStyle, barbershopName, logoUrl }: BrandS
         body:    JSON.stringify({ rawStyle: value.trim() }),
       });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
       if (!res.ok) {
         toast({ title: "Erro", description: data.message ?? "Não foi possível melhorar a descrição.", variant: "destructive" });
         return;
@@ -61,6 +63,7 @@ export function BrandStyleCard({ initialStyle, barbershopName, logoUrl }: BrandS
       try {
         const res  = await fetch("/api/settings/brand-style/from-logo", { method: "POST" });
         const data = await res.json();
+        if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
         if (!res.ok) {
           toast({ title: "Erro ao gerar", description: data.message ?? data.error ?? "Tente novamente.", variant: "destructive" });
           return;
@@ -99,6 +102,7 @@ export function BrandStyleCard({ initialStyle, barbershopName, logoUrl }: BrandS
           body:    JSON.stringify({ rawStyle: toSave }),
         });
         const dataImprove = await resImprove.json();
+        if (isAiLimitError(resImprove.status, dataImprove)) { triggerAiLimitModal(); setSaving(false); return; }
         if (!resImprove.ok) {
           toast({ title: "Erro ao melhorar", description: dataImprove.message ?? dataImprove.error ?? "Tente novamente.", variant: "destructive" });
           setSaving(false);

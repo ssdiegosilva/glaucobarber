@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
@@ -226,6 +227,7 @@ function AiWizard({
         }),
       });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); setStep("hours"); return; }
       if (!res.ok) throw new Error(data.error ?? "Erro");
       window.dispatchEvent(new Event("ai-used"));
       setSuggestion(data);

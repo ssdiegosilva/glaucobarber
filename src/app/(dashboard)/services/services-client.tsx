@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
@@ -283,6 +284,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
     try {
       const res  = await fetch(`/api/services/${svc.id}/recommend-price`, { method: "POST" });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
       if (!res.ok) throw new Error(data.error ?? "Erro na IA");
       window.dispatchEvent(new Event("ai-used"));
       setRecommendations((prev) => ({ ...prev, [svc.id]: data as PriceRecommendation }));
@@ -301,6 +303,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
     try {
       const res  = await fetch("/api/services/opportunities/generate", { method: "POST" });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); setGeneratingOpps(false); return; }
       if (!res.ok) {
         if (data.error === "ADDRESS_REQUIRED") {
           setShowAddressModal(true);

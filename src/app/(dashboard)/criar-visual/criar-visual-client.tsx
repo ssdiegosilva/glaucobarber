@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import Image from "next/image";
 import { Upload, Wand2, Download, RefreshCw, X, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +99,7 @@ export default function CriarVisualClient() {
       const res = await fetch("/api/criar-visual", { method: "POST", body: formData });
       const data = await res.json();
 
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
       if (!res.ok) {
         toast({ title: "Erro", description: data.error ?? "Tente novamente.", variant: "destructive" });
         return;

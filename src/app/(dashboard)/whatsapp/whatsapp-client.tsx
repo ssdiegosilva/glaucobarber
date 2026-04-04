@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { Button } from "@/components/ui/button";
 import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
@@ -169,6 +170,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
           body:    JSON.stringify({ templateBody: tpl.body, customerName: clientName }),
         });
         const data = await res.json();
+        if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
         if (res.ok && data.message) setText(data.message);
       } catch {
         // já temos a substituição simples, não faz nada

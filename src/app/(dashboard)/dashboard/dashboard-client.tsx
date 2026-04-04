@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -491,6 +492,7 @@ export function DashboardClient({
     try {
       const res = await fetch("/api/ai/suggestions", { method: "POST" });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar sugestões");
       window.dispatchEvent(new Event("ai-used"));
       const newOnes = (data.suggestions ?? []).map((s: any) => ({
