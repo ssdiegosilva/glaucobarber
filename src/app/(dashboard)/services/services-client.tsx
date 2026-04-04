@@ -227,6 +227,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   const [expandedRec, setExpandedRec]             = useState<string | null>(null);
   const [selectedPrices, setSelectedPrices]       = useState<Record<string, number>>({});
   const [expandedOpps, setExpandedOpps]           = useState<Set<string>>(new Set());
+  const [expandedDescs, setExpandedDescs]         = useState<Set<string>>(new Set());
   const [generatingOpps, setGeneratingOpps]       = useState(false);
   const [approvingId, setApprovingId]             = useState<string | null>(null);
   const [rejectingId, setRejectingId]             = useState<string | null>(null);
