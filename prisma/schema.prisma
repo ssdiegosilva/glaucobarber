@@ -1068,6 +1068,41 @@ model AiCallLog {
 }
 
 // ============================================================
+// OPENAI COST TRACKING — admin visibility into API spend
+// ============================================================
+
+// Known prices per model; synced/seeded by admin sync button.
+model AiModelPrice {
+  model                  String   @id          // e.g. "gpt-4o-mini-2024-07-18"
+  displayName            String?              // human-readable label
+  inputPricePer1mTokens  Float    @default(0) // USD per 1M input tokens
+  outputPricePer1mTokens Float    @default(0) // USD per 1M output tokens
+  imagePriceCents        Int?                 // USD cents per image request
+  notes                  String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_model_prices")
+}
+
+// Monthly usage snapshots fetched from OpenAI organization usage API.
+// Upserted every time admin clicks "Sincronizar".
+model AiUsageSnapshot {
+  id           String   @id @default(cuid())
+  yearMonth    String              // "2026-04"
+  model        String              // e.g. "gpt-4o-mini-2024-07-18"
+  nRequests    Int      @default(0)
+  inputTokens  BigInt   @default(0)
+  outputTokens BigInt   @default(0)
+  costUsd      Float    @default(0) // estimated from stored prices
+  syncedAt     DateTime @default(now())
+
+  @@unique([yearMonth, model])
+  @@index([yearMonth])
+  @@map("ai_usage_snapshots")
+}
+
+// ============================================================
 // SYSTEM NOTIFICATIONS — bell icon alerts for barbershop owners
 // Auto-expire after 30 days (cron cleanup).
 // Max retained: driven by cron, no hard insert cap.
