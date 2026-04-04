@@ -661,7 +661,7 @@ model Campaign {
 
   offerId     String?
   title       String
-  objective   String
+  objective   String          @default("")
   text        String          // campaign copy
   artBriefing String?         // briefing for visual art
   channel     String?         @default("instagram")

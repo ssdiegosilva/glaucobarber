@@ -39,6 +39,7 @@ export interface HaircutSuggestion {
 export interface AIProvider {
   name: string;
   generateSuggestions(context: AISuggestionRequest): Promise<AISuggestion[]>;
+  generateCampaignThemes(barbershopName: string): Promise<{ themes: { title: string; description: string }[] }>;
   generateCampaignText(objective: string, context: string): Promise<{ text: string; artBriefing: string }>;
   generateCampaignImage(input: {
     prompt: string;

@@ -53,6 +53,40 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
+  async generateCampaignThemes(barbershopName: string): Promise<{ themes: { title: string; description: string }[] }> {
+    const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const response = await (this.client as any).responses.create({
+      model: MODEL,
+      tools: [{ type: "web_search_preview" }],
+      input: `Hoje é ${today}. Você é um estrategista de marketing para a barbearia "${barbershopName}".
+
+Pesquise na internet as últimas notícias, tendências e eventos relevantes da semana no Brasil e no mundo. Com base nisso, sugira exatamente 3 temas criativos e oportunos para campanhas de marketing de barbearia no Instagram.
+
+Cada tema deve conectar uma notícia/tendência atual com o universo da barbearia de forma inteligente e engajante.
+
+Retorne APENAS JSON válido, sem markdown:
+{
+  "themes": [
+    { "title": "Título curto do tema (máx 50 chars)", "description": "Conexão com a notícia/tendência em 1 frase (máx 100 chars)" }
+  ]
+}`,
+    });
+
+    const text = typeof response.output_text === "string"
+      ? response.output_text
+      : response.output?.find((o: any) => o.type === "message")?.content?.find((c: any) => c.type === "output_text")?.text ?? "{}";
+
+    try {
+      // Strip markdown code fences if present
+      const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      return { themes: Array.isArray(parsed.themes) ? parsed.themes.slice(0, 3) : [] };
+    } catch {
+      return { themes: [] };
+    }
+  }
+
   async generateCampaignText(
     objective: string,
     context: string
@@ -68,7 +102,7 @@ export class OpenAIProvider implements AIProvider {
         },
         {
           role: "user",
-          content: `Crie um texto de campanha e briefing de arte visual para barbearia premium.\nObjetivo: ${objective}\nContexto: ${context}\n\nRetorne JSON:\n{\n  "text": "copy da campanha para Instagram (máx 280 chars)",\n  "artBriefing": "direção de arte específica: descreva composição, símbolos concretos (ex: navalha dourada, bigode, coroa), mood lighting, estilo tipográfico, cores predominantes (máx 200 chars). Evite generalidades."\n}\n\nO artBriefing deve conter elementos visuais concretos que um gerador de imagem possa usar diretamente.`,
+          content: `Crie um texto de campanha e briefing de arte visual para barbearia premium.\nTema: ${objective}\nContexto: ${context}\n\nRetorne JSON:\n{\n  "text": "copy da campanha para Instagram (máx 280 chars)",\n  "artBriefing": "direção de arte específica: descreva composição, símbolos concretos (ex: navalha dourada, bigode, coroa), mood lighting, estilo tipográfico, cores predominantes (máx 200 chars). Evite generalidades."\n}\n\nO artBriefing deve conter elementos visuais concretos que um gerador de imagem possa usar diretamente.`,
         },
       ],
     });

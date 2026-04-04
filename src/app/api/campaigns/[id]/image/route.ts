@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const prompt = body.promptOverride ?? `
 Create a premium square marketing image (1080x1080) for a barbershop brand called "${barbershop?.name ?? "Barbearia"}".
 
-Goal: ${campaign.objective || "Promote the barbershop services"}
+Goal: ${campaign.title || "Promote the barbershop services"}
 
 ${brandStyleBlock}
 ${referenceNote}
