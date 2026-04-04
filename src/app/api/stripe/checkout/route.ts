@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       cancelUrl:        `${baseUrl}/billing?canceled=1`,
     });
 
-    return NextResponse.redirect(checkout.url!, 303);
+    return NextResponse.json({ url: checkout.url });
   } catch (err) {
     if (err instanceof Stripe.errors.StripeInvalidRequestError) {
       console.error("[stripe/checkout] Stripe error:", err.message);

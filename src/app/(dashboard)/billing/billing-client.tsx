@@ -150,17 +150,13 @@ export function BillingClient({
       const body = new FormData();
       body.append("priceId", priceId);
       const res = await fetch("/api/stripe/checkout", { method: "POST", body });
-      if (res.redirected) {
-        window.location.href = res.url;
+      const data = await res.json();
+      if (!res.ok) {
+        setCheckoutError(data.error ?? "Erro ao iniciar checkout. Tente novamente.");
         return;
       }
-      // fallback: try JSON error
-      const ct = res.headers.get("content-type") ?? "";
-      if (ct.includes("application/json")) {
-        const data = await res.json();
-        if (data.error) setCheckoutError(data.error);
-      } else {
-        setCheckoutError("Erro ao iniciar checkout. Tente novamente.");
+      if (data.url) {
+        window.location.href = data.url;
       }
     } catch {
       setCheckoutError("Erro de conexão. Tente novamente.");
