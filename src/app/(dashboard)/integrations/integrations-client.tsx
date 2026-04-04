@@ -232,13 +232,16 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 <Plug className="h-5 w-5 text-gold-400" />
               </div>
               <div className="min-w-0">
-                <CardTitle className="text-base">Trinks</CardTitle>
-                <p className="text-xs text-muted-foreground">Plataforma operacional principal</p>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Trinks</CardTitle>
+                  <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">Opcional</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">Sistema de agendamentos online — sincroniza clientes, serviços e agenda ao vivo</p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
-                {integration?.status ?? "UNCONFIGURED"}
+              <Badge variant={integration?.status === "ACTIVE" ? "success" : "outline"} className={integration?.status === "ACTIVE" ? "" : "text-muted-foreground"}>
+                {integration?.status === "ACTIVE" ? "Ativo" : "Não conectado"}
               </Badge>
               <Button onClick={handleSync} disabled={syncing || !integration?.configured} size="sm">
                 <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
@@ -257,8 +260,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Configurada</p>
-              <p className={integration?.configured ? "text-green-400" : "text-yellow-400"}>
-                {integration?.configured ? "Sim" : "Não – configure via variáveis de ambiente"}
+              <p className={integration?.configured ? "text-green-400" : "text-muted-foreground"}>
+                {integration?.configured ? "Sim" : "Não conectado"}
               </p>
             </div>
           </div>
@@ -272,7 +275,12 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           {/* Config form */}
           {showForm ? (
             <div className="mt-4 space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
-              <p className="text-xs font-semibold text-foreground">Configurar credenciais da Trinks</p>
+              <div>
+                <p className="text-xs font-semibold text-foreground">Conectar ao Trinks</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  O Trinks é um sistema de agendamentos online usado por barbearias. Ao conectar, seus clientes, serviços e agenda do dia aparecem automaticamente aqui. Se você não usa o Trinks, pode ignorar esta seção.
+                </p>
+              </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">API Key</label>
                 <input
