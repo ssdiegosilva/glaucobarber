@@ -11,8 +11,9 @@ export async function GET() {
   const allowance = await checkAiAllowance(session.user.barbershopId);
 
   return NextResponse.json({
-    used:    allowance.used,
-    limit:   allowance.limit === Infinity ? 999 : allowance.limit,
-    credits: allowance.creditsRemaining,
+    used:       allowance.used,
+    limit:      allowance.limit === Infinity ? 999 : allowance.limit,
+    credits:    allowance.creditsRemaining,
+    isTrialing: allowance.planStatus === "TRIALING",
   });
 }

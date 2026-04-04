@@ -108,6 +108,7 @@ export interface AiAllowance {
   limit:            number;      // base limit (not counting credits)
   creditsRemaining: number;
   planTier:         PlanTier;
+  planStatus:       SubscriptionStatus;
 }
 
 export async function checkAiAllowance(barbershopId: string): Promise<AiAllowance> {
@@ -121,11 +122,11 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
     });
     const used    = usage?.usageCount ?? 0;
     const allowed = used < TRIAL_AI_LIMIT;
-    return { allowed, used, limit: TRIAL_AI_LIMIT, creditsRemaining: 0, planTier: plan.tier };
+    return { allowed, used, limit: TRIAL_AI_LIMIT, creditsRemaining: 0, planTier: plan.tier, planStatus: plan.status };
   }
 
   if (limits.aiPerPeriod === Infinity) {
-    return { allowed: true, used: 0, limit: Infinity, creditsRemaining: 0, planTier: plan.tier };
+    return { allowed: true, used: 0, limit: Infinity, creditsRemaining: 0, planTier: plan.tier, planStatus: plan.status };
   }
 
   const key   = periodKey(plan.tier);
@@ -144,7 +145,8 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
     used,
     limit:  baseAllowance,
     creditsRemaining,
-    planTier: plan.tier,
+    planTier:   plan.tier,
+    planStatus: plan.status,
   };
 }
 

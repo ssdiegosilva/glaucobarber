@@ -54,7 +54,7 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
       const res = await fetch("/api/ai/usage");
       if (!res.ok) return;
       const data = await res.json();
-      const isTrialing = data.limit >= 999;
+      const isTrialing = data.isTrialing ?? false;
       setAiTrialing(isTrialing);
       setAiUsed(isTrialing ? 0 : data.used);
       setAiTotal(isTrialing ? 1 : data.limit + data.credits);
