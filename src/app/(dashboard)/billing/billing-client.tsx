@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, Clock, AlertTriangle, Receipt, ChevronDown, ChevronUp, Info } from "lucide-react";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
@@ -116,7 +117,6 @@ export function BillingClient({
   const [loadingPortal,    setLoadingPortal]    = useState(false);
   const [loadingCheckout,  setLoadingCheckout]  = useState<string | null>(null);
   const [checkoutError,    setCheckoutError]    = useState("");
-  const [showComparison,   setShowComparison]   = useState(false);
   const [expandedFeature,  setExpandedFeature]  = useState<string | null>(null);
 
   const info       = PLAN_INFO[planTier];
@@ -126,6 +126,10 @@ export function BillingClient({
   const apptPct    = hasAppointmentFee ? Math.min(100, Math.round((appointmentCents / capCents) * 100)) : 0;
 
   const isTrialing = planStatus === "TRIALING";
+  const isManaged =
+    !!stripeCustomerId &&
+    (planStatus === "ACTIVE" || planStatus === "TRIALING" || planStatus === "PAST_DUE");
+  const canUpgrade = !isManaged;
   const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
@@ -177,7 +181,17 @@ export function BillingClient({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 max-w-2xl">
+    <div className="flex-1 overflow-hidden flex flex-col">
+      <Tabs defaultValue="plano" className="flex-1 flex flex-col min-h-0">
+        <div className="px-4 md:px-6 pt-4 md:pt-6 shrink-0">
+          <TabsList className="w-full grid grid-cols-3">
+            <TabsTrigger value="plano">Plano</TabsTrigger>
+            <TabsTrigger value="extrato">Extrato</TabsTrigger>
+            <TabsTrigger value="comparar">Comparar planos</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="plano" className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 max-w-2xl min-h-0">
       {/* Current plan */}
       <div className="rounded-xl border border-border/60 bg-surface-900 p-4 md:p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -255,14 +269,13 @@ export function BillingClient({
         </div>
 
         {/* CTA principal de assinatura */}
-        {stripeCustomerId ? (
-          /* Já tem cliente Stripe: tudo pelo portal (upgrade, downgrade, cancelar, pagamento) */
+        {isManaged && (
           <Button variant="outline" className="w-full gap-2" onClick={openPortal} disabled={loadingPortal}>
             {loadingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            Gerenciar assinatura no Stripe
+            Gerenciar assinatura
           </Button>
-        ) : !cancelAtPeriodEnd ? (
-          /* Sem cliente Stripe: checkout para criar o customer e assinar */
+        )}
+        {canUpgrade && !isTrialing && (
           <div className="space-y-2 pt-1">
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
@@ -284,7 +297,7 @@ export function BillingClient({
             </div>
             {checkoutError && <p className="text-xs text-red-400">{checkoutError}</p>}
           </div>
-        ) : null}
+        )}
       </div>
 
       {/* AI usage */}
@@ -348,98 +361,102 @@ export function BillingClient({
         </Button>
       </div>
 
-      {/* Plan comparison — collapsible */}
-      <div className="rounded-xl border border-border/60 bg-surface-900 overflow-hidden">
-        <button
-          onClick={() => { setShowComparison((v) => !v); setExpandedFeature(null); }}
-          className="w-full flex items-center justify-between px-4 md:px-5 py-4 hover:bg-surface-800/40 transition-colors text-left"
-        >
-          <div>
-            <p className="text-sm font-medium text-foreground">Comparativo de planos</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {showComparison ? "Clique em cada linha para ver o que é possível fazer" : "Veja o que está incluso em cada plano"}
-            </p>
-          </div>
-          {showComparison
-            ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-            : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          }
-        </button>
+        </TabsContent>
 
-        {showComparison && (
-          <div className="border-t border-border/40 overflow-x-auto">
-            <table className="w-full text-sm min-w-[340px]">
-              <thead>
-                <tr className="border-b border-border/30">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Funcionalidade</th>
-                  {COMPARISON_TIERS.map((tier) => (
-                    <th key={tier} className="text-center px-3 py-3 w-16">
-                      <Badge
-                        variant="outline"
-                        className={`text-[11px] ${TIER_STYLE[tier].badge} ${planTier === tier ? "ring-1 ring-offset-1 ring-current" : ""}`}
-                      >
-                        {TIER_STYLE[tier].label}
-                      </Badge>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {allFeatures
-                  .filter((f) => !["billing", "settings"].includes(f.key))
-                  .map((f, i) => {
-                    const isExpanded = expandedFeature === f.key;
-                    const detail = FEATURE_DETAIL[f.key];
-                    return (
-                      <>
-                        <tr
-                          key={f.key}
-                          onClick={() => setExpandedFeature(isExpanded ? null : f.key)}
-                          className={`border-b border-border/20 cursor-pointer transition-colors ${
-                            isExpanded
-                              ? "bg-surface-800/60 border-border/40"
-                              : i % 2 === 0 ? "hover:bg-surface-800/30" : "bg-surface-800/20 hover:bg-surface-800/40"
-                          }`}
+        {/* ── Extrato tab ─────────────────────────────────────────────── */}
+        <TabsContent value="extrato" className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl min-h-0">
+          {hasAppointmentFee ? (
+            <StatementSection yearMonth={yearMonth} appointmentFeeCents={appointmentFeeCents} capCents={capCents} />
+          ) : (
+            <div className="rounded-xl border border-border/60 bg-surface-900 p-8 text-center space-y-3">
+              <Receipt className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+              <p className="text-sm font-medium text-foreground">Extrato disponível no plano Pro</p>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                O extrato mostra atendimentos faturados, estimativa da próxima cobrança e histórico mensal de cobranças por atendimento.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Comparar planos tab ──────────────────────────────────────── */}
+        <TabsContent value="comparar" className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl min-h-0">
+          <div className="rounded-xl border border-border/60 bg-surface-900 overflow-hidden">
+            <div className="px-4 md:px-5 py-4 border-b border-border/40">
+              <p className="text-sm font-medium text-foreground">Comparativo de planos</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Clique em cada linha para ver o que é possível fazer</p>
+            </div>
+            <div className="border-t border-border/40 overflow-x-auto">
+              <table className="w-full text-sm min-w-[340px]">
+                <thead>
+                  <tr className="border-b border-border/30">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Funcionalidade</th>
+                    {COMPARISON_TIERS.map((tier) => (
+                      <th key={tier} className="text-center px-3 py-3 w-16">
+                        <Badge
+                          variant="outline"
+                          className={`text-[11px] ${TIER_STYLE[tier].badge} ${planTier === tier ? "ring-1 ring-offset-1 ring-current" : ""}`}
                         >
-                          <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-xs font-medium ${isExpanded ? "text-foreground" : "text-muted-foreground"}`}>
-                                {f.label}
-                              </span>
-                              <Info className={`h-3 w-3 shrink-0 transition-colors ${isExpanded ? "text-gold-400" : "text-muted-foreground/40"}`} />
-                            </div>
-                          </td>
-                          {COMPARISON_TIERS.map((tier) => {
-                            const enabled = featureMatrix[f.key]?.[tier] ?? true;
-                            return (
-                              <td key={tier} className="text-center px-3 py-2.5">
-                                {enabled ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        {isExpanded && detail && (
-                          <tr key={`${f.key}-detail`} className="border-b border-border/20 bg-surface-800/60">
-                            <td colSpan={COMPARISON_TIERS.length + 1} className="px-4 py-3">
-                              <p className="text-xs text-muted-foreground leading-relaxed">{detail}</p>
+                          {TIER_STYLE[tier].label}
+                        </Badge>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allFeatures
+                    .filter((f) => !["billing", "settings"].includes(f.key))
+                    .map((f, i) => {
+                      const isExpanded = expandedFeature === f.key;
+                      const detail = FEATURE_DETAIL[f.key];
+                      return (
+                        <>
+                          <tr
+                            key={f.key}
+                            onClick={() => setExpandedFeature(isExpanded ? null : f.key)}
+                            className={`border-b border-border/20 cursor-pointer transition-colors ${
+                              isExpanded
+                                ? "bg-surface-800/60 border-border/40"
+                                : i % 2 === 0 ? "hover:bg-surface-800/30" : "bg-surface-800/20 hover:bg-surface-800/40"
+                            }`}
+                          >
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-xs font-medium ${isExpanded ? "text-foreground" : "text-muted-foreground"}`}>
+                                  {f.label}
+                                </span>
+                                <Info className={`h-3 w-3 shrink-0 transition-colors ${isExpanded ? "text-gold-400" : "text-muted-foreground/40"}`} />
+                              </div>
                             </td>
+                            {COMPARISON_TIERS.map((tier) => {
+                              const enabled = featureMatrix[f.key]?.[tier] ?? true;
+                              return (
+                                <td key={tier} className="text-center px-3 py-2.5">
+                                  {enabled ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                                  )}
+                                </td>
+                              );
+                            })}
                           </tr>
-                        )}
-                      </>
-                    );
-                  })}
-              </tbody>
-            </table>
+                          {isExpanded && detail && (
+                            <tr key={`${f.key}-detail`} className="border-b border-border/20 bg-surface-800/60">
+                              <td colSpan={COMPARISON_TIERS.length + 1} className="px-4 py-3">
+                                <p className="text-xs text-muted-foreground leading-relaxed">{detail}</p>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+        </TabsContent>
 
-      {/* Statement (PRO only) */}
-      {hasAppointmentFee && <StatementSection yearMonth={yearMonth} appointmentFeeCents={appointmentFeeCents} capCents={capCents} />}
+      </Tabs>
     </div>
   );
 }
