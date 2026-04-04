@@ -9,9 +9,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 const POLL_MS = 30_000;
 
 interface Props {
-  initialUsed:    number;
-  initialLimit:   number;
-  initialCredits: number;
+  initialUsed:      number;
+  initialLimit:     number;
+  initialCredits:   number;
+  initialTrialing?: boolean;
 }
 
 interface CallLog {
@@ -31,10 +32,11 @@ function formatRelative(iso: string): string {
   return `${days}d atrás`;
 }
 
-export function AiUsageWidget({ initialUsed, initialLimit, initialCredits }: Props) {
-  const [used,    setUsed]    = useState(initialUsed);
-  const [limit,   setLimit]   = useState(initialLimit);
-  const [credits, setCredits] = useState(initialCredits);
+export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initialTrialing = false }: Props) {
+  const [used,      setUsed]      = useState(initialUsed);
+  const [limit,     setLimit]     = useState(initialLimit);
+  const [credits,   setCredits]   = useState(initialCredits);
+  const [isTrialing, setIsTrialing] = useState(initialTrialing);
   const [open,    setOpen]    = useState(false);
   const [logs,    setLogs]    = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,6 +51,7 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits }: Pro
       setUsed(data.used);
       setLimit(data.limit);
       setCredits(data.credits);
+      setIsTrialing(data.isTrialing ?? false);
     } catch {}
   }
 
@@ -83,7 +86,7 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits }: Pro
   const remaining = Math.max(0, total - used);
   const isLow     = pct >= 80;
   const isOut     = pct >= 100;
-  const isInfinite = limit === Infinity || limit > 900;
+  const isInfinite = isTrialing || limit === Infinity;
 
   return (
     <>

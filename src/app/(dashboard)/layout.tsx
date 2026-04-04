@@ -14,9 +14,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // Load barbershop name + AI usage for sidebar
   let barbershopName: string | null = null;
-  let aiUsed = 0;
-  let aiLimit = 30;
-  let aiCredits = 0;
+  let aiUsed      = 0;
+  let aiLimit     = 30;
+  let aiCredits   = 0;
+  let aiTrialing  = false;
 
   if (session.user.barbershopId) {
     const [shop, allowance] = await Promise.all([
@@ -27,9 +28,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
       checkAiAllowance(session.user.barbershopId),
     ]);
     barbershopName = shop?.name ?? null;
-    aiUsed    = allowance.used;
-    aiLimit   = allowance.limit === Infinity ? 999 : allowance.limit;
-    aiCredits = allowance.creditsRemaining;
+    aiUsed     = allowance.used;
+    aiLimit    = allowance.limit === Infinity ? 999 : allowance.limit;
+    aiCredits  = allowance.creditsRemaining;
+    aiTrialing = allowance.planStatus === "TRIALING";
   }
 
   return (
@@ -40,6 +42,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         aiUsed={aiUsed}
         aiLimit={aiLimit}
         aiCredits={aiCredits}
+        aiTrialing={aiTrialing}
       />
       <main className="flex-1 overflow-y-auto">
         <MobileNav barbershopName={barbershopName} userName={session.user.name ?? null} />

@@ -57,7 +57,7 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
       const res = await fetch("/api/ai/usage");
       if (!res.ok) return;
       const data = await res.json();
-      const isTrial = data.limit >= 999;
+      const isTrial = data.isTrialing ?? false;
       setTrialing(isTrial);
       setAiUsed(isTrial ? 0 : data.used);
       setAiTotal(isTrial ? 1 : data.limit + data.credits);

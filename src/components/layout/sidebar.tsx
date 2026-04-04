@@ -44,12 +44,13 @@ export const NAV = [
 interface SidebarProps {
   barbershopName?: string | null;
   className?: string;
-  aiUsed?:    number;
-  aiLimit?:   number;
-  aiCredits?: number;
+  aiUsed?:      number;
+  aiLimit?:     number;
+  aiCredits?:   number;
+  aiTrialing?:  boolean;
 }
 
-export function Sidebar({ barbershopName, className, aiUsed = 0, aiLimit = 30, aiCredits = 0 }: SidebarProps) {
+export function Sidebar({ barbershopName, className, aiUsed = 0, aiLimit = 30, aiCredits = 0, aiTrialing = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
@@ -101,6 +102,7 @@ export function Sidebar({ barbershopName, className, aiUsed = 0, aiLimit = 30, a
           initialUsed={aiUsed}
           initialLimit={aiLimit}
           initialCredits={aiCredits}
+          initialTrialing={aiTrialing}
         />
       </nav>
 
