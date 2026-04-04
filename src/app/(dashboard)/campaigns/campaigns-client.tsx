@@ -238,6 +238,290 @@ function RescheduleModal({
   );
 }
 
+// ── GeneratingCard ────────────────────────────────────────────
+
+function GeneratingCard({ c }: { c: CampaignDto }) {
+  return (
+    <Card id={`campaign-${c.id}`} className="scroll-mt-20 border-purple-500/20 bg-purple-500/5">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="text-sm leading-snug text-foreground/80">{c.title}</CardTitle>
+          <Badge variant="outline" className="shrink-0 flex items-center gap-1 text-purple-400 border-purple-400/30">
+            <Sparkles className="h-3 w-3 animate-spin" />
+            Criando...
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="rounded-lg border border-dashed border-purple-500/20 bg-surface-900 h-44 flex flex-col items-center justify-center gap-3">
+          <div className="relative">
+            <div className="h-10 w-10 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
+            <Sparkles className="h-4 w-4 text-purple-400/60 absolute inset-0 m-auto" />
+          </div>
+          <p className="text-xs text-muted-foreground/70">Gerando arte com IA...</p>
+        </div>
+        <div className="space-y-2 animate-pulse">
+          <div className="h-2.5 bg-surface-700 rounded w-full" />
+          <div className="h-2.5 bg-surface-700 rounded w-4/5" />
+          <div className="h-2.5 bg-surface-700 rounded w-3/5" />
+        </div>
+        <p className="text-[11px] text-muted-foreground/50 text-center">
+          Você será notificado quando estiver pronta 🔔
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── CampaignCard ──────────────────────────────────────────────
+
+interface CampaignCardProps {
+  c: CampaignDto;
+  uploadingImage: string | null;
+  generatingImage: string | null;
+  deletingId: string | null;
+  hasBrandStyle: boolean;
+  instagramConfigured: boolean;
+  onUploadImage: (id: string, file: File) => void;
+  onGenerateImage: (id: string, prompt?: string) => Promise<void>;
+  onSaveText: (id: string, text: string) => Promise<void>;
+  onRemove: (id: string) => void;
+  onApprove: (id: string) => void;
+}
+
+function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, onUploadImage, onGenerateImage, onSaveText, onRemove, onApprove }: CampaignCardProps) {
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [editingImage, setEditingImage] = useState(false);
+  const [editingText, setEditingText] = useState(false);
+  const [editedText, setEditedText] = useState(c.text);
+  const [savingText, setSavingText] = useState(false);
+
+  const openEditor = !c.imageUrl || editingImage;
+
+  async function handleSaveText() {
+    setSavingText(true);
+    try {
+      await onSaveText(c.id, editedText);
+      setEditingText(false);
+    } finally {
+      setSavingText(false);
+    }
+  }
+
+  async function handleGenerateImage() {
+    try {
+      await onGenerateImage(c.id, imagePrompt || undefined);
+      setEditingImage(false);
+    } catch {}
+  }
+
+  return (
+    <Card id={`campaign-${c.id}`} className="scroll-mt-20">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="text-sm leading-snug">{c.title}</CardTitle>
+          <Badge variant={STATUS_VARIANT[c.status] as any} className="shrink-0 flex items-center gap-1">
+            {STATUS_ICON[c.status]}
+            {STATUS_LABEL[c.status]}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Copy</p>
+            {!editingText && (
+              <button
+                className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Editar texto"
+                onClick={(e) => { e.stopPropagation(); setEditedText(c.text); setEditingText(true); }}
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {editingText ? (
+            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+              <textarea
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                rows={6}
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+              />
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditingText(false)} disabled={savingText}>Cancelar</Button>
+                <Button size="sm" className="h-7 text-[11px]" onClick={handleSaveText} disabled={savingText}>
+                  {savingText ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.text}</p>
+          )}
+        </div>
+        {c.artBriefing && (
+          <div className="rounded-md bg-surface-800 p-3">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Briefing da arte</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{c.artBriefing}</p>
+          </div>
+        )}
+        <div className="space-y-3">
+          <div className="rounded-lg border border-dashed border-gold-500/30 bg-surface-900">
+            <div className="flex items-center justify-between px-3 py-2">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Arte</p>
+                <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {c.imageUrl && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] gap-1.5"
+                    onClick={(e) => { e.stopPropagation(); setEditingImage(!editingImage); }}
+                  >
+                    {editingImage ? <><X className="h-3 w-3" />Fechar</> : <><Wand2 className="h-3 w-3" />Mudar imagem</>}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="bg-surface-800">
+              {c.imageUrl ? (
+                <img src={c.imageUrl} alt={`Arte da campanha ${c.title}`} className="w-full h-60 object-cover" />
+              ) : (
+                <div className="h-60 flex items-center justify-center text-[11px] text-muted-foreground">Nenhuma imagem ainda</div>
+              )}
+            </div>
+            {c.imageUrl && (
+              <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
+                <span>Prévia renderizada</span>
+                <a href={c.imageUrl} target="_blank" rel="noreferrer" className="text-gold-400 hover:text-gold-300 underline" onClick={(e) => e.stopPropagation()}>
+                  Abrir em nova aba
+                </a>
+              </div>
+            )}
+            {openEditor && (
+              <div className="space-y-2 px-3 py-3 border-t border-border/40">
+                <label className="text-[11px] text-muted-foreground">Texto para gerar a arte (opcional)</label>
+                <input
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  placeholder="Ex: corte premium com iluminação dramática"
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    id={`upload-${c.id}`}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) onUploadImage(c.id, file);
+                      e.target.value = "";
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-[11px]"
+                    onClick={(e) => { e.stopPropagation(); document.getElementById(`upload-${c.id}`)?.click(); }}
+                    disabled={uploadingImage === c.id}
+                  >
+                    {uploadingImage === c.id ? "Enviando..." : "Enviar do celular"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 text-[11px] gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
+                    disabled={generatingImage === c.id}
+                    onClick={(e) => { e.stopPropagation(); handleGenerateImage(); }}
+                  >
+                    {generatingImage === c.id
+                      ? <><Sparkles className="h-3 w-3 animate-spin" />Gerando...</>
+                      : <><Sparkles className="h-3 w-3" />Gerar com IA</>}
+                  </Button>
+                </div>
+                {!hasBrandStyle && (
+                  <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                    <Palette className="h-3 w-3 text-purple-400/60 shrink-0" />
+                    Sem estilo configurado — a imagem usará padrão genérico.{" "}
+                    <Link href="/settings" className="text-purple-400/80 hover:text-purple-400 underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                      Configurar
+                    </Link>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {!instagramConfigured && c.status === "APPROVED" && (
+            <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-amber-400 font-medium">Instagram não conectado</p>
+                <p className="text-[10px] text-amber-400/70 mt-0.5">Configure para publicar diretamente, ou copie o texto e salve a imagem para postar manualmente.</p>
+              </div>
+              <a href="/integrations" onClick={(e) => e.stopPropagation()} className="shrink-0 rounded p-1.5 hover:bg-amber-500/20 text-amber-400 transition-colors" title="Configurar integrações">
+                <Settings className="h-4 w-4" />
+              </a>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm" variant="ghost"
+              className="h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(c.text).then(() =>
+                  toast({ title: "Texto copiado!", description: "Cole no Instagram ou onde preferir." })
+                );
+              }}
+            >
+              <Copy className="h-3 w-3" />
+              Copiar texto
+            </Button>
+            {c.imageUrl && (
+              <a
+                href={c.imageUrl}
+                download={`campanha-${c.id}.jpg`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <Download className="h-3 w-3" />
+                Salvar imagem
+              </a>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
+              <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
+            </div>
+            <div className="flex gap-2">
+              {c.status === "DRAFT" && (
+                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); onApprove(c.id); }}>
+                  Aprovar
+                </Button>
+              )}
+              {c.status !== "PUBLISHED" && (
+                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); onRemove(c.id); }} disabled={deletingId === c.id}>
+                  {deletingId === c.id ? "Deletando..." : "Deletar"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main client ───────────────────────────────────────────────
 
 export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCost = 10 }: {
@@ -258,12 +542,11 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
-  const [editingImage, setEditingImage] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [imagePrompt, setImagePrompt]       = useState<Record<string, string>>({});
   const [approveModal, setApproveModal]     = useState<string | null>(null); // campaignId
   const [rescheduleModal, setRescheduleModal] = useState<string | null>(null);
   const [schedulingId, setSchedulingId]     = useState<string | null>(null);
+  // Queue inline text editing (for scheduled/approved campaigns list)
   const [editingText, setEditingText]       = useState<string | null>(null);
   const [editedText, setEditedText]         = useState<Record<string, string>>({});
   const [savingText, setSavingText]         = useState<string | null>(null);
@@ -428,7 +711,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     }
   }
 
-  async function generateImage(id: string, promptOverride?: string) {
+  async function generateImage(id: string, promptOverride?: string): Promise<void> {
     setGeneratingImage(id);
     try {
       const res = await fetch(`/api/campaigns/${id}/image`, {
@@ -441,9 +724,9 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       window.dispatchEvent(new Event("ai-used"));
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl: data.url } : c)));
       toast({ title: "Imagem gerada", description: "Arte criada via IA." });
-      setEditingImage(null);
     } catch (e) {
       toast({ title: "Erro ao gerar imagem", description: String(e), variant: "destructive" });
+      throw e; // re-throw so card knows it failed
     } finally {
       setGeneratingImage(null);
     }
@@ -471,10 +754,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     }
   }
 
-  async function saveText(id: string) {
-    const text = editedText[id];
-    if (text === undefined) return;
-    setSavingText(id);
+  async function saveText(id: string, text: string): Promise<void> {
     try {
       const res = await fetch(`/api/campaigns/${id}`, {
         method: "POST",
@@ -484,10 +764,20 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar texto");
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, text } : c)));
-      setEditingText(null);
       toast({ title: "Texto salvo", description: "Copy da campanha atualizado." });
     } catch (e) {
       toast({ title: "Erro ao salvar texto", description: String(e), variant: "destructive" });
+      throw e;
+    }
+  }
+
+  async function saveQueueText(id: string) {
+    const text = editedText[id];
+    if (text === undefined) return;
+    setSavingText(id);
+    try {
+      await saveText(id, text);
+      setEditingText(null);
     } finally {
       setSavingText(null);
     }
@@ -527,279 +817,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     return new Date(dateStr).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   }
 
-  // ── Generating skeleton card ───────────────────────────────
-  function GeneratingCard({ c }: { c: CampaignDto }) {
-    return (
-      <Card id={`campaign-${c.id}`} className="scroll-mt-20 border-purple-500/20 bg-purple-500/5">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <CardTitle className="text-sm leading-snug text-foreground/80">{c.title}</CardTitle>
-            <Badge variant="outline" className="shrink-0 flex items-center gap-1 text-purple-400 border-purple-400/30">
-              <Sparkles className="h-3 w-3 animate-spin" />
-              Criando...
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="rounded-lg border border-dashed border-purple-500/20 bg-surface-900 h-44 flex flex-col items-center justify-center gap-3">
-            <div className="relative">
-              <div className="h-10 w-10 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
-              <Sparkles className="h-4 w-4 text-purple-400/60 absolute inset-0 m-auto" />
-            </div>
-            <p className="text-xs text-muted-foreground/70">Gerando arte com IA...</p>
-          </div>
-          <div className="space-y-2 animate-pulse">
-            <div className="h-2.5 bg-surface-700 rounded w-full" />
-            <div className="h-2.5 bg-surface-700 rounded w-4/5" />
-            <div className="h-2.5 bg-surface-700 rounded w-3/5" />
-          </div>
-          <p className="text-[11px] text-muted-foreground/50 text-center">
-            Você será notificado quando estiver pronta 🔔
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // ── Campaign card (reused for DRAFT and DISMISSED) ─────────
-  function CampaignCard({ c }: { c: CampaignDto }) {
-    return (
-      <Card id={`campaign-${c.id}`} key={c.id} className="scroll-mt-20">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <CardTitle className="text-sm leading-snug">{c.title}</CardTitle>
-            <Badge variant={STATUS_VARIANT[c.status] as any} className="shrink-0 flex items-center gap-1">
-              {STATUS_ICON[c.status]}
-              {STATUS_LABEL[c.status]}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Copy</p>
-              {editingText !== c.id && (
-                <button
-                  className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                  title="Editar texto"
-                  onClick={(e) => { e.stopPropagation(); setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); }}
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-            {editingText === c.id ? (
-              <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                <textarea
-                  value={editedText[c.id] ?? c.text}
-                  onChange={(e) => setEditedText((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                  rows={6}
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditingText(null)} disabled={savingText === c.id}>Cancelar</Button>
-                  <Button size="sm" className="h-7 text-[11px]" onClick={() => saveText(c.id)} disabled={savingText === c.id}>
-                    {savingText === c.id ? "Salvando..." : "Salvar"}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.text}</p>
-            )}
-          </div>
-          {c.artBriefing && (
-            <div className="rounded-md bg-surface-800 p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Briefing da arte</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">{c.artBriefing}</p>
-            </div>
-          )}
-          <div className="space-y-3">
-            {(() => {
-              const openEditor = !c.imageUrl || editingImage === c.id;
-              return (
-                <div className="rounded-lg border border-dashed border-gold-500/30 bg-surface-900">
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Arte</p>
-                      <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {c.imageUrl && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[11px] gap-1.5"
-                          onClick={(e) => { e.stopPropagation(); setEditingImage(openEditor ? null : c.id); }}
-                        >
-                          {openEditor ? <><X className="h-3 w-3" />Fechar</> : <><Wand2 className="h-3 w-3" />Mudar imagem</>}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="bg-surface-800">
-                    {c.imageUrl ? (
-                      <img src={c.imageUrl} alt={`Arte da campanha ${c.title}`} className="w-full h-60 object-cover" />
-                    ) : (
-                      <div className="h-60 flex items-center justify-center text-[11px] text-muted-foreground">Nenhuma imagem ainda</div>
-                    )}
-                  </div>
-                  {c.imageUrl && (
-                    <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
-                      <span>Prévia renderizada</span>
-                      <a
-                        href={c.imageUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-gold-400 hover:text-gold-300 underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Abrir em nova aba
-                      </a>
-                    </div>
-                  )}
-
-                  {(openEditor) && (
-                    <div className="space-y-2 px-3 py-3 border-t border-border/40">
-                      <label className="text-[11px] text-muted-foreground">Texto para gerar a arte (opcional)</label>
-                      <input
-                        value={imagePrompt[c.id] ?? ""}
-                        onChange={(e) => setImagePrompt((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                        placeholder="Ex: corte premium com iluminação dramática"
-                        className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <input
-                          id={`upload-${c.id}`}
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) uploadImage(c.id, file);
-                            e.target.value = "";
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-[11px]"
-                          onClick={(e) => { e.stopPropagation(); document.getElementById(`upload-${c.id}`)?.click(); }}
-                          disabled={uploadingImage === c.id}
-                        >
-                          {uploadingImage === c.id ? "Enviando..." : "Enviar do celular"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-8 text-[11px] gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
-                          disabled={generatingImage === c.id}
-                          onClick={(e) => { e.stopPropagation(); generateImage(c.id, imagePrompt[c.id]); }}
-                        >
-                          {generatingImage === c.id
-                            ? <><Sparkles className="h-3 w-3 animate-spin" />Gerando...</>
-                            : <><Sparkles className="h-3 w-3" />Gerar com IA</>}
-                        </Button>
-                      </div>
-                      {!hasBrandStyle && (
-                        <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
-                          <Palette className="h-3 w-3 text-purple-400/60 shrink-0" />
-                          Sem estilo configurado — a imagem usará padrão genérico.{" "}
-                          <Link href="/settings" className="text-purple-400/80 hover:text-purple-400 underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
-                            Configurar
-                          </Link>
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Instagram not configured notice */}
-            {!instagramConfigured && c.status === "APPROVED" && (
-              <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] text-amber-400 font-medium">Instagram não conectado</p>
-                  <p className="text-[10px] text-amber-400/70 mt-0.5">Configure para publicar diretamente, ou copie o texto e salve a imagem para postar manualmente.</p>
-                </div>
-                <a
-                  href="/integrations"
-                  onClick={(e) => e.stopPropagation()}
-                  className="shrink-0 rounded p-1.5 hover:bg-amber-500/20 text-amber-400 transition-colors"
-                  title="Configurar integrações"
-                >
-                  <Settings className="h-4 w-4" />
-                </a>
-              </div>
-            )}
-
-            {/* Copy text + Save image row */}
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigator.clipboard.writeText(c.text).then(() =>
-                    toast({ title: "Texto copiado!", description: "Cole no Instagram ou onde preferir." })
-                  );
-                }}
-              >
-                <Copy className="h-3 w-3" />
-                Copiar texto
-              </Button>
-              {c.imageUrl && (
-                <a
-                  href={c.imageUrl}
-                  download={`campanha-${c.id}.jpg`}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                >
-                  <Download className="h-3 w-3" />
-                  Salvar imagem
-                </a>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
-                <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
-              </div>
-              <div className="flex gap-2">
-                {c.status === "DRAFT" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-[11px]"
-                    onClick={(e) => { e.stopPropagation(); setApproveModal(c.id); }}
-                  >
-                    Aprovar
-                  </Button>
-                )}
-                {c.status !== "PUBLISHED" && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-[11px]"
-                    onClick={(e) => { e.stopPropagation(); remove(c.id); }}
-                    disabled={deletingId === c.id}
-                  >
-                    {deletingId === c.id ? "Deletando..." : "Deletar"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -956,6 +973,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {generatingCampaigns.map((c) => <GeneratingCard key={c.id} c={c} />)}
           </div>
+
         </div>
       )}
 
@@ -967,7 +985,15 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{draftCampaigns.length}</span>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {draftCampaigns.map((c) => <CampaignCard key={c.id} c={c} />)}
+            {draftCampaigns.map((c) => (
+              <CampaignCard
+                key={c.id} c={c}
+                uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
+                hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
+                onRemove={remove} onApprove={(id) => setApproveModal(id)}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -1049,7 +1075,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                         />
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditingText(null)} disabled={savingText === c.id}>Cancelar</Button>
-                          <Button size="sm" className="h-7 text-[11px]" onClick={() => saveText(c.id)} disabled={savingText === c.id}>
+                          <Button size="sm" className="h-7 text-[11px]" onClick={() => saveQueueText(c.id)} disabled={savingText === c.id}>
                             {savingText === c.id ? "Salvando..." : "Salvar"}
                           </Button>
                         </div>
@@ -1132,7 +1158,15 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{dismissedCampaigns.length}</span>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {dismissedCampaigns.map((c) => <CampaignCard key={c.id} c={c} />)}
+            {dismissedCampaigns.map((c) => (
+              <CampaignCard
+                key={c.id} c={c}
+                uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
+                hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
+                onRemove={remove} onApprove={(id) => setApproveModal(id)}
+              />
+            ))}
           </div>
         </div>
       )}
