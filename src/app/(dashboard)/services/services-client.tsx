@@ -539,7 +539,25 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                 </div>
 
                 <p className="font-semibold text-foreground">{s.name}</p>
-                {s.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.description}</p>}
+                {s.description && (
+                  <div className="mt-1">
+                    <p className={`text-xs text-muted-foreground ${expandedDescs.has(s.id) ? "" : "line-clamp-2"}`}>
+                      {s.description}
+                    </p>
+                    {s.description.length > 80 && (
+                      <button
+                        onClick={() => setExpandedDescs((prev) => {
+                          const next = new Set(prev);
+                          next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+                          return next;
+                        })}
+                        className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors mt-0.5"
+                      >
+                        {expandedDescs.has(s.id) ? "Ver menos" : "Ver mais"}
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {isEditing ? (
                   <div className="mt-3 space-y-2">
