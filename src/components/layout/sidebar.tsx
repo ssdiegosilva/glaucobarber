@@ -23,6 +23,7 @@ import {
 import { AiUsageWidget } from "./ai-usage-widget";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { InstallAppBanner } from "@/components/pwa/install-banner";
 
 export const NAV = [
   { href: "/dashboard",    label: "Dashboard",   icon: LayoutDashboard },
@@ -102,6 +103,9 @@ export function Sidebar({ barbershopName, className, aiUsed = 0, aiLimit = 30, a
           initialCredits={aiCredits}
         />
       </nav>
+
+      {/* Install App */}
+      <InstallAppBanner />
 
       {/* Footer */}
       <div className="border-t border-border p-3">
