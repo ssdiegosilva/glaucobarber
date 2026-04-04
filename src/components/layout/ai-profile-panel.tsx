@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Zap, Loader2, Clock, PencilLine, CreditCard, LogOut, Lightbulb } from "lucide-react";
+import { Sparkles, Zap, Loader2, Clock, PencilLine, CreditCard, LogOut, Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -42,6 +42,9 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
   const [aiCredits,     setAiCredits]     = useState(0);
   const [logs,          setLogs]          = useState<CallLog[]>([]);
   const [loadingLogs,   setLoadingLogs]   = useState(false);
+  const [historyOpen,   setHistoryOpen]   = useState(false);
+  const [hasMore,       setHasMore]       = useState(false);
+  const [loadingMore,   setLoadingMore]   = useState(false);
   const [buyingCredits, setBuyingCredits] = useState(false);
   const router   = useRouter();
   const supabase = getSupabaseBrowserClient();
@@ -60,21 +63,40 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
   }, []);
 
   async function loadHistory() {
+    setHistoryOpen(true);
     setLoadingLogs(true);
     try {
-      const res = await fetch("/api/billing/ai-history");
+      const res = await fetch("/api/billing/ai-history?skip=0");
       if (!res.ok) return;
       const data = await res.json();
       setLogs(data.logs ?? []);
+      setHasMore(data.hasMore ?? false);
     } catch {} finally {
       setLoadingLogs(false);
+    }
+  }
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/billing/ai-history?skip=${logs.length}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setLogs((prev) => [...prev, ...(data.logs ?? [])]);
+      setHasMore(data.hasMore ?? false);
+    } catch {} finally {
+      setLoadingMore(false);
     }
   }
 
   useEffect(() => {
     if (open) {
       loadAiUsage();
-      loadHistory();
+    } else {
+      // reset history when panel closes so next open starts fresh
+      setHistoryOpen(false);
+      setLogs([]);
+      setHasMore(false);
     }
   }, [open, loadAiUsage]);
 
@@ -196,38 +218,63 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
           </div>
 
           {/* History */}
-          <div className="px-5 pt-4 pb-2">
-            <div className="flex items-center gap-2 mb-3">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-semibold text-foreground">Histórico de uso</span>
-              <span className="text-[10px] text-muted-foreground ml-auto">últimas 50</span>
-            </div>
-          </div>
+          <div className="border-t border-border/40">
+            <button
+              onClick={historyOpen ? undefined : loadHistory}
+              className="w-full flex items-center gap-2 px-5 py-3.5 hover:bg-surface-800/40 transition-colors text-left"
+            >
+              <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-xs font-semibold text-foreground flex-1">Histórico de uso</span>
+              {loadingLogs ? (
+                <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+              ) : historyOpen ? (
+                <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+            </button>
 
-          {loadingLogs ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2 px-5">
-              <Sparkles className="h-7 w-7 text-muted-foreground opacity-20" />
-              <p className="text-xs text-muted-foreground">Nenhuma chamada registrada ainda</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border/20 pb-2">
-              {logs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between px-5 py-2.5 gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="h-1.5 w-1.5 rounded-full bg-gold-400/60 shrink-0" />
-                    <span className="text-xs text-foreground truncate">{log.label}</span>
+            {historyOpen && !loadingLogs && (
+              <>
+                {logs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2 px-5">
+                    <Sparkles className="h-7 w-7 text-muted-foreground opacity-20" />
+                    <p className="text-xs text-muted-foreground">Nenhuma chamada registrada ainda</p>
                   </div>
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {formatRelativeLong(log.createdAt)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+                ) : (
+                  <div className="divide-y divide-border/20">
+                    {logs.map((log) => (
+                      <div key={log.id} className="flex items-center justify-between px-5 py-2.5 gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-1.5 w-1.5 rounded-full bg-gold-400/60 shrink-0" />
+                          <span className="text-xs text-foreground truncate">{log.label}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {formatRelativeLong(log.createdAt)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {hasMore && (
+                  <div className="px-5 py-3">
+                    <button
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="w-full flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    >
+                      {loadingMore
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <ChevronDown className="h-3 w-3" />
+                      }
+                      Carregar mais
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
