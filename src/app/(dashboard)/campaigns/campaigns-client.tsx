@@ -499,7 +499,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   // ── Campaign card (reused for DRAFT and DISMISSED) ─────────
   function CampaignCard({ c }: { c: CampaignDto }) {
     return (
-      <Card key={c.id}>
+      <Card id={`campaign-${c.id}`} key={c.id} className="scroll-mt-20">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3">
             <CardTitle className="text-sm leading-snug">{c.title}</CardTitle>

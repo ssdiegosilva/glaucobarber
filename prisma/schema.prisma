@@ -1085,6 +1085,7 @@ model SystemNotification {
   type         NotificationType
   title        String
   body         String
+  link         String?
   dismissed    Boolean          @default(false)
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)

@@ -130,6 +130,7 @@ Important:
         type:  "SYSTEM",
         title: "Campanha pronta para aprovação",
         body:  `"${campaign.title}" foi criada pela IA e está aguardando sua aprovação.`,
+        link:  `/campaigns#campaign-${campaign.id}`,
       },
     });
   } catch (err) {

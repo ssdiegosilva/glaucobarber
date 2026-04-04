@@ -12,7 +12,7 @@ export async function GET() {
     where:   { barbershopId: session.user.barbershopId, dismissed: false },
     orderBy: { createdAt: "desc" },
     take:    20,
-    select:  { id: true, type: true, title: true, body: true, createdAt: true },
+    select:  { id: true, type: true, title: true, body: true, link: true, createdAt: true },
   });
 
   return NextResponse.json({ notifications, count: notifications.length });

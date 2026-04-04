@@ -24,6 +24,7 @@ interface Notification {
   type:      string;
   title:     string;
   body:      string;
+  link?:     string | null;
   createdAt: string;
 }
 
@@ -159,14 +160,33 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
               ) : (
                 <div className="divide-y divide-border/30 max-h-80 overflow-y-auto">
                   {notifs.map((n) => (
-                    <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-800/40 transition-colors">
+                    <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-800/40 transition-colors group">
                       <Sparkles className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
+                          {n.link ? (
+                            <Link
+                              href={n.link}
+                              onClick={() => { setBellOpen(false); dismiss(n.id); }}
+                              className="text-xs font-medium text-foreground truncate hover:text-gold-400 transition-colors"
+                            >
+                              {n.title}
+                            </Link>
+                          ) : (
+                            <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
+                          )}
                           <span className="text-[10px] text-muted-foreground shrink-0">{formatRelative(n.createdAt)}</span>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">{n.body}</p>
+                        {n.link && (
+                          <Link
+                            href={n.link}
+                            onClick={() => { setBellOpen(false); dismiss(n.id); }}
+                            className="mt-1 inline-flex items-center gap-1 text-[10px] text-gold-400/70 hover:text-gold-400 transition-colors"
+                          >
+                            Ver campanha →
+                          </Link>
+                        )}
                       </div>
                       <button
                         onClick={() => dismiss(n.id)}
