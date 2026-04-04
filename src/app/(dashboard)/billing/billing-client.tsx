@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -92,6 +93,17 @@ const FEATURE_DETAIL: Record<string, string> = {
   billing:       "Acompanhe seu plano atual, uso de IA, próxima fatura estimada e histórico de cobranças. Gerencie assinatura e dados de pagamento pelo portal da Stripe.",
 };
 
+// Componente separado para evitar Suspense boundary na página inteira
+function CreditsAddedRefresher() {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("credits") === "added") {
+      window.dispatchEvent(new Event("ai-used"));
+    }
+  }, [searchParams]);
+  return null;
+}
+
 export function BillingClient({
   planTier,
   planStatus,
@@ -182,6 +194,7 @@ export function BillingClient({
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
+      <Suspense fallback={null}><CreditsAddedRefresher /></Suspense>
       <Tabs defaultValue="plano" className="flex-1 flex flex-col min-h-0">
         <div className="px-4 md:px-6 pt-4 md:pt-6 shrink-0">
           <TabsList className="w-full grid grid-cols-3">
@@ -361,16 +374,23 @@ export function BillingClient({
             <p className="text-xs text-muted-foreground mt-1">Renova todo mês com o plano</p>
           </div>
 
-          {/* Bloco de créditos extras (reserva) */}
+          {/* Barra de créditos extras (reserva) */}
           {aiCreditsRemaining > 0 && (
-            <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
-              <div className="flex items-center gap-2">
-                <Zap className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-medium text-foreground">{aiCreditsRemaining} créditos extras disponíveis</p>
-                  <p className="text-xs text-muted-foreground">Reserva — usados quando o plano esgotar, não expiram</p>
+            <div className="space-y-1.5 border-t border-border/40 pt-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="h-3 w-3 text-purple-400" />
+                  <span>Créditos extras (reserva)</span>
                 </div>
+                <span className="text-purple-400 font-semibold">{aiCreditsRemaining} disponíveis</span>
               </div>
+              <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-purple-500 transition-all"
+                  style={{ width: `${Math.min(100, Math.round((aiCreditsRemaining / 60) * 100))}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">Não expiram — ativados automaticamente quando o plano mensal esgotar</p>
             </div>
           )}
 

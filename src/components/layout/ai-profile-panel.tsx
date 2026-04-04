@@ -180,9 +180,22 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
                 </div>
 
                 {aiCredits > 0 && (
-                  <p className="text-[11px] text-purple-400">
-                    + {aiCredits} crédito{aiCredits !== 1 ? "s" : ""} extra{aiCredits !== 1 ? "s" : ""}
-                  </p>
+                  <div className="space-y-1.5 border-t border-border/40 pt-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Zap className="h-3 w-3 text-purple-400" />
+                        <span>Reserva de créditos</span>
+                      </div>
+                      <span className="text-purple-400 font-semibold">{aiCredits}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-purple-500 transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.round((aiCredits / 60) * 100))}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Não expiram — ativados quando o plano mensal acabar</p>
+                  </div>
                 )}
 
                 <div className="rounded-lg bg-surface-800/60 border border-border/40 px-3 py-2.5 space-y-1.5">
