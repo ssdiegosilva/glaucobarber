@@ -24,30 +24,13 @@ export default async function DashboardPage({
   const view = viewParam === "week" || viewParam === "month" ? viewParam : "today";
 
   // Fetch in parallel: live Trinks data + local DB data
-  const [liveDay, barbershop, pendingSuggestions, approvedSuggestions, recentCampaign, goal, inactiveCount, offerAppointments] =
+  const [liveDay, barbershop, goal, inactiveCount, offerAppointments] =
     await Promise.all([
       getLiveDayStats(barbershopId),
 
       prisma.barbershop.findUnique({
         where:  { id: barbershopId },
-        select: { name: true, trinksConfigured: true, lastDailyGiftAt: true, dashboardWidgets: true },
-      }),
-
-      prisma.suggestion.findMany({
-        where:   { barbershopId, status: "PENDING" },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-
-      prisma.suggestion.findMany({
-        where:   { barbershopId, status: { in: ["APPROVED", "EXECUTED"] } },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-
-      prisma.campaign.findFirst({
-        where:   { barbershopId, status: "APPROVED" },
-        orderBy: { createdAt: "desc" },
+        select: { name: true, trinksConfigured: true, dashboardWidgets: true },
       }),
 
       prisma.goal.findFirst({
@@ -195,7 +178,6 @@ export default async function DashboardPage({
         view={view}
         barbershopName={barbershop?.name ?? ""}
         trinksConfigured={barbershop?.trinksConfigured ?? false}
-        dailyGiftAvailable={!barbershop?.lastDailyGiftAt || barbershop.lastDailyGiftAt < startOfDay(now)}
         liveError={liveDay.error}
         isOffDay={isOffDay}
         stats={{
@@ -220,26 +202,6 @@ export default async function DashboardPage({
           profissional: a.profissional,
           offerTitle:   offerByTrinksId.get(a.id) ?? null,
         }))}
-        suggestions={pendingSuggestions.map((s) => ({
-          id:      s.id,
-          type:    s.type,
-          title:   s.title,
-          content: s.content,
-          reason:  s.reason,
-        }))}
-        approvedSuggestions={approvedSuggestions.map((s) => ({
-          id:      s.id,
-          type:    s.type,
-          title:   s.title,
-          content: s.content,
-          reason:  s.reason,
-        }))}
-        campaign={recentCampaign ? {
-          id:      recentCampaign.id,
-          title:   recentCampaign.title,
-          text:    recentCampaign.text,
-          channel: recentCampaign.channel ?? "",
-        } : null}
         periodStats={periodStats ? {
           totalAppointments: periodStats.totalAppointments,
           completedCount:    periodStats.completedCount,
