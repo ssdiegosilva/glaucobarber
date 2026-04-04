@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface Props {
+  id?: string;
   icon: ReactNode;
   title: string;
   description?: string;
@@ -13,11 +14,19 @@ interface Props {
   children: ReactNode;
 }
 
-export function CollapsibleSection({ icon, title, description, badge, defaultOpen = false, children }: Props) {
+export function CollapsibleSection({ id, icon, title, description, badge, defaultOpen = false, children }: Props) {
   const [open, setOpen] = useState(defaultOpen);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (defaultOpen && ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm">
+    <div ref={ref} id={id} className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm">
       <button
         type="button"
         className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4 text-left hover:bg-muted/30 transition-colors"

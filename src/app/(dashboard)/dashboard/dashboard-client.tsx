@@ -96,6 +96,7 @@ interface Props {
   isOffDay:              boolean;
   stats:                 Stats;
   appointments:          Appointment[];
+  periodLabel?:          string;
   periodStats:           PeriodStats | null;
   initialWidgets?:       string[];
   widgetData?:           WidgetData;
@@ -166,6 +167,7 @@ export function DashboardClient({
   isOffDay,
   stats,
   appointments,
+  periodLabel,
   periodStats,
   initialWidgets = DEFAULT_WIDGETS,
   widgetData,
@@ -441,24 +443,29 @@ export function DashboardClient({
 
       {/* ── Quick shortcuts ───────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-1 rounded-lg border border-border bg-surface-800/50 p-1">
-          {[
-            { key: "today", label: "Hoje" },
-            { key: "week",  label: "Esta semana" },
-            { key: "month", label: "Este mês" },
-          ].map(({ key, label }) => (
-            <a
-              key={key}
-              href={`?view=${key}`}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === key
-                  ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </a>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1 rounded-lg border border-border bg-surface-800/50 p-1">
+            {[
+              { key: "today", label: "Hoje" },
+              { key: "week",  label: "Semana" },
+              { key: "month", label: "Mês" },
+            ].map(({ key, label }) => (
+              <a
+                key={key}
+                href={`?view=${key}`}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === key
+                    ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+          {periodLabel && (
+            <span className="text-xs text-muted-foreground">{periodLabel}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -481,7 +488,7 @@ export function DashboardClient({
             <MessageCircle className="h-3 w-3" /> WhatsApp
           </a>
 
-          {view === "today" && (
+          {view === "today" && trinksConfigured && (
             <Button variant="ghost" size="sm" onClick={handleSync} disabled={syncing} className="text-xs h-7">
               <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
               Sync
@@ -489,13 +496,6 @@ export function DashboardClient({
           )}
         </div>
       </div>
-
-      {liveError && view === "today" && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/8 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
-          <p className="text-sm text-red-300">{liveError}</p>
-        </div>
-      )}
 
       {/* ── KPI Grid ──────────────────────────────────────── */}
       {view === "today" && offDay ? (
@@ -631,7 +631,7 @@ export function DashboardClient({
                   {trinksConfigured ? (
                     <Plug className="h-3.5 w-3.5 text-green-400" />
                   ) : (
-                    <a href="/settings" title="Conectar Trinks">
+                    <a href="/settings?section=integrations" title="Conectar Trinks">
                       <Unplug className="h-3.5 w-3.5 text-muted-foreground hover:text-gold-400 transition-colors" />
                     </a>
                   )}

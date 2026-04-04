@@ -11,9 +11,15 @@ import { CampaignReferenceImageCard } from "./campaign-reference-image-card";
 import { IntegrationsClient } from "./integrations-client";
 import { CollapsibleSection } from "./collapsible-section";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ section?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
+
+  const { section } = await searchParams;
 
   const barbershopId = session.user.barbershopId;
 
@@ -110,9 +116,11 @@ export default async function SettingsPage() {
 
         {/* ── Integrações ────────────────────────────────────── */}
         <CollapsibleSection
+          id="integrations"
           icon={<Plug className="h-4 w-4" />}
           title="Integrações"
           description="Trinks, Instagram e WhatsApp"
+          defaultOpen={section === "integrations"}
           badge={
             integrationConnected ? (
               <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
