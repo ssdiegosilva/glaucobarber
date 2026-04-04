@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import {
   Scissors, CreditCard, Plus, Trash2,
   ThumbsUp, Play, Flag, UserX, Ban, CalendarClock as CalendarClockIcon,
   MessageCircle, Zap, ChevronDown, Settings2, Star, MessageSquare,
-  UserPlus, Repeat2, Target, X,
+  UserPlus, Repeat2, Target, X, ExternalLink,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -1322,6 +1323,17 @@ const APPROVAL_LINK: Record<string, { href: string; label: string } | undefined>
   COMMERCIAL_INSIGHT: undefined,
 };
 
+// Types that navigate directly — no "Aprovar" step needed
+const LINK_ONLY_SUGGESTIONS: Record<string, { href: string; label: string }> = {
+  CAMPAIGN_TEXT:     { href: "/campaigns", label: "Ver campanhas" },
+  SOCIAL_POST:       { href: "/campaigns", label: "Ver campanhas" },
+  PROMO_BRIEFING:    { href: "/campaigns", label: "Ver campanhas" },
+  OFFER_OPPORTUNITY: { href: "/offers",    label: "Ver ofertas" },
+};
+
+// Types that are informational only — just acknowledge
+const INFO_ONLY_SUGGESTIONS = new Set(["COMMERCIAL_INSIGHT"]);
+
 // ── WidgetCard ───────────────────────────────────────────────
 
 function WidgetCard({
@@ -1624,6 +1636,7 @@ function SuggestionCard({
   const touchStartX = useRef(0);
   const [swipeDx, setSwipeDx]   = useState(0);
   const [swiping, setSwiping]   = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const SWIPE_THRESHOLD = 80;
 
   function onTouchStart(e: React.TouchEvent) {

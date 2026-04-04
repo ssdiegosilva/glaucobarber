@@ -226,23 +226,23 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       {/* Status Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20">
                 <Plug className="h-5 w-5 text-gold-400" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <CardTitle className="text-base">Trinks</CardTitle>
                 <p className="text-xs text-muted-foreground">Plataforma operacional principal</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
                 {integration?.status ?? "UNCONFIGURED"}
               </Badge>
               <Button onClick={handleSync} disabled={syncing || !integration?.configured} size="sm">
                 <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Sincronizando..." : "Sync Manual"}
+                {syncing ? "Sincronizando..." : "Sync"}
               </Button>
             </div>
           </div>
