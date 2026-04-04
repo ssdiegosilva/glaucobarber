@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Globe, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
 import Link from "next/link";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
@@ -30,7 +30,7 @@ export interface OfferOption {
 export interface CampaignDto {
   id: string;
   title: string;
-  objective: string;
+  objective?: string;
   text: string;
   artBriefing: string | null;
   status: string;
@@ -248,8 +248,9 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
   const [theme, setTheme] = useState("");
-  const [objective, setObjective] = useState("");
   const [selectedOfferId, setSelectedOfferId] = useState<string>("");
+  const [loadingThemes, setLoadingThemes] = useState(false);
+  const [suggestedThemes, setSuggestedThemes] = useState<{ title: string; description: string }[]>([]);
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
@@ -270,19 +271,36 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, objective, channel: "instagram", offerId: selectedOfferId || undefined }),
+        body: JSON.stringify({ theme, channel: "instagram", offerId: selectedOfferId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar campanha");
       setCampaigns([data.campaign, ...campaigns]);
       setTheme("");
-      setObjective("");
       setSelectedOfferId("");
+      setSuggestedThemes([]);
       toast({ title: "Campanha criada", description: "Texto e arte gerados pela IA" });
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally {
       setLoadingCreate(false);
+    }
+  }
+
+  async function fetchThemes() {
+    setLoadingThemes(true);
+    setSuggestedThemes([]);
+    try {
+      const res = await fetch("/api/campaigns/themes", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao buscar temas");
+      window.dispatchEvent(new Event("ai-used"));
+      setSuggestedThemes(data.themes ?? []);
+      if (!data.themes?.length) toast({ title: "Nenhum tema encontrado", description: "Tente novamente mais tarde." });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setLoadingThemes(false);
     }
   }
 
@@ -510,34 +528,57 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <div>
               <CardTitle className="text-sm text-foreground">Criar campanha com IA</CardTitle>
               <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                A IA escreve o texto da campanha, sugere a arte e prepara tudo para publicar no Instagram. Você só precisa dizer o tema e o objetivo — ela cuida do resto.
+                A IA escreve o texto da campanha, sugere a arte e prepara tudo para publicar no Instagram. Você só precisa dizer o tema — ela cuida do resto.
               </p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-[11px] text-muted-foreground font-medium">Tema</label>
-              <input
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                placeholder="Ex: Tarde com horários livres"
-                className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs placeholder:text-muted-foreground/60"
-                disabled={loadingCreate}
-              />
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] text-muted-foreground font-medium">Tema da campanha</label>
+              <button
+                type="button"
+                onClick={fetchThemes}
+                disabled={loadingThemes || loadingCreate}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-400 hover:text-purple-300 disabled:opacity-50 transition-colors"
+              >
+                {loadingThemes ? (
+                  <><Sparkles className="h-3 w-3 animate-spin" />Buscando tendências...</>
+                ) : (
+                  <><Globe className="h-3 w-3" />Sem ideia? Veja tendências</>
+                )}
+              </button>
             </div>
-            <div className="space-y-1">
-              <label className="text-[11px] text-muted-foreground font-medium">Objetivo</label>
-              <input
-                value={objective}
-                onChange={(e) => setObjective(e.target.value)}
-                placeholder="Ex: Preencher buracos das 14h–16h"
-                className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs placeholder:text-muted-foreground/60"
-                disabled={loadingCreate}
-              />
-            </div>
+            <input
+              value={theme}
+              onChange={(e) => { setTheme(e.target.value); if (suggestedThemes.length) setSuggestedThemes([]); }}
+              placeholder="Ex: Tarde com horários livres, Dia dos Pais, Promoção relâmpago..."
+              className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs placeholder:text-muted-foreground/60"
+              disabled={loadingCreate}
+            />
           </div>
+          {suggestedThemes.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Temas em alta esta semana</p>
+              <div className="grid gap-1.5">
+                {suggestedThemes.map((t, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => { setTheme(t.title); setSuggestedThemes([]); }}
+                    className="w-full flex items-start gap-2.5 rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-2 text-left hover:border-purple-500/40 hover:bg-purple-500/10 transition-colors group"
+                  >
+                    <Sparkles className="h-3 w-3 text-purple-400 mt-0.5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground group-hover:text-purple-300 transition-colors">{t.title}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{t.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {availableOffers.length > 0 && (
             <div className="space-y-1">
               <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
@@ -563,7 +604,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <div className="flex items-center justify-between">
               <Button
                 onClick={createCampaign}
-                disabled={!theme || !objective || loadingCreate}
+                disabled={!theme || loadingCreate}
                 className={`text-xs gap-2 font-semibold transition-all duration-300 ${
                   loadingCreate
                     ? "bg-purple-600 cursor-wait text-white opacity-80"
@@ -621,7 +662,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                             <span className="text-[10px] text-red-400/80 shrink-0">sem imagem</span>
                           )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.objective}</p>
                         {dateStr ? (
                           <p className="text-[11px] text-muted-foreground mt-0.5">{dateStr}</p>
                         ) : (
@@ -708,7 +748,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                     <span className="text-xs text-muted-foreground w-24 shrink-0">
                       {c.publishedAt ? new Date(c.publishedAt).toLocaleDateString("pt-BR") : relativeTime(c.createdAt)}
                     </span>
-                    <span className="text-xs font-medium text-foreground flex-1 truncate">{c.objective}</span>
+                    <span className="text-xs font-medium text-foreground flex-1 truncate">{c.title}</span>
                     {c.channel && <Badge variant="outline" className="text-[10px] shrink-0">{c.channel}</Badge>}
                   </button>
                   {expandedPublished === c.id && (
@@ -757,10 +797,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Objetivo</p>
-                  <p className="text-xs text-foreground/80">{c.objective}</p>
-                </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Copy</p>

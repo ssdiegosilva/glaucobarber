@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { theme, objective, channel, offerId } = await req.json();
-  if (!theme || !objective) return NextResponse.json({ error: "Tema e objetivo são obrigatórios" }, { status: 400 });
+  if (!theme) return NextResponse.json({ error: "Tema é obrigatório" }, { status: 400 });
 
   // Verifica saldo para texto + imagem (2 créditos)
   const allowanceText = await checkAiAllowance(session.user.barbershopId);
@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
   }
 
   const provider = getAIProvider();
-  const context = `Barbearia: ${session.user.barbershopId}. Tema: ${theme}. Objetivo: ${objective}.${offerContext}`;
-  const ai = await provider.generateCampaignText(objective, context);
+  const context = `Barbearia: ${session.user.barbershopId}. Tema: ${theme}.${offerContext}`;
+  const ai = await provider.generateCampaignText(theme, context);
   await consumeAiCredit(session.user.barbershopId, "campaign_text");
 
   const campaign = await prisma.campaign.create({
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       barbershopId: session.user.barbershopId,
       status:      "DRAFT",
       title:       theme,
-      objective,
+      objective:   objective ?? "",
       text:        ai.text || "",
       artBriefing: ai.artBriefing || "",
       channel:     channel ?? "instagram",
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const prompt = `
 Create a premium square marketing image (1080x1080) for a barbershop brand called "${barbershop?.name ?? "Barbearia"}".
 
-Goal: ${objective || "Promote the barbershop services"}
+Goal: ${theme}
 
 ${brandStyleBlock}
 ${referenceNote}
