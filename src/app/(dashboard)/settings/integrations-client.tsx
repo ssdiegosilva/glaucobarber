@@ -864,13 +864,13 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                     </div>
                   </div>
                 ) : wabaId ? (
-                  <div className="rounded-md border border-green-500/30 bg-green-500/8 px-3 py-2.5 flex items-center justify-between gap-3">
+                  <div className="rounded-md border border-green-500/30 bg-green-500/8 px-3 py-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
                       <code className="text-xs text-green-400/80 font-mono truncate">{wabaId}</code>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button size="sm" variant="outline" className="text-xs gap-1"
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button size="sm" variant="outline" className="text-xs gap-1 flex-1 sm:flex-none"
                         onClick={handleSyncTemplates} disabled={wabaSyncing}>
                         {wabaSyncing
                           ? <RefreshCw className="h-3 w-3 animate-spin" />
