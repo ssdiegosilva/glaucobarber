@@ -77,6 +77,8 @@ const QUICK_QUESTIONS = [
   "Tenho sobreposições na agenda?",
   "Que campanha devo fazer agora?",
   "Como melhorar minha ocupação?",
+  "Como escrever uma bio pro Instagram?",
+  "Me explica o que é ticket médio",
 ];
 
 // ── Helpers ───────────────────────────────────────────────────
