@@ -24,7 +24,7 @@ const PLAN_PRICE: Record<PlanTier, string> = {
 };
 
 const PLAN_AI_LABEL: Record<PlanTier, string> = {
-  FREE:       "30 chamadas totais (trial vitalício)",
+  FREE:       "300 chamadas totais (trial)",
   STARTER:    "200 chamadas/mês",
   PRO:        "1.000 chamadas/mês",
   ENTERPRISE: "Ilimitado",

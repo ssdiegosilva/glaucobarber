@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
             barbershopId,
             type:  "TRIAL_EXPIRED",
             title: "Período de trial encerrado",
-            body:  "Seu trial gratuito expirou. Você agora está no plano Free com 30 chamadas de IA. Assine um plano para continuar com acesso completo.",
+            body:  "Seu trial gratuito expirou. Você agora está no plano Free. Assine um plano para continuar com acesso completo à IA.",
           },
         });
       }
