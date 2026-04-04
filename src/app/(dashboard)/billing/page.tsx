@@ -60,6 +60,7 @@ export default async function BillingPage() {
         cancelAtPeriodEnd={plan.cancelAtPeriodEnd}
         priceIdStart={process.env.STRIPE_PRICE_STARTER_MONTHLY ?? ""}
         priceIdPro={process.env.STRIPE_PRICE_PRO_MONTHLY ?? ""}
+        stripePortalUrl={process.env.STRIPE_CUSTOMER_PORTAL_URL ?? ""}
       />
     </div>
   );

@@ -52,6 +52,7 @@ interface Props {
   cancelAtPeriodEnd:  boolean;
   priceIdStart:       string;
   priceIdPro:         string;
+  stripePortalUrl:    string;
 }
 
 function formatBRL(cents: number) {
@@ -112,9 +113,9 @@ export function BillingClient({
   cancelAtPeriodEnd,
   priceIdStart,
   priceIdPro,
+  stripePortalUrl,
 }: Props) {
   const [loadingCredits,   setLoadingCredits]   = useState(false);
-  const [loadingPortal,    setLoadingPortal]    = useState(false);
   const [loadingCheckout,  setLoadingCheckout]  = useState<string | null>(null);
   const [checkoutError,    setCheckoutError]    = useState("");
   const [expandedFeature,  setExpandedFeature]  = useState<string | null>(null);
@@ -169,16 +170,6 @@ export function BillingClient({
     }
   }
 
-  async function openPortal() {
-    setLoadingPortal(true);
-    try {
-      const res  = await fetch("/api/stripe/portal", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } finally {
-      setLoadingPortal(false);
-    }
-  }
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
@@ -269,10 +260,12 @@ export function BillingClient({
         </div>
 
         {/* CTA principal de assinatura */}
-        {isManaged && (
-          <Button variant="outline" className="w-full gap-2" onClick={openPortal} disabled={loadingPortal}>
-            {loadingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            Gerenciar assinatura
+        {isManaged && stripePortalUrl && (
+          <Button variant="outline" className="w-full gap-2" asChild>
+            <a href={stripePortalUrl} target="_blank" rel="noopener noreferrer">
+              <CreditCard className="h-4 w-4" />
+              Gerenciar assinatura
+            </a>
           </Button>
         )}
         {canUpgrade && !isTrialing && (
