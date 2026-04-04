@@ -53,6 +53,7 @@ export default async function ClientsPage({
       />
       <div className="p-6">
         <ClientsClient
+          key={`${vipFilter ? "vip" : "all"}-${q ?? ""}-${page}`}
           customers={customers.map((c) => ({
             id:             c.id,
             name:           c.name,
