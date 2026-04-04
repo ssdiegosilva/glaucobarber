@@ -148,6 +148,19 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
   };
 }
 
+// ── Feature credit costs (weighted — image costs more than text) ───────────────
+
+export const AI_FEATURE_COSTS: Record<string, number> = {
+  campaign_image:        10,
+  visual_style_generate: 10,
+  brand_style_logo:      10,
+  // everything else defaults to 1
+};
+
+export function getFeatureCost(feature: string): number {
+  return AI_FEATURE_COSTS[feature] ?? 1;
+}
+
 // ── Feature labels for AI call log ────────────────────────────────────────────
 
 export const AI_FEATURE_LABELS: Record<string, string> = {
@@ -209,6 +222,7 @@ export async function withAiCredit<T>(
 export async function consumeAiCredit(barbershopId: string, feature: string): Promise<void> {
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
+  const cost   = getFeatureCost(feature);
 
   // Log this call (async, fire-and-forget style but awaited for safety)
   await logAiCall(barbershopId, feature);
@@ -217,8 +231,8 @@ export async function consumeAiCredit(barbershopId: string, feature: string): Pr
   if (plan.status === "TRIALING") {
     const updated = await prisma.aiUsageMonth.upsert({
       where:  { barbershopId_yearMonth: { barbershopId, yearMonth: "trialing" } },
-      create: { barbershopId, yearMonth: "trialing", usageCount: 1 },
-      update: { usageCount: { increment: 1 } },
+      create: { barbershopId, yearMonth: "trialing", usageCount: cost },
+      update: { usageCount: { increment: cost } },
     });
 
     // Crossed the limit on this call → migrate to FREE and notify
@@ -252,15 +266,15 @@ export async function consumeAiCredit(barbershopId: string, feature: string): Pr
   // Increment usage counter
   const updated = await prisma.aiUsageMonth.upsert({
     where:  { barbershopId_yearMonth: { barbershopId, yearMonth: key } },
-    create: { barbershopId, yearMonth: key, usageCount: 1 },
-    update: { usageCount: { increment: 1 } },
+    create: { barbershopId, yearMonth: key, usageCount: cost },
+    update: { usageCount: { increment: cost } },
   });
 
   // If we've exceeded the base limit, burn from credit balance
   if (updated.usageCount > limits.aiPerPeriod && plan.aiCreditBalance > 0) {
     await prisma.platformSubscription.update({
       where: { barbershopId },
-      data:  { aiCreditBalance: { decrement: 1 } },
+      data:  { aiCreditBalance: { decrement: cost } },
     });
   }
 }

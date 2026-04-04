@@ -885,9 +885,14 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                 <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/integrations" className="underline">configurar</a></p>
               )}
             </div>
-            {loadingCreate && (
+            {loadingCreate ? (
               <p className="text-[11px] text-muted-foreground/80 animate-pulse flex items-center gap-1">
                 Pode demorar um pouco — quando terminar, te aviso no sininho 🔔
+              </p>
+            ) : (
+              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                <span>💡</span>
+                Usa 11 créditos de IA (1 texto + 10 imagem)
               </p>
             )}
           </div>
