@@ -120,8 +120,7 @@ export function BillingClient({
   const [expandedFeature,  setExpandedFeature]  = useState<string | null>(null);
 
   const info       = PLAN_INFO[planTier];
-  const totalAi    = aiLimit + aiCreditsRemaining;
-  const aiPct      = totalAi > 0 ? Math.min(100, Math.round((aiUsed / totalAi) * 100)) : 100;
+  const aiPct      = aiLimit > 0 ? Math.min(100, Math.round((aiUsed / aiLimit) * 100)) : 100;
   const capCents   = appointmentCapCents;
   const apptPct    = hasAppointmentFee ? Math.min(100, Math.round((appointmentCents / capCents) * 100)) : 0;
 
@@ -342,24 +341,48 @@ export function BillingClient({
             )}
           </div>
         ) : (
-        <div>
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-            <span>{aiUsed} de {aiLimit === Infinity ? "∞" : aiLimit} chamadas usadas</span>
-            {aiCreditsRemaining > 0 && (
-              <span className="text-emerald-400">+{aiCreditsRemaining} créditos extras</span>
-            )}
+        <div className="space-y-3">
+          {/* Barra do plano */}
+          <div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span>{aiUsed} de {aiLimit === Infinity ? "∞" : aiLimit} chamadas usadas</span>
+              <span className={aiPct >= 90 ? "text-red-400 font-medium" : "text-muted-foreground"}>
+                {aiPct >= 100 ? "Esgotado" : `${100 - aiPct}% restante`}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  aiPct >= 90 ? "bg-red-500" : aiPct >= 70 ? "bg-amber-500" : "bg-gold-500"
+                }`}
+                style={{ width: `${aiPct}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Renova todo mês com o plano</p>
           </div>
-          <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${
-                aiPct >= 90 ? "bg-red-500" : aiPct >= 70 ? "bg-amber-500" : "bg-gold-500"
-              }`}
-              style={{ width: `${aiPct}%` }}
-            />
-          </div>
-          <p className={`text-xs mt-1 ${aiPct >= 90 ? "text-red-400" : "text-muted-foreground"}`}>
-            {aiPct >= 100 ? "Limite atingido — adicione créditos para continuar usando a IA." : `${100 - aiPct}% restante`}
-          </p>
+
+          {/* Bloco de créditos extras (reserva) */}
+          {aiCreditsRemaining > 0 && (
+            <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">{aiCreditsRemaining} créditos extras disponíveis</p>
+                  <p className="text-xs text-muted-foreground">Reserva — usados quando o plano esgotar, não expiram</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Aviso quando plano esgotado e sem reserva */}
+          {aiPct >= 100 && aiCreditsRemaining === 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5">
+              <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Limite atingido — adicione créditos para continuar usando a IA.
+              </p>
+            </div>
+          )}
         </div>
         )}
 
