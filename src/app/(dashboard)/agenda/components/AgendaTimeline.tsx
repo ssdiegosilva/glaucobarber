@@ -110,11 +110,10 @@ function durationToRowSpan(durationMin: number): number {
 }
 
 // ── Mobile tap-vs-scroll guard ────────────────────────────
-// Tracks pointer-down position so we can ignore onPointerUp when
-// the user was actually scrolling (moved > 20 px).
-// -9999 sentinel = cancelled (browser took over scroll).
-let _ptrStartX = -9999;
-let _ptrStartY = -9999;
+// onTouchStart + onPointerDown both set the start position.
+// onClick checks if the finger/cursor moved > 20px (scroll), and ignores if so.
+let _ptrStartX = 0;
+let _ptrStartY = 0;
 
 // ── Component ─────────────────────────────────────────────
 
@@ -224,11 +223,12 @@ export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, s
               return (
                 <div
                   key={`bg-${rowIdx}-${colIdx}`}
+                  onTouchStart={onSlotClick ? (e) => { _ptrStartX = e.touches[0].clientX; _ptrStartY = e.touches[0].clientY; } : undefined}
                   onPointerDown={onSlotClick ? (e) => { _ptrStartX = e.clientX; _ptrStartY = e.clientY; } : undefined}
-                  onPointerCancel={onSlotClick ? () => { _ptrStartX = -9999; _ptrStartY = -9999; } : undefined}
-                  onPointerUp={onSlotClick ? (e) => {
+                  onClick={onSlotClick ? (e) => {
+                    // clientX/Y are 0 on some mobile browsers for synthetic clicks — trust touch events handled the guard
+                    if (e.clientX === 0 && e.clientY === 0) { fireSlotClick(); return; }
                     if (Math.abs(e.clientX - _ptrStartX) > 20 || Math.abs(e.clientY - _ptrStartY) > 20) return;
-                    _ptrStartX = -9999; _ptrStartY = -9999;
                     fireSlotClick();
                   } : undefined}
                   className={`border-b border-l border-border/20 group relative
