@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildTrinksClient } from "@/lib/integrations/trinks/client";
 import { format } from "date-fns";
+import { notifyAppointmentEvent } from "@/lib/appointment-notifications";
 
 export async function PATCH(
   req: NextRequest,
@@ -57,6 +58,21 @@ export async function PATCH(
     } catch (err) {
       console.error("[reschedule] failed to sync to Trinks:", err);
     }
+  }
+
+  // Notifica cliente via WhatsApp (fire-and-forget)
+  if (appointment.customerId) {
+    const apptService = await prisma.appointment.findUnique({
+      where: { id: appointment.id },
+      select: { service: { select: { name: true } } },
+    });
+    notifyAppointmentEvent({
+      barbershopId: session.user.barbershopId,
+      customerId: appointment.customerId,
+      scheduledAt: newDate,
+      serviceName: apptService?.service?.name ?? null,
+      event: "RESCHEDULED",
+    }).catch(() => null);
   }
 
   return NextResponse.json({ ok: true, scheduledAt: newDate.toISOString() });

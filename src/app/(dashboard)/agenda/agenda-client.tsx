@@ -9,7 +9,7 @@ import { NewAppointmentDrawer } from "./components/NewAppointmentDrawer";
 import { MonthlyOverview } from "./components/MonthlyOverview";
 import { DayOffScreen } from "./components/DayOffScreen";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2, Settings2, ChevronLeft, ChevronRight, CalendarDays, BarChart3 } from "lucide-react";
+import { RefreshCw, Loader2, Settings2, ChevronLeft, ChevronRight, CalendarDays, BarChart3, Clock } from "lucide-react";
 import type { AgendaKPIs } from "./components/AgendaKPICards";
 
 export interface AgendaAppointment {
@@ -148,6 +148,10 @@ export function AgendaClient({
 
   // ── Live KPIs (update when status changes) ────────────
 
+  // ── Past date detection ────────────────────────────────
+  const todayStr = new Date().toISOString().split("T")[0];
+  const isPastDate = dateIso < todayStr;
+
   const liveKpis: AgendaKPIs = {
     revenueCompleted: appointments.filter((a) => a.status === "COMPLETED").reduce((s, a) => s + (a.price ?? 0), 0),
     revenueProjected: appointments.filter((a) => ["SCHEDULED","CONFIRMED","IN_PROGRESS"].includes(a.status)).reduce((s, a) => s + (a.price ?? 0), 0),
@@ -238,6 +242,12 @@ export function AgendaClient({
               <ChevronLeft className="h-4 w-4" />
             </button>
             <p className="text-sm font-medium text-foreground capitalize">{date}</p>
+            {isPastDate && (
+              <span className="flex items-center gap-1 rounded-full bg-red-500/15 border border-red-500/30 px-2 py-0.5 text-[11px] font-medium text-red-400">
+                <Clock className="h-3 w-3" />
+                Data passada
+              </span>
+            )}
             <button
               onClick={() => navigateDay(1)}
               className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-800 transition-colors"

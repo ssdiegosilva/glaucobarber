@@ -5,6 +5,7 @@ import { AppointmentStatus } from "@prisma/client";
 import { buildTrinksClient } from "@/lib/integrations/trinks/client";
 import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
 import { createAppointmentBillingEvent } from "@/lib/billing";
+import { notifyAppointmentEvent } from "@/lib/appointment-notifications";
 
 const allowed: AppointmentStatus[] = ["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
 
@@ -111,6 +112,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // PRO plan: register per-appointment billing event (fire-and-forget)
   if (status === "COMPLETED") {
     createAppointmentBillingEvent(session.user.barbershopId, appointment.id).catch(() => null);
+  }
+
+  // Notifica cliente via WhatsApp (fire-and-forget)
+  if (appointment.customerId) {
+    const apptForNotify = await prisma.appointment.findUnique({
+      where: { id: appointment.id },
+      select: { scheduledAt: true, service: { select: { name: true } } },
+    });
+    notifyAppointmentEvent({
+      barbershopId: session.user.barbershopId,
+      customerId: appointment.customerId,
+      scheduledAt: apptForNotify?.scheduledAt ?? appointment.scheduledAt,
+      serviceName: apptForNotify?.service?.name ?? null,
+      event: status as "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "NO_SHOW",
+    }).catch(() => null);
   }
 
   return NextResponse.json({ ok: true });
