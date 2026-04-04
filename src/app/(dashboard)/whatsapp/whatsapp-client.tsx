@@ -1200,7 +1200,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                 <p className="text-xs text-muted-foreground">
                   {queue.length} mensage{queue.length !== 1 ? "ns" : "m"} aguardando.
                 </p>
-                {botActive && (
+                {botActive && queue.some((m) => m.messageKind === "template") && (
                   <button
                     onClick={processQueue}
                     disabled={processing}
