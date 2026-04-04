@@ -66,16 +66,18 @@ export default async function DashboardPage({
   // Period stats for week / month views
   const revenueGoal = goal?.revenueTarget ? Number(goal.revenueTarget) : null;
 
+  const periodStart =
+    view === "week"  ? startOfWeek(now, { weekStartsOn: 0 })
+    : view === "month" ? startOfMonth(now)
+    : null;
+  const periodEnd =
+    view === "week"  ? endOfWeek(now, { weekStartsOn: 0 })
+    : view === "month" ? endOfMonth(now)
+    : null;
+
   const periodStats =
-    view === "week"
-      ? await getPeriodStats(
-          barbershopId,
-          startOfWeek(now, { weekStartsOn: 1 }),
-          endOfWeek(now, { weekStartsOn: 1 }),
-          revenueGoal,
-        )
-      : view === "month"
-      ? await getPeriodStats(barbershopId, startOfMonth(now), endOfMonth(now), revenueGoal)
+    periodStart && periodEnd
+      ? await getPeriodStats(barbershopId, periodStart, periodEnd, revenueGoal)
       : null;
 
   // Widget preferences
@@ -89,7 +91,7 @@ export default async function DashboardPage({
   // Extra widget data (only fetch what's needed)
   const monthStart = startOfMonth(now);
   const monthEnd   = endOfMonth(now);
-  const weekStart  = startOfWeek(now, { weekStartsOn: 1 });
+  const weekStart  = startOfWeek(now, { weekStartsOn: 0 });
 
   const [avgTicketData, newClientsCount, returnRateData, weeklyRevenueData, topServiceData, whatsappQueueCount] =
     await Promise.all([
@@ -202,6 +204,13 @@ export default async function DashboardPage({
           profissional: a.profissional,
           offerTitle:   offerByTrinksId.get(a.id) ?? null,
         }))}
+        periodLabel={
+          view === "week" && periodStart && periodEnd
+            ? `${format(periodStart, "d 'de' MMM", { locale: ptBR })} — ${format(periodEnd, "d 'de' MMM", { locale: ptBR })}`
+            : view === "month"
+            ? `Semana ${Math.ceil(now.getDate() / 7)} de ${format(now, "MMMM", { locale: ptBR })}`
+            : undefined
+        }
         periodStats={periodStats ? {
           totalAppointments: periodStats.totalAppointments,
           completedCount:    periodStats.completedCount,

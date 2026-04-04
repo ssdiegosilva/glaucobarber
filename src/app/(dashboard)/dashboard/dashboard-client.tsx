@@ -96,6 +96,7 @@ interface Props {
   isOffDay:              boolean;
   stats:                 Stats;
   appointments:          Appointment[];
+  periodLabel?:          string;
   periodStats:           PeriodStats | null;
   initialWidgets?:       string[];
   widgetData?:           WidgetData;
@@ -166,6 +167,7 @@ export function DashboardClient({
   isOffDay,
   stats,
   appointments,
+  periodLabel,
   periodStats,
   initialWidgets = DEFAULT_WIDGETS,
   widgetData,
@@ -441,24 +443,29 @@ export function DashboardClient({
 
       {/* ── Quick shortcuts ───────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-1 rounded-lg border border-border bg-surface-800/50 p-1">
-          {[
-            { key: "today", label: "Hoje" },
-            { key: "week",  label: "Esta semana" },
-            { key: "month", label: "Este mês" },
-          ].map(({ key, label }) => (
-            <a
-              key={key}
-              href={`?view=${key}`}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === key
-                  ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </a>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1 rounded-lg border border-border bg-surface-800/50 p-1">
+            {[
+              { key: "today", label: "Hoje" },
+              { key: "week",  label: "Semana" },
+              { key: "month", label: "Mês" },
+            ].map(({ key, label }) => (
+              <a
+                key={key}
+                href={`?view=${key}`}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === key
+                    ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+          {periodLabel && (
+            <span className="text-xs text-muted-foreground">{periodLabel}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
