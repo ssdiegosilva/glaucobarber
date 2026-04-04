@@ -110,10 +110,11 @@ function durationToRowSpan(durationMin: number): number {
 }
 
 // ── Mobile tap-vs-scroll guard ────────────────────────────
-// Tracks pointer-down position so we can ignore onClick when
-// the user was actually scrolling (moved > 8 px).
-let _ptrStartX = 0;
-let _ptrStartY = 0;
+// Tracks pointer-down position so we can ignore onPointerUp when
+// the user was actually scrolling (moved > 20 px).
+// -9999 sentinel = cancelled (browser took over scroll).
+let _ptrStartX = -9999;
+let _ptrStartY = -9999;
 
 // ── Component ─────────────────────────────────────────────
 
@@ -210,24 +211,26 @@ export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, s
                 return professionals[0] ?? "Sem profissional";
               })();
 
-              function handleCellClick(clientX: number, clientY: number) {
-                if (!onSlotClick) return;
-                // Ignore if pointer moved too much (scroll gesture on mobile)
-                if (Math.abs(clientX - _ptrStartX) > 8 || Math.abs(clientY - _ptrStartY) > 8) return;
+              function fireSlotClick() {
                 const totalMin = (startHour * 60) + rowIdx * SLOT_MINUTES;
                 const h = Math.floor(totalMin / 60) % 24;
                 const m = totalMin % 60;
                 const hh = h.toString().padStart(2, "0");
                 const mm = m.toString().padStart(2, "0");
                 const day = dateIso ?? new Date().toISOString().split("T")[0];
-                onSlotClick(`${day}T${hh}:${mm}:00.000Z`, proForCol);
+                onSlotClick!(`${day}T${hh}:${mm}:00.000Z`, proForCol);
               }
 
               return (
                 <div
                   key={`bg-${rowIdx}-${colIdx}`}
                   onPointerDown={onSlotClick ? (e) => { _ptrStartX = e.clientX; _ptrStartY = e.clientY; } : undefined}
-                  onClick={onSlotClick ? (e) => handleCellClick(e.clientX, e.clientY) : undefined}
+                  onPointerCancel={onSlotClick ? () => { _ptrStartX = -9999; _ptrStartY = -9999; } : undefined}
+                  onPointerUp={onSlotClick ? (e) => {
+                    if (Math.abs(e.clientX - _ptrStartX) > 20 || Math.abs(e.clientY - _ptrStartY) > 20) return;
+                    _ptrStartX = -9999; _ptrStartY = -9999;
+                    fireSlotClick();
+                  } : undefined}
                   className={`border-b border-l border-border/20 group relative
                     ${onSlotClick ? "cursor-pointer hover:bg-gold-500/5" : ""}`}
                   style={{
