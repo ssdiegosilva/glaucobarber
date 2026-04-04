@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyAppointmentEvent } from "@/lib/appointment-notifications";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -73,6 +74,15 @@ export async function POST(req: NextRequest) {
       });
     }
   }
+
+  // Notifica cliente via WhatsApp (fire-and-forget)
+  notifyAppointmentEvent({
+    barbershopId,
+    customerId,
+    scheduledAt: newDate,
+    serviceName: resolvedService?.name ?? null,
+    event: "CREATED",
+  }).catch(() => null);
 
   return NextResponse.json({ ok: true, appointment }, { status: 201 });
 }
