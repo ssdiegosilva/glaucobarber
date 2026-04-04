@@ -110,13 +110,10 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
     }
   }
 
-  const todayIso = new Date().toISOString().split("T")[0];
-
   async function handleSubmit() {
     if (!selected) { setError("Selecione um cliente."); return; }
     if (!date || !time) { setError("Informe data e hora."); return; }
     const scheduledAt = new Date(`${date}T${time}`).toISOString();
-    if (new Date(scheduledAt) <= new Date()) { setError("A data deve ser futura."); return; }
 
     setSaving(true); setError(null);
     try {
@@ -236,7 +233,6 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
               <input
                 type="date"
                 value={date}
-                min={todayIso}
                 onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
