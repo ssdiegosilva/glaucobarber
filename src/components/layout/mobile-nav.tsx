@@ -8,6 +8,7 @@ import { Scissors, Menu, X, Bell, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { InstallAppBanner } from "@/components/pwa/install-banner";
+import { AiProfilePanel } from "./ai-profile-panel";
 
 interface MobileNavProps {
   barbershopName?: string | null;
@@ -30,12 +31,13 @@ const R = 14;
 const CIRC = 2 * Math.PI * R; // ≈ 87.96
 
 export function MobileNav({ barbershopName, userName }: MobileNavProps) {
-  const [open,      setOpen]      = useState(false);
-  const [bellOpen,  setBellOpen]  = useState(false);
-  const [notifs,    setNotifs]    = useState<Notification[]>([]);
-  const [aiUsed,    setAiUsed]    = useState(0);
-  const [aiTotal,   setAiTotal]   = useState(30);
-  const [trialing,  setTrialing]  = useState(false);
+  const [open,       setOpen]       = useState(false);
+  const [bellOpen,   setBellOpen]   = useState(false);
+  const [panelOpen,  setPanelOpen]  = useState(false);
+  const [notifs,     setNotifs]     = useState<Notification[]>([]);
+  const [aiUsed,     setAiUsed]     = useState(0);
+  const [aiTotal,    setAiTotal]    = useState(30);
+  const [trialing,   setTrialing]   = useState(false);
   const pathname = usePathname();
   const router   = useRouter();
   const bellRef  = useRef<HTMLDivElement | null>(null);
@@ -161,27 +163,39 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
             )}
           </div>
 
-          {/* Avatar with AI ring */}
+          {/* Avatar with AI ring — clickable */}
           {userName && (
-            <div className="relative flex h-8 w-8 items-center justify-center">
-              <svg className="absolute inset-0 -rotate-90" viewBox="0 0 32 32" aria-hidden="true">
-                <circle cx="16" cy="16" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
-                {trialing ? (
-                  <circle cx="16" cy="16" r={R} fill="none" stroke="#C9A84C" strokeWidth="2"
-                    strokeDasharray={`${CIRC * 0.75} ${CIRC * 0.25}`} />
-                ) : (
-                  <circle cx="16" cy="16" r={R} fill="none" stroke={ringColor} strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray={CIRC}
-                    strokeDashoffset={offset}
-                    style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
-                  />
-                )}
-              </svg>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-500/20 border border-gold-500/30 text-[10px] font-bold text-gold-400 select-none">
-                {getInitials(userName)}
-              </span>
-            </div>
+            <>
+              <button
+                onClick={() => { setPanelOpen(true); setOpen(false); setBellOpen(false); }}
+                title={trialing ? "Trial — IA disponível" : `IA: ${aiUsed}/${aiTotal}`}
+                className="relative flex h-8 w-8 items-center justify-center"
+              >
+                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 32 32" aria-hidden="true">
+                  <circle cx="16" cy="16" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
+                  {trialing ? (
+                    <circle cx="16" cy="16" r={R} fill="none" stroke="#C9A84C" strokeWidth="2"
+                      strokeDasharray={`${CIRC * 0.75} ${CIRC * 0.25}`} />
+                  ) : (
+                    <circle cx="16" cy="16" r={R} fill="none" stroke={ringColor} strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeDasharray={CIRC}
+                      strokeDashoffset={offset}
+                      style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
+                    />
+                  )}
+                </svg>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-500/20 border border-gold-500/30 text-[10px] font-bold text-gold-400 select-none">
+                  {getInitials(userName)}
+                </span>
+              </button>
+
+              <AiProfilePanel
+                userName={userName}
+                open={panelOpen}
+                onOpenChange={setPanelOpen}
+              />
+            </>
           )}
 
           {/* Hamburger */}
