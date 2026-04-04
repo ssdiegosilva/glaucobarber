@@ -226,6 +226,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   const [recommendations, setRecommendations]     = useState<Record<string, PriceRecommendation>>({});
   const [expandedRec, setExpandedRec]             = useState<string | null>(null);
   const [selectedPrices, setSelectedPrices]       = useState<Record<string, number>>({});
+  const [expandedOpps, setExpandedOpps]           = useState<Set<string>>(new Set());
   const [generatingOpps, setGeneratingOpps]       = useState(false);
   const [approvingId, setApprovingId]             = useState<string | null>(null);
   const [rejectingId, setRejectingId]             = useState<string | null>(null);
@@ -444,8 +445,28 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                 </div>
 
                 <p className="font-semibold text-foreground">{opp.name}</p>
-                {opp.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{opp.description}</p>}
-                <p className="text-xs text-purple-300/80 mt-2 line-clamp-3 leading-relaxed">{opp.rationale}</p>
+                {opp.description && (
+                  <div className="mt-1">
+                    <p className={`text-xs text-muted-foreground ${expandedOpps.has(opp.id) ? "" : "line-clamp-2"}`}>
+                      {opp.description}
+                    </p>
+                  </div>
+                )}
+                <div className="mt-2">
+                  <p className={`text-xs text-purple-300/80 leading-relaxed ${expandedOpps.has(opp.id) ? "" : "line-clamp-3"}`}>
+                    {opp.rationale}
+                  </p>
+                  <button
+                    onClick={() => setExpandedOpps((prev) => {
+                      const next = new Set(prev);
+                      next.has(opp.id) ? next.delete(opp.id) : next.add(opp.id);
+                      return next;
+                    })}
+                    className="text-[10px] text-purple-400/70 hover:text-purple-400 transition-colors mt-1"
+                  >
+                    {expandedOpps.has(opp.id) ? "Ver menos" : "Ver mais"}
+                  </button>
+                </div>
 
                 <div className="flex items-center justify-between mt-3">
                   <p className="text-lg font-bold text-purple-300">{formatBRL(opp.suggestedPrice)}</p>
