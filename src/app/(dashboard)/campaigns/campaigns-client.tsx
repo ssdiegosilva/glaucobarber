@@ -266,6 +266,11 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [savingText, setSavingText]         = useState<string | null>(null);
 
   async function createCampaign() {
+    // Request browser notification permission before starting (non-blocking)
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
     setLoadingCreate(true);
     try {
       const res = await fetch("/api/campaigns", {
@@ -280,6 +285,17 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       setSelectedOfferId("");
       setSuggestedThemes([]);
       toast({ title: "Campanha criada", description: "Texto e arte gerados pela IA" });
+
+      // Refresh bell notifications immediately
+      window.dispatchEvent(new Event("notifications-changed"));
+
+      // Browser push notification
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        new Notification("Campanha pronta! ✨", {
+          body: `"${data.campaign.title}" está aguardando sua aprovação.`,
+          icon: "/favicon.ico",
+        });
+      }
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally {
@@ -466,7 +482,9 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   }
 
   // ── Helpers ────────────────────────────────────────────────
-  const queueCampaigns = campaigns.filter((c) => ["SCHEDULED", "APPROVED"].includes(c.status));
+  const queueCampaigns     = campaigns.filter((c) => ["SCHEDULED", "APPROVED"].includes(c.status));
+  const draftCampaigns     = campaigns.filter((c) => c.status === "DRAFT");
+  const dismissedCampaigns = campaigns.filter((c) => c.status === "DISMISSED");
 
   function isToday(dateStr: string | null) {
     if (!dateStr) return false;
@@ -476,6 +494,246 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   function formatScheduled(dateStr: string | null) {
     if (!dateStr) return null;
     return new Date(dateStr).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  // ── Campaign card (reused for DRAFT and DISMISSED) ─────────
+  function CampaignCard({ c }: { c: CampaignDto }) {
+    return (
+      <Card key={c.id}>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-sm leading-snug">{c.title}</CardTitle>
+            <Badge variant={STATUS_VARIANT[c.status] as any} className="shrink-0 flex items-center gap-1">
+              {STATUS_ICON[c.status]}
+              {STATUS_LABEL[c.status]}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Copy</p>
+              {editingText !== c.id && (
+                <button
+                  className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                  title="Editar texto"
+                  onClick={(e) => { e.stopPropagation(); setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {editingText === c.id ? (
+              <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                <textarea
+                  value={editedText[c.id] ?? c.text}
+                  onChange={(e) => setEditedText((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                  rows={6}
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditingText(null)} disabled={savingText === c.id}>Cancelar</Button>
+                  <Button size="sm" className="h-7 text-[11px]" onClick={() => saveText(c.id)} disabled={savingText === c.id}>
+                    {savingText === c.id ? "Salvando..." : "Salvar"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.text}</p>
+            )}
+          </div>
+          {c.artBriefing && (
+            <div className="rounded-md bg-surface-800 p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Briefing da arte</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{c.artBriefing}</p>
+            </div>
+          )}
+          <div className="space-y-3">
+            {(() => {
+              const openEditor = !c.imageUrl || editingImage === c.id;
+              return (
+                <div className="rounded-lg border border-dashed border-gold-500/30 bg-surface-900">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Arte</p>
+                      <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {c.imageUrl && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[11px] gap-1.5"
+                          onClick={(e) => { e.stopPropagation(); setEditingImage(openEditor ? null : c.id); }}
+                        >
+                          {openEditor ? <><X className="h-3 w-3" />Fechar</> : <><Wand2 className="h-3 w-3" />Mudar imagem</>}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-surface-800">
+                    {c.imageUrl ? (
+                      <img src={c.imageUrl} alt={`Arte da campanha ${c.title}`} className="w-full h-60 object-cover" />
+                    ) : (
+                      <div className="h-60 flex items-center justify-center text-[11px] text-muted-foreground">Nenhuma imagem ainda</div>
+                    )}
+                  </div>
+                  {c.imageUrl && (
+                    <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
+                      <span>Prévia renderizada</span>
+                      <a
+                        href={c.imageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-gold-400 hover:text-gold-300 underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Abrir em nova aba
+                      </a>
+                    </div>
+                  )}
+
+                  {(openEditor) && (
+                    <div className="space-y-2 px-3 py-3 border-t border-border/40">
+                      <label className="text-[11px] text-muted-foreground">Texto para gerar a arte (opcional)</label>
+                      <input
+                        value={imagePrompt[c.id] ?? ""}
+                        onChange={(e) => setImagePrompt((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                        placeholder="Ex: corte premium com iluminação dramática"
+                        className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          id={`upload-${c.id}`}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) uploadImage(c.id, file);
+                            e.target.value = "";
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-[11px]"
+                          onClick={(e) => { e.stopPropagation(); document.getElementById(`upload-${c.id}`)?.click(); }}
+                          disabled={uploadingImage === c.id}
+                        >
+                          {uploadingImage === c.id ? "Enviando..." : "Enviar do celular"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 text-[11px] gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
+                          disabled={generatingImage === c.id}
+                          onClick={(e) => { e.stopPropagation(); generateImage(c.id, imagePrompt[c.id]); }}
+                        >
+                          {generatingImage === c.id
+                            ? <><Sparkles className="h-3 w-3 animate-spin" />Gerando...</>
+                            : <><Sparkles className="h-3 w-3" />Gerar com IA</>}
+                        </Button>
+                      </div>
+                      {!hasBrandStyle && (
+                        <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                          <Palette className="h-3 w-3 text-purple-400/60 shrink-0" />
+                          Sem estilo configurado — a imagem usará padrão genérico.{" "}
+                          <Link href="/settings" className="text-purple-400/80 hover:text-purple-400 underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                            Configurar
+                          </Link>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Instagram not configured notice */}
+            {!instagramConfigured && c.status === "APPROVED" && (
+              <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-amber-400 font-medium">Instagram não conectado</p>
+                  <p className="text-[10px] text-amber-400/70 mt-0.5">Configure para publicar diretamente, ou copie o texto e salve a imagem para postar manualmente.</p>
+                </div>
+                <a
+                  href="/integrations"
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 rounded p-1.5 hover:bg-amber-500/20 text-amber-400 transition-colors"
+                  title="Configurar integrações"
+                >
+                  <Settings className="h-4 w-4" />
+                </a>
+              </div>
+            )}
+
+            {/* Copy text + Save image row */}
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(c.text).then(() =>
+                    toast({ title: "Texto copiado!", description: "Cole no Instagram ou onde preferir." })
+                  );
+                }}
+              >
+                <Copy className="h-3 w-3" />
+                Copiar texto
+              </Button>
+              {c.imageUrl && (
+                <a
+                  href={c.imageUrl}
+                  download={`campanha-${c.id}.jpg`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <Download className="h-3 w-3" />
+                  Salvar imagem
+                </a>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
+                <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
+              </div>
+              <div className="flex gap-2">
+                {c.status === "DRAFT" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    onClick={(e) => { e.stopPropagation(); setApproveModal(c.id); }}
+                  >
+                    Aprovar
+                  </Button>
+                )}
+                {c.status !== "PUBLISHED" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px]"
+                    onClick={(e) => { e.stopPropagation(); remove(c.id); }}
+                    disabled={deletingId === c.id}
+                  >
+                    {deletingId === c.id ? "Deletando..." : "Deletar"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -628,11 +886,26 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
               )}
             </div>
             {loadingCreate && (
-              <p className="text-[11px] text-gold-400/70 animate-pulse">Pode demorar alguns segundos ✨</p>
+              <p className="text-[11px] text-muted-foreground/80 animate-pulse flex items-center gap-1">
+                Pode demorar um pouco — quando terminar, te aviso no sininho 🔔
+              </p>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Campanhas aguardando aprovação ─────────────────── */}
+      {draftCampaigns.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-0.5">
+            <p className="text-xs font-semibold text-foreground">Aguardando aprovação</p>
+            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{draftCampaigns.length}</span>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {draftCampaigns.map((c) => <CampaignCard key={c.id} c={c} />)}
+          </div>
+        </div>
+      )}
 
       {/* ── Fila de lançamento ─────────────────────────────── */}
       {queueCampaigns.length > 0 && (
@@ -777,250 +1050,25 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
         </Card>
       )}
 
-      {campaigns.filter((c) => ["DRAFT", "DISMISSED"].includes(c.status)).length === 0 && !campaigns.some((c) => c.status === "PUBLISHED") && queueCampaigns.length === 0 ? (
+      {/* ── Empty state ────────────────────────────────────── */}
+      {draftCampaigns.length === 0 && dismissedCampaigns.length === 0 && !campaigns.some((c) => c.status === "PUBLISHED") && queueCampaigns.length === 0 && (
         <div className="rounded-xl border border-dashed border-gold-500/20 bg-card p-12 text-center">
           <Megaphone className="h-8 w-8 text-gold-400/50 mx-auto mb-3" />
           <h3 className="font-semibold text-foreground mb-1">Nenhuma campanha ainda</h3>
           <p className="text-sm text-muted-foreground">Crie uma campanha manual ou aprove uma sugestão da IA.</p>
         </div>
-      ) : campaigns.filter((c) => ["DRAFT", "DISMISSED"].includes(c.status)).length === 0 ? null : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {campaigns.filter((c) => ["DRAFT", "DISMISSED"].includes(c.status)).map((c) => (
-            <Card key={c.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <CardTitle className="text-sm leading-snug">{c.title}</CardTitle>
-                  <Badge variant={STATUS_VARIANT[c.status] as any} className="shrink-0 flex items-center gap-1">
-                    {STATUS_ICON[c.status]}
-                    {STATUS_LABEL[c.status]}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Copy</p>
-                    {editingText !== c.id && (
-                      <button
-                        className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                        title="Editar texto"
-                        onClick={(e) => { e.stopPropagation(); setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                  {editingText === c.id ? (
-                    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                      <textarea
-                        value={editedText[c.id] ?? c.text}
-                        onChange={(e) => setEditedText((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                        rows={6}
-                        className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setEditingText(null)} disabled={savingText === c.id}>Cancelar</Button>
-                        <Button size="sm" className="h-7 text-[11px]" onClick={() => saveText(c.id)} disabled={savingText === c.id}>
-                          {savingText === c.id ? "Salvando..." : "Salvar"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.text}</p>
-                  )}
-                </div>
-                {c.artBriefing && (
-                  <div className="rounded-md bg-surface-800 p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Briefing da arte</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{c.artBriefing}</p>
-                  </div>
-                )}
-                <div className="space-y-3">
-                  {(() => {
-                    const openEditor = !c.imageUrl || editingImage === c.id;
-                    return (
-                      <div className="rounded-lg border border-dashed border-gold-500/30 bg-surface-900">
-                        <div className="flex items-center justify-between px-3 py-2">
-                          <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Arte</p>
-                            <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {c.imageUrl && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-[11px] gap-1.5"
-                                onClick={(e) => { e.stopPropagation(); setEditingImage(openEditor ? null : c.id); }}
-                              >
-                                {openEditor ? <><X className="h-3 w-3" />Fechar</> : <><Wand2 className="h-3 w-3" />Mudar imagem</>}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="bg-surface-800">
-                          {c.imageUrl ? (
-                            <img src={c.imageUrl} alt={`Arte da campanha ${c.title}`} className="w-full h-60 object-cover" />
-                          ) : (
-                            <div className="h-60 flex items-center justify-center text-[11px] text-muted-foreground">Nenhuma imagem ainda</div>
-                          )}
-                        </div>
-                        {c.imageUrl && (
-                          <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
-                            <span>Prévia renderizada</span>
-                            <a
-                              href={c.imageUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-gold-400 hover:text-gold-300 underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Abrir em nova aba
-                            </a>
-                          </div>
-                        )}
+      )}
 
-                        {(openEditor) && (
-                          <div className="space-y-2 px-3 py-3 border-t border-border/40">
-                            <label className="text-[11px] text-muted-foreground">Texto para gerar a arte (opcional)</label>
-                            <input
-                              value={imagePrompt[c.id] ?? ""}
-                              onChange={(e) => setImagePrompt((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                              placeholder="Ex: corte premium com iluminação dramática"
-                              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <div className="flex flex-wrap gap-2">
-                              <input
-                                id={`upload-${c.id}`}
-                                type="file"
-                                accept="image/*"
-                                capture="environment"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) uploadImage(c.id, file);
-                                  e.target.value = "";
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 text-[11px]"
-                                onClick={(e) => { e.stopPropagation(); document.getElementById(`upload-${c.id}`)?.click(); }}
-                                disabled={uploadingImage === c.id}
-                              >
-                                {uploadingImage === c.id ? "Enviando..." : "Enviar do celular"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="h-8 text-[11px] gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
-                                disabled={generatingImage === c.id}
-                                onClick={(e) => { e.stopPropagation(); generateImage(c.id, imagePrompt[c.id]); }}
-                              >
-                                {generatingImage === c.id
-                                  ? <><Sparkles className="h-3 w-3 animate-spin" />Gerando...</>
-                                  : <><Sparkles className="h-3 w-3" />Gerar com IA</>}
-                              </Button>
-                            </div>
-                            {!hasBrandStyle && (
-                              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
-                                <Palette className="h-3 w-3 text-purple-400/60 shrink-0" />
-                                Sem estilo configurado — a imagem usará padrão genérico.{" "}
-                                <Link href="/settings" className="text-purple-400/80 hover:text-purple-400 underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
-                                  Configurar
-                                </Link>
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Instagram not configured notice */}
-                  {!instagramConfigured && c.status === "APPROVED" && (
-                    <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] text-amber-400 font-medium">Instagram não conectado</p>
-                        <p className="text-[10px] text-amber-400/70 mt-0.5">Configure para publicar diretamente, ou copie o texto e salve a imagem para postar manualmente.</p>
-                      </div>
-                      <a
-                        href="/integrations"
-                        onClick={(e) => e.stopPropagation()}
-                        className="shrink-0 rounded p-1.5 hover:bg-amber-500/20 text-amber-400 transition-colors"
-                        title="Configurar integrações"
-                      >
-                        <Settings className="h-4 w-4" />
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Copy text + Save image row */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(c.text).then(() =>
-                          toast({ title: "Texto copiado!", description: "Cole no Instagram ou onde preferir." })
-                        );
-                      }}
-                    >
-                      <Copy className="h-3 w-3" />
-                      Copiar texto
-                    </Button>
-                    {c.imageUrl && (
-                      <a
-                        href={c.imageUrl}
-                        download={`campanha-${c.id}.jpg`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      >
-                        <Download className="h-3 w-3" />
-                        Salvar imagem
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
-                      <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      {c.status === "DRAFT" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[11px]"
-                          onClick={(e) => { e.stopPropagation(); setApproveModal(c.id); }}
-                        >
-                          Aprovar
-                        </Button>
-                      )}
-                      {c.status !== "PUBLISHED" && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-[11px]"
-                          onClick={(e) => { e.stopPropagation(); remove(c.id); }}
-                          disabled={deletingId === c.id}
-                        >
-                          {deletingId === c.id ? "Deletando..." : "Deletar"}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* ── Campanhas dispensadas ──────────────────────────── */}
+      {dismissedCampaigns.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-0.5">
+            <p className="text-xs font-semibold text-muted-foreground">Dispensadas</p>
+            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{dismissedCampaigns.length}</span>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {dismissedCampaigns.map((c) => <CampaignCard key={c.id} c={c} />)}
+          </div>
         </div>
       )}
     </div>

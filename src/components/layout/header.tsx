@@ -62,7 +62,8 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
   useEffect(() => {
     loadNotifs();
     const interval = setInterval(loadNotifs, 60_000);
-    return () => clearInterval(interval);
+    window.addEventListener("notifications-changed", loadNotifs);
+    return () => { clearInterval(interval); window.removeEventListener("notifications-changed", loadNotifs); };
   }, [loadNotifs]);
 
   const loadAiUsage = useCallback(async () => {

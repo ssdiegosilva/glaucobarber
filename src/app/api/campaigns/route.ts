@@ -122,5 +122,19 @@ Important:
     console.error("Erro ao gerar imagem da campanha", err);
   }
 
+  // Notificação no sininho
+  try {
+    await prisma.systemNotification.create({
+      data: {
+        barbershopId: session.user.barbershopId,
+        type:  "SYSTEM",
+        title: "Campanha pronta para aprovação",
+        body:  `"${campaign.title}" foi criada pela IA e está aguardando sua aprovação.`,
+      },
+    });
+  } catch (err) {
+    console.error("Erro ao criar notificação de campanha", err);
+  }
+
   return NextResponse.json({ campaign, ai });
 }
