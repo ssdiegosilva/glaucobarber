@@ -103,8 +103,9 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
   async function buyCredits() {
     setBuyingCredits(true);
     try {
-      const res = await fetch("/api/billing/credits/checkout", { method: "POST" });
-      if (res.redirected) window.location.href = res.url;
+      const res  = await fetch("/api/billing/credits/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
     } finally {
       setBuyingCredits(false);
     }

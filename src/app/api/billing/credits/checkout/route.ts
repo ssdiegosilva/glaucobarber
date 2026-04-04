@@ -36,5 +36,5 @@ export async function POST(req: NextRequest) {
   }
 
   const checkout = await stripe.checkout.sessions.create(sessionParams);
-  return NextResponse.redirect(checkout.url!, 303);
+  return NextResponse.json({ url: checkout.url });
 }

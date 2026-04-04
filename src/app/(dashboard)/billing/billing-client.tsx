@@ -140,8 +140,9 @@ export function BillingClient({
   async function buyCredits() {
     setLoadingCredits(true);
     try {
-      const res = await fetch("/api/billing/credits/checkout", { method: "POST" });
-      if (res.redirected) window.location.href = res.url;
+      const res  = await fetch("/api/billing/credits/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
     } finally {
       setLoadingCredits(false);
     }
