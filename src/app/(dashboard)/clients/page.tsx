@@ -22,7 +22,7 @@ export default async function ClientsPage({
     barbershopId: session.user.barbershopId,
     deletedAt:    null,
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
-    ...(vipFilter ? { status: "VIP" } : {}),
+    ...(vipFilter ? { status: "VIP" as const } : {}),
   };
 
   const [customers, total, vipCount, inactiveCount] = await Promise.all([
