@@ -8,7 +8,7 @@ import type { CustomerSummary, PostSaleStatus } from "../types";
 import {
   MessageCircle, Clock, Scissors,
   ChevronDown, ChevronUp, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
-  UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles, X,
+  UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles, X, Save,
 } from "lucide-react";
 
 // ── Status actions ────────────────────────────────────────────
@@ -440,46 +440,73 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
   onCancel:        () => void;
   onSent:          () => void;
 }) {
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [error,   setError]   = useState("");
+  const [message,        setMessage]        = useState("");
+  const [loading,        setLoading]        = useState(true);
+  const [sending,        setSending]        = useState(false);
+  const [error,          setError]          = useState("");
+  const [localReviewUrl, setLocalReviewUrl] = useState(googleReviewUrl);
+  const [urlInput,       setUrlInput]       = useState("");
+  const [savingUrl,      setSavingUrl]      = useState(false);
+  const [urlError,       setUrlError]       = useState("");
 
-  const missingReviewUrl = action.isReview && !googleReviewUrl;
+  const missingReviewUrl = action.isReview && !localReviewUrl;
 
   const daysSinceVisit = customer.lastVisitAt
     ? Math.floor((Date.now() - new Date(customer.lastVisitAt).getTime()) / 86_400_000)
     : undefined;
 
+  async function generate(reviewUrl: string | null) {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/post-sale/generate-message", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          actionType:      action.type,
+          customerName:    customer.name,
+          serviceName:     customer.serviceName ?? undefined,
+          daysSinceVisit,
+          googleReviewUrl: action.isReview ? reviewUrl : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message ?? data.error ?? "Erro ao gerar mensagem."); return; }
+      setMessage(data.message);
+    } catch {
+      setError("Erro ao gerar mensagem. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (missingReviewUrl) { setLoading(false); return; }
-    async function generate() {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch("/api/post-sale/generate-message", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({
-            actionType:      action.type,
-            customerName:    customer.name,
-            serviceName:     customer.serviceName ?? undefined,
-            daysSinceVisit,
-            googleReviewUrl: action.isReview ? googleReviewUrl : undefined,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) { setError(data.message ?? data.error ?? "Erro ao gerar mensagem."); return; }
-        setMessage(data.message);
-      } catch {
-        setError("Erro ao gerar mensagem. Tente novamente.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    generate();
+    generate(localReviewUrl);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleSaveUrl() {
+    if (!urlInput.trim()) return;
+    setSavingUrl(true);
+    setUrlError("");
+    try {
+      const res = await fetch("/api/barbershop", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ googleReviewUrl: urlInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setUrlError(data.error ?? "Erro ao salvar. Tente novamente."); return; }
+      const saved = data.barbershop.googleReviewUrl as string;
+      setLocalReviewUrl(saved);
+      generate(saved);
+    } catch {
+      setUrlError("Erro ao salvar. Tente novamente.");
+    } finally {
+      setSavingUrl(false);
+    }
+  }
 
   async function handleSend() {
     if (!customer.phone || !message.trim()) return;
@@ -523,20 +550,38 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
         </button>
       </div>
 
-      {/* Missing review URL */}
+      {/* Missing review URL — inline setup */}
       {missingReviewUrl ? (
         <div className="space-y-3">
           <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-300 leading-relaxed">
-              Configure o link do Google Business nas configurações para enviar pedidos de avaliação.
+              Cole o link do Google Business abaixo para enviar pedidos de avaliação.
             </p>
           </div>
+          <div className="space-y-2">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://g.page/r/..."
+              className="w-full rounded-md border border-blue-500/30 bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveUrl(); }}
+            />
+            {urlError && <p className="text-xs text-red-400">{urlError}</p>}
+          </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={onCancel}>Cancelar</Button>
-            <Button size="sm" className="flex-1 text-xs gap-1.5 bg-gold-500 hover:bg-gold-400 text-black"
-              onClick={() => { window.location.href = "/settings"; }}>
-              <ExternalLink className="h-3 w-3" /> Ir para configurações
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={onCancel} disabled={savingUrl}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 text-xs gap-1.5 bg-gold-500 hover:bg-gold-400 text-black"
+              onClick={handleSaveUrl}
+              disabled={!urlInput.trim() || savingUrl}
+            >
+              {savingUrl ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              {savingUrl ? "Salvando..." : "Salvar e continuar"}
             </Button>
           </div>
         </div>
