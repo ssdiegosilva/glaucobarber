@@ -198,6 +198,29 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
         ))}
       </div>
 
+      {/* Pagination mobile */}
+      {totalPages > 1 && (
+        <div className="md:hidden flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {skip + 1}–{Math.min(skip + 100, total)} de {total}
+          </p>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <a href={`?page=${page - 1}${q ? `&q=${q}` : ""}${vipFilter ? "&vip=1" : ""}`}
+                className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors">
+                Anterior
+              </a>
+            )}
+            {page < totalPages && (
+              <a href={`?page=${page + 1}${q ? `&q=${q}` : ""}${vipFilter ? "&vip=1" : ""}`}
+                className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors">
+                Próxima
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Desktop table (hidden on mobile) ──────────────── */}
       <div className="hidden md:block rounded-lg border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
