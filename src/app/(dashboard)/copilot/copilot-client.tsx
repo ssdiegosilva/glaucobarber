@@ -48,6 +48,7 @@ const LINK_ONLY_ACTIONS: Record<string, { label: string; href: string }> = {
   define_goal:        { label: "Ir para Metas",    href: "/meta" },
   campaign:           { label: "Ver Campanhas",     href: "/campaigns" },
   agenda:             { label: "Ver Agenda",         href: "/agenda" },
+  block_agenda:       { label: "Abrir Agenda",      href: "/agenda" },
   crm:                { label: "Ver Clientes",       href: "/clients" },
   pricing:            { label: "Ver Serviços",       href: "/services" },
   post_sale_followup: { label: "Ver Pós-venda",     href: "/post-sale" },
@@ -92,6 +93,7 @@ function getActionIcon(type: string) {
     case "define_goal":
       return Target;
     case "agenda":
+    case "block_agenda":
       return Calendar;
     case "crm":
       return Users;
@@ -164,6 +166,14 @@ function getPayloadPreview(
     const suggestedHour = payload.suggestedHour as string | undefined;
     if (clientName) {
       return `${clientName}${suggestedDay ? ` → ${suggestedDay}${suggestedHour ? ` às ${suggestedHour}` : ""}` : ""}`;
+    }
+  }
+  if (type === "block_agenda") {
+    const startDate = payload.startDate as string | undefined;
+    const endDate   = payload.endDate   as string | undefined;
+    const reason    = payload.reason    as string | undefined;
+    if (startDate && endDate) {
+      return `${startDate} → ${endDate}${reason ? ` · ${reason}` : ""}`;
     }
   }
   return null;

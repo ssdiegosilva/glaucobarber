@@ -453,7 +453,7 @@ Responda em JSON:
     {
       "title": "título da ação (curto)",
       "description": "o que fazer exatamente — seja específico",
-      "type": "campaign|reactivation_promo|post_sale_followup|post_sale_review|agenda|agenda_conflict|define_goal|crm|pricing|motivational",
+      "type": "campaign|reactivation_promo|post_sale_followup|post_sale_review|agenda|agenda_conflict|block_agenda|define_goal|crm|pricing|motivational",
       "reason": "por que agir agora — 1 frase com dado concreto do contexto",
       "payload": {}
     }
@@ -468,6 +468,7 @@ Tipos de ação disponíveis:
 - post_sale_review: solicitar avaliação Google (clientes recém-atendidos)
 - agenda: ação para preencher horários livres de hoje ou desta semana
 - agenda_conflict: reagendar cliente para resolver sobreposição (payload: clientName, phone, suggestedDay, suggestedHour)
+- block_agenda: fechar/bloquear agenda por período de ausência (viagem, férias, folga) — inclua no payload: startDate (dd/MM/yyyy), endDate (dd/MM/yyyy), reason (ex: "viagem", "férias")
 - define_goal: recomendar ao usuário que defina a meta do mês em /financeiro > Metas
 - crm: segmentação, atualização de dados de clientes
 - pricing: sugestão de preço ou pacote para aumentar ticket médio
@@ -479,5 +480,6 @@ Regras importantes:
 - Se clientes inativos > 5, SEMPRE inclua reactivation_promo com os top candidatos do payload
 - Se pendingGoogleReviews > 0, inclua post_sale_review
 - Se sobreposição detectada, inclua agenda_conflict
+- Se o usuário mencionar viagem, férias, ausência ou qualquer período fora, SEMPRE inclua block_agenda com startDate e endDate extraídos da mensagem
 - Nunca confirme execução. requireApproval sempre true.`;
 }
