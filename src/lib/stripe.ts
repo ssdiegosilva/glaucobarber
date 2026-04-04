@@ -108,7 +108,6 @@ export async function createCheckoutSession({
     metadata:    { barbershopId },
     subscription_data: {
       metadata: { barbershopId },
-      trial_period_days: 14,
     },
   };
 
