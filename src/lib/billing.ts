@@ -137,8 +137,11 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
   const used             = usage?.usageCount ?? 0;
   const baseAllowance    = limits.aiPerPeriod;
   const creditsRemaining = plan.aiCreditBalance;
-  const totalAllowance   = baseAllowance + creditsRemaining;
-  const allowed          = used < totalAllowance;
+  // Correct check: within base plan OR has extra credits remaining.
+  // (Don't add creditsRemaining to totalAllowance — credits are already being
+  //  decremented from aiCreditBalance as they're consumed, so comparing
+  //  `used < base + remaining` double-counts and blocks valid credit usage.)
+  const allowed = used < baseAllowance || creditsRemaining > 0;
 
   return {
     allowed,
