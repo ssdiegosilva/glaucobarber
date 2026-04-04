@@ -9,24 +9,26 @@ const PAGE_SIZE = 100;
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; vip?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const { page: pageParam, q } = await searchParams;
+  const { page: pageParam, q, vip } = await searchParams;
+  const vipFilter = vip === "1";
   const page  = Math.max(1, parseInt(pageParam ?? "1"));
   const skip  = (page - 1) * PAGE_SIZE;
   const where = {
     barbershopId: session.user.barbershopId,
     deletedAt:    null,
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(vipFilter ? { status: "VIP" } : {}),
   };
 
   const [customers, total, vipCount, inactiveCount] = await Promise.all([
     prisma.customer.findMany({
       where,
-      orderBy: [{ status: "asc" }, { lastVisitAt: "desc" }],
+      orderBy: [{ status: "desc" }, { lastVisitAt: "desc" }],
       take:    PAGE_SIZE,
       skip,
       select: {
@@ -71,6 +73,7 @@ export default async function ClientsPage({
           q={q}
           vipCount={vipCount}
           inactiveCount={inactiveCount}
+          vipFilter={vipFilter}
         />
       </div>
     </div>

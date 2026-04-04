@@ -36,9 +36,10 @@ interface Props {
   q?:             string;
   vipCount:       number;
   inactiveCount:  number;
+  vipFilter?:     boolean;
 }
 
-export function ClientsClient({ customers: initial, total, page, totalPages, q, vipCount: initialVipCount, inactiveCount }: Props) {
+export function ClientsClient({ customers: initial, total, page, totalPages, q, vipCount: initialVipCount, inactiveCount, vipFilter = false }: Props) {
   const [customers, setCustomers]     = useState(initial);
   const [vipCount, setVipCount]       = useState(initialVipCount);
   const [togglingVip, setTogglingVip] = useState<string | null>(null);
@@ -71,7 +72,18 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
         body:    JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) return;
-      setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, status: newStatus } : x));
+      if (vipFilter && newStatus !== "VIP") {
+        setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+      } else {
+        setCustomers((prev) => {
+          const updated = prev.map((x) => x.id === c.id ? { ...x, status: newStatus } : x);
+          return [...updated].sort((a, b) => {
+            if (a.status === "VIP" && b.status !== "VIP") return -1;
+            if (b.status === "VIP" && a.status !== "VIP") return 1;
+            return 0;
+          });
+        });
+      }
       setVipCount((prev) => newStatus === "VIP" ? prev + 1 : Math.max(prev - 1, 0));
     } finally {
       setTogglingVip(null);
@@ -108,7 +120,14 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
         <StatCard icon={<Users className="h-4 w-4" />} label="Total"    value={total} />
-        <StatCard icon={<Star  className="h-4 w-4" />} label="VIP"      value={vipCount} />
+        <StatCard
+          icon={<Star className="h-4 w-4" />}
+          label="VIP"
+          value={vipCount}
+          href={vipFilter ? `?${q ? `q=${q}` : ""}` : `?vip=1${q ? `&q=${q}` : ""}`}
+          active={vipFilter}
+          valueClass={vipFilter ? "text-yellow-400" : "text-foreground"}
+        />
         <StatCard icon={<Clock className="h-4 w-4" />} label="Inativos" value={inactiveCount} valueClass="text-yellow-400" />
       </div>
 
@@ -276,13 +295,13 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
             </p>
             <div className="flex gap-2">
               {page > 1 && (
-                <a href={`?page=${page - 1}${q ? `&q=${q}` : ""}`}
+                <a href={`?page=${page - 1}${q ? `&q=${q}` : ""}${vipFilter ? "&vip=1" : ""}`}
                   className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors">
                   Anterior
                 </a>
               )}
               {page < totalPages && (
-                <a href={`?page=${page + 1}${q ? `&q=${q}` : ""}`}
+                <a href={`?page=${page + 1}${q ? `&q=${q}` : ""}${vipFilter ? "&vip=1" : ""}`}
                   className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-800 transition-colors">
                   Próxima
                 </a>
@@ -303,16 +322,21 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
   );
 }
 
-function StatCard({ icon, label, value, valueClass = "text-foreground" }: {
-  icon: React.ReactNode; label: string; value: number; valueClass?: string;
+function StatCard({ icon, label, value, valueClass = "text-foreground", href, active }: {
+  icon: React.ReactNode; label: string; value: number; valueClass?: string; href?: string; active?: boolean;
 }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
-      <div className="text-gold-400">{icon}</div>
+  const inner = (
+    <div className={`rounded-lg border bg-card p-4 flex items-center gap-4 transition-colors ${
+      href ? "cursor-pointer hover:border-yellow-500/40" : ""
+    } ${active ? "border-yellow-500/50 bg-yellow-500/5" : "border-border"}`}>
+      <div className={active ? "text-yellow-400" : "text-gold-400"}>{icon}</div>
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className={`text-xl font-bold tabular-nums ${valueClass}`}>{value}</p>
+        {active && <p className="text-[10px] text-yellow-500/70 mt-0.5">Filtro ativo · clique para limpar</p>}
       </div>
     </div>
   );
+  if (href) return <a href={href} className="block">{inner}</a>;
+  return inner;
 }
