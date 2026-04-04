@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -50,12 +51,8 @@ function AiGenerateModal({ onClose, onGenerated }: {
         body:    JSON.stringify({ actionType, context: context.trim() || undefined }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error === "ai_limit_reached"
-          ? "Limite de IA atingido. Tente novamente amanhã ou faça upgrade do plano."
-          : (data.error ?? "Erro ao gerar template"));
-        return;
-      }
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
+      if (!res.ok) { setError(data.error ?? "Erro ao gerar template"); return; }
       onGenerated(data.label, data.body);
       onClose();
     } finally {

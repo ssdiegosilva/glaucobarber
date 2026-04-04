@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { AiLimitModal } from "@/components/ui/ai-limit-modal";
 import { prisma } from "@/lib/prisma";
 import { checkAiAllowance } from "@/lib/billing";
 
@@ -48,6 +49,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <MobileNav barbershopName={barbershopName} userName={session.user.name ?? null} />
         {children}
       </main>
+      <AiLimitModal />
     </div>
   );
 }

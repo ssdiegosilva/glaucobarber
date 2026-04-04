@@ -10,6 +10,7 @@ import {
   MessageCircle, Megaphone, Target, Calendar, Users,
   DollarSign, Trophy, Zap, ExternalLink, X,
 } from "lucide-react";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 
 type Thread = {
   id: string;
@@ -367,6 +368,7 @@ export default function CopilotClient({
         body:    JSON.stringify({ message: msg, threadId: activeThreadId }),
       });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
       if (!res.ok) throw new Error(data.error || "Erro ao enviar");
       window.dispatchEvent(new Event("ai-used"));
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
+import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Globe, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
 import Link from "next/link";
 
@@ -591,6 +592,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
         body:    JSON.stringify({ theme: currentTheme, channel: "instagram", offerId: currentOfferId || undefined }),
       });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); setCampaigns((prev) => prev.filter((c) => c.id !== tempId)); return; }
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar campanha");
 
       // Substitui placeholder pelo card real
@@ -622,6 +624,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     try {
       const res = await fetch("/api/campaigns/themes", { method: "POST" });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); return; }
       if (!res.ok) throw new Error(data.error ?? "Erro ao buscar temas");
       window.dispatchEvent(new Event("ai-used"));
       setSuggestedThemes(data.themes ?? []);
@@ -720,6 +723,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
         body: JSON.stringify({ promptOverride: promptOverride || undefined }),
       });
       const data = await res.json();
+      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); throw new Error("ai_limit_reached"); }
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar imagem");
       window.dispatchEvent(new Event("ai-used"));
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl: data.url } : c)));
