@@ -24,11 +24,12 @@ export async function POST(req: NextRequest) {
   });
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
-    mode:        "payment",
-    line_items:  [{ price: CREDITS_PRICE_ID, quantity: 1 }],
-    success_url: `${BASE_URL}/billing?credits=added`,
-    cancel_url:  `${BASE_URL}/billing`,
-    metadata:    { barbershopId, creditType: "ai_pack" },
+    mode:                  "payment",
+    line_items:            [{ price: CREDITS_PRICE_ID, quantity: 1 }],
+    allow_promotion_codes: true,
+    success_url:           `${BASE_URL}/billing?credits=added`,
+    cancel_url:            `${BASE_URL}/billing`,
+    metadata:              { barbershopId, creditType: "ai_pack" },
   };
 
   if (barbershop?.stripeCustomerId) {
