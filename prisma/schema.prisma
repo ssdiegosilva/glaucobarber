@@ -1056,6 +1056,7 @@ model AiCallLog {
   barbershopId String
   feature      String // e.g. "copilot_chat", "price_recommend", "campaign_image"
   label        String // human-readable, stored at write time for stability
+  costUsdCents Int    @default(0) // actual platform cost in USD cents (0 for text/cheap features)
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
 

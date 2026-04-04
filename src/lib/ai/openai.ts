@@ -111,10 +111,17 @@ Retorne APENAS JSON válido, sem markdown:
     return { text: raw.text ?? "", artBriefing: raw.artBriefing ?? "" };
   }
 
-  async generateCampaignImage(input: { prompt: string; styleHint?: string; referenceImageUrl?: string }): Promise<{ url: string } | { b64: string }> {
-    const prompt = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
+  async generateCampaignImage(input: {
+    prompt: string; styleHint?: string; referenceImageUrl?: string;
+    model?: string; size?: string; quality?: string;
+  }): Promise<{ url: string } | { b64: string }> {
+    const prompt  = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
+    const model   = input.model   ?? "gpt-image-1";
+    const size    = input.size    ?? "1024x1024";
+    const quality = input.quality ?? "standard";
 
-    // ── With reference image: use gpt-image-1 via images.edit ────────────────
+    // ── With reference image: always use gpt-image-1 via images.edit ─────────
+    // (images.edit only supports gpt-image-1 — model param is ignored here)
     if (input.referenceImageUrl) {
       try {
         const { toFile } = await import("openai");
@@ -128,7 +135,7 @@ Retorne APENAS JSON válido, sem markdown:
           model:  "gpt-image-1",
           image:  await toFile(refBuffer, `reference.${ext}`, { type: contentType }),
           prompt,
-          size:   "1024x1024",
+          size:   size as any,
           n:      1,
         } as Parameters<typeof this.client.images.edit>[0]);
 
@@ -136,34 +143,41 @@ Retorne APENAS JSON válido, sem markdown:
         if (!b64) throw new Error("gpt-image-1 não retornou imagem");
         return { b64 };
       } catch (editErr) {
-        // Fallback: gpt-image-1 failed with reference — try dall-e-3 without reference
-        console.warn("[AI] gpt-image-1 edit falhou, usando dall-e-3:", editErr);
-        return this._generateWithDallE3(prompt);
+        console.warn("[AI] gpt-image-1 edit falhou, usando fallback:", editErr);
+        return this._generateWithDallE3(prompt, size);
       }
     }
 
-    // ── Without reference: try gpt-image-1, fallback to dall-e-3 ───────────
+    // ── Without reference: use configured model, fallback to dall-e-3 ───────
     try {
+      return await this._generateWithModel(prompt, model, size, quality);
+    } catch {
+      return this._generateWithDallE3(prompt, size);
+    }
+  }
+
+  private async _generateWithModel(
+    prompt: string, model: string, size: string, quality: string,
+  ): Promise<{ url: string } | { b64: string }> {
+    if (model === "gpt-image-1") {
       const img = await this.client.images.generate({
-        model: "gpt-image-1",
-        prompt,
-        size:  "1024x1024",
-        n:     1,
+        model: "gpt-image-1", prompt, size: size as any, n: 1,
       });
       const b64 = img.data?.[0]?.b64_json;
       if (!b64) throw new Error("gpt-image-1 não retornou imagem");
       return { b64 };
-    } catch {
-      return this._generateWithDallE3(prompt);
     }
+    const params: any = { model, prompt, size, n: 1 };
+    if (model === "dall-e-3") params.quality = quality;
+    const img = await this.client.images.generate(params);
+    const url = img.data?.[0]?.url;
+    if (!url) throw new Error(`${model} não retornou imagem`);
+    return { url };
   }
 
-  private async _generateWithDallE3(prompt: string): Promise<{ url: string }> {
+  private async _generateWithDallE3(prompt: string, size = "1024x1024"): Promise<{ url: string }> {
     const img = await this.client.images.generate({
-      model:  "dall-e-3",
-      prompt,
-      size:   "1024x1024",
-      n:      1,
+      model: "dall-e-3", prompt, size: size as any, n: 1,
     });
     const url = img.data?.[0]?.url;
     if (!url) throw new Error("dall-e-3 não retornou imagem");

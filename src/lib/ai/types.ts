@@ -42,9 +42,12 @@ export interface AIProvider {
   generateCampaignThemes(barbershopName: string): Promise<{ themes: { title: string; description: string }[] }>;
   generateCampaignText(objective: string, context: string): Promise<{ text: string; artBriefing: string }>;
   generateCampaignImage(input: {
-    prompt: string;
-    styleHint?: string;
+    prompt:             string;
+    styleHint?:         string;
     referenceImageUrl?: string;
+    model?:             string;
+    size?:              string;
+    quality?:           string;
   }): Promise<{ url: string } | { b64: string }>;
   generateClientMessage(clientName: string, daysSinceVisit: number, services: string[]): Promise<string>;
   generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;

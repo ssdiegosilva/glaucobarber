@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { CampaignsClient } from "./campaigns-client";
+import { getAiImageConfig } from "@/lib/platform-config";
 
 export default async function CampaignsPage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const [campaigns, integration, activeOffers, barbershop] = await Promise.all([
+  const [campaigns, integration, activeOffers, barbershop, aiConfig] = await Promise.all([
     prisma.campaign.findMany({
       where:   { barbershopId: session.user.barbershopId },
       orderBy: { createdAt: "desc" },
@@ -21,6 +22,7 @@ export default async function CampaignsPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.barbershop.findUnique({ where: { id: session.user.barbershopId }, select: { brandStyle: true } }),
+    getAiImageConfig(),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function CampaignsPage() {
           instagramConfigured={!!(integration?.instagramPageAccessToken && integration.instagramBusinessId)}
           hasBrandStyle={!!barbershop?.brandStyle?.trim()}
           availableOffers={activeOffers.map((o) => ({ id: o.id, title: o.title, salePrice: Number(o.salePrice), type: o.type }))}
+          imageCreditCost={aiConfig.creditCost}
         />
       </div>
     </div>

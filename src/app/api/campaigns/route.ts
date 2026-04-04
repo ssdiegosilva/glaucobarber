@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
 import { uploadCampaignImage, uploadCampaignImageFromUrl } from "@/lib/storage";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
+import { getAiImageConfig } from "@/lib/platform-config";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -96,9 +97,13 @@ Important:
 - output must be suitable for a premium social media campaign
 `.trim();
 
+    const aiConfig = await getAiImageConfig();
     const img = await provider.generateCampaignImage({
       prompt,
       referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
+      model:   aiConfig.model,
+      size:    aiConfig.size,
+      quality: aiConfig.quality,
     });
 
     const stored = "b64" in img

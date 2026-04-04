@@ -1,5 +1,39 @@
 import { prisma } from "@/lib/prisma";
 
+// ── AI Image Config ────────────────────────────────────────────────────────────
+
+export interface AiImageConfig {
+  model:        "gpt-image-1" | "dall-e-3" | "dall-e-2";
+  size:         "1024x1024" | "512x512" | "256x256";
+  quality:      "standard" | "hd";
+  creditCost:   number;  // credits charged to user per image generation
+  costUsdCents: number;  // actual platform cost in USD cents (e.g. 4 = $0.04)
+}
+
+const AI_IMAGE_DEFAULTS: AiImageConfig = {
+  model:        "gpt-image-1",
+  size:         "1024x1024",
+  quality:      "standard",
+  creditCost:   10,
+  costUsdCents: 4,
+};
+
+export async function getAiImageConfig(): Promise<AiImageConfig> {
+  const rows = await prisma.platformConfig.findMany({
+    where: {
+      key: { in: ["ai_image_model", "ai_image_size", "ai_image_quality", "ai_image_credit_cost", "ai_image_cost_usd_cents"] },
+    },
+  });
+  const get = (k: string) => rows.find((r) => r.key === k)?.value;
+  return {
+    model:        (get("ai_image_model")   as AiImageConfig["model"])   ?? AI_IMAGE_DEFAULTS.model,
+    size:         (get("ai_image_size")    as AiImageConfig["size"])    ?? AI_IMAGE_DEFAULTS.size,
+    quality:      (get("ai_image_quality") as AiImageConfig["quality"]) ?? AI_IMAGE_DEFAULTS.quality,
+    creditCost:   parseInt(get("ai_image_credit_cost")    ?? "") || AI_IMAGE_DEFAULTS.creditCost,
+    costUsdCents: parseInt(get("ai_image_cost_usd_cents") ?? "") || AI_IMAGE_DEFAULTS.costUsdCents,
+  };
+}
+
 /**
  * Reads a Stripe price ID from PlatformConfig (admin-managed).
  * Falls back to the env var if not set in DB.

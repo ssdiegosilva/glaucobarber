@@ -219,13 +219,30 @@ export async function withAiCredit<T>(
 
 // ── consumeAiCredit ────────────────────────────────────────────────────────────
 
+const IMAGE_FEATURES = new Set(["campaign_image", "visual_style_generate", "brand_style_logo"]);
+
 export async function consumeAiCredit(barbershopId: string, feature: string): Promise<void> {
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
-  const cost   = getFeatureCost(feature);
 
-  // Log this call (async, fire-and-forget style but awaited for safety)
-  await logAiCall(barbershopId, feature);
+  // Determine credit cost and actual USD cost — image features read live from PlatformConfig
+  let cost: number;
+  let costUsdCents: number;
+
+  if (IMAGE_FEATURES.has(feature)) {
+    const cfgs = await prisma.platformConfig.findMany({
+      where: { key: { in: ["ai_image_credit_cost", "ai_image_cost_usd_cents"] } },
+    });
+    const get = (k: string, def: number) => parseInt(cfgs.find((c) => c.key === k)?.value ?? "") || def;
+    cost         = get("ai_image_credit_cost",    AI_FEATURE_COSTS[feature] ?? 10);
+    costUsdCents = get("ai_image_cost_usd_cents", 4);
+  } else {
+    cost         = getFeatureCost(feature);
+    costUsdCents = 0;
+  }
+
+  // Log this call with actual USD cost
+  await logAiCall(barbershopId, feature, costUsdCents);
 
   // During trial: track against the 300-call safety cap under key "trialing"
   if (plan.status === "TRIALING") {
@@ -281,11 +298,11 @@ export async function consumeAiCredit(barbershopId: string, feature: string): Pr
 
 // ── logAiCall ──────────────────────────────────────────────────────────────────
 
-async function logAiCall(barbershopId: string, feature: string): Promise<void> {
+async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0): Promise<void> {
   const label = AI_FEATURE_LABELS[feature] ?? feature;
 
   await prisma.aiCallLog.create({
-    data: { barbershopId, feature, label },
+    data: { barbershopId, feature, label, costUsdCents },
   });
 
   // Keep only the last AI_CALL_LOG_MAX entries per barbershop

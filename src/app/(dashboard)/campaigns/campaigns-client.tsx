@@ -239,11 +239,12 @@ function RescheduleModal({
 
 // ── Main client ───────────────────────────────────────────────
 
-export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [] }: {
+export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCost = 10 }: {
   campaigns: CampaignDto[];
   instagramConfigured: boolean;
   hasBrandStyle?: boolean;
   availableOffers?: OfferOption[];
+  imageCreditCost?: number;
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
@@ -892,7 +893,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             ) : (
               <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
                 <span>💡</span>
-                Usa 11 créditos de IA (1 texto + 10 imagem)
+                Usa {1 + imageCreditCost} créditos de IA (1 texto + {imageCreditCost} imagem)
               </p>
             )}
           </div>
