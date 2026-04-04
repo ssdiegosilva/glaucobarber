@@ -109,6 +109,15 @@ async function handlePaymentFailed(inv: Stripe.Invoice) {
 }
 
 async function upsertSubscription(sub: Stripe.Subscription, barbershopId: string) {
+  // Ensure stripeCustomerId is saved on Barbershop (may be missing if checkout webhook was missed)
+  const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+  if (customerId) {
+    await prisma.barbershop.updateMany({
+      where: { id: barbershopId, stripeCustomerId: null },
+      data:  { stripeCustomerId: customerId },
+    });
+  }
+
   const priceId = sub.items.data[0]?.price.id ?? "";
 
   // Map Stripe price to plan tier — read from DB first, fallback to env vars
