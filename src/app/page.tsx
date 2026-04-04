@@ -108,6 +108,7 @@ export default async function RootPage() {
               >
                 Como funciona
               </a>
+              <InstallAppButton />
             </div>
 
             {/* trust row */}
