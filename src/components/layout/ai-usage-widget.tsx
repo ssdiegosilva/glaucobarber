@@ -127,7 +127,7 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits }: Pro
               Histórico de uso de IA
             </SheetTitle>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Últimas chamadas registradas (máx. 30)
+              Últimas chamadas registradas (máx. 50)
             </p>
           </SheetHeader>
 

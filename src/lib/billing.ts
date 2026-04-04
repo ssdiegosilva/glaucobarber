@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
@@ -150,22 +151,58 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
 // ── Feature labels for AI call log ────────────────────────────────────────────
 
 export const AI_FEATURE_LABELS: Record<string, string> = {
-  copilot_chat:     "Chat com Copilot",
-  goals_suggest:    "Sugestão de Meta",
-  post_sale:        "Mensagem Pós-venda",
-  ai_suggestion:    "Sugestão do Copilot",
-  price_recommend:  "Recomendação de Preço",
-  opportunities:    "Oportunidades de Serviço",
-  campaign_image:   "Imagem de Campanha",
-  campaign_text:    "Texto de Campanha",
-  brand_style_improve: "Identidade visual (texto)",
-  brand_style_logo:    "Identidade visual (logo)",
-  visual_style_analyze: "Criar Visual (análise)",
+  copilot_chat:          "Chat com Copilot",
+  goals_suggest:         "Sugestão de Meta",
+  post_sale:             "Mensagem Pós-venda",
+  ai_suggestion:         "Sugestão do Copilot",
+  price_recommend:       "Recomendação de Preço",
+  opportunities:         "Oportunidades de Serviço",
+  campaign_image:        "Imagem de Campanha",
+  campaign_text:         "Texto de Campanha",
+  campaign_themes:       "Temas de Campanha",
+  brand_style_improve:   "Identidade Visual (texto)",
+  brand_style_logo:      "Identidade Visual (logo)",
+  visual_style_analyze:  "Criar Visual (análise)",
   visual_style_generate: "Criar Visual (geração)",
+  whatsapp_template:     "Template de WhatsApp",
+  whatsapp_personalize:  "Mensagem WhatsApp (IA)",
 };
 
 // Max AI call log entries kept per barbershop
-const AI_CALL_LOG_MAX = 30;
+const AI_CALL_LOG_MAX = 50;
+
+// ── Standard AI limit error (use in route handlers) ───────────────────────────
+
+export const AI_LIMIT_ERROR = {
+  error:      "ai_limit_reached",
+  message:    "Limite de IA atingido. Adicione créditos para continuar.",
+  upgradeUrl: "/billing",
+} as const;
+
+// ── withAiCredit — wraps check + AI operation + consume in one call ───────────
+// Usage in route handlers:
+//   const outcome = await withAiCredit(barbershopId, "feature", async () => {
+//     return await someAiOperation();
+//   });
+//   if (!outcome.ok) return outcome.response;   // 402 limit response
+//   const { result } = outcome;
+
+export async function withAiCredit<T>(
+  barbershopId: string,
+  feature: string,
+  fn: () => Promise<T>,
+): Promise<{ ok: false; response: NextResponse } | { ok: true; result: T }> {
+  const { allowed } = await checkAiAllowance(barbershopId);
+  if (!allowed) {
+    return {
+      ok: false,
+      response: NextResponse.json(AI_LIMIT_ERROR, { status: 402 }),
+    };
+  }
+  const result = await fn();
+  await consumeAiCredit(barbershopId, feature);
+  return { ok: true, result };
+}
 
 // ── consumeAiCredit ────────────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ export async function GET() {
   const logs = await prisma.aiCallLog.findMany({
     where:   { barbershopId: session.user.barbershopId },
     orderBy: { createdAt: "desc" },
-    take:    30,
+    take:    50,
     select:  { id: true, feature: true, label: true, createdAt: true },
   });
 
