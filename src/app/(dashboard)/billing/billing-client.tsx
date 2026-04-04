@@ -393,8 +393,8 @@ export function BillingClient({
           onClick={buyCredits}
           disabled={loadingCredits}
         >
-          {loadingCredits ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 text-gold-400" />}
-          Comprar pacote de créditos — R$29 (+60 chamadas)
+          {loadingCredits ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 shrink-0 text-gold-400" />}
+          <span className="truncate">Comprar créditos — R$29 <span className="hidden sm:inline">(+60 chamadas)</span><span className="sm:hidden">+60 chamadas</span></span>
         </Button>
       </div>
 
