@@ -101,11 +101,16 @@ export async function createCheckoutSession({
   }
 
   const params: Stripe.Checkout.SessionCreateParams = {
-    mode:        "subscription",
-    line_items:  lineItems,
-    success_url: successUrl,
-    cancel_url:  cancelUrl,
-    metadata:    { barbershopId },
+    mode:                       "subscription",
+    line_items:                 lineItems,
+    success_url:                successUrl,
+    cancel_url:                 cancelUrl,
+    metadata:                   { barbershopId },
+    locale:                     "pt-BR",
+    allow_promotion_codes:      true,
+    billing_address_collection: "auto",
+    payment_method_types:       ["card", "boleto"],
+    tax_id_collection:          { enabled: true },
     subscription_data: {
       metadata: { barbershopId },
     },
