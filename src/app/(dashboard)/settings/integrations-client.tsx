@@ -734,7 +734,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
               </div>
               <div className="min-w-0">
                 <CardTitle className="text-base">WhatsApp Business</CardTitle>
-                <p className="text-xs text-muted-foreground">Envio de mensagens automáticas para clientes</p>
+                <p className="text-xs text-muted-foreground">Envio automático de mensagens via Meta Cloud API</p>
               </div>
             </div>
             <Badge variant={waConfigured ? "success" : "outline"} className="text-xs self-start sm:self-auto">
@@ -743,6 +743,32 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+
+          {/* Info banner — sempre visível */}
+          <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 space-y-2.5">
+            <div>
+              <p className="text-xs font-semibold text-green-300 mb-1">Para que serve?</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Com o WhatsApp Business conectado, o GlaucoBarber envia mensagens automaticamente para seus clientes —
+                pedidos de avaliação no Google, acompanhamento pós-atendimento, reativação de clientes inativos e promoções.
+                Tudo sem você precisar digitar nada.
+              </p>
+            </div>
+            <div className="border-t border-green-500/15 pt-2">
+              <p className="text-[11px] text-amber-300 font-medium mb-0.5 flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3 shrink-0" /> Configuração avançada
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Esta etapa exige acesso ao <span className="text-foreground/80 font-medium">Meta Business Manager</span> e
+                criação de uma conta WhatsApp Business API. É uma configuração técnica — se precisar de ajuda, entre em
+                contato:{" "}
+                <a href="mailto:contato@glaucobarber.com" className="text-green-400 hover:text-green-300 underline font-medium">
+                  contato@glaucobarber.com
+                </a>
+              </p>
+            </div>
+          </div>
+
           {waEditing ? (
             <>
               <div className="rounded-md border border-border bg-surface-800/50 p-3 space-y-2">
