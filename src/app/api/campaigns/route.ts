@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
@@ -37,45 +37,22 @@ export async function POST(req: NextRequest) {
   const ai = await provider.generateCampaignText(theme, context);
   await consumeAiCredit(session.user.barbershopId, "campaign_text");
 
-  const campaign = await prisma.campaign.create({
-    data: {
-      barbershopId: session.user.barbershopId,
-      status:      "GENERATING",
-      title:       theme,
-      objective:   objective ?? "",
-      text:        ai.text || "",
-      artBriefing: ai.artBriefing || "",
-      channel:     channel ?? "instagram",
-      offerId:     offerId ?? null,
-    },
+  // Busca dados da barbearia para gerar imagem
+  const barbershop = await prisma.barbershop.findUnique({
+    where:  { id: session.user.barbershopId },
+    select: { name: true, brandStyle: true, campaignReferenceImageUrl: true },
   });
 
-  // Gera imagem em background — responde ao cliente imediatamente
-  const barbershopId = session.user.barbershopId;
-  const campaignId   = campaign.id;
+  // Monta prompt da imagem usando o artBriefing gerado pelo texto
+  const brandStyleBlock = barbershop?.brandStyle
+    ? `Brand style: ${barbershop.brandStyle}`
+    : `Brand style: premium barbershop aesthetic — black background, gold metallic accents, elegant contrast, cinematic lighting, masculine and sophisticated`;
 
-  after(async () => {
-    try {
-      const allowanceImage = await checkAiAllowance(barbershopId);
-      if (!allowanceImage.allowed) {
-        await prisma.campaign.update({ where: { id: campaignId }, data: { status: "DRAFT" } });
-        return;
-      }
+  const referenceNote = barbershop?.campaignReferenceImageUrl
+    ? "Use the provided reference photo as the base and preserve key subjects/identity."
+    : "";
 
-      const barbershop = await prisma.barbershop.findUnique({
-        where:  { id: barbershopId },
-        select: { name: true, brandStyle: true, campaignReferenceImageUrl: true },
-      });
-
-      const brandStyleBlock = barbershop?.brandStyle
-        ? `Brand style: ${barbershop.brandStyle}`
-        : `Brand style: premium barbershop aesthetic — black background, gold metallic accents, elegant contrast, cinematic lighting, masculine and sophisticated`;
-
-      const referenceNote = barbershop?.campaignReferenceImageUrl
-        ? "Use the provided reference photo as the base and preserve key subjects/identity."
-        : "";
-
-      const prompt = `
+  const imagePrompt = `
 Create a premium square marketing image (1080x1080) for a barbershop brand called "${barbershop?.name ?? "Barbearia"}".
 
 Goal: ${theme}
@@ -92,7 +69,7 @@ Visual direction:
 - possible elements: barber razors, mustache symbol, premium frame, elegant typography
 
 Campaign theme: ${theme}
-Art briefing: ${campaign.artBriefing || "elegant premium design, high contrast"}
+Art briefing: ${ai.artBriefing || "elegant premium design, high contrast"}
 
 Important:
 - do not make it cartoonish or generic
@@ -102,52 +79,101 @@ Important:
 - output must be suitable for a premium social media campaign
 `.trim();
 
+  // Gera imagem agora (síncrono) — campanha só vai para DRAFT quando estiver completa
+  let imageUrl: string | null = null;
+  const allowanceImage = await checkAiAllowance(session.user.barbershopId);
+  if (allowanceImage.allowed) {
+    try {
       const aiConfig = await getAiImageConfig();
       const img = await provider.generateCampaignImage({
-        prompt,
+        prompt:            imagePrompt,
         referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
         model:   aiConfig.model,
         size:    aiConfig.size,
         quality: aiConfig.quality,
       });
 
-      const stored = "b64" in img
-        ? await uploadCampaignImage({
-            barbershopId,
-            campaignId,
-            fileName:    `${campaignId}.png`,
-            buffer:      Buffer.from(img.b64, "base64"),
-            contentType: "image/png",
-          })
-        : await uploadCampaignImageFromUrl({
-            barbershopId,
-            campaignId,
-            sourceUrl: img.url,
-          });
-
-      await prisma.campaign.update({ where: { id: campaignId }, data: { imageUrl: stored.url, status: "DRAFT" } });
-      await consumeAiCredit(barbershopId, "campaign_image");
-    } catch (err) {
-      console.error("[campaign/image] Erro ao gerar imagem:", err);
-      // Mesmo sem imagem, move para DRAFT para o usuário poder agir
-      await prisma.campaign.update({ where: { id: campaignId }, data: { status: "DRAFT" } }).catch(() => {});
-    }
-
-    // Notificação no sininho
-    try {
-      await prisma.systemNotification.create({
+      // Cria registro no DB para ter o ID antes de fazer upload
+      const tempCampaign = await prisma.campaign.create({
         data: {
-          barbershopId,
-          type:  "SYSTEM",
-          title: "Campanha pronta para aprovação",
-          body:  `"${campaign.title}" foi criada pela IA e está aguardando sua aprovação.`,
-          link:  `/campaigns#campaign-${campaignId}`,
+          barbershopId: session.user.barbershopId,
+          status:      "GENERATING",
+          title:       theme,
+          objective:   objective ?? "",
+          text:        ai.text || "",
+          artBriefing: ai.artBriefing || "",
+          channel:     channel ?? "instagram",
+          offerId:     offerId ?? null,
         },
       });
+
+      const stored = "b64" in img
+        ? await uploadCampaignImage({
+            barbershopId: session.user.barbershopId,
+            campaignId:   tempCampaign.id,
+            fileName:     `${tempCampaign.id}.png`,
+            buffer:       Buffer.from(img.b64, "base64"),
+            contentType:  "image/png",
+          })
+        : await uploadCampaignImageFromUrl({
+            barbershopId: session.user.barbershopId,
+            campaignId:   tempCampaign.id,
+            sourceUrl:    img.url,
+          });
+
+      imageUrl = stored.url;
+      await consumeAiCredit(session.user.barbershopId, "campaign_image");
+
+      const campaign = await prisma.campaign.update({
+        where: { id: tempCampaign.id },
+        data:  { imageUrl, status: "DRAFT" },
+      });
+
+      // Notificação no sininho
+      try {
+        await prisma.systemNotification.create({
+          data: {
+            barbershopId: session.user.barbershopId,
+            type:  "SYSTEM",
+            title: "Campanha pronta para aprovação",
+            body:  `"${campaign.title}" foi criada pela IA e está aguardando sua aprovação.`,
+            link:  `/campaigns#campaign-${campaign.id}`,
+          },
+        });
+      } catch {}
+
+      return NextResponse.json({ campaign, ai });
     } catch (err) {
-      console.error("Erro ao criar notificação de campanha", err);
+      console.error("[campaign/image] Erro ao gerar imagem:", err);
+      // Imagem falhou — cria campanha sem imagem para o usuário poder gerar depois
     }
+  }
+
+  // Fallback: cria sem imagem (sem crédito ou erro na geração)
+  const campaign = await prisma.campaign.create({
+    data: {
+      barbershopId: session.user.barbershopId,
+      status:      "DRAFT",
+      title:       theme,
+      objective:   objective ?? "",
+      text:        ai.text || "",
+      artBriefing: ai.artBriefing || "",
+      channel:     channel ?? "instagram",
+      offerId:     offerId ?? null,
+    },
   });
+
+  try {
+    await prisma.systemNotification.create({
+      data: {
+        barbershopId: session.user.barbershopId,
+        type:  "SYSTEM",
+        title: "Campanha pronta para aprovação",
+        body:  `"${campaign.title}" foi criada (sem arte) e está aguardando sua aprovação.`,
+        link:  `/campaigns#campaign-${campaign.id}`,
+      },
+    });
+  } catch {}
 
   return NextResponse.json({ campaign, ai });
 }

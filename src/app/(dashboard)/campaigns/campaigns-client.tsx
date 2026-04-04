@@ -250,38 +250,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
 
-  // Polling for GENERATING campaigns
-  const generatingIds = campaigns.filter((c) => c.status === "GENERATING").map((c) => c.id);
-  useEffect(() => {
-    if (generatingIds.length === 0) return;
-    const interval = setInterval(async () => {
-      for (const id of generatingIds) {
-        try {
-          const res = await fetch(`/api/campaigns/${id}`);
-          if (!res.ok) continue;
-          const data = await res.json();
-          if (data.status !== "GENERATING") {
-            setCampaigns((prev) => prev.map((c) =>
-              c.id === id
-                ? { ...c, status: data.status, imageUrl: data.imageUrl ?? null }
-                : c
-            ));
-            if (data.status === "DRAFT") {
-              window.dispatchEvent(new Event("notifications-changed"));
-              if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-                new Notification("Campanha pronta! ✨", {
-                  body: `"${data.title}" está aguardando sua aprovação.`,
-                  icon: "/favicon.ico",
-                });
-              }
-            }
-          }
-        } catch {}
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatingIds.join(",")]);
   const [theme, setTheme] = useState("");
   const [selectedOfferId, setSelectedOfferId] = useState<string>("");
   const [loadingThemes, setLoadingThemes] = useState(false);
@@ -301,32 +269,68 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [savingText, setSavingText]         = useState<string | null>(null);
 
   async function createCampaign() {
+    if (!theme) return;
+
     // Request browser notification permission before starting (non-blocking)
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
 
-    setLoadingCreate(true);
+    // Snapshot values and clear the form immediately so user can start another
+    const currentTheme   = theme;
+    const currentOfferId = selectedOfferId;
+    const tempId         = `generating-${Date.now()}`;
+
+    const placeholder: CampaignDto = {
+      id:                 tempId,
+      title:              currentTheme,
+      status:             "GENERATING",
+      text:               "",
+      artBriefing:        null,
+      channel:            "instagram",
+      createdAt:          new Date().toISOString(),
+      publishedAt:        null,
+      scheduledAt:        null,
+      imageUrl:           null,
+      instagramPermalink: null,
+    };
+
+    setCampaigns((prev) => [placeholder, ...prev]);
+    setTheme("");
+    setSelectedOfferId("");
+    setSuggestedThemes([]);
+
+    toast({
+      title: "Solicitação acatada!",
+      description: "Vamos criar sua campanha — quando estiver pronta, você será avisado no sininho 🔔",
+    });
+
+    // Fire request — UI não fica bloqueada, placeholder já está visível
     try {
       const res = await fetch("/api/campaigns", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, channel: "instagram", offerId: selectedOfferId || undefined }),
+        body:    JSON.stringify({ theme: currentTheme, channel: "instagram", offerId: currentOfferId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar campanha");
-      setCampaigns((prev) => [data.campaign, ...prev]);
-      setTheme("");
-      setSelectedOfferId("");
-      setSuggestedThemes([]);
-      toast({
-        title: "Solicitação acatada!",
-        description: "Vamos criar sua campanha — quando estiver pronta, você será avisado no sininho 🔔",
-      });
+
+      // Substitui placeholder pelo card real
+      setCampaigns((prev) => prev.map((c) => c.id === tempId ? data.campaign : c));
+
+      window.dispatchEvent(new Event("notifications-changed"));
+      window.dispatchEvent(new Event("ai-used"));
+
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        new Notification("Campanha pronta! ✨", {
+          body: `"${data.campaign.title}" está aguardando sua aprovação.`,
+          icon: "/favicon.ico",
+        });
+      }
     } catch (e) {
-      toast({ title: "Erro", description: String(e), variant: "destructive" });
-    } finally {
-      setLoadingCreate(false);
+      // Remove placeholder e mostra erro
+      setCampaigns((prev) => prev.filter((c) => c.id !== tempId));
+      toast({ title: "Erro ao criar campanha", description: String(e), variant: "destructive" });
     }
   }
 
@@ -875,8 +879,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
               onChange={(e) => { setTheme(e.target.value); if (suggestedThemes.length) setSuggestedThemes([]); }}
               placeholder="Ex: Tarde com horários livres, Dia dos Pais, Promoção relâmpago..."
               className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs placeholder:text-muted-foreground/60"
-              disabled={loadingCreate}
-            />
+              />
           </div>
           {suggestedThemes.length > 0 && (
             <div className="space-y-1.5">
@@ -907,7 +910,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
               <select
                 value={selectedOfferId}
                 onChange={(e) => setSelectedOfferId(e.target.value)}
-                disabled={loadingCreate}
                 className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Sem oferta vinculada</option>
@@ -924,39 +926,20 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <div className="flex items-center justify-between">
               <Button
                 onClick={createCampaign}
-                disabled={!theme || loadingCreate}
-                className={`text-xs gap-2 font-semibold transition-all duration-300 ${
-                  loadingCreate
-                    ? "bg-purple-600 cursor-wait text-white opacity-80"
-                    : "bg-purple-600 hover:bg-purple-500 text-white"
-                }`}
+                disabled={!theme}
+                className="text-xs gap-2 font-semibold bg-purple-600 hover:bg-purple-500 text-white"
               >
-                {loadingCreate ? (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5 animate-spin" />
-                    Criando campanha...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-3.5 w-3.5" />
-                    Gerar campanha com IA
-                  </>
-                )}
+                <Wand2 className="h-3.5 w-3.5" />
+                Gerar campanha com IA
               </Button>
               {!instagramConfigured && (
                 <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/integrations" className="underline">configurar</a></p>
               )}
             </div>
-            {loadingCreate ? (
-              <p className="text-[11px] text-muted-foreground/80 animate-pulse flex items-center gap-1">
-                Gerando texto... a arte começa em seguida 🎨
-              </p>
-            ) : (
-              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
-                <span>💡</span>
-                Usa {1 + imageCreditCost} créditos de IA (1 texto + {imageCreditCost} imagem)
-              </p>
-            )}
+            <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+              <span>💡</span>
+              Usa {1 + imageCreditCost} créditos de IA (1 texto + {imageCreditCost} imagem) — pode criar várias ao mesmo tempo
+            </p>
           </div>
         </CardContent>
       </Card>
