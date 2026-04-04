@@ -403,33 +403,35 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 <p className="text-xs text-muted-foreground">Plataforma operacional principal</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
-                {integration?.status ?? "UNCONFIGURED"}
-              </Badge>
-              <Button onClick={handleSync} disabled={syncing || !integration?.configured} size="sm">
-                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync Manual"}</span>
-                <span className="sm:hidden">{syncing ? "..." : "Sync"}</span>
-              </Button>
-            </div>
+            {integration?.configured && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
+                  {integration?.status ?? "UNCONFIGURED"}
+                </Badge>
+                <Button onClick={handleSync} disabled={syncing} size="sm">
+                  <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+                  <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync Manual"}</span>
+                  <span className="sm:hidden">{syncing ? "..." : "Sync"}</span>
+                </Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Último sync</p>
-              <p className="text-foreground text-sm">
-                {integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}
-              </p>
+          {integration?.configured && (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Último sync</p>
+                <p className="text-foreground text-sm">
+                  {integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Status</p>
+                <p className="text-sm text-green-400">Conectada</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Configurada</p>
-              <p className={`text-sm ${integration?.configured ? "text-green-400" : "text-yellow-400"}`}>
-                {integration?.configured ? "Sim" : "Não"}
-              </p>
-            </div>
-          </div>
+          )}
 
           {integration?.errorMsg && (
             <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
@@ -497,7 +499,22 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 </Button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border bg-surface-800/40 p-4 space-y-2">
+                <p className="text-sm font-medium text-foreground">O que é a Trinks?</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  A <a href="https://trinks.com" target="_blank" rel="noopener noreferrer" className="text-gold-400 hover:text-gold-300 underline">Trinks</a> é
+                  a plataforma de gestão de agendamentos que muitas barbearias já usam no dia a dia.
+                  Conectar sua conta permite importar automaticamente sua agenda, clientes e serviços — facilitando a migração sem precisar recadastrar nada.
+                </p>
+              </div>
+              <Button size="sm" className="text-xs gap-1.5" onClick={() => setShowForm(true)}>
+                <Plug className="h-3.5 w-3.5" />
+                Conectar minha conta Trinks
+              </Button>
+            </div>
+          )}
 
           {/* Sync history (collapsible, last 5) */}
           {runs.length > 0 && (
