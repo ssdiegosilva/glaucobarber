@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatTime, formatDate, relativeTime } from "@/lib/utils";
-import { Loader2, Phone, Clock, User, Scissors, CalendarClock } from "lucide-react";
+import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle } from "lucide-react";
 import type { AgendaAppointment } from "../agenda-client";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -73,6 +73,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   const [rescheduling, setRescheduling]   = useState(false);
   const [newDate, setNewDate]             = useState("");
   const [newTime, setNewTime]             = useState("");
+  const [showPastConfirm, setShowPastConfirm] = useState(false);
   useEffect(() => {
     if (!appointment || !open) { setContext(null); return; }
     setLoadingCtx(true);
@@ -99,9 +100,17 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
     }
   }
 
-  async function handleReschedule() {
+  const isReschedulePast = newDate && newTime ? new Date(`${newDate}T${newTime}`) < new Date() : false;
+
+  async function handleReschedule(skipPastCheck = false) {
     if (!appointment || !newDate || !newTime) return;
     const scheduledAt = new Date(`${newDate}T${newTime}`).toISOString();
+
+    if (!skipPastCheck && new Date(`${newDate}T${newTime}`) < new Date()) {
+      setShowPastConfirm(true);
+      return;
+    }
+
     setUpdatingStatus(true);
     try {
       await fetch(`/api/appointments/${appointment.id}/reschedule`, {
@@ -199,12 +208,34 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
                   className="w-28 rounded border border-border bg-surface-900 px-2 py-1 text-sm text-foreground cursor-pointer"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleReschedule} disabled={!newDate || !newTime || updatingStatus}>
-                  {updatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirmar"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setRescheduling(false)}>Cancelar</Button>
-              </div>
+              {isReschedulePast && !showPastConfirm && (
+                <div className="flex items-center gap-2 rounded border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  <p className="text-[11px] text-amber-300">Essa data/horário já passou.</p>
+                </div>
+              )}
+              {showPastConfirm && (
+                <div className="rounded border border-red-500/30 bg-red-500/10 p-2.5 space-y-2">
+                  <p className="text-[11px] text-red-300 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Reagendar para data passada. Tem certeza?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="destructive" onClick={() => { setShowPastConfirm(false); handleReschedule(true); }}>
+                      Sim, reagendar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowPastConfirm(false)}>Não</Button>
+                  </div>
+                </div>
+              )}
+              {!showPastConfirm && (
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => handleReschedule()} disabled={!newDate || !newTime || updatingStatus}>
+                    {updatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirmar"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setRescheduling(false)}>Cancelar</Button>
+                </div>
+              )}
             </div>
           )}
 

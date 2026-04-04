@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, UserPlus, CalendarPlus } from "lucide-react";
+import { Loader2, Search, UserPlus, CalendarPlus, AlertTriangle } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 
 interface CustomerHit {
@@ -51,6 +51,7 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
   const [duration, setDuration]       = useState("30");
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState<string | null>(null);
+  const [showPastConfirm, setShowPastConfirm] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,6 +66,7 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
     if (!open) {
       setQuery(""); setCustomers([]); setSelected(null);
       setServiceId(""); setPrice(""); setDuration("30"); setError(null);
+      setShowPastConfirm(false);
     }
   }, [open]);
 
@@ -110,10 +112,20 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
     }
   }
 
-  async function handleSubmit() {
+  const isPastDateTime = (() => {
+    if (!date || !time) return false;
+    return new Date(`${date}T${time}`) < new Date();
+  })();
+
+  async function handleSubmit(skipPastCheck = false) {
     if (!selected) { setError("Selecione um cliente."); return; }
     if (!date || !time) { setError("Informe data e hora."); return; }
     const scheduledAt = new Date(`${date}T${time}`).toISOString();
+
+    if (!skipPastCheck && new Date(`${date}T${time}`) < new Date()) {
+      setShowPastConfirm(true);
+      return;
+    }
 
     setSaving(true); setError(null);
     try {
@@ -277,12 +289,47 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
             </div>
           </div>
 
+          {/* Past date warning */}
+          {isPastDateTime && !showPastConfirm && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-300">Essa data/horário já passou.</p>
+            </div>
+          )}
+
+          {/* Past date confirmation */}
+          {showPastConfirm && (
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-300">Data no passado</p>
+                  <p className="text-xs text-red-400/80 mt-0.5">
+                    Você está agendando para uma data que já passou. Tem certeza que deseja continuar?
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => { setShowPastConfirm(false); handleSubmit(true); }}
+                >
+                  Sim, agendar mesmo assim
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowPastConfirm(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
           {error && (
             <p className="text-sm text-red-400 rounded-md border border-red-500/30 bg-red-500/8 px-3 py-2">{error}</p>
           )}
 
           <div className="flex gap-2 pt-1">
-            <Button onClick={handleSubmit} disabled={saving || !selected} className="flex-1">
+            <Button onClick={() => handleSubmit()} disabled={saving || !selected} className="flex-1">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Agendar"}
             </Button>
             <Button variant="ghost" onClick={onClose}>Cancelar</Button>
