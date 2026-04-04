@@ -362,7 +362,7 @@ export default async function RootPage() {
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "50 chamadas de IA/mês",
+                  "200 chamadas de IA/mês",
                   "Agenda ao vivo (Trinks)",
                   "Gestão de clientes",
                   "Copilot IA",

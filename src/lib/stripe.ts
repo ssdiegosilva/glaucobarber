@@ -36,7 +36,7 @@ export const PLANS = {
     priceId:     process.env.STRIPE_PRICE_STARTER_MONTHLY ?? "",
     monthlyBRL:  8900,            // R$89/mês
     features: [
-      "50 chamadas de IA por mês",
+      "200 chamadas de IA por mês",
       "Agenda e gestão de clientes",
       "Copilot, pós-venda e campanhas",
       "Pós-venda com reativação automática",

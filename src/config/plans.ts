@@ -14,7 +14,7 @@ export const PLAN_FEATURES = {
     monthly_brl:            0,
   },
   STARTER: {
-    ai_calls_per_period:    50,           // per month
+    ai_calls_per_period:    200,          // per month
     ai_period:              "monthly" as const,
     financeiro:             false,        // LOCKED
     campaigns:              true,

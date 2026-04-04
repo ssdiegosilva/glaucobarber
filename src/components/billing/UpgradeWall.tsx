@@ -47,7 +47,7 @@ export function UpgradeWall({ feature, requiredPlan, description }: Props) {
           {requiredPlan === "STARTER" && (
             <ul className="text-xs text-muted-foreground space-y-1 ml-6">
               <li>• R$89/mês</li>
-              <li>• 50 chamadas de IA por mês</li>
+              <li>• 200 chamadas de IA por mês</li>
               <li>• Pós-venda, copilot e campanhas</li>
             </ul>
           )}
