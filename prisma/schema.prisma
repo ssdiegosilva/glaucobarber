@@ -646,6 +646,7 @@ model Suggestion {
 }
 
 enum CampaignStatus {
+  GENERATING
   DRAFT
   APPROVED
   DISMISSED

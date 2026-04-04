@@ -10,9 +10,10 @@ import { relativeTime } from "@/lib/utils";
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Globe, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
 import Link from "next/link";
 
-const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
-const STATUS_VARIANT: Record<string, string> = { DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
+const STATUS_LABEL: Record<string, string> = { GENERATING: "Criando...", DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
+const STATUS_VARIANT: Record<string, string> = { GENERATING: "outline", DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
 const STATUS_ICON: Record<string, React.ReactElement> = {
+  GENERATING: <Sparkles className="h-3 w-3 animate-spin" />,
   DRAFT: <Clock className="h-3 w-3" />,
   APPROVED: <CheckCircle2 className="h-3 w-3" />,
   DISMISSED: <XCircle className="h-3 w-3" />,
@@ -248,6 +249,39 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
+
+  // Polling for GENERATING campaigns
+  const generatingIds = campaigns.filter((c) => c.status === "GENERATING").map((c) => c.id);
+  useEffect(() => {
+    if (generatingIds.length === 0) return;
+    const interval = setInterval(async () => {
+      for (const id of generatingIds) {
+        try {
+          const res = await fetch(`/api/campaigns/${id}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data.status !== "GENERATING") {
+            setCampaigns((prev) => prev.map((c) =>
+              c.id === id
+                ? { ...c, status: data.status, imageUrl: data.imageUrl ?? null }
+                : c
+            ));
+            if (data.status === "DRAFT") {
+              window.dispatchEvent(new Event("notifications-changed"));
+              if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+                new Notification("Campanha pronta! ✨", {
+                  body: `"${data.title}" está aguardando sua aprovação.`,
+                  icon: "/favicon.ico",
+                });
+              }
+            }
+          }
+        } catch {}
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatingIds.join(",")]);
   const [theme, setTheme] = useState("");
   const [selectedOfferId, setSelectedOfferId] = useState<string>("");
   const [loadingThemes, setLoadingThemes] = useState(false);
@@ -281,22 +315,14 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar campanha");
-      setCampaigns([data.campaign, ...campaigns]);
+      setCampaigns((prev) => [data.campaign, ...prev]);
       setTheme("");
       setSelectedOfferId("");
       setSuggestedThemes([]);
-      toast({ title: "Campanha criada", description: "Texto e arte gerados pela IA" });
-
-      // Refresh bell notifications immediately
-      window.dispatchEvent(new Event("notifications-changed"));
-
-      // Browser push notification
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        new Notification("Campanha pronta! ✨", {
-          body: `"${data.campaign.title}" está aguardando sua aprovação.`,
-          icon: "/favicon.ico",
-        });
-      }
+      toast({
+        title: "Solicitação acatada!",
+        description: "Vamos criar sua campanha — quando estiver pronta, você será avisado no sininho 🔔",
+      });
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally {
@@ -483,9 +509,10 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   }
 
   // ── Helpers ────────────────────────────────────────────────
-  const queueCampaigns     = campaigns.filter((c) => ["SCHEDULED", "APPROVED"].includes(c.status));
-  const draftCampaigns     = campaigns.filter((c) => c.status === "DRAFT");
-  const dismissedCampaigns = campaigns.filter((c) => c.status === "DISMISSED");
+  const generatingCampaigns = campaigns.filter((c) => c.status === "GENERATING");
+  const queueCampaigns      = campaigns.filter((c) => ["SCHEDULED", "APPROVED"].includes(c.status));
+  const draftCampaigns      = campaigns.filter((c) => c.status === "DRAFT");
+  const dismissedCampaigns  = campaigns.filter((c) => c.status === "DISMISSED");
 
   function isToday(dateStr: string | null) {
     if (!dateStr) return false;
@@ -495,6 +522,40 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   function formatScheduled(dateStr: string | null) {
     if (!dateStr) return null;
     return new Date(dateStr).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  // ── Generating skeleton card ───────────────────────────────
+  function GeneratingCard({ c }: { c: CampaignDto }) {
+    return (
+      <Card id={`campaign-${c.id}`} className="scroll-mt-20 border-purple-500/20 bg-purple-500/5">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-sm leading-snug text-foreground/80">{c.title}</CardTitle>
+            <Badge variant="outline" className="shrink-0 flex items-center gap-1 text-purple-400 border-purple-400/30">
+              <Sparkles className="h-3 w-3 animate-spin" />
+              Criando...
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-lg border border-dashed border-purple-500/20 bg-surface-900 h-44 flex flex-col items-center justify-center gap-3">
+            <div className="relative">
+              <div className="h-10 w-10 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
+              <Sparkles className="h-4 w-4 text-purple-400/60 absolute inset-0 m-auto" />
+            </div>
+            <p className="text-xs text-muted-foreground/70">Gerando arte com IA...</p>
+          </div>
+          <div className="space-y-2 animate-pulse">
+            <div className="h-2.5 bg-surface-700 rounded w-full" />
+            <div className="h-2.5 bg-surface-700 rounded w-4/5" />
+            <div className="h-2.5 bg-surface-700 rounded w-3/5" />
+          </div>
+          <p className="text-[11px] text-muted-foreground/50 text-center">
+            Você será notificado quando estiver pronta 🔔
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   // ── Campaign card (reused for DRAFT and DISMISSED) ─────────
@@ -888,7 +949,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             </div>
             {loadingCreate ? (
               <p className="text-[11px] text-muted-foreground/80 animate-pulse flex items-center gap-1">
-                Pode demorar um pouco — quando terminar, te aviso no sininho 🔔
+                Gerando texto... a arte começa em seguida 🎨
               </p>
             ) : (
               <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
@@ -899,6 +960,22 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Campanhas sendo geradas ────────────────────────── */}
+      {generatingCampaigns.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-0.5">
+            <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
+              Criando agora
+            </p>
+            <span className="rounded-full border border-purple-500/30 px-2 py-0.5 text-[10px] text-purple-400">{generatingCampaigns.length}</span>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {generatingCampaigns.map((c) => <GeneratingCard key={c.id} c={c} />)}
+          </div>
+        </div>
+      )}
 
       {/* ── Campanhas aguardando aprovação ─────────────────── */}
       {draftCampaigns.length > 0 && (

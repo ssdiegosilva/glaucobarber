@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   const campaign = await prisma.campaign.create({
     data: {
       barbershopId: session.user.barbershopId,
-      status:      "DRAFT",
+      status:      "GENERATING",
       title:       theme,
       objective:   objective ?? "",
       text:        ai.text || "",
@@ -50,27 +50,32 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Gera arte imediatamente para reduzir atrito
-  try {
-    const allowanceImage = await checkAiAllowance(session.user.barbershopId);
-    if (!allowanceImage.allowed) {
-      return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
-    }
+  // Gera imagem em background — responde ao cliente imediatamente
+  const barbershopId = session.user.barbershopId;
+  const campaignId   = campaign.id;
 
-    const barbershop = await prisma.barbershop.findUnique({
-      where:  { id: session.user.barbershopId },
-      select: { name: true, brandStyle: true, campaignReferenceImageUrl: true },
-    });
+  after(async () => {
+    try {
+      const allowanceImage = await checkAiAllowance(barbershopId);
+      if (!allowanceImage.allowed) {
+        await prisma.campaign.update({ where: { id: campaignId }, data: { status: "DRAFT" } });
+        return;
+      }
 
-    const brandStyleBlock = barbershop?.brandStyle
-      ? `Brand style: ${barbershop.brandStyle}`
-      : `Brand style: premium barbershop aesthetic — black background, gold metallic accents, elegant contrast, cinematic lighting, masculine and sophisticated`;
+      const barbershop = await prisma.barbershop.findUnique({
+        where:  { id: barbershopId },
+        select: { name: true, brandStyle: true, campaignReferenceImageUrl: true },
+      });
 
-    const referenceNote = barbershop?.campaignReferenceImageUrl
-      ? "Use the provided reference photo as the base and preserve key subjects/identity."
-      : "";
+      const brandStyleBlock = barbershop?.brandStyle
+        ? `Brand style: ${barbershop.brandStyle}`
+        : `Brand style: premium barbershop aesthetic — black background, gold metallic accents, elegant contrast, cinematic lighting, masculine and sophisticated`;
 
-    const prompt = `
+      const referenceNote = barbershop?.campaignReferenceImageUrl
+        ? "Use the provided reference photo as the base and preserve key subjects/identity."
+        : "";
+
+      const prompt = `
 Create a premium square marketing image (1080x1080) for a barbershop brand called "${barbershop?.name ?? "Barbearia"}".
 
 Goal: ${theme}
@@ -97,51 +102,52 @@ Important:
 - output must be suitable for a premium social media campaign
 `.trim();
 
-    const aiConfig = await getAiImageConfig();
-    const img = await provider.generateCampaignImage({
-      prompt,
-      referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
-      model:   aiConfig.model,
-      size:    aiConfig.size,
-      quality: aiConfig.quality,
-    });
+      const aiConfig = await getAiImageConfig();
+      const img = await provider.generateCampaignImage({
+        prompt,
+        referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
+        model:   aiConfig.model,
+        size:    aiConfig.size,
+        quality: aiConfig.quality,
+      });
 
-    const stored = "b64" in img
-      ? await uploadCampaignImage({
-          barbershopId: session.user.barbershopId,
-          campaignId:   campaign.id,
-          fileName:     `${campaign.id}.png`,
-          buffer:       Buffer.from(img.b64, "base64"),
-          contentType:  "image/png",
-        })
-      : await uploadCampaignImageFromUrl({
-          barbershopId: session.user.barbershopId,
-          campaignId:   campaign.id,
-          sourceUrl:    img.url,
-        });
+      const stored = "b64" in img
+        ? await uploadCampaignImage({
+            barbershopId,
+            campaignId,
+            fileName:    `${campaignId}.png`,
+            buffer:      Buffer.from(img.b64, "base64"),
+            contentType: "image/png",
+          })
+        : await uploadCampaignImageFromUrl({
+            barbershopId,
+            campaignId,
+            sourceUrl: img.url,
+          });
 
-    await prisma.campaign.update({ where: { id: campaign.id }, data: { imageUrl: stored.url } });
-    campaign.imageUrl = stored.url;
-    await consumeAiCredit(session.user.barbershopId, "campaign_image");
-  } catch (err) {
-    console.error("[campaign/image] Erro ao gerar imagem:", err);
-    // campaign still created — imageUrl will be null, frontend shows retry button
-  }
+      await prisma.campaign.update({ where: { id: campaignId }, data: { imageUrl: stored.url, status: "DRAFT" } });
+      await consumeAiCredit(barbershopId, "campaign_image");
+    } catch (err) {
+      console.error("[campaign/image] Erro ao gerar imagem:", err);
+      // Mesmo sem imagem, move para DRAFT para o usuário poder agir
+      await prisma.campaign.update({ where: { id: campaignId }, data: { status: "DRAFT" } }).catch(() => {});
+    }
 
-  // Notificação no sininho
-  try {
-    await prisma.systemNotification.create({
-      data: {
-        barbershopId: session.user.barbershopId,
-        type:  "SYSTEM",
-        title: "Campanha pronta para aprovação",
-        body:  `"${campaign.title}" foi criada pela IA e está aguardando sua aprovação.`,
-        link:  `/campaigns#campaign-${campaign.id}`,
-      },
-    });
-  } catch (err) {
-    console.error("Erro ao criar notificação de campanha", err);
-  }
+    // Notificação no sininho
+    try {
+      await prisma.systemNotification.create({
+        data: {
+          barbershopId,
+          type:  "SYSTEM",
+          title: "Campanha pronta para aprovação",
+          body:  `"${campaign.title}" foi criada pela IA e está aguardando sua aprovação.`,
+          link:  `/campaigns#campaign-${campaignId}`,
+        },
+      });
+    } catch (err) {
+      console.error("Erro ao criar notificação de campanha", err);
+    }
+  });
 
   return NextResponse.json({ campaign, ai });
 }
