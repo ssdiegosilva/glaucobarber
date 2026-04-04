@@ -123,14 +123,13 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
     router.push("/login");
   }
 
-  async function dismiss(id: string) {
+  function dismiss(id: string) {
     setNotifs((prev) => prev.filter((n) => n.id !== id));
-    await fetch("/api/notifications/dismiss", {
+    fetch("/api/notifications/dismiss", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ id }),
     });
-    router.refresh();
   }
 
   async function loadHistory() {
