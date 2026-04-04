@@ -7,6 +7,7 @@ import { NAV } from "./sidebar";
 import { Scissors, Menu, X, Bell, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { InstallAppBanner } from "@/components/pwa/install-banner";
 
 interface MobileNavProps {
   barbershopName?: string | null;
@@ -218,6 +219,11 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
               );
             })}
           </nav>
+          {/* Install App */}
+          <div className="px-4 pt-3">
+            <InstallAppBanner />
+          </div>
+
           {/* Quick settings / logout */}
           <div className="flex gap-2 px-4 py-3 border-t border-border/60">
             <Link href="/settings" onClick={() => setOpen(false)}
