@@ -5,8 +5,6 @@ import { Header } from "@/components/layout/header";
 import { BillingClient } from "./billing-client";
 import { getPlan, checkAiAllowance, PLAN_LIMITS, APPOINTMENT_FEE_CENTS, APPOINTMENT_FEE_CAP_CENTS } from "@/lib/billing";
 import { getFullFeatureMatrix, ALL_FEATURES } from "@/lib/access";
-import { getStripePrices } from "@/lib/platform-config";
-
 function currentYearMonth() {
   const now  = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -19,7 +17,7 @@ export default async function BillingPage() {
   const barbershopId = session.user.barbershopId;
   const yearMonth    = currentYearMonth();
 
-  const [plan, allowance, billingStats, featureMatrix, stripePrices] = await Promise.all([
+  const [plan, allowance, billingStats, featureMatrix] = await Promise.all([
     getPlan(barbershopId),
     checkAiAllowance(barbershopId),
     prisma.billingEvent.aggregate({
@@ -28,7 +26,6 @@ export default async function BillingPage() {
       _count: { _all: true },
     }),
     getFullFeatureMatrix(),
-    getStripePrices(["stripe_price_starter_monthly", "stripe_price_pro_monthly"]),
   ]);
 
   const limits = PLAN_LIMITS[plan.tier];
@@ -61,8 +58,8 @@ export default async function BillingPage() {
         trialEndsAt={plan.trialEndsAt?.toISOString() ?? null}
         currentPeriodEnd={plan.currentPeriodEnd?.toISOString() ?? null}
         cancelAtPeriodEnd={plan.cancelAtPeriodEnd}
-        priceIdStart={stripePrices["stripe_price_starter_monthly"]}
-        priceIdPro={stripePrices["stripe_price_pro_monthly"]}
+        priceIdStart={process.env.STRIPE_PRICE_STARTER_MONTHLY ?? ""}
+        priceIdPro={process.env.STRIPE_PRICE_PRO_MONTHLY ?? ""}
       />
     </div>
   );

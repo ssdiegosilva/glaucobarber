@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { getStripePrice } from "@/lib/platform-config";
 import type Stripe from "stripe";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://glaucobarber.com";
@@ -13,10 +12,7 @@ export async function POST(req: NextRequest) {
 
   const barbershopId = session.user.barbershopId;
 
-  const CREDITS_PRICE_ID = await getStripePrice(
-    "stripe_price_ai_credits_pack",
-    process.env.STRIPE_PRICE_AI_CREDITS_PACK,
-  );
+  const CREDITS_PRICE_ID = process.env.STRIPE_PRICE_AI_CREDITS_PACK ?? "";
 
   if (!CREDITS_PRICE_ID) {
     return NextResponse.json({ error: "AI credits price not configured" }, { status: 500 });
