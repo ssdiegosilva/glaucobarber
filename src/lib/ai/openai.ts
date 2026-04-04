@@ -167,7 +167,9 @@ Retorne APENAS JSON válido, sem markdown:
       if (!b64) throw new Error("gpt-image-1 não retornou imagem");
       return { b64 };
     }
-    const params: any = { model, prompt, size, n: 1 };
+    // dall-e-2 has a 1000-char prompt limit
+    const finalPrompt = model === "dall-e-2" ? prompt.slice(0, 1000) : prompt;
+    const params: any = { model, prompt: finalPrompt, size, n: 1 };
     if (model === "dall-e-3") params.quality = quality;
     const img = await this.client.images.generate(params);
     const url = img.data?.[0]?.url;

@@ -124,7 +124,8 @@ Important:
     campaign.imageUrl = stored.url;
     await consumeAiCredit(session.user.barbershopId, "campaign_image");
   } catch (err) {
-    console.error("Erro ao gerar imagem da campanha", err);
+    console.error("[campaign/image] Erro ao gerar imagem:", err);
+    // campaign still created — imageUrl will be null, frontend shows retry button
   }
 
   // Notificação no sininho
