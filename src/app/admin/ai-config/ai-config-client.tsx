@@ -9,7 +9,6 @@ import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2 } from "lucide-r
 
 const MODEL_TABLE = [
   { model: "gpt-image-1", size: "1024x1024", quality: "standard", usdCost: "$0.04",  notes: "Melhor qualidade, suporta foto de referência" },
-  { model: "gpt-image-1", size: "512x512",   quality: "standard", usdCost: "$0.02",  notes: "Boa qualidade, suporta foto de referência" },
   { model: "dall-e-3",    size: "1024x1024", quality: "standard", usdCost: "$0.04",  notes: "Boa qualidade, sem referência" },
   { model: "dall-e-3",    size: "1024x1024", quality: "hd",       usdCost: "$0.08",  notes: "Alta qualidade (HD), sem referência" },
   { model: "dall-e-2",    size: "1024x1024", quality: "standard", usdCost: "$0.020", notes: "Qualidade básica, sem referência" },
@@ -18,8 +17,13 @@ const MODEL_TABLE = [
 ] as const;
 
 const MODEL_OPTIONS   = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
-const SIZE_OPTIONS    = ["1024x1024", "512x512", "256x256"] as const;
 const QUALITY_OPTIONS = ["standard", "hd"] as const;
+
+const SIZE_OPTIONS_BY_MODEL: Record<string, string[]> = {
+  "gpt-image-1": ["1024x1024", "1024x1536", "1536x1024", "auto"],
+  "dall-e-3":    ["1024x1024", "1792x1024", "1024x1792"],
+  "dall-e-2":    ["256x256", "512x512", "1024x1024"],
+};
 
 interface CostData {
   trialStats: {
@@ -104,7 +108,13 @@ export function AiConfigClient({ current }: { current: Record<string, string> })
             <label className="text-xs font-medium text-muted-foreground">Modelo</label>
             <select
               value={values["ai_image_model"] ?? "gpt-image-1"}
-              onChange={(e) => setValues((v) => ({ ...v, ai_image_model: e.target.value }))}
+              onChange={(e) => {
+                const newModel = e.target.value;
+                const validSizes = SIZE_OPTIONS_BY_MODEL[newModel] ?? ["1024x1024"];
+                const currentSize = values["ai_image_size"] ?? "1024x1024";
+                const newSize = validSizes.includes(currentSize) ? currentSize : "1024x1024";
+                setValues((v) => ({ ...v, ai_image_model: newModel, ai_image_size: newSize }));
+              }}
               className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground"
             >
               {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -118,7 +128,7 @@ export function AiConfigClient({ current }: { current: Record<string, string> })
               onChange={(e) => setValues((v) => ({ ...v, ai_image_size: e.target.value }))}
               className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground"
             >
-              {SIZE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              {(SIZE_OPTIONS_BY_MODEL[activeModel] ?? ["1024x1024"]).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 

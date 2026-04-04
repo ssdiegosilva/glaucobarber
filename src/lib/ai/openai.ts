@@ -117,8 +117,23 @@ Retorne APENAS JSON válido, sem markdown:
   }): Promise<{ url: string } | { b64: string }> {
     const prompt  = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
     const model   = input.model   ?? "gpt-image-1";
-    const size    = input.size    ?? "1024x1024";
     const quality = input.quality ?? "standard";
+
+    // Normalize size per model — each model has different valid size options
+    const GPT_IMAGE_1_SIZES = ["1024x1024", "1024x1536", "1536x1024", "auto"];
+    const DALL_E_3_SIZES    = ["1024x1024", "1792x1024", "1024x1792"];
+    const DALL_E_2_SIZES    = ["256x256", "512x512", "1024x1024"];
+    const rawSize = input.size ?? "1024x1024";
+    let size: string;
+    if (model === "gpt-image-1") {
+      size = GPT_IMAGE_1_SIZES.includes(rawSize) ? rawSize : "1024x1024";
+    } else if (model === "dall-e-3") {
+      size = DALL_E_3_SIZES.includes(rawSize) ? rawSize : "1024x1024";
+    } else if (model === "dall-e-2") {
+      size = DALL_E_2_SIZES.includes(rawSize) ? rawSize : "1024x1024";
+    } else {
+      size = "1024x1024";
+    }
 
     // ── With reference image: always use gpt-image-1 via images.edit ─────────
     // (images.edit only supports gpt-image-1 — model param is ignored here)
@@ -178,8 +193,10 @@ Retorne APENAS JSON válido, sem markdown:
   }
 
   private async _generateWithDallE3(prompt: string, size = "1024x1024"): Promise<{ url: string }> {
+    const DALL_E_3_SIZES = ["1024x1024", "1792x1024", "1024x1792"];
+    const safeSize = DALL_E_3_SIZES.includes(size) ? size : "1024x1024";
     const img = await this.client.images.generate({
-      model: "dall-e-3", prompt, size: size as any, n: 1,
+      model: "dall-e-3", prompt, size: safeSize as any, n: 1,
     });
     const url = img.data?.[0]?.url;
     if (!url) throw new Error("dall-e-3 não retornou imagem");

@@ -271,11 +271,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   async function createCampaign() {
     if (!theme) return;
 
-    // Request browser notification permission before starting (non-blocking)
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-
     // Snapshot values and clear the form immediately so user can start another
     const currentTheme   = theme;
     const currentOfferId = selectedOfferId;
@@ -321,11 +316,15 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       window.dispatchEvent(new Event("notifications-changed"));
       window.dispatchEvent(new Event("ai-used"));
 
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        new Notification("Campanha pronta! ✨", {
-          body: `"${data.campaign.title}" está aguardando sua aprovação.`,
-          icon: "/favicon.ico",
-        });
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "default") {
+          const perm = await Notification.requestPermission();
+          if (perm === "granted") {
+            new Notification("Campanha pronta! ✨", { body: `"${data.campaign.title}" está aguardando sua aprovação.`, icon: "/favicon.ico" });
+          }
+        } else if (Notification.permission === "granted") {
+          new Notification("Campanha pronta! ✨", { body: `"${data.campaign.title}" está aguardando sua aprovação.`, icon: "/favicon.ico" });
+        }
       }
     } catch (e) {
       // Remove placeholder e mostra erro
