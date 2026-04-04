@@ -39,7 +39,7 @@ export function UpgradeWall({ feature, requiredPlan, description }: Props) {
           {requiredPlan === "PRO" && (
             <ul className="text-xs text-muted-foreground space-y-1 ml-6">
               <li>• R$149/mês base + R$1,50 por atendimento concluído</li>
-              <li>• 300 chamadas de IA por mês</li>
+              <li>• 1.000 chamadas de IA por mês</li>
               <li>• Gestão financeira com metas e análise</li>
               <li>• Todos os recursos desbloqueados</li>
             </ul>

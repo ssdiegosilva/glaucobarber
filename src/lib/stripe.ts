@@ -50,7 +50,7 @@ export const PLANS = {
     appointmentFeeCents: 100,     // +R$1,00 por atendimento concluído
     appointmentCapCents: 40000,   // cap em R$400/mês
     features: [
-      "300 chamadas de IA por mês",
+      "1.000 chamadas de IA por mês",
       "Gestão financeira com metas",
       "R$1,00 por atendimento concluído (cap R$400/mês)",
       "Sync automático com Trinks",

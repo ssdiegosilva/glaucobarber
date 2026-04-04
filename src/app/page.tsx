@@ -405,7 +405,7 @@ export default async function RootPage() {
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "300 chamadas de IA/mês",
+                  "1.000 chamadas de IA/mês",
                   "Tudo do Starter",
                   "WhatsApp BOT automático",
                   "Metas e relatórios financeiros",

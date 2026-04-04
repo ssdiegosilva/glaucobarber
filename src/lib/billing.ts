@@ -16,7 +16,7 @@ export const PLAN_LIMITS: Record<
 > = {
   FREE:       { aiPerPeriod: 30,       periodType: "trial",   featureGates: ["financeiro", "meta", "whatsapp_auto"], appointmentFee: false },
   STARTER:    { aiPerPeriod: 50,       periodType: "monthly", featureGates: ["financeiro", "whatsapp_auto"],          appointmentFee: false },
-  PRO:        { aiPerPeriod: 300,      periodType: "monthly", featureGates: [],             appointmentFee: true  },
+  PRO:        { aiPerPeriod: 1000,     periodType: "monthly", featureGates: [],             appointmentFee: true  },
   ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly", featureGates: [],             appointmentFee: false },
 };
 

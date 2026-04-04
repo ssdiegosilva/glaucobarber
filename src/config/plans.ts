@@ -25,7 +25,7 @@ export const PLAN_FEATURES = {
     monthly_brl:            89,
   },
   PRO: {
-    ai_calls_per_period:    300,          // per month
+    ai_calls_per_period:    1000,         // per month
     ai_period:              "monthly" as const,
     financeiro:             true,
     campaigns:              true,
