@@ -7,6 +7,7 @@ import { AgendaTimeline } from "./components/AgendaTimeline";
 import { AppointmentDrawer } from "./components/AppointmentDrawer";
 import { NewAppointmentDrawer } from "./components/NewAppointmentDrawer";
 import { MonthlyOverview } from "./components/MonthlyOverview";
+import { DayOffScreen } from "./components/DayOffScreen";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Loader2, Settings2, ChevronLeft, ChevronRight, CalendarDays, BarChart3 } from "lucide-react";
 import type { AgendaKPIs } from "./components/AgendaKPICards";
@@ -33,13 +34,14 @@ interface Props {
   agendaStartHour: number;
   agendaEndHour:   number;
   currentYear:     number;
+  isDayOff:        boolean;
 }
 
 const TOTAL_SLOTS = 20;
 
 export function AgendaClient({
   appointments: initial, kpis, date, dateIso, hasTrinks,
-  agendaStartHour: initStart, agendaEndHour: initEnd, currentYear,
+  agendaStartHour: initStart, agendaEndHour: initEnd, currentYear, isDayOff,
 }: Props) {
   const router       = useRouter();
   const pathname     = usePathname();
@@ -250,39 +252,45 @@ export function AgendaClient({
             />
           </div>
 
-          <AgendaKPICards kpis={liveKpis} />
+          {isDayOff ? (
+            <DayOffScreen dateIso={dateIso} dateLabel={date} />
+          ) : (
+            <>
+              <AgendaKPICards kpis={liveKpis} />
 
-          <AgendaTimeline
-            appointments={appointments}
-            onSelect={openDrawer}
-            onSlotClick={handleSlotClick}
-            dateIso={dateIso}
-            startHour={startHour}
-            endHour={endHour}
-          />
+              <AgendaTimeline
+                appointments={appointments}
+                onSelect={openDrawer}
+                onSlotClick={handleSlotClick}
+                dateIso={dateIso}
+                startHour={startHour}
+                endHour={endHour}
+              />
 
-          {appointments.length === 0 && (
-            <p className="text-center text-sm text-muted-foreground -mt-2">
-              Nenhum agendamento para este dia. Clique em um horário para agendar.
-            </p>
+              {appointments.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground -mt-2">
+                  Nenhum agendamento para este dia. Clique em um horário para agendar.
+                </p>
+              )}
+
+              <AppointmentDrawer
+                appointment={selectedAppt}
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                onStatusChange={handleStatusChange}
+                onReschedule={handleReschedule}
+              />
+
+              <NewAppointmentDrawer
+                open={newApptSlot !== null}
+                onClose={() => setNewApptSlot(null)}
+                defaultDate={newApptSlot?.date ?? dateIso}
+                defaultTime={newApptSlot?.time ?? "09:00"}
+                defaultProfissional={newApptSlot?.profissional}
+                onCreated={handleNewApptCreated}
+              />
+            </>
           )}
-
-          <AppointmentDrawer
-            appointment={selectedAppt}
-            open={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            onStatusChange={handleStatusChange}
-            onReschedule={handleReschedule}
-          />
-
-          <NewAppointmentDrawer
-            open={newApptSlot !== null}
-            onClose={() => setNewApptSlot(null)}
-            defaultDate={newApptSlot?.date ?? dateIso}
-            defaultTime={newApptSlot?.time ?? "09:00"}
-            defaultProfissional={newApptSlot?.profissional}
-            onCreated={handleNewApptCreated}
-          />
         </>
       )}
 
