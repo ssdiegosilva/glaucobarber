@@ -311,22 +311,35 @@ export function BillingClient({
         </div>
 
         {isTrialing ? (
-          aiUsed >= aiLimit ? (
-            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5">
-              <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="text-red-400 font-medium">Limite de uso do trial atingido</p>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                  Você explorou bastante durante o período gratuito. Assine um plano para continuar usando a IA.
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{aiUsed} de {aiLimit} chamadas usadas no trial</span>
+              {aiUsed >= aiLimit
+                ? <span className="text-red-400 font-medium">Esgotado</span>
+                : <span className="text-emerald-400">{aiLimit - aiUsed} restantes</span>
+              }
+            </div>
+            <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  aiUsed >= aiLimit ? "bg-red-500" : aiUsed / aiLimit >= 0.7 ? "bg-amber-500" : "bg-gold-500"
+                }`}
+                style={{ width: `${Math.min(100, Math.round((aiUsed / aiLimit) * 100))}%` }}
+              />
+            </div>
+            {aiUsed >= aiLimit ? (
+              <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5">
+                <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  Limite do trial atingido. Assine um plano para continuar usando a IA.
                 </p>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>IA disponível durante o trial — aproveite para explorar todos os recursos.</span>
-            </div>
-          )
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Ao esgotar as {aiLimit} chamadas do trial, a conta migra automaticamente para o plano <span className="text-foreground font-medium">Free</span> (sem IA).
+              </p>
+            )}
+          </div>
         ) : (
         <div>
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
