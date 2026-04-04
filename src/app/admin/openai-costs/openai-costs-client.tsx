@@ -100,7 +100,7 @@ function ModelTable({ rows, showMonth = false }: { rows: Row[]; showMonth?: bool
       <div className="rounded-xl border border-border bg-surface-900 flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
         <Bot className="h-10 w-10 opacity-20" />
         <p className="text-sm">Nenhum dado ainda.</p>
-        <p className="text-xs opacity-60">Clique em "Sincronizar" para buscar dados da API OpenAI.</p>
+        <p className="text-xs opacity-60">Clique em &ldquo;Sincronizar&rdquo; para buscar dados da API OpenAI.</p>
       </div>
     );
   }
