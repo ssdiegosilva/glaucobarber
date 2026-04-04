@@ -7,6 +7,7 @@ import {
   TrendingUp, Megaphone, ArrowRight, CheckCircle2,
   MessageSquare, Bot, Send, Camera, X,
 } from "lucide-react";
+import { InstallAppButton } from "@/components/pwa/install-button";
 
 export default async function RootPage() {
   const session = await auth();
@@ -27,6 +28,9 @@ export default async function RootPage() {
             <a href="#precos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">
               Preços
             </a>
+            <div className="hidden sm:block">
+              <InstallAppButton />
+            </div>
             <Link
               href="/login"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -491,6 +495,10 @@ export default async function RootPage() {
             <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>
           <p className="text-xs text-muted-foreground mt-4">Sem cartão de crédito · Configuração em minutos</p>
+
+          <div className="mt-6 flex justify-center">
+            <InstallAppButton />
+          </div>
         </div>
       </section>
 
