@@ -109,6 +109,12 @@ function durationToRowSpan(durationMin: number): number {
   return Math.max(1, Math.ceil(durationMin / SLOT_MINUTES));
 }
 
+// ── Mobile tap-vs-scroll guard ────────────────────────────
+// Tracks pointer-down position so we can ignore onClick when
+// the user was actually scrolling (moved > 8 px).
+let _ptrStartX = 0;
+let _ptrStartY = 0;
+
 // ── Component ─────────────────────────────────────────────
 
 interface Props {
@@ -204,8 +210,10 @@ export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, s
                 return professionals[0] ?? "Sem profissional";
               })();
 
-              function handleCellClick() {
+              function handleCellClick(clientX: number, clientY: number) {
                 if (!onSlotClick) return;
+                // Ignore if pointer moved too much (scroll gesture on mobile)
+                if (Math.abs(clientX - _ptrStartX) > 8 || Math.abs(clientY - _ptrStartY) > 8) return;
                 const totalMin = (startHour * 60) + rowIdx * SLOT_MINUTES;
                 const h = Math.floor(totalMin / 60) % 24;
                 const m = totalMin % 60;
@@ -218,10 +226,15 @@ export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, s
               return (
                 <div
                   key={`bg-${rowIdx}-${colIdx}`}
-                  onClick={onSlotClick ? handleCellClick : undefined}
+                  onPointerDown={onSlotClick ? (e) => { _ptrStartX = e.clientX; _ptrStartY = e.clientY; } : undefined}
+                  onClick={onSlotClick ? (e) => handleCellClick(e.clientX, e.clientY) : undefined}
                   className={`border-b border-l border-border/20 group relative
                     ${onSlotClick ? "cursor-pointer hover:bg-gold-500/5" : ""}`}
-                  style={{ gridColumn: colIdx + 2, gridRow: rowIdx + 1 }}
+                  style={{
+                    gridColumn: colIdx + 2,
+                    gridRow: rowIdx + 1,
+                    touchAction: onSlotClick ? "manipulation" : undefined,
+                  }}
                 >
                   {onSlotClick && (
                     <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gold-400/0 group-hover:text-gold-400/50 transition-colors select-none pointer-events-none">
