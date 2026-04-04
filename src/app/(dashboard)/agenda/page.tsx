@@ -27,7 +27,12 @@ export default async function AgendaPage({
   const end    = endOfDay(target);
   const dateIso = format(target, "yyyy-MM-dd");
 
-  const [appointments, integration, barbershop] = await Promise.all([
+  const targetMonth = target.getMonth() + 1;
+  const targetYear  = target.getFullYear();
+  const targetDay   = target.getDate();
+  const targetDow   = target.getDay(); // 0=Sun, 6=Sat
+
+  const [appointments, integration, barbershop, goal] = await Promise.all([
     prisma.appointment.findMany({
       where: { barbershopId, scheduledAt: { gte: start, lte: end } },
       include: {
@@ -38,7 +43,17 @@ export default async function AgendaPage({
     }),
     prisma.integration.findUnique({ where: { barbershopId }, select: { configJson: true, status: true } }),
     prisma.barbershop.findUnique({ where: { id: barbershopId }, select: { agendaStartHour: true, agendaEndHour: true } }),
+    prisma.goal.findUnique({
+      where: { barbershopId_month_year: { barbershopId, month: targetMonth, year: targetYear } },
+      select: { offDaysOfWeek: true, extraOffDays: true, extraWorkDays: true },
+    }),
   ]);
+
+  // Determine if this day is an off day
+  const isOffWeekday = goal?.offDaysOfWeek.includes(targetDow) ?? false;
+  const isExtraOff   = goal?.extraOffDays.includes(targetDay) ?? false;
+  const isExtraWork  = goal?.extraWorkDays.includes(targetDay) ?? false;
+  const isDayOff     = (isOffWeekday && !isExtraWork) || isExtraOff;
 
   const serialized: AgendaAppointment[] = appointments.map((a) => ({
     id:           a.id,
@@ -88,6 +103,7 @@ export default async function AgendaPage({
           agendaStartHour={agendaStartHour}
           agendaEndHour={agendaEndHour}
           currentYear={currentYear}
+          isDayOff={isDayOff}
         />
       </div>
     </div>

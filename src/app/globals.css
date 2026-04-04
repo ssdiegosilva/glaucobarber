@@ -99,6 +99,33 @@
     animation: shimmer 1.5s infinite;
   }
 
+  /* Float animation for day-off icon */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Confetti fall */
+  @keyframes confetti-fall {
+    0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+  .animate-confetti-fall {
+    animation: confetti-fall 2.5s ease-in forwards;
+  }
+
+  /* Fade in */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+
   /* Subtle shimmer for loading buttons */
   .btn-shimmer {
     position: relative;
