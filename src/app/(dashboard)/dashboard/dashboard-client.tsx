@@ -13,7 +13,7 @@ import {
   Scissors, CreditCard, Plus, Trash2,
   ThumbsUp, Play, Flag, UserX, Ban, CalendarClock as CalendarClockIcon,
   MessageCircle, Zap, ChevronDown, Settings2, Star, MessageSquare,
-  UserPlus, Repeat2, Target, X, ExternalLink,
+  UserPlus, Repeat2, Target, X, ExternalLink, Plug,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
