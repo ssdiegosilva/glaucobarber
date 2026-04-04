@@ -1656,8 +1656,11 @@ function SuggestionCard({
     }
   }
 
-  const link = APPROVAL_LINK[suggestion.type];
-  const icon = SUGGESTION_ICONS[suggestion.type] ?? <Sparkles className="h-3.5 w-3.5" />;
+  const link     = APPROVAL_LINK[suggestion.type];
+  const linkOnly = LINK_ONLY_SUGGESTIONS[suggestion.type];
+  const infoOnly = INFO_ONLY_SUGGESTIONS.has(suggestion.type);
+  const icon     = SUGGESTION_ICONS[suggestion.type] ?? <Sparkles className="h-3.5 w-3.5" />;
+  const isLong   = (suggestion.content?.length ?? 0) > 120;
 
   // ── Approved state ──────────────────────────────────────────
   if (approvedState) {
@@ -1764,30 +1767,72 @@ function SuggestionCard({
             </div>
           </div>
 
-          <p className="text-xs text-foreground/80 leading-relaxed mt-2 line-clamp-3">
-            {suggestion.content}
-          </p>
+          <div className="mt-2">
+            <p className={`text-xs text-foreground/80 leading-relaxed ${expanded ? "" : "line-clamp-3"}`}>
+              {suggestion.content}
+            </p>
+            {isLong && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="flex items-center gap-0.5 text-[10px] text-gold-400 hover:text-gold-300 mt-0.5"
+              >
+                {expanded
+                  ? <><ChevronDown className="h-3 w-3 rotate-180" />Ver menos</>
+                  : <><ChevronDown className="h-3 w-3" />Ver mais</>}
+              </button>
+            )}
+          </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            <Button
-              size="sm"
-              className="h-8 text-xs gap-1.5"
-              onClick={onApprove}
-              disabled={approving}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {approving ? "Aprovando..." : "Aprovar"}
-            </Button>
+          {linkOnly ? (
+            <div className="flex items-center gap-2 mt-3">
+              <Link
+                href={linkOnly.href}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md bg-gold-500 hover:bg-gold-400 text-black text-xs font-medium transition-colors"
+                onClick={onDismiss}
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> {linkOnly.label}
+              </Link>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
+                onClick={onDismiss}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : infoOnly ? (
             <Button
               size="sm"
               variant="outline"
-              className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
+              className="h-8 w-full text-xs gap-1 mt-3"
               onClick={onDismiss}
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Excluir
+              <CheckCircle2 className="h-3.5 w-3.5" /> Ok, entendi
             </Button>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={onApprove}
+                disabled={approving}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {approving ? "Aprovando..." : "Aprovar"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40"
+                onClick={onDismiss}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Excluir
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
