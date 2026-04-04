@@ -63,7 +63,12 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">Senha</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-foreground">Senha</label>
+            <Link href="/forgot-password" className="text-xs text-gold-400 hover:underline font-medium">
+              Esqueci minha senha
+            </Link>
+          </div>
           <div className="relative">
             <input
               type={showPwd ? "text" : "password"}
