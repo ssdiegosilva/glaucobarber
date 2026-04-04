@@ -26,27 +26,35 @@ export async function PATCH(req: NextRequest) {
   const name = body.name?.trim();
   const slugRaw = body.slug?.trim();
 
-  if (!name || !slugRaw) {
+  // name and slug are only required when either is explicitly sent
+  const updatingIdentity = name !== undefined || slugRaw !== undefined;
+  if (updatingIdentity && (!name || !slugRaw)) {
     return NextResponse.json({ error: "Nome e slug são obrigatórios" }, { status: 400 });
   }
 
-  const slug = normalizeSlug(slugRaw);
-  if (!slug) {
-    return NextResponse.json({ error: "Slug inválido" }, { status: 400 });
+  const data: BarbershopUpdate = {};
+
+  if (updatingIdentity) {
+    const slug = normalizeSlug(slugRaw!);
+    if (!slug) {
+      return NextResponse.json({ error: "Slug inválido" }, { status: 400 });
+    }
+
+    const conflict = await prisma.barbershop.findFirst({
+      where: {
+        slug,
+        NOT: { id: session.user.barbershopId },
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      return NextResponse.json({ error: "Slug já está em uso" }, { status: 409 });
+    }
+
+    data.slug = slug;
+    data.name = name;
   }
 
-  const conflict = await prisma.barbershop.findFirst({
-    where: {
-      slug,
-      NOT: { id: session.user.barbershopId },
-    },
-    select: { id: true },
-  });
-  if (conflict) {
-    return NextResponse.json({ error: "Slug já está em uso" }, { status: 409 });
-  }
-
-  const data: BarbershopUpdate = { slug, name };
   for (const key of allowedFields) {
     if (key === "slug" || key === "name") continue;
     if (typeof body[key] === "string") {
