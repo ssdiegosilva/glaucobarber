@@ -70,7 +70,7 @@ export function InstallAppButton() {
 
       {/* iOS instruction tooltip */}
       {showIOSGuide && isIOS && (
-        <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-72 rounded-xl border border-gold-500/20 bg-[#080810] p-4 shadow-xl z-50">
+        <div className="absolute top-full mt-3 left-0 w-72 rounded-xl border border-gold-500/20 bg-[#080810] p-4 shadow-xl z-50">
           <p className="text-sm text-foreground font-semibold mb-2">
             Como instalar no iPhone:
           </p>
