@@ -114,8 +114,6 @@ export async function createCheckoutSession({
 
   if (stripeCustomerId) {
     params.customer = stripeCustomerId;
-  } else {
-    params.customer_creation = "always";
   }
 
   return stripe.checkout.sessions.create(params);
