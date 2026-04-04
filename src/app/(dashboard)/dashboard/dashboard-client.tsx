@@ -481,7 +481,7 @@ export function DashboardClient({
             <MessageCircle className="h-3 w-3" /> WhatsApp
           </a>
 
-          {view === "today" && (
+          {view === "today" && trinksConfigured && (
             <Button variant="ghost" size="sm" onClick={handleSync} disabled={syncing} className="text-xs h-7">
               <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? "animate-spin" : ""}`} />
               Sync
