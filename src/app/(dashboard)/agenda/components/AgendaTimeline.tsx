@@ -130,10 +130,11 @@ interface Props {
 export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, startHour = 6, endHour = 24 }: Props) {
   const { labels: timeLabels, totalRows } = buildTimeLabels(startHour, endHour);
 
-  // Group appointments by professional
+  // Group appointments by professional (always at least one column)
   const professionals = Array.from(
     new Set(appointments.map((a) => a.profissional ?? "Sem profissional"))
   );
+  if (professionals.length === 0) professionals.push("Sem profissional");
 
   // For each professional, detect overlaps and get sub-column placement
   const placedByPro = new Map<string, PlacedAppt[]>();
