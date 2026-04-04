@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { sendWhatsAppMessage, type WhatsAppCredentials } from "@/lib/whatsapp";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -48,22 +47,9 @@ function buildMessage(
   }
 }
 
-/** Busca credenciais WhatsApp do barbershop. */
-async function getWhatsAppCreds(barbershopId: string): Promise<WhatsAppCredentials | null> {
-  const integration = await prisma.integration.findUnique({
-    where: { barbershopId },
-    select: { whatsappAccessToken: true, whatsappPhoneNumberId: true },
-  });
-  if (!integration?.whatsappAccessToken || !integration?.whatsappPhoneNumberId) return null;
-  return {
-    accessToken: integration.whatsappAccessToken,
-    phoneNumberId: integration.whatsappPhoneNumberId,
-  };
-}
-
 /**
- * Cria uma mensagem WhatsApp notificando o cliente sobre um evento do agendamento.
- * Tenta enviar imediatamente se o WhatsApp estiver configurado.
+ * Cria uma mensagem WhatsApp na fila para envio manual (wa.me).
+ * O barbeiro verá a mensagem na aba de WhatsApp e enviará pelo link.
  * Fire-and-forget: não lança erro se falhar.
  */
 export async function notifyAppointmentEvent(opts: {
@@ -79,7 +65,7 @@ export async function notifyAppointmentEvent(opts: {
       select: { id: true, name: true, phone: true },
     });
 
-    if (!customer?.phone) return; // sem telefone, não notifica
+    if (!customer?.phone) return;
 
     const message = buildMessage(
       opts.event,
@@ -88,7 +74,7 @@ export async function notifyAppointmentEvent(opts: {
       opts.serviceName,
     );
 
-    const msg = await prisma.whatsappMessage.create({
+    await prisma.whatsappMessage.create({
       data: {
         barbershopId: opts.barbershopId,
         customerId: customer.id,
@@ -100,29 +86,6 @@ export async function notifyAppointmentEvent(opts: {
         status: "QUEUED",
       },
     });
-
-    // Tenta enviar imediatamente
-    const creds = await getWhatsAppCreds(opts.barbershopId);
-    if (!creds) return; // sem WhatsApp configurado, fica na fila
-
-    try {
-      const metaMessageId = await sendWhatsAppMessage(customer.phone, message, creds);
-      await prisma.whatsappMessage.update({
-        where: { id: msg.id },
-        data: { status: "SENT", sentAt: new Date(), metaMessageId },
-      });
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: { lastWhatsappSentAt: new Date() },
-      });
-    } catch (sendErr) {
-      console.error("[appointment-notify] falha ao enviar WhatsApp:", sendErr);
-      const errorMessage = sendErr instanceof Error ? sendErr.message : String(sendErr);
-      await prisma.whatsappMessage.update({
-        where: { id: msg.id },
-        data: { status: "FAILED", errorMessage },
-      });
-    }
   } catch (err) {
     console.error("[appointment-notify] erro ao criar notificação:", err);
   }
