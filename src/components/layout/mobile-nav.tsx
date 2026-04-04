@@ -101,7 +101,7 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
       {/* Single top bar */}
       <div className="flex items-center justify-between bg-card/90 backdrop-blur border-b border-border px-4 py-2.5 gap-3">
         {/* Logo + name */}
-        <div className="flex items-center gap-2 min-w-0">
+        <Link href="/dashboard" className="flex items-center gap-2 min-w-0" onClick={() => setOpen(false)}>
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-500/15 border border-gold-500/30">
             <Scissors className="h-3.5 w-3.5 text-gold-400" />
           </div>
@@ -109,7 +109,7 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
             <p className="text-sm font-semibold text-foreground truncate">{barbershopName ?? "GlaucoBarber"}</p>
             <p className="text-[9px] text-muted-foreground uppercase tracking-widest">Copiloto IA</p>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-2 shrink-0">
           {/* Bell */}

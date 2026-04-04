@@ -57,7 +57,7 @@ export function Sidebar({ barbershopName, className, aiUsed = 0, aiLimit = 30, a
   return (
     <aside className={cn("flex h-screen w-60 flex-col border-r border-border bg-card", className)}>
       {/* Logo / Brand */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
+      <Link href="/dashboard" className="flex items-center gap-3 px-5 py-5 border-b border-border hover:bg-surface-800/40 transition-colors">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold-500/15 border border-gold-500/30">
           <Scissors className="h-4 w-4 text-gold-400" />
         </div>
@@ -69,7 +69,7 @@ export function Sidebar({ barbershopName, className, aiUsed = 0, aiLimit = 30, a
             Copiloto IA
           </p>
         </div>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
