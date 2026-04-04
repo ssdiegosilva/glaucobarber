@@ -37,8 +37,6 @@ export async function POST(req: NextRequest) {
 
   if (barbershop?.stripeCustomerId) {
     sessionParams.customer = barbershop.stripeCustomerId;
-  } else {
-    sessionParams.customer_creation = "always";
   }
 
   const checkout = await stripe.checkout.sessions.create(sessionParams);
