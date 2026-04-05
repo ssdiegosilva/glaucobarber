@@ -1,17 +1,18 @@
-import { createClient } from "@supabase/supabase-js";
+// ============================================================
+// Barbershop Storage — Domain-specific wrappers
+// ============================================================
+// These functions maintain the existing API surface used across
+// the app. Internally they delegate to the generic SaaS core.
+// ============================================================
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const bucket = process.env.SUPABASE_STORAGE_BUCKET_CAMPAIGNS ?? "campaign-images";
+import {
+  uploadTenantFile,
+  uploadTenantFileFromUrl,
+  signTenantFile,
+  deleteTenantFile,
+} from "@/lib/core/storage";
 
-function getServiceClient() {
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error("Supabase service credentials missing");
-  }
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
+// ── Campaign images ─────────────────────────────────────────
 
 export async function uploadCampaignImage({
   barbershopId,
@@ -26,19 +27,13 @@ export async function uploadCampaignImage({
   buffer: Buffer;
   contentType?: string;
 }): Promise<{ path: string; url: string }> {
-  const client = getServiceClient();
-  const ext = fileName.includes(".") ? fileName.split(".").pop() : "jpg";
-  const key = `${barbershopId}/campaigns/${campaignId}-${Date.now()}.${ext}`;
-
-  const { error } = await client.storage.from(bucket).upload(key, buffer, {
-    upsert: true,
-    cacheControl: "3600",
-    contentType: contentType || "image/jpeg",
+  return uploadTenantFile({
+    tenantId: barbershopId,
+    folder: "campaigns",
+    fileId: campaignId,
+    buffer,
+    contentType,
   });
-  if (error) throw new Error(error.message);
-
-  const { data } = client.storage.from(bucket).getPublicUrl(key);
-  return { path: key, url: data.publicUrl };
 }
 
 export async function uploadCampaignImageFromUrl({
@@ -52,29 +47,16 @@ export async function uploadCampaignImageFromUrl({
   sourceUrl: string;
   fileName?: string;
 }): Promise<{ path: string; url: string }> {
-  const res = await fetch(sourceUrl);
-  if (!res.ok) throw new Error("Não foi possível baixar a imagem gerada");
-
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  const buffer = Buffer.from(await res.arrayBuffer());
-
-  const mimeExt: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  };
-  const extFromMime = mimeExt[contentType];
-  const urlExt = sourceUrl.split(".").pop()?.split(/[#?]/)[0];
-  const ext = extFromMime || urlExt || "jpg";
-
-  return uploadCampaignImage({
-    barbershopId,
-    campaignId,
-    fileName: fileName ?? `${campaignId}.${ext}`,
-    buffer,
-    contentType,
+  return uploadTenantFileFromUrl({
+    tenantId: barbershopId,
+    folder: "campaigns",
+    fileId: campaignId,
+    sourceUrl,
+    fileName,
   });
 }
+
+// ── Reference images ────────────────────────────────────────
 
 export async function uploadBarbershopReferenceImage({
   barbershopId,
@@ -87,19 +69,13 @@ export async function uploadBarbershopReferenceImage({
   buffer: Buffer;
   contentType?: string;
 }): Promise<{ path: string; url: string }> {
-  const client = getServiceClient();
-  const ext = fileName.includes(".") ? fileName.split(".").pop() : "jpg";
-  const key = `${barbershopId}/reference/${Date.now()}.${ext}`;
-
-  const { error } = await client.storage.from(bucket).upload(key, buffer, {
-    upsert: true,
-    cacheControl: "3600",
-    contentType: contentType || "image/jpeg",
+  return uploadTenantFile({
+    tenantId: barbershopId,
+    folder: "reference",
+    fileId: `ref-${Date.now()}`,
+    buffer,
+    contentType,
   });
-  if (error) throw new Error(error.message);
-
-  const { data } = client.storage.from(bucket).getPublicUrl(key);
-  return { path: key, url: data.publicUrl };
 }
 
 export async function uploadBarbershopReferenceImageFromUrl({
@@ -111,55 +87,21 @@ export async function uploadBarbershopReferenceImageFromUrl({
   sourceUrl: string;
   fileName?: string;
 }): Promise<{ path: string; url: string }> {
-  const res = await fetch(sourceUrl);
-  if (!res.ok) throw new Error("Não foi possível baixar a imagem de referência");
-
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  const buffer = Buffer.from(await res.arrayBuffer());
-
-  const mimeExt: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  };
-  const extFromMime = mimeExt[contentType];
-  const urlExt = sourceUrl.split(".").pop()?.split(/[#?]/)[0];
-  const ext = extFromMime || urlExt || "jpg";
-
-  return uploadBarbershopReferenceImage({
-    barbershopId,
-    fileName: fileName ?? `reference.${ext}`,
-    buffer,
-    contentType,
+  return uploadTenantFileFromUrl({
+    tenantId: barbershopId,
+    folder: "reference",
+    fileId: "reference",
+    sourceUrl,
+    fileName,
   });
 }
 
+// ── Shared utilities ────────────────────────────────────────
+
 export async function signCampaignImage(path: string): Promise<string | null> {
-  if (!path) return null;
-  // Extract storage key from any Supabase URL, or use as-is if it's already a plain key
-  const storagePath = extractSupabasePath(path) ?? (path.startsWith("http") ? null : path);
-  if (!storagePath) return path; // external URL, return as-is
-  const client = getServiceClient();
-  const { data } = client.storage.from(bucket).getPublicUrl(storagePath);
-  return data.publicUrl;
+  return signTenantFile(path);
 }
 
 export async function deleteCampaignImage(imageUrl: string): Promise<void> {
-  const path = extractSupabasePath(imageUrl) ?? (imageUrl.startsWith("http") ? null : imageUrl);
-  if (!path) return;
-  const client = getServiceClient();
-  await client.storage.from(bucket).remove([path]);
-}
-
-// Extracts the storage key from a Supabase signed or public URL
-// e.g. https://<ref>.supabase.co/storage/v1/object/sign/<bucket>/<key>?token=...
-//   or https://<ref>.supabase.co/storage/v1/object/public/<bucket>/<key>
-function extractSupabasePath(url: string): string | null {
-  try {
-    const u = new URL(url);
-    const match = u.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/[^/]+\/(.+)/);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
+  return deleteTenantFile(imageUrl);
 }

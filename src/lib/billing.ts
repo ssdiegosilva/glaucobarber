@@ -1,32 +1,37 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { getVerticalConfig } from "@/lib/core/vertical";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
-// ── Plan limits ────────────────────────────────────────────────────────────────
+// ── Plan limits (reads feature gates from vertical config) ────────────────────
+
+function buildPlanLimits() {
+  const v = getVerticalConfig();
+  return {
+    FREE:       { aiPerPeriod: 30,       periodType: "trial"   as const, featureGates: v.billing.featureGates["FREE"]       ?? [], appointmentFee: v.billing.usageFee["FREE"]       ?? false },
+    STARTER:    { aiPerPeriod: 200,      periodType: "monthly" as const, featureGates: v.billing.featureGates["STARTER"]    ?? [], appointmentFee: v.billing.usageFee["STARTER"]    ?? false },
+    PRO:        { aiPerPeriod: 1000,     periodType: "monthly" as const, featureGates: v.billing.featureGates["PRO"]        ?? [], appointmentFee: v.billing.usageFee["PRO"]        ?? true  },
+    ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly" as const, featureGates: v.billing.featureGates["ENTERPRISE"] ?? [], appointmentFee: v.billing.usageFee["ENTERPRISE"] ?? false },
+  } satisfies Record<PlanTier, { aiPerPeriod: number; periodType: "trial" | "monthly"; featureGates: string[]; appointmentFee: boolean }>;
+}
 
 export const PLAN_LIMITS: Record<
   PlanTier,
   {
-    aiPerPeriod:   number;            // Infinity = unlimited
+    aiPerPeriod:   number;
     periodType:    "trial" | "monthly";
-    featureGates:  string[];          // feature keys locked on this plan
-    appointmentFee: boolean;          // charges per completed appointment
+    featureGates:  string[];
+    appointmentFee: boolean;
   }
-> = {
-  FREE:       { aiPerPeriod: 30,       periodType: "trial",   featureGates: ["financeiro", "meta", "whatsapp_auto"], appointmentFee: false },
-  STARTER:    { aiPerPeriod: 200,      periodType: "monthly", featureGates: ["financeiro", "whatsapp_auto"],          appointmentFee: false },
-  PRO:        { aiPerPeriod: 1000,     periodType: "monthly", featureGates: [],             appointmentFee: true  },
-  ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly", featureGates: [],             appointmentFee: false },
-};
+> = buildPlanLimits();
 
 // Limite de segurança do trial (invisível para o usuário)
 export const TRIAL_AI_LIMIT = 50;
 
-// R$1,00 por atendimento concluído no plano PRO
-export const APPOINTMENT_FEE_CENTS = 100;
-// Cap: máximo R$400 em taxas de atendimento/mês (total PRO = R$149 + R$400 = R$549)
-export const APPOINTMENT_FEE_CAP_CENTS = 40_000;
+// Usage fee defaults (read from vertical config)
+export const APPOINTMENT_FEE_CENTS     = getVerticalConfig().billing.usageFeeCents;
+export const APPOINTMENT_FEE_CAP_CENTS = getVerticalConfig().billing.usageFeeCapCents;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -166,38 +171,17 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
   };
 }
 
-// ── Feature credit costs (weighted — image costs more than text) ───────────────
+// ── Feature credit costs (reads from vertical config) ─────────────────────────
 
-export const AI_FEATURE_COSTS: Record<string, number> = {
-  campaign_image:        10,
-  visual_style_generate: 10,
-  brand_style_logo:      10,
-  // everything else defaults to 1
-};
+export const AI_FEATURE_COSTS: Record<string, number> = getVerticalConfig().ai.featureCosts;
 
 export function getFeatureCost(feature: string): number {
   return AI_FEATURE_COSTS[feature] ?? 1;
 }
 
-// ── Feature labels for AI call log ────────────────────────────────────────────
+// ── Feature labels for AI call log (reads from vertical config) ───────────────
 
-export const AI_FEATURE_LABELS: Record<string, string> = {
-  copilot_chat:          "Chat com Copilot",
-  goals_suggest:         "Sugestão de Meta",
-  post_sale:             "Mensagem Pós-venda",
-  ai_suggestion:         "Sugestão do Copilot",
-  price_recommend:       "Recomendação de Preço",
-  opportunities:         "Oportunidades de Serviço",
-  campaign_image:        "Imagem de Campanha",
-  campaign_text:         "Texto de Campanha",
-  campaign_themes:       "Temas de Campanha",
-  brand_style_improve:   "Identidade Visual (texto)",
-  brand_style_logo:      "Identidade Visual (logo)",
-  visual_style_analyze:  "Criar Visual (análise)",
-  visual_style_generate: "Criar Visual (geração)",
-  whatsapp_template:     "Template de WhatsApp",
-  whatsapp_personalize:  "Mensagem WhatsApp (IA)",
-};
+export const AI_FEATURE_LABELS: Record<string, string> = getVerticalConfig().ai.featureLabels;
 
 // Max AI call log entries kept per barbershop
 const AI_CALL_LOG_MAX = 50;
@@ -237,7 +221,7 @@ export async function withAiCredit<T>(
 
 // ── consumeAiCredit ────────────────────────────────────────────────────────────
 
-const IMAGE_FEATURES = new Set(["campaign_image", "visual_style_generate", "brand_style_logo"]);
+const IMAGE_FEATURES = new Set(getVerticalConfig().ai.imageFeatures);
 
 export async function consumeAiCredit(barbershopId: string, feature: string): Promise<void> {
   const plan   = await getPlan(barbershopId);
@@ -386,7 +370,7 @@ export async function createAppointmentBillingEvent(
   if (barbershop?.stripeCustomerId) {
     try {
       await (stripe.billing as any).meterEvents.create({
-        event_name: "atendimentos_pro",
+        event_name: getVerticalConfig().billing.usageEventName,
         payload: {
           stripe_customer_id: barbershop.stripeCustomerId,
           value: "1",
