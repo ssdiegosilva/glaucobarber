@@ -78,16 +78,14 @@ export interface VerticalConfig {
 // Import is lazy to avoid circular deps. The vertical config
 // is loaded once and cached.
 
+import { barbershopVertical } from "@/lib/vertical/barbershop/config";
+
 let _activeVertical: VerticalConfig | null = null;
 
 export function getVerticalConfig(): VerticalConfig {
   if (!_activeVertical) {
-    // Dynamic import would be cleaner but we need sync access.
-    // For now, directly import the barbershop config.
     // When adding a second vertical, switch on process.env.VERTICAL
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("@/lib/vertical/barbershop/config");
-    _activeVertical = mod.barbershopVertical as VerticalConfig;
+    _activeVertical = barbershopVertical;
   }
   return _activeVertical;
 }

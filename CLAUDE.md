@@ -244,6 +244,56 @@ Pré-requisitos: Mac com Xcode instalado + Apple Developer Account (US$99/ano)
 
 ---
 
+## Ambientes (Staging + Produção)
+
+O projeto usa 2 ambientes com bancos Supabase separados:
+
+| Ambiente | URL | Banco | Branch |
+|----------|-----|-------|--------|
+| **Produção** | `glaucobarber.com` | Supabase "glaucobarber" (prod) | `main` |
+| **Staging** | Preview deploy da Vercel | Supabase "glaucobarber-staging" | qualquer branch / PR |
+
+### Como funciona
+
+- Push para `main` → deploy automático em **produção** (Vercel)
+- Push para qualquer outra branch → deploy **preview** (staging) com banco staging
+- A Vercel separa env vars por ambiente: Production vs Preview
+
+### Variáveis de ambiente na Vercel
+
+```
+Settings > Environment Variables
+
+Variável                         | Production (main)       | Preview (branches)
+DATABASE_URL                     | postgres://prod...      | postgres://staging...
+DIRECT_URL                       | postgres://prod...      | postgres://staging...
+NEXT_PUBLIC_SUPABASE_URL         | https://prod.supabase.co| https://staging.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY    | eyJ...prod              | eyJ...staging
+SUPABASE_SERVICE_ROLE_KEY        | eyJ...prod              | eyJ...staging
+STRIPE_SECRET_KEY                | sk_live_...             | sk_test_...
+NEXT_PUBLIC_APP_URL              | https://glaucobarber.com| (Vercel preenche automaticamente)
+```
+
+### Variáveis compartilhadas (mesmo valor em todos os ambientes)
+
+- `OPENAI_API_KEY` — mesma chave
+- `CRON_SECRET` — mesmo valor
+- `WHATSAPP_VERIFY_TOKEN` — mesmo valor (mas WhatsApp só funciona em prod)
+
+### Desenvolvimento local
+
+Local usa `.env.local` apontando pro banco **staging** (mesmo banco dos previews).
+Para popular o banco staging: `npx prisma db push` (cria tabelas) + `npm run db:seed` (dados de teste).
+
+### Regras
+
+- **Nunca** usar credenciais de produção localmente
+- **Stripe**: `sk_test_` em staging/local, `sk_live_` só em produção
+- **WhatsApp**: só envia mensagens reais em produção
+- Ao rodar migrations: rodar primeiro em staging, validar, depois em produção
+
+---
+
 ## Convenções importantes
 
 - `export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"` antes de rodar npx/node
