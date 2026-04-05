@@ -34,11 +34,12 @@ const PLAN_AI_LABEL: Record<PlanTier, string> = {
 // ── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  planTier:           PlanTier;
-  planStatus:         SubscriptionStatus;
-  aiUsed:             number;
-  aiLimit:            number;
-  aiCreditsRemaining: number;
+  planTier:            PlanTier;
+  planStatus:          SubscriptionStatus;
+  aiUsed:              number;
+  aiLimit:             number;
+  aiCreditsRemaining:  number;
+  aiCreditsPurchased:  number;
   appointmentCount:   number;
   appointmentCents:   number;
   appointmentFeeCents: number;
@@ -110,6 +111,7 @@ export function BillingClient({
   aiUsed,
   aiLimit,
   aiCreditsRemaining,
+  aiCreditsPurchased,
   appointmentCount,
   appointmentCents,
   appointmentFeeCents,
@@ -394,14 +396,14 @@ export function BillingClient({
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Zap className="h-3 w-3 text-purple-400" />
-                  <span>Créditos extras (reserva)</span>
+                  <span>Comprados</span>
                 </div>
                 <span className="text-purple-400 font-semibold">{aiCreditsRemaining} disponíveis</span>
               </div>
               <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-purple-500 transition-all"
-                  style={{ width: `${Math.min(100, Math.round((aiCreditsRemaining / 60) * 100))}%` }}
+                  style={{ width: `${Math.min(100, Math.round(((aiCreditsPurchased - aiCreditsRemaining) / Math.max(1, aiCreditsPurchased)) * 100))}%` }}
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">Não expiram — ativados automaticamente quando o plano mensal esgotar</p>
@@ -428,7 +430,7 @@ export function BillingClient({
           disabled={loadingCredits}
         >
           {loadingCredits ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 shrink-0 text-gold-400" />}
-          <span className="truncate">Comprar créditos — R$29 <span className="hidden sm:inline">(+60 chamadas)</span><span className="sm:hidden">+60 chamadas</span></span>
+          <span className="truncate">Comprar créditos — R$20 <span className="hidden sm:inline">(+200 chamadas)</span><span className="sm:hidden">+200 chamadas</span></span>
         </Button>
       </div>
 

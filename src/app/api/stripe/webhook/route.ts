@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import { AI_CREDITS_PACK } from "@/lib/credits-config";
 import type Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
@@ -60,13 +61,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       where:  { barbershopId },
       create: {
         barbershopId,
-        planTier:           "FREE",
-        status:             "ACTIVE",
-        aiCreditBalance:    60,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd:   new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        planTier:              "FREE",
+        status:                "ACTIVE",
+        aiCreditBalance:       AI_CREDITS_PACK.credits,
+        aiCreditsPurchased:    AI_CREDITS_PACK.credits,
+        currentPeriodStart:    new Date(),
+        currentPeriodEnd:      new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       },
-      update: { aiCreditBalance: { increment: 60 } },
+      update: {
+        aiCreditBalance:    { increment: AI_CREDITS_PACK.credits },
+        aiCreditsPurchased: { increment: AI_CREDITS_PACK.credits },
+      },
     });
     if (session.customer) {
       await prisma.barbershop.update({

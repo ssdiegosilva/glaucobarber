@@ -42,10 +42,11 @@ function BucketBar({ used, limit, color }: { used: number; limit: number; color:
 }
 
 export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initialTrialing = false }: Props) {
-  const [used,       setUsed]       = useState(initialUsed);
-  const [limit,      setLimit]      = useState(initialLimit);
-  const [credits,    setCredits]    = useState(initialCredits);
-  const [isTrialing, setIsTrialing] = useState(initialTrialing);
+  const [used,             setUsed]             = useState(initialUsed);
+  const [limit,            setLimit]            = useState(initialLimit);
+  const [credits,          setCredits]          = useState(initialCredits);
+  const [creditsPurchased, setCreditsPurchased] = useState(initialCredits); // start = initialCredits (best guess)
+  const [isTrialing,       setIsTrialing]       = useState(initialTrialing);
   const [open,    setOpen]    = useState(false);
   const [logs,    setLogs]    = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,6 +61,7 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
       setUsed(data.used);
       setLimit(data.limit);
       setCredits(data.credits);
+      setCreditsPurchased(data.creditsPurchased ?? data.credits);
       setIsTrialing(data.isTrialing ?? false);
     } catch {}
   }
@@ -197,17 +199,22 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
 
             {/* Bucket 3: Comprados avulso */}
             {credits > 0 ? (
-              <div className="flex items-start gap-2.5">
-                <ShoppingBag className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">Comprados</span>
-                    <span className="text-purple-400 font-semibold text-[11px]">{credits} disponíveis</span>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ShoppingBag className="h-3.5 w-3.5 text-purple-400" />
+                    <span className="text-xs font-medium text-foreground">Comprados</span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {isTrialing ? "Ativados quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
-                  </p>
+                  <span className="text-[11px] text-purple-400 font-semibold">{credits} disponíveis</span>
                 </div>
+                <BucketBar
+                  used={creditsPurchased - credits}
+                  limit={Math.max(1, creditsPurchased)}
+                  color="bg-purple-500"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  {isTrialing ? "Ativados quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
+                </p>
               </div>
             ) : !isTrialing ? (
               <div className="flex items-center gap-2">

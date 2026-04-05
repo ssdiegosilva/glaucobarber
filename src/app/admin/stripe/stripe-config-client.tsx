@@ -10,7 +10,7 @@ const PRICE_FIELDS = [
   { key: "stripe_price_pro_monthly",        label: "Price ID — Pro (R$149/mês)",           hint: "price_..." },
   { key: "stripe_price_pro_metered",        label: "Price ID — Pro Metered (por atendimento)", hint: "price_..." },
   { key: "stripe_price_enterprise_monthly", label: "Price ID — Enterprise (custom)",       hint: "price_..." },
-  { key: "stripe_price_ai_credits_pack",    label: "Price ID — Pacote IA (R$29 único)",    hint: "price_..." },
+  { key: "stripe_price_ai_credits_pack",    label: "Price ID — Pacote IA (R$20 único, +200 chamadas)", hint: "price_..." },
 ] as const;
 
 const FEE_FIELDS = [

@@ -44,15 +44,16 @@ function periodKey(tier: PlanTier): string {
 // ── getPlan ────────────────────────────────────────────────────────────────────
 
 export interface PlanInfo {
-  tier:              PlanTier;
-  effectiveTier:     PlanTier;   // = "PRO" during TRIALING (full access), same as tier otherwise
-  status:            SubscriptionStatus;
-  aiCreditBalance:   number;
-  stripeSubId:       string | null;
-  stripeCustomerId:  string | null;
-  trialEndsAt:       Date | null;
-  currentPeriodEnd:  Date | null;
-  cancelAtPeriodEnd: boolean;
+  tier:                PlanTier;
+  effectiveTier:       PlanTier;   // = "PRO" during TRIALING (full access), same as tier otherwise
+  status:              SubscriptionStatus;
+  aiCreditBalance:     number;
+  aiCreditsPurchased:  number;
+  stripeSubId:         string | null;
+  stripeCustomerId:    string | null;
+  trialEndsAt:         Date | null;
+  currentPeriodEnd:    Date | null;
+  cancelAtPeriodEnd:   boolean;
 }
 
 export async function getPlan(barbershopId: string): Promise<PlanInfo> {
@@ -82,15 +83,16 @@ export async function getPlan(barbershopId: string): Promise<PlanInfo> {
   const effectiveTier: PlanTier = sub.status === "TRIALING" ? "PRO" : safeTier;
 
   return {
-    tier:              safeTier,
+    tier:                safeTier,
     effectiveTier,
-    status:            sub.status,
-    aiCreditBalance:   sub.aiCreditBalance,
-    stripeSubId:       sub.stripeSubId ?? null,
-    stripeCustomerId:  sub.barbershop.stripeCustomerId ?? null,
-    trialEndsAt:       sub.trialEndsAt ?? null,
-    currentPeriodEnd:  sub.currentPeriodEnd ?? null,
-    cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+    status:              sub.status,
+    aiCreditBalance:     sub.aiCreditBalance,
+    aiCreditsPurchased:  sub.aiCreditsPurchased,
+    stripeSubId:         sub.stripeSubId ?? null,
+    stripeCustomerId:    sub.barbershop.stripeCustomerId ?? null,
+    trialEndsAt:         sub.trialEndsAt ?? null,
+    currentPeriodEnd:    sub.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd:   sub.cancelAtPeriodEnd,
   };
 }
 

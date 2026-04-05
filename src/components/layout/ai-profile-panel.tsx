@@ -36,10 +36,11 @@ interface Props {
 }
 
 export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
-  const [aiUsed,        setAiUsed]        = useState(0);
-  const [aiTotal,       setAiTotal]       = useState(30);
-  const [aiTrialing,    setAiTrialing]    = useState(false);
-  const [aiCredits,     setAiCredits]     = useState(0);
+  const [aiUsed,             setAiUsed]             = useState(0);
+  const [aiTotal,            setAiTotal]            = useState(30);
+  const [aiTrialing,         setAiTrialing]         = useState(false);
+  const [aiCredits,          setAiCredits]          = useState(0);
+  const [aiCreditsPurchased, setAiCreditsPurchased] = useState(0);
   const [logs,          setLogs]          = useState<CallLog[]>([]);
   const [loadingLogs,   setLoadingLogs]   = useState(false);
   const [historyOpen,   setHistoryOpen]   = useState(false);
@@ -58,6 +59,7 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
       setAiUsed(data.used);
       setAiTotal(data.limit);
       setAiCredits(data.credits);
+      setAiCreditsPurchased(data.creditsPurchased ?? 0);
     } catch {}
   }, []);
 
@@ -187,17 +189,23 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
 
             {/* Balde 3: Comprados avulso */}
             {aiCredits > 0 && (
-              <div className="flex items-start gap-2.5 border-t border-border/40 pt-2">
-                <Zap className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">Comprados</span>
-                    <span className="text-purple-400 font-semibold text-[11px]">{aiCredits} disponíveis</span>
+              <div className="space-y-1.5 border-t border-border/40 pt-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Zap className="h-3 w-3 text-purple-400" />
+                    <span>Comprados</span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {aiTrialing ? "Ativados quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
-                  </p>
+                  <span className="text-purple-400 font-semibold">{aiCredits} disponíveis</span>
                 </div>
+                <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-purple-500 transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.round(((aiCreditsPurchased - aiCredits) / Math.max(1, aiCreditsPurchased)) * 100))}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {aiTrialing ? "Ativados quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
+                </p>
               </div>
             )}
 
@@ -228,7 +236,7 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
             >
               {buyingCredits
                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <><Zap className="h-3.5 w-3.5 mr-1.5" />Comprar +60 chamadas — R$29</>
+                : <><Zap className="h-3.5 w-3.5 mr-1.5" />Comprar +200 chamadas — R$20</>
               }
             </Button>
           </div>

@@ -46,6 +46,7 @@ export default async function BillingPage() {
         aiUsed={allowance.used}
         aiLimit={allowance.limit}
         aiCreditsRemaining={allowance.creditsRemaining}
+        aiCreditsPurchased={plan.aiCreditsPurchased}
         appointmentCount={appointmentCount}
         appointmentCents={appointmentCents}
         appointmentFeeCents={APPOINTMENT_FEE_CENTS}

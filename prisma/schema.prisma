@@ -862,7 +862,8 @@ model PlatformSubscription {
   trialEndsAt        DateTime?
 
   // Créditos extras de IA comprados (each credit = 1 AI call)
-  aiCreditBalance Int @default(0)
+  aiCreditBalance    Int @default(0)   // saldo atual disponível
+  aiCreditsPurchased Int @default(0)   // total acumulado comprado (nunca diminui)
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
 
