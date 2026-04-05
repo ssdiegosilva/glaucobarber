@@ -122,7 +122,7 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
     });
     const used    = usage?.usageCount ?? 0;
     const allowed = used < TRIAL_AI_LIMIT;
-    return { allowed, used, limit: TRIAL_AI_LIMIT, creditsRemaining: 0, planTier: plan.tier, planStatus: plan.status };
+    return { allowed, used, limit: TRIAL_AI_LIMIT, creditsRemaining: plan.aiCreditBalance, planTier: plan.tier, planStatus: plan.status };
   }
 
   if (limits.aiPerPeriod === Infinity) {

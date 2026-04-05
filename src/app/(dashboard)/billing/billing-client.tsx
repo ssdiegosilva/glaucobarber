@@ -352,6 +352,20 @@ export function BillingClient({
                 Ao esgotar as {aiLimit} chamadas do trial, a conta migra automaticamente para o plano <span className="text-foreground font-medium">Free</span> (sem IA).
               </p>
             )}
+
+            {/* Créditos comprados durante o trial */}
+            {aiCreditsRemaining > 0 && (
+              <div className="space-y-1.5 border-t border-border/40 pt-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="h-3 w-3 text-purple-400" />
+                    <span>Créditos comprados</span>
+                  </div>
+                  <span className="text-purple-400 font-semibold">{aiCreditsRemaining} disponíveis</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Não expiram — ativados automaticamente quando o trial esgotar</p>
+              </div>
+            )}
           </div>
         ) : (
         <div className="space-y-3">

@@ -196,7 +196,7 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
             )}
 
             {/* Bucket 3: Comprados avulso */}
-            {!isTrialing && (
+            {(!isTrialing || credits > 0) && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
