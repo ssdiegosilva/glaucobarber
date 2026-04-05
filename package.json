@@ -15,10 +15,14 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
-    "cap:sync": "npx cap sync android",
-    "cap:open": "npx cap open android",
-    "cap:run": "npx cap run android",
-    "cap:build": "npx cap sync android && cd android && ./gradlew assembleRelease"
+    "cap:sync": "npx cap sync",
+    "cap:sync:android": "npx cap sync android",
+    "cap:sync:ios": "npx cap sync ios",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "cap:run:android": "npx cap run android",
+    "cap:run:ios": "npx cap run ios",
+    "cap:build:android": "npx cap sync android && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",

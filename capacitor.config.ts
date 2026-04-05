@@ -36,10 +36,20 @@ const config: CapacitorConfig = {
 
   // Android-specific
   android: {
-    // Allow mixed content for development
     allowMixedContent: false,
-    // Enable back button navigation within WebView
     backgroundColor: "#000000",
+  },
+
+  // iOS-specific
+  ios: {
+    // Content mode: controls how the WebView renders
+    contentInset: "always",
+    // Background color behind the WebView
+    backgroundColor: "#000000",
+    // Allow inline media playback (no fullscreen required)
+    allowsLinkPreview: false,
+    // Scheme for local file loading (capacitor:// is default)
+    scheme: "capacitor",
   },
 };
 

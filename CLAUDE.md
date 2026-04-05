@@ -206,18 +206,33 @@ android/                     # Projeto Android gerado (no .gitignore)
 ### Comandos
 
 ```bash
-npm run cap:sync    # Sincroniza web assets + plugins pro Android
-npm run cap:open    # Abre no Android Studio
-npm run cap:run     # Roda no emulador/device conectado
-npm run cap:build   # Build APK release
+npm run cap:sync            # Sincroniza TODAS as plataformas (Android + iOS)
+npm run cap:sync:android    # Sincroniza só Android
+npm run cap:sync:ios        # Sincroniza só iOS
+npm run cap:open:android    # Abre no Android Studio
+npm run cap:open:ios        # Abre no Xcode
+npm run cap:run:android     # Roda no emulador/device Android
+npm run cap:run:ios         # Roda no simulador/iPhone
+npm run cap:build:android   # Build APK release
 ```
 
 ### Como gerar o APK para Play Store
 
-1. `npm run cap:sync` — sincroniza config e plugins
-2. `npm run cap:open` — abre Android Studio
+1. `npm run cap:sync:android` — sincroniza config e plugins
+2. `npm run cap:open:android` — abre Android Studio
 3. No Android Studio: Build > Generate Signed Bundle / APK
 4. Upload do AAB no Google Play Console
+
+### Como gerar o IPA para Apple App Store
+
+Pré-requisitos: Mac com Xcode instalado + Apple Developer Account (US$99/ano)
+
+1. `npx cap add ios` — cria o projeto iOS (só na primeira vez)
+2. `npm run cap:sync:ios` — sincroniza config e plugins
+3. `npm run cap:open:ios` — abre no Xcode
+4. No Xcode: selecionar Team (conta Apple Developer)
+5. Product > Archive > Distribute App > App Store Connect
+6. Upload do IPA no App Store Connect
 
 ### Regras ao modificar
 
