@@ -45,14 +45,20 @@ src/
       settings/           # brand-style, etc.
       whatsapp/           # Mensagens, templates, bot
   lib/
+    core/                 # SaaS genérico (reutilizável entre verticals)
+      vertical.ts         # Interface VerticalConfig + loader da vertical ativa
+      storage.ts          # Upload/delete de arquivos genérico por tenant
+    vertical/
+      barbershop/
+        config.ts         # Config específica da barbearia (feature gates, prompts IA, etc.)
     ai/
       types.ts            # Interface AIProvider
-      openai.ts           # Implementação OpenAI
+      openai.ts           # Implementação OpenAI (prompts vêm do vertical config)
       provider.ts         # getAIProvider()
-    billing.ts            # getPlan, hasFeature, consumeAiCredit
-    auth.ts               # NextAuth config
+    billing.ts            # getPlan, hasFeature, consumeAiCredit (lê do vertical config)
+    auth.ts               # Auth config
     prisma.ts             # Prisma client singleton
-    storage.ts            # Upload Supabase Storage
+    storage.ts            # Wrappers de storage da barbearia (delega pro core/storage.ts)
     whatsapp.ts           # Envio via Meta API
   components/
     layout/               # Header, Sidebar
@@ -139,6 +145,43 @@ Essa distinção visual sinaliza ao usuário que a ação vai consumir créditos
 - Botão "Enviar com bot" só aparece se `hasAutoSend && whatsappConfigured && hasWabaId`
 - Mensagem personalizada (wa.me) → cria direto com `status: SENT`, não vai para fila
 - Templates sincronizados via `POST /api/whatsapp/templates/sync`
+
+---
+
+## Arquitetura Multi-Vertical (SaaS Core)
+
+O código é separado em **core genérico** e **vertical específica** para permitir reuso em outros tipos de negócio no futuro.
+
+### Como funciona
+
+- `src/lib/core/vertical.ts` — Define a interface `VerticalConfig` e carrega a vertical ativa
+- `src/lib/vertical/barbershop/config.ts` — Toda config específica de barbearia num único arquivo
+- `src/lib/core/storage.ts` — Storage genérico por tenant (`uploadTenantFile`, `deleteTenantFile`, etc.)
+- `src/lib/billing.ts` — Lê feature gates, custos de IA e labels do vertical config
+- `src/lib/ai/openai.ts` — System prompts vêm do vertical config (não hardcoded)
+
+### O que fica no vertical config (barbershop/config.ts)
+
+| Área | O que é configurável |
+|------|---------------------|
+| **Billing** | Feature gates por plano, taxa de uso, nome do evento Stripe, cap mensal |
+| **AI** | Custos por feature, labels, features de imagem, todos os system prompts |
+| **Storage** | Nome do bucket |
+| **Messaging** | Código de país padrão (55 = Brasil) |
+| **Roles** | Papéis disponíveis (OWNER, BARBER, STAFF) |
+
+### Para criar uma nova vertical (ex: salão de beleza)
+
+1. Criar `src/lib/vertical/cabeleireira/config.ts` exportando um `VerticalConfig`
+2. No `core/vertical.ts`, ler `process.env.VERTICAL` para escolher qual config carregar
+3. Criar o app na estrutura monorepo: `apps/cabeleireira/` apontando para o mesmo core
+
+### Regras ao modificar código
+
+- **Nunca hardcode** valores específicos de barbearia em `billing.ts`, `ai/openai.ts` ou `core/storage.ts`
+- Novos feature gates, custos de IA ou prompts devem ser adicionados em `vertical/barbershop/config.ts`
+- `storage.ts` (raiz do lib) contém wrappers domain-specific que delegam pro `core/storage.ts`
+- Os wrappers em `storage.ts` mantêm a API existente (`uploadCampaignImage`, etc.) — não quebrar
 
 ---
 
