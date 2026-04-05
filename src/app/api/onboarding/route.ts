@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, ACTIVE_BARBERSHOP_COOKIE } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // GET — check if user already has a membership (skip onboarding)
@@ -74,5 +74,13 @@ export async function POST(req: NextRequest) {
     return shop;
   });
 
-  return NextResponse.json({ barbershopId: barbershop.id });
+  // Set active barbershop cookie so the user switches to the new one
+  const res = NextResponse.json({ barbershopId: barbershop.id });
+  res.cookies.set(ACTIVE_BARBERSHOP_COOKIE, barbershop.id, {
+    path: "/",
+    httpOnly: false,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  return res;
 }

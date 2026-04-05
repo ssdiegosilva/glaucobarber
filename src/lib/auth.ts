@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+
+export const ACTIVE_BARBERSHOP_COOKIE = "activeBarbershopId";
 
 export interface AuthSession {
   user: {
@@ -10,6 +13,7 @@ export interface AuthSession {
     barbershopSlug: string | null;
     role: string | null;
     isAdmin: boolean;
+    memberships: { barbershopId: string; barbershopName: string; role: string }[];
   };
 }
 
@@ -36,15 +40,24 @@ export async function auth(): Promise<AuthSession | null> {
 
   const memberships = await prisma.membership.findMany({
     where: { userId: dbUser.id, active: true },
-    include: { barbershop: true },
+    include: { barbershop: { select: { name: true, slug: true } } },
     orderBy: { createdAt: "asc" },
   });
 
-  // PLATFORM_ADMIN takes priority for role/isAdmin, but barbershop comes from OWNER membership
   const adminMembership = memberships.find((m) => m.role === "PLATFORM_ADMIN") ?? null;
-  const shopMembership = memberships.find((m) => m.role !== "PLATFORM_ADMIN") ?? null;
-  const membership = adminMembership ?? shopMembership;
+  const shopMemberships = memberships.filter((m) => m.role !== "PLATFORM_ADMIN");
 
+  // Read cookie to determine which barbershop is active
+  const cookieStore = await cookies();
+  const preferredId = cookieStore.get(ACTIVE_BARBERSHOP_COOKIE)?.value;
+
+  // Use preferred barbershop if user has a valid membership for it, otherwise first
+  const shopMembership = (preferredId
+    ? shopMemberships.find((m) => m.barbershopId === preferredId)
+    : null
+  ) ?? shopMemberships[0] ?? null;
+
+  const membership = adminMembership ?? shopMembership;
   const isAdmin = !!adminMembership;
 
   return {
@@ -54,8 +67,13 @@ export async function auth(): Promise<AuthSession | null> {
       email: dbUser.email,
       barbershopId: shopMembership?.barbershopId ?? null,
       barbershopSlug: shopMembership?.barbershop?.slug ?? null,
-      role: membership?.role ?? null,
+      role: shopMembership?.role ?? membership?.role ?? null,
       isAdmin,
+      memberships: shopMemberships.map((m) => ({
+        barbershopId:   m.barbershopId,
+        barbershopName: m.barbershop.name,
+        role:           m.role,
+      })),
     },
   };
 }

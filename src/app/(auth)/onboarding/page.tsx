@@ -1,20 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Scissors, Loader2 } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isNewShop = searchParams.get("new") === "true";
+
   const [name,      setName]      = useState("");
   const [slug,      setSlug]      = useState("");
   const [error,     setError]     = useState("");
   const [loading,   setLoading]   = useState(false);
-  const [checking,  setChecking]  = useState(true);
+  const [checking,  setChecking]  = useState(!isNewShop);
 
-  // Check if user already has a membership (invited by another barbershop)
+  // Check if user already has a membership (skip onboarding) — unless ?new=true
   useEffect(() => {
+    if (isNewShop) return;
     fetch("/api/onboarding")
       .then((r) => r.json())
       .then((data) => {
@@ -25,7 +29,7 @@ export default function OnboardingPage() {
         }
       })
       .catch(() => setChecking(false));
-  }, [router]);
+  }, [router, isNewShop]);
 
   function handleNameChange(value: string) {
     setName(value);

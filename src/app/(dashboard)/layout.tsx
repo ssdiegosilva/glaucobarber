@@ -35,10 +35,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     aiTrialing = allowance.planStatus === "TRIALING";
   }
 
+  const memberships = session.user.memberships ?? [];
+
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
       <Sidebar
         barbershopName={barbershopName}
+        activeBarbershopId={session.user.barbershopId}
+        memberships={memberships}
         className="hidden md:flex"
         aiUsed={aiUsed}
         aiLimit={aiLimit}
