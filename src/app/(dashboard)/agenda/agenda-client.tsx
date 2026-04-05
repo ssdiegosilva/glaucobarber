@@ -9,7 +9,7 @@ import { NewAppointmentDrawer } from "./components/NewAppointmentDrawer";
 import { MonthlyOverview } from "./components/MonthlyOverview";
 import { DayOffScreen } from "./components/DayOffScreen";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2, Settings2, ChevronLeft, ChevronRight, CalendarDays, BarChart3, Clock } from "lucide-react";
+import { RefreshCw, Loader2, Settings2, ChevronLeft, ChevronRight, CalendarDays, BarChart3, Clock, Users } from "lucide-react";
 import type { AgendaKPIs } from "./components/AgendaKPICards";
 
 export interface AgendaAppointment {
@@ -22,11 +22,19 @@ export interface AgendaAppointment {
   status:        string;
   price?:        number | null;
   profissional?: string | null;
+  barberId?:     string | null;
   notes?:        string | null;
+}
+
+export interface BarberOption {
+  id:   string;
+  name: string;
+  role: string;
 }
 
 interface Props {
   appointments:    AgendaAppointment[];
+  barbers:         BarberOption[];
   kpis:            AgendaKPIs;
   date:            string;   // formatted label e.g. "quinta-feira, 02 de abril"
   dateIso:         string;   // YYYY-MM-DD for the input
@@ -40,7 +48,7 @@ interface Props {
 const TOTAL_SLOTS = 20;
 
 export function AgendaClient({
-  appointments: initial, kpis, date, dateIso, hasTrinks,
+  appointments: initial, barbers, kpis, date, dateIso, hasTrinks,
   agendaStartHour: initStart, agendaEndHour: initEnd, currentYear, isDayOff,
 }: Props) {
   const router       = useRouter();
@@ -51,7 +59,8 @@ export function AgendaClient({
   const [appointments, setAppointments] = useState(initial);
   const [selectedAppt, setSelectedAppt] = useState<AgendaAppointment | null>(null);
   const [drawerOpen, setDrawerOpen]     = useState(false);
-  const [newApptSlot, setNewApptSlot]   = useState<{ date: string; time: string; profissional: string } | null>(null);
+  const [newApptSlot, setNewApptSlot]   = useState<{ date: string; time: string; profissional: string; barberId?: string } | null>(null);
+  const [filterBarberId, setFilterBarberId] = useState<string>("all");
   const [syncing, startSync]            = useTransition();
   const [startHour, setStartHour]       = useState(initStart);
   const [endHour, setEndHour]           = useState(initEnd);
@@ -96,13 +105,13 @@ export function AgendaClient({
     setSelectedAppt((prev) => (prev?.id === appointmentId ? { ...prev, scheduledAt, status: "SCHEDULED" } : prev));
   }
 
-  function handleSlotClick(isoTime: string, profissional: string) {
+  function handleSlotClick(isoTime: string, profissional: string, barberId?: string) {
     // isoTime is like "2025-04-02T14:00:00.000Z" — parse in local time
     const d    = new Date(isoTime);
     const date = dateIso; // use the current agenda date, not UTC
     const hh   = d.getUTCHours().toString().padStart(2, "0");
     const mm   = d.getUTCMinutes().toString().padStart(2, "0");
-    setNewApptSlot({ date, time: `${hh}:${mm}`, profissional });
+    setNewApptSlot({ date, time: `${hh}:${mm}`, profissional, barberId });
   }
 
   function handleNewApptCreated(appt: AgendaAppointment) {
@@ -152,14 +161,19 @@ export function AgendaClient({
   const todayStr = new Date().toISOString().split("T")[0];
   const isPastDate = dateIso < todayStr;
 
+  // Filter appointments by barber
+  const filteredAppointments = filterBarberId === "all"
+    ? appointments
+    : appointments.filter((a) => a.barberId === filterBarberId);
+
   const liveKpis: AgendaKPIs = {
-    revenueCompleted: appointments.filter((a) => a.status === "COMPLETED").reduce((s, a) => s + (a.price ?? 0), 0),
-    revenueProjected: appointments.filter((a) => ["SCHEDULED","CONFIRMED","IN_PROGRESS"].includes(a.status)).reduce((s, a) => s + (a.price ?? 0), 0),
-    completedCount:   appointments.filter((a) => a.status === "COMPLETED").length,
-    cancelledCount:   appointments.filter((a) => a.status === "CANCELLED").length,
-    noShowCount:      appointments.filter((a) => a.status === "NO_SHOW").length,
-    occupancyRate:    Math.min(appointments.filter((a) => !["CANCELLED","NO_SHOW"].includes(a.status)).length / TOTAL_SLOTS, 1),
-    freeSlots:        Math.max(TOTAL_SLOTS - appointments.filter((a) => !["CANCELLED","NO_SHOW"].includes(a.status)).length, 0),
+    revenueCompleted: filteredAppointments.filter((a) => a.status === "COMPLETED").reduce((s, a) => s + (a.price ?? 0), 0),
+    revenueProjected: filteredAppointments.filter((a) => ["SCHEDULED","CONFIRMED","IN_PROGRESS"].includes(a.status)).reduce((s, a) => s + (a.price ?? 0), 0),
+    completedCount:   filteredAppointments.filter((a) => a.status === "COMPLETED").length,
+    cancelledCount:   filteredAppointments.filter((a) => a.status === "CANCELLED").length,
+    noShowCount:      filteredAppointments.filter((a) => a.status === "NO_SHOW").length,
+    occupancyRate:    Math.min(filteredAppointments.filter((a) => !["CANCELLED","NO_SHOW"].includes(a.status)).length / TOTAL_SLOTS, 1),
+    freeSlots:        Math.max(TOTAL_SLOTS - filteredAppointments.filter((a) => !["CANCELLED","NO_SHOW"].includes(a.status)).length, 0),
     totalSlots:       TOTAL_SLOTS,
   };
 
@@ -234,7 +248,7 @@ export function AgendaClient({
       {tab === "day" && (
         <>
           {/* Day navigation */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => navigateDay(-1)}
               className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-800 transition-colors"
@@ -260,6 +274,22 @@ export function AgendaClient({
               onChange={(e) => handleDatePick(e.target.value)}
               className="rounded-md border border-border bg-surface-900 px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
+
+            {barbers.length > 1 && (
+              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-surface-900 px-3 py-1.5 text-xs">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <select
+                  value={filterBarberId}
+                  onChange={(e) => setFilterBarberId(e.target.value)}
+                  className="bg-transparent text-foreground focus:outline-none"
+                >
+                  <option value="all">Todos os barbeiros</option>
+                  {barbers.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {isDayOff ? (
@@ -269,7 +299,8 @@ export function AgendaClient({
               <AgendaKPICards kpis={liveKpis} />
 
               <AgendaTimeline
-                appointments={appointments}
+                appointments={filteredAppointments}
+                barbers={barbers}
                 onSelect={openDrawer}
                 onSlotClick={handleSlotClick}
                 dateIso={dateIso}
@@ -297,6 +328,8 @@ export function AgendaClient({
                 defaultDate={newApptSlot?.date ?? dateIso}
                 defaultTime={newApptSlot?.time ?? "09:00"}
                 defaultProfissional={newApptSlot?.profissional}
+                defaultBarberId={newApptSlot?.barberId}
+                barbers={barbers}
                 onCreated={handleNewApptCreated}
               />
             </>

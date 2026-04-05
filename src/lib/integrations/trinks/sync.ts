@@ -6,7 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { buildTrinksClient } from "./client";
 import { mapTrinksCustomer, mapTrinksService, mapTrinksAppointment } from "./mappers";
-import type { SyncResult, SyncError } from "./types";
+import type { SyncResult, SyncError, TrinksAppointment } from "./types";
 import { subDays, addDays, format } from "date-fns";
 import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
 import { createAppointmentBillingEvent } from "@/lib/billing";
@@ -102,35 +102,73 @@ export async function syncBarbershop(
       const dataFim    = format(addDays(new Date(), 14),  "yyyy-MM-dd'T'23:59:59");
 
       // Build lookup maps from already-synced customers & services
-      const [customers, services] = await Promise.all([
+      const [customers, services, barberMemberships] = await Promise.all([
         prisma.customer.findMany({ where: { barbershopId, trinksId: { not: null }, deletedAt: null }, select: { id: true, trinksId: true } }),
         prisma.service.findMany({  where: { barbershopId, trinksId: { not: null } }, select: { id: true, trinksId: true } }),
+        prisma.membership.findMany({ where: { barbershopId, trinksId: { not: null }, role: "BARBER" }, select: { userId: true, trinksId: true } }),
       ]);
       const customerMap = new Map(customers.map((c) => [c.trinksId!, c.id]));
       const serviceMap  = new Map(services.map((s)  => [s.trinksId!, s.id]));
+      // Map trinksProfissionalId → userId for barber assignment
+      const barberMap   = new Map(barberMemberships.map((m) => [m.trinksId!, m.userId]));
 
+      // Auto-create barber memberships for unknown Trinks professionals
+      // Collect unique professionals from appointments first pass
       let page = 1, hasMore = true;
+      const allRawAppointments: TrinksAppointment[] = [];
+      const unseenPros = new Map<string, string>(); // trinksId → nome
+
+      // First: collect all appointment data and discover new professionals
       while (hasMore) {
         const res = await client.getAppointments({ dataInicio, dataFim, page, pageSize: 100 });
         for (const raw of res.data) {
-          try {
-            const data = mapTrinksAppointment(raw, barbershopId, customerMap, serviceMap);
-            const upserted = await prisma.appointment.upsert({
-              where:  { barbershopId_trinksId: { barbershopId, trinksId: String(raw.id) } },
-              create: data,
-              update: { status: data.status, price: data.price, durationMin: data.durationMin, notes: data.notes, lastSyncedAt: new Date() },
-              select: { id: true },
-            });
-            if (data.status === "COMPLETED") {
-              createAppointmentBillingEvent(barbershopId, upserted.id).catch(() => null);
-            }
-            appointmentsUpserted++;
-          } catch (err) {
-            errors.push({ entity: "Appointment", entityId: String(raw.id), message: String(err) });
+          allRawAppointments.push(raw);
+          if (raw.profissional?.id && !barberMap.has(String(raw.profissional.id))) {
+            unseenPros.set(String(raw.profissional.id), raw.profissional.nome);
           }
         }
         hasMore = page < res.totalPages;
         page++;
+      }
+
+      // Auto-create placeholder users + memberships for new professionals
+      for (const [trinksProId, proName] of unseenPros) {
+        try {
+          const placeholderEmail = `trinks-pro-${trinksProId}@placeholder.glaucobarber.com`;
+          const user = await prisma.user.upsert({
+            where:  { email: placeholderEmail },
+            create: { email: placeholderEmail, name: proName },
+            update: {},
+            select: { id: true },
+          });
+          await prisma.membership.upsert({
+            where:  { barbershopId_trinksId: { barbershopId, trinksId: trinksProId } },
+            create: { userId: user.id, barbershopId, role: "BARBER", trinksId: trinksProId },
+            update: {},
+          });
+          barberMap.set(trinksProId, user.id);
+        } catch (err) {
+          errors.push({ entity: "BarberAutoCreate", entityId: trinksProId, message: String(err) });
+        }
+      }
+
+      // Second: upsert all appointments with barber mapping
+      for (const raw of allRawAppointments) {
+        try {
+          const data = mapTrinksAppointment(raw, barbershopId, customerMap, serviceMap, barberMap);
+          const upserted = await prisma.appointment.upsert({
+            where:  { barbershopId_trinksId: { barbershopId, trinksId: String(raw.id) } },
+            create: data,
+            update: { status: data.status, price: data.price, durationMin: data.durationMin, notes: data.notes, barberId: data.barberId, lastSyncedAt: new Date() },
+            select: { id: true },
+          });
+          if (data.status === "COMPLETED") {
+            createAppointmentBillingEvent(barbershopId, upserted.id).catch(() => null);
+          }
+          appointmentsUpserted++;
+        } catch (err) {
+          errors.push({ entity: "Appointment", entityId: String(raw.id), message: String(err) });
+        }
       }
     } catch (err) {
       errors.push({ entity: "Appointments (bulk)", message: String(err) });

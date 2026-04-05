@@ -32,12 +32,13 @@ export default async function AgendaPage({
   const targetDay   = target.getDate();
   const targetDow   = target.getDay(); // 0=Sun, 6=Sat
 
-  const [appointments, integration, barbershop, goal] = await Promise.all([
+  const [appointments, integration, barbershop, goal, barberMembers] = await Promise.all([
     prisma.appointment.findMany({
       where: { barbershopId, scheduledAt: { gte: start, lte: end } },
       include: {
         customer: { select: { name: true } },
         service:  { select: { name: true } },
+        barber:   { select: { id: true, name: true } },
       },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -47,6 +48,10 @@ export default async function AgendaPage({
       where: { barbershopId_month_year: { barbershopId, month: targetMonth, year: targetYear } },
       select: { offDaysOfWeek: true, extraOffDays: true, extraWorkDays: true },
     }),
+    prisma.membership.findMany({
+      where: { barbershopId, role: { in: ["BARBER", "OWNER"] }, active: true },
+      select: { userId: true, user: { select: { id: true, name: true } }, role: true },
+    }),
   ]);
 
   // Determine if this day is an off day
@@ -54,6 +59,13 @@ export default async function AgendaPage({
   const isExtraOff   = goal?.extraOffDays.includes(targetDay) ?? false;
   const isExtraWork  = goal?.extraWorkDays.includes(targetDay) ?? false;
   const isDayOff     = (isOffWeekday && !isExtraWork) || isExtraOff;
+
+  // Build barbers list for the client
+  const barbers = barberMembers.map((m) => ({
+    id:   m.user.id,
+    name: m.user.name ?? "Barbeiro",
+    role: m.role,
+  }));
 
   const serialized: AgendaAppointment[] = appointments.map((a) => ({
     id:           a.id,
@@ -64,7 +76,8 @@ export default async function AgendaPage({
     durationMin:  a.durationMin,
     status:       a.status,
     price:        a.price ? Number(a.price) : null,
-    profissional: a.barberId ?? null,
+    profissional: a.barber?.name ?? null,
+    barberId:     a.barberId ?? null,
     notes:        a.notes,
   }));
 
@@ -96,6 +109,7 @@ export default async function AgendaPage({
       <div className="p-6">
         <AgendaClient
           appointments={serialized}
+          barbers={barbers}
           kpis={kpis}
           date={dateLabel}
           dateIso={dateIso}

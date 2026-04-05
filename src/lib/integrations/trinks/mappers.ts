@@ -56,13 +56,15 @@ export function mapTrinksAppointment(
   raw: TrinksAppointment,
   barbershopId:  string,
   customerIdMap: Map<string, string>, // trinksId → internal id
-  serviceIdMap:  Map<string, string>
+  serviceIdMap:  Map<string, string>,
+  barberIdMap:   Map<string, string> = new Map() // trinksProfissionalId → userId
 ): Prisma.AppointmentUpsertArgs["create"] {
   return {
     barbershopId,
     trinksId:         String(raw.id),
     customerId:       raw.cliente?.id ? (customerIdMap.get(String(raw.cliente.id)) ?? null) : null,
     serviceId:        raw.servico?.id ? (serviceIdMap.get(String(raw.servico.id))  ?? null) : null,
+    barberId:         raw.profissional?.id ? (barberIdMap.get(String(raw.profissional.id)) ?? null) : null,
     scheduledAt:      new Date(raw.dataHoraInicio),
     durationMin:      raw.duracaoEmMinutos ?? 30,
     status:           mapAppointmentStatus(raw.status?.nome ?? ""),
