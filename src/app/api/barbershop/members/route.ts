@@ -129,7 +129,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ ok: true, member: updated });
 }
 
-// DELETE — remove a member
+// DELETE — remove a member (OWNER removes others, or member removes self)
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -138,18 +138,33 @@ export async function DELETE(req: NextRequest) {
 
   const callerMembership = await prisma.membership.findUnique({
     where: { userId_barbershopId: { userId: session.user.id, barbershopId } },
-    select: { role: true },
+    select: { id: true, role: true },
   });
+
+  const { membershipId, self } = await req.json();
+
+  // Self-removal: member leaves the barbershop
+  if (self === true) {
+    if (!callerMembership) {
+      return NextResponse.json({ error: "Você não é membro desta barbearia" }, { status: 400 });
+    }
+    if (callerMembership.role === "OWNER") {
+      return NextResponse.json({ error: "O dono não pode sair. Transfira a propriedade antes." }, { status: 400 });
+    }
+    await prisma.membership.delete({ where: { id: callerMembership.id, barbershopId } });
+    return NextResponse.json({ ok: true, left: true });
+  }
+
+  // Owner removing another member
   if (callerMembership?.role !== "OWNER") {
     return NextResponse.json({ error: "Apenas o dono pode remover membros" }, { status: 403 });
   }
 
-  const { membershipId } = await req.json();
   if (!membershipId) {
     return NextResponse.json({ error: "membershipId é obrigatório" }, { status: 400 });
   }
 
-  // Prevent owner from removing themselves
+  // Prevent owner from removing themselves via membershipId
   const target = await prisma.membership.findUnique({
     where: { id: membershipId, barbershopId },
     select: { userId: true },
