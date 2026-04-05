@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { randomBytes } from "crypto";
 
 // GET — list all members of the barbershop
 export async function GET() {
@@ -68,22 +69,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Esse usuário já é membro da barbearia" }, { status: 409 });
   }
 
+  // Generate invite token for the new member
+  const inviteToken = randomBytes(32).toString("hex");
+
   const membership = await prisma.membership.create({
-    data: { userId: user.id, barbershopId, role: memberRole },
+    data: { userId: user.id, barbershopId, role: memberRole, inviteToken },
     include: { user: { select: { id: true, name: true, email: true, image: true } } },
   });
 
   return NextResponse.json({
     member: {
-      id:        membership.id,
-      userId:    membership.user.id,
-      name:      membership.user.name,
-      email:     membership.user.email,
-      image:     membership.user.image,
-      role:      membership.role,
-      active:    membership.active,
-      trinksId:  membership.trinksId,
-      createdAt: membership.createdAt.toISOString(),
+      id:          membership.id,
+      userId:      membership.user.id,
+      name:        membership.user.name,
+      email:       membership.user.email,
+      image:       membership.user.image,
+      role:        membership.role,
+      active:      membership.active,
+      trinksId:    membership.trinksId,
+      inviteToken,
+      createdAt:   membership.createdAt.toISOString(),
     },
   }, { status: 201 });
 }

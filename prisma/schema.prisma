@@ -161,6 +161,7 @@ model Membership {
   role         MembershipRole @default(BARBER)
   active       Boolean        @default(true)
   trinksId     String?        // profissional ID from Trinks
+  inviteToken  String?        @unique // token para convite de membro
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)

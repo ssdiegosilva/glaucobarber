@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// GET — check if user already has a membership (skip onboarding)
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
+  const membership = await prisma.membership.findFirst({
+    where: { userId: session.user.id, active: true },
+    select: { barbershopId: true },
+  });
+
+  return NextResponse.json({
+    hasMembership:  !!membership,
+    barbershopId:   membership?.barbershopId ?? null,
+  });
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {

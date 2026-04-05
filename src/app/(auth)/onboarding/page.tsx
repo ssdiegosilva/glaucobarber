@@ -1,16 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Scissors, Loader2 } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [name,    setName]    = useState("");
-  const [slug,    setSlug]    = useState("");
-  const [error,   setError]   = useState("");
-  const [loading, setLoading] = useState(false);
+  const [name,      setName]      = useState("");
+  const [slug,      setSlug]      = useState("");
+  const [error,     setError]     = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [checking,  setChecking]  = useState(true);
+
+  // Check if user already has a membership (invited by another barbershop)
+  useEffect(() => {
+    fetch("/api/onboarding")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.hasMembership) {
+          router.replace("/dashboard");
+        } else {
+          setChecking(false);
+        }
+      })
+      .catch(() => setChecking(false));
+  }, [router]);
 
   function handleNameChange(value: string) {
     setName(value);
@@ -39,6 +54,14 @@ export default function OnboardingPage() {
 
     router.push("/dashboard");
     router.refresh();
+  }
+
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-gold-400" />
+      </div>
+    );
   }
 
   return (
