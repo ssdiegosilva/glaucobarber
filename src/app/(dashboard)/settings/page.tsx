@@ -3,13 +3,14 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
-import { Building2, Palette, Plug, CheckCircle2, AlertCircle } from "lucide-react";
+import { Building2, Palette, Plug, Users, CheckCircle2, AlertCircle } from "lucide-react";
 import { BarbershopCard } from "./barbershop-card";
 import { GoogleReviewCard } from "./google-review-card";
 import { BrandStyleCard } from "./brand-style-card";
 import { CampaignReferenceImageCard } from "./campaign-reference-image-card";
 import { IntegrationsClient } from "./integrations-client";
 import { CollapsibleSection } from "./collapsible-section";
+import { TeamCard } from "./team-card";
 
 export default async function SettingsPage({
   searchParams,
@@ -23,7 +24,7 @@ export default async function SettingsPage({
 
   const barbershopId = session.user.barbershopId;
 
-  const [barbershop, integration, syncRuns] = await Promise.all([
+  const [barbershop, integration, syncRuns, members] = await Promise.all([
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
     prisma.integration.findUnique({
       where:  { barbershopId },
@@ -39,7 +40,26 @@ export default async function SettingsPage({
         errorsCount: true, durationMs: true, startedAt: true,
       },
     }),
+    prisma.membership.findMany({
+      where:   { barbershopId },
+      include: { user: { select: { id: true, name: true, email: true, image: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
+
+  const callerMembership = members.find((m) => m.userId === session.user.id);
+  const isOwner = callerMembership?.role === "OWNER";
+
+  const serializedMembers = members.map((m) => ({
+    id:        m.id,
+    userId:    m.user.id,
+    name:      m.user.name,
+    email:     m.user.email,
+    role:      m.role,
+    active:    m.active,
+    trinksId:  m.trinksId,
+    createdAt: m.createdAt.toISOString(),
+  }));
 
   const integrationConnected = !!integration?.configJson;
   const identityConfigured   = !!(barbershop?.brandStyle?.trim() || barbershop?.campaignReferenceImageUrl?.trim());
@@ -126,6 +146,22 @@ export default async function SettingsPage({
             />
             <CampaignReferenceImageCard initialUrl={barbershop?.campaignReferenceImageUrl ?? null} />
           </div>
+        </CollapsibleSection>
+
+        {/* ── Equipe ─────────────────────────────────────────── */}
+        <CollapsibleSection
+          id="team"
+          icon={<Users className="h-4 w-4" />}
+          title="Equipe"
+          description="Barbeiros e membros da barbearia"
+          defaultOpen={section === "team"}
+          badge={
+            <span className="text-[10px] text-muted-foreground">
+              {members.length} {members.length === 1 ? "membro" : "membros"}
+            </span>
+          }
+        >
+          <TeamCard initialMembers={serializedMembers} isOwner={isOwner} />
         </CollapsibleSection>
 
         {/* ── Integrações ────────────────────────────────────── */}

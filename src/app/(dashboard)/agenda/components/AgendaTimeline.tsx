@@ -2,7 +2,7 @@
 
 import { formatBRL } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import type { AgendaAppointment } from "../agenda-client";
+import type { AgendaAppointment, BarberOption } from "../agenda-client";
 
 const STATUS_COLOR: Record<string, string> = {
   SCHEDULED:   "bg-blue-500/15 border-blue-500/40 hover:bg-blue-500/25",
@@ -119,16 +119,23 @@ let _ptrStartY = 0;
 
 interface Props {
   appointments:  AgendaAppointment[];
+  barbers?:      BarberOption[];
   onSelect:      (appt: AgendaAppointment) => void;
-  onSlotClick?:  (isoTime: string, profissional: string) => void;
+  onSlotClick?:  (isoTime: string, profissional: string, barberId?: string) => void;
   /** ISO date string YYYY-MM-DD for the currently displayed day */
   dateIso?:      string;
   startHour?:    number;
   endHour?:      number;
 }
 
-export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, startHour = 6, endHour = 24 }: Props) {
+export function AgendaTimeline({ appointments, barbers = [], onSelect, onSlotClick, dateIso, startHour = 6, endHour = 24 }: Props) {
   const { labels: timeLabels, totalRows } = buildTimeLabels(startHour, endHour);
+
+  // Build name→id map from barbers prop
+  const barberNameToId = new Map<string, string>();
+  for (const b of barbers) {
+    barberNameToId.set(b.name, b.id);
+  }
 
   // Group appointments by professional (always at least one column)
   const professionals = Array.from(
@@ -218,7 +225,7 @@ export function AgendaTimeline({ appointments, onSelect, onSlotClick, dateIso, s
                 const hh = h.toString().padStart(2, "0");
                 const mm = m.toString().padStart(2, "0");
                 const day = dateIso ?? new Date().toISOString().split("T")[0];
-                onSlotClick!(`${day}T${hh}:${mm}:00.000Z`, proForCol);
+                onSlotClick!(`${day}T${hh}:${mm}:00.000Z`, proForCol, barberNameToId.get(proForCol));
               }
 
               return (

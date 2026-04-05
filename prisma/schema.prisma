@@ -28,8 +28,9 @@ model User {
 
   accounts  Account[]
   sessions  Session[]
-  memberships Membership[]
-  auditLogs   AuditLog[]
+  memberships   Membership[]
+  auditLogs     AuditLog[]
+  appointments  Appointment[] @relation("barberAppointments")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -159,6 +160,7 @@ model Membership {
   barbershopId String
   role         MembershipRole @default(BARBER)
   active       Boolean        @default(true)
+  trinksId     String?        // profissional ID from Trinks
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
@@ -167,6 +169,7 @@ model Membership {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, barbershopId])
+  @@unique([barbershopId, trinksId])
   @@map("memberships")
 }
 
@@ -460,7 +463,7 @@ model Appointment {
   trinksId     String?
   customerId   String?
   serviceId    String?
-  barberId     String?           // userId of barber
+  barberId     String?           // userId of barber (Membership role BARBER)
 
   scheduledAt DateTime
   durationMin Int              @default(30)
@@ -478,6 +481,7 @@ model Appointment {
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id])
   service    Service?   @relation(fields: [serviceId], references: [id])
+  barber     User?      @relation("barberAppointments", fields: [barberId], references: [id])
   offer      Offer?     @relation(fields: [offerId], references: [id])
   items      AppointmentItem[]
   payments   Payment[]

@@ -21,6 +21,12 @@ interface ServiceOption {
   durationMin: number | null;
 }
 
+interface BarberOption {
+  id:   string;
+  name: string;
+  role: string;
+}
+
 interface Props {
   open:        boolean;
   onClose:     () => void;
@@ -30,14 +36,18 @@ interface Props {
   defaultTime: string;
   /** Pre-filled professional name if applicable */
   defaultProfissional?: string | null;
+  /** Pre-filled barber ID from slot click */
+  defaultBarberId?: string | null;
+  /** Available barbers in this barbershop */
+  barbers?: BarberOption[];
   onCreated:   (appt: {
     id: string; customerName: string; serviceName?: string | null;
     scheduledAt: string; durationMin: number; status: string; price?: number | null;
-    profissional?: string | null;
+    profissional?: string | null; barberId?: string | null;
   }) => void;
 }
 
-export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, defaultProfissional, onCreated }: Props) {
+export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, defaultProfissional, defaultBarberId, barbers = [], onCreated }: Props) {
   const [query, setQuery]         = useState("");
   const [customers, setCustomers] = useState<CustomerHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -45,6 +55,7 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
 
   const [services, setServices]       = useState<ServiceOption[]>([]);
   const [serviceId, setServiceId]     = useState("");
+  const [barberId, setBarberId]       = useState(defaultBarberId ?? "");
   const [date, setDate]               = useState(defaultDate);
   const [time, setTime]               = useState(defaultTime);
   const [price, setPrice]             = useState("");
@@ -59,13 +70,14 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
   useEffect(() => {
     setDate(defaultDate);
     setTime(defaultTime);
-  }, [defaultDate, defaultTime]);
+    setBarberId(defaultBarberId ?? "");
+  }, [defaultDate, defaultTime, defaultBarberId]);
 
   // Reset on open/close
   useEffect(() => {
     if (!open) {
       setQuery(""); setCustomers([]); setSelected(null);
-      setServiceId(""); setPrice(""); setDuration("30"); setError(null);
+      setServiceId(""); setBarberId(""); setPrice(""); setDuration("30"); setError(null);
       setShowPastConfirm(false);
     }
   }, [open]);
@@ -135,6 +147,7 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
         body:    JSON.stringify({
           customerId:  selected.id,
           serviceId:   serviceId || null,
+          barberId:    barberId || null,
           scheduledAt,
           durationMin: Number(duration) || 30,
           price:       price ? Number(price) : null,
@@ -142,6 +155,7 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar agendamento");
+      const selectedBarber = barbers.find((b) => b.id === barberId);
       onCreated({
         id:           data.appointment.id,
         customerName: selected.name,
@@ -150,7 +164,8 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
         durationMin:  Number(duration) || 30,
         status:       "SCHEDULED",
         price:        price ? Number(price) : null,
-        profissional: defaultProfissional ?? null,
+        profissional: selectedBarber?.name ?? defaultProfissional ?? null,
+        barberId:     barberId || null,
       });
       onClose();
     } catch (e) {
@@ -237,6 +252,23 @@ export function NewAppointmentDrawer({ open, onClose, defaultDate, defaultTime, 
               ))}
             </select>
           </div>
+
+          {/* Barber */}
+          {barbers.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Barbeiro</label>
+              <select
+                value={barberId}
+                onChange={(e) => setBarberId(e.target.value)}
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">Selecionar barbeiro (opcional)</option>
+                {barbers.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Date + Time */}
           <div className="grid grid-cols-2 gap-3">
