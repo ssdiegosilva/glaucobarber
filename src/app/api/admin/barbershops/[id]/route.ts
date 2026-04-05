@@ -41,3 +41,20 @@ export async function GET(
     recentLogs,
   });
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+
+  const shop = await prisma.barbershop.findUnique({ where: { id }, select: { id: true } });
+  if (!shop) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await prisma.barbershop.delete({ where: { id } });
+
+  return NextResponse.json({ ok: true });
+}

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronRight, Users, Calendar, Brain } from "lucide-react";
+import { Search, ChevronRight, Users, Calendar, Brain, Trash2 } from "lucide-react";
 
 type Shop = {
   id: string; name: string; slug: string; email: string; city: string;
@@ -30,10 +31,28 @@ const STATUS_COLOR: Record<string, string> = {
   INCOMPLETE: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
 };
 
-export function BarbershopsClient({ data }: { data: Shop[] }) {
+export function BarbershopsClient({ data: initialData }: { data: Shop[] }) {
+  const router = useRouter();
+  const [data,    setData]    = useState(initialData);
   const [q,       setQ]       = useState("");
   const [planF,   setPlanF]   = useState("ALL");
   const [statusF, setStatusF] = useState("ALL");
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/admin/barbershops/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Erro ao deletar");
+      setData((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      alert("Erro ao deletar barbearia.");
+    } finally {
+      setDeleting(null);
+      setConfirmId(null);
+    }
+  }
 
   const filtered = data.filter((s) => {
     const matchQ      = !q || s.name.toLowerCase().includes(q.toLowerCase()) || s.email.toLowerCase().includes(q.toLowerCase());
@@ -72,6 +91,31 @@ export function BarbershopsClient({ data }: { data: Shop[] }) {
           <option value="CANCELED">Canceled</option>
         </select>
       </div>
+
+      {/* Confirm dialog */}
+      {confirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-surface-800 border border-border rounded-lg p-6 w-full max-w-sm space-y-4 shadow-xl">
+            <p className="text-sm font-semibold text-foreground">Confirmar exclusão</p>
+            <p className="text-sm text-muted-foreground">
+              Tem certeza? Todos os dados desta barbearia (clientes, campanhas, agendamentos, etc.) serão apagados permanentemente.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setConfirmId(null)} disabled={!!deleting}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-500 text-white"
+                onClick={() => handleDelete(confirmId)}
+                disabled={!!deleting}
+              >
+                {deleting === confirmId ? "Apagando…" : "Apagar"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-lg border border-border overflow-hidden">
@@ -121,11 +165,22 @@ export function BarbershopsClient({ data }: { data: Shop[] }) {
                   {new Date(s.createdAt).toLocaleDateString("pt-BR")}
                 </td>
                 <td className="px-4 py-3">
-                  <Link href={`/admin/barbershops/${s.id}`}>
-                    <Button size="sm" variant="ghost" className="h-7 px-2">
-                      <ChevronRight className="h-4 w-4" />
+                  <div className="flex items-center gap-1">
+                    <Link href={`/admin/barbershops/${s.id}`}>
+                      <Button size="sm" variant="ghost" className="h-7 px-2">
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      onClick={() => setConfirmId(s.id)}
+                      disabled={!!deleting}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  </Link>
+                  </div>
                 </td>
               </tr>
             ))}
