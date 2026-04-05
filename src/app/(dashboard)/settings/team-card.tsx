@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserPlus, Trash2, Crown, Scissors, User, Copy, Check, Link2 } from "lucide-react";
+import { Loader2, UserPlus, Trash2, Crown, Scissors, User, Copy, Check, Link2, LogOut } from "lucide-react";
 
 interface Member {
   id:        string;
@@ -97,6 +97,20 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
         body: JSON.stringify({ membershipId }),
       });
       if (res.ok) setMembers((prev) => prev.filter((m) => m.id !== membershipId));
+    } catch {}
+  }
+
+  async function handleLeave() {
+    if (!confirm("Tem certeza que deseja sair desta barbearia? Você perderá o acesso.")) return;
+    try {
+      const res = await fetch("/api/barbershop/members", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ self: true }),
+      });
+      if (res.ok) {
+        window.location.href = "/dashboard";
+      }
     } catch {}
   }
 
@@ -253,6 +267,18 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
               Cancelar
             </Button>
           </div>
+        </div>
+      )}
+      {/* Self-removal for non-owners */}
+      {!isOwner && (
+        <div className="pt-2 border-t border-border/40">
+          <button
+            onClick={handleLeave}
+            className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 transition-colors py-1"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sair desta barbearia
+          </button>
         </div>
       )}
     </div>
