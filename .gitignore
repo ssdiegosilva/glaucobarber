@@ -39,3 +39,8 @@ next-env.d.ts
 # Prisma
 prisma/*.db
 prisma/*.db-journal
+
+# Capacitor — Android native project (generated via `npx cap add android`)
+# The project is regenerated from capacitor.config.ts + mobile-shell/
+# Only commit: capacitor.config.ts, mobile-shell/, src/lib/mobile/
+/android/

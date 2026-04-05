@@ -185,6 +185,50 @@ O código é separado em **core genérico** e **vertical específica** para perm
 
 ---
 
+## App Mobile (Capacitor)
+
+O app mobile é uma WebView nativa que carrega o site `glaucobarber.com`. Não é um app offline — precisa de internet.
+
+### Estrutura
+
+```
+capacitor.config.ts          # Config do Capacitor (appId, server URL, plugins)
+mobile-shell/
+  index.html                 # Shell mínimo (loading + tela offline)
+src/
+  lib/mobile/
+    capacitor.ts             # Bridge nativo (status bar, push, deep links, back button)
+  components/mobile/
+    NativeInit.tsx            # Client component que inicializa plugins (no layout raiz)
+android/                     # Projeto Android gerado (no .gitignore)
+```
+
+### Comandos
+
+```bash
+npm run cap:sync    # Sincroniza web assets + plugins pro Android
+npm run cap:open    # Abre no Android Studio
+npm run cap:run     # Roda no emulador/device conectado
+npm run cap:build   # Build APK release
+```
+
+### Como gerar o APK para Play Store
+
+1. `npm run cap:sync` — sincroniza config e plugins
+2. `npm run cap:open` — abre Android Studio
+3. No Android Studio: Build > Generate Signed Bundle / APK
+4. Upload do AAB no Google Play Console
+
+### Regras ao modificar
+
+- `android/` é **gerado** — nunca editar manualmente (usar `cap sync` pra atualizar)
+- `capacitor.config.ts` é a fonte de verdade pra config nativa
+- `mobile-shell/index.html` é só o fallback offline — o app carrega o site real
+- `NativeInit` está no layout raiz — inicializa plugins apenas quando roda no Capacitor
+- Push notifications: token é recebido no `capacitor.ts` — precisa de endpoint `/api/push/register` (TODO)
+
+---
+
 ## Convenções importantes
 
 - `export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"` antes de rodar npx/node
