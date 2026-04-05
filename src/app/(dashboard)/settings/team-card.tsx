@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserPlus, Trash2, Crown, Scissors, User } from "lucide-react";
+import { Loader2, UserPlus, Trash2, Crown, Scissors, User, Copy, Check, Link2 } from "lucide-react";
 
 interface Member {
   id:        string;
@@ -33,10 +33,12 @@ const ROLE_ICONS: Record<string, typeof Crown> = {
 };
 
 export function TeamCard({ initialMembers, isOwner }: Props) {
-  const [members, setMembers]   = useState<Member[]>(initialMembers);
-  const [adding, setAdding]     = useState(false);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [members, setMembers]       = useState<Member[]>(initialMembers);
+  const [adding, setAdding]         = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied]         = useState(false);
 
   // New member form
   const [newName, setNewName]   = useState("");
@@ -59,6 +61,11 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao adicionar");
       setMembers((prev) => [...prev, data.member]);
+      // Build invite link
+      if (data.member.inviteToken) {
+        const link = `${window.location.origin}/invite/${data.member.inviteToken}`;
+        setInviteLink(link);
+      }
       setNewName("");
       setNewEmail("");
       setNewRole("BARBER");
@@ -93,8 +100,46 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
     } catch {}
   }
 
+  function handleCopyLink() {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
     <div className="space-y-3">
+      {/* Invite link banner */}
+      {inviteLink && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/8 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <p className="text-sm font-medium text-foreground">Membro adicionado! Envie o link de convite:</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={inviteLink}
+              className="flex-1 rounded-md border border-border bg-surface-900 px-3 py-2 text-xs text-foreground truncate focus:outline-none"
+            />
+            <Button size="sm" variant="outline" onClick={handleCopyLink} className="shrink-0">
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              <span className="ml-1">{copied ? "Copiado" : "Copiar"}</span>
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            O convidado vai criar uma senha e entrar direto na barbearia.
+          </p>
+          <button
+            onClick={() => { setInviteLink(null); setCopied(false); }}
+            className="text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
       {/* Members list */}
       <div className="space-y-2">
         {members.map((m) => {

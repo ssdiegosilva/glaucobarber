@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/stripe/webhook", "/api/cron"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/invite", "/api/invite", "/api/stripe/webhook", "/api/cron"];
 const ADMIN_EMAIL  = process.env.ADMIN_EMAIL ?? "";
 
 export async function middleware(req: NextRequest) {
