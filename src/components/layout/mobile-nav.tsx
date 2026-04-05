@@ -20,9 +20,10 @@ function getInitials(name: string) {
 }
 
 interface Notification {
-  id:    string;
-  title: string;
-  body:  string;
+  id:        string;
+  title:     string;
+  body:      string;
+  link?:     string | null;
   createdAt: string;
 }
 
@@ -144,10 +145,31 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
                       <div key={n.id} className="flex items-start gap-2 px-4 py-3">
                         <Sparkles className="h-3 w-3 text-gold-400 shrink-0 mt-0.5" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground">{n.title}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            {n.link ? (
+                              <Link
+                                href={n.link}
+                                onClick={() => { setBellOpen(false); dismiss(n.id); }}
+                                className="text-xs font-medium text-foreground truncate hover:text-gold-400 transition-colors"
+                              >
+                                {n.title}
+                              </Link>
+                            ) : (
+                              <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{n.body}</p>
+                          {n.link && (
+                            <Link
+                              href={n.link}
+                              onClick={() => { setBellOpen(false); dismiss(n.id); }}
+                              className="mt-1 inline-flex items-center gap-1 text-[10px] text-gold-400/70 hover:text-gold-400 transition-colors"
+                            >
+                              Ver campanha →
+                            </Link>
+                          )}
                         </div>
-                        <button onClick={() => dismiss(n.id)} className="shrink-0 text-muted-foreground p-0.5">
+                        <button onClick={() => dismiss(n.id)} className="shrink-0 text-muted-foreground p-1">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
