@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserPlus, Trash2, Crown, Scissors, User, Copy, Check, Link2, LogOut } from "lucide-react";
+import { Loader2, UserPlus, Trash2, Crown, Scissors, User, Copy, Check, Link2, LogOut, ArrowRightLeft } from "lucide-react";
 
 interface Member {
   id:        string;
@@ -96,7 +96,27 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ membershipId }),
       });
-      if (res.ok) setMembers((prev) => prev.filter((m) => m.id !== membershipId));
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "Erro ao remover membro.");
+        return;
+      }
+      setMembers((prev) => prev.filter((m) => m.id !== membershipId));
+    } catch {}
+  }
+
+  async function handleTransferOwnership(membershipId: string, memberName: string) {
+    if (!confirm(`Transferir propriedade para ${memberName}? Você passará a ser Barbeiro.`)) return;
+    try {
+      const res = await fetch("/api/barbershop/members", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipId, transferOwnership: true }),
+      });
+      if (res.ok) {
+        // Refresh to reflect changes
+        window.location.reload();
+      }
     } catch {}
   }
 
@@ -195,13 +215,22 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
               )}
 
               {isOwner && m.role !== "OWNER" && (
-                <button
-                  onClick={() => handleRemove(m.id)}
-                  className="text-muted-foreground hover:text-red-400 transition-colors p-1"
-                  title="Remover membro"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <>
+                  <button
+                    onClick={() => handleTransferOwnership(m.id, m.name ?? "este membro")}
+                    className="text-muted-foreground hover:text-gold-400 transition-colors p-1"
+                    title="Transferir propriedade"
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleRemove(m.id)}
+                    className="text-muted-foreground hover:text-red-400 transition-colors p-1"
+                    title="Remover membro"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </>
               )}
             </div>
           );
