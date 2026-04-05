@@ -70,7 +70,10 @@ Responda EXCLUSIVAMENTE em JSON sem markdown:
     });
 
     const raw     = completion.choices[0]?.message?.content?.trim() ?? "[]";
-    const cleaned = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    // Strip markdown fences then extract the JSON array (model may add text around it)
+    const fenceStripped = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    const arrayMatch    = fenceStripped.match(/\[[\s\S]*\]/);
+    const cleaned       = arrayMatch ? arrayMatch[0] : fenceStripped;
     const parsed  = JSON.parse(cleaned) as Array<{
       name: string; category: string; description?: string; suggestedPrice: number; rationale: string;
     }>;

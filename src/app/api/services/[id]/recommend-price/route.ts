@@ -84,8 +84,11 @@ Responda SOMENTE com o JSON, sem markdown, sem explicações adicionais.`;
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    const cleaned = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
-    const parsed  = JSON.parse(cleaned);
+    // Strip markdown fences then extract the JSON object (model may add text around it)
+    const fenceStripped = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    const objectMatch   = fenceStripped.match(/\{[\s\S]*\}/);
+    const cleaned       = objectMatch ? objectMatch[0] : fenceStripped;
+    const parsed        = JSON.parse(cleaned);
 
     await consumeAiCredit(session.user.barbershopId, "price_recommend");
 
