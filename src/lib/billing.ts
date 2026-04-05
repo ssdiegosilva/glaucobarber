@@ -62,20 +62,31 @@ export async function getPlan(barbershopId: string): Promise<PlanInfo> {
     include: { barbershop: { select: { stripeCustomerId: true } } },
   });
 
-  // Lazy creation for barbershops that pre-date the billing system
+  // Lazy creation for new barbershops — start on a 7-day trial
   if (!sub) {
+    const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     sub = await prisma.platformSubscription.upsert({
       where:  { barbershopId },
       create: {
         barbershopId,
         planTier:           "FREE",
-        status:             "ACTIVE",
+        status:             "TRIALING",
+        trialEndsAt:        trialEnd,
         currentPeriodStart: new Date(),
-        currentPeriodEnd:   new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        currentPeriodEnd:   trialEnd,
       },
       update: {},
       include: { barbershop: { select: { stripeCustomerId: true } } },
     });
+  }
+
+  // Real-time trial expiry check (cron runs daily but we enforce immediately)
+  if (sub.status === "TRIALING" && sub.trialEndsAt && sub.trialEndsAt < new Date()) {
+    await prisma.platformSubscription.update({
+      where: { barbershopId },
+      data:  { status: "ACTIVE", planTier: "FREE", currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) },
+    });
+    sub = { ...sub, status: "ACTIVE", planTier: "FREE" };
   }
 
   // During trial, effective tier = PRO (full feature access)

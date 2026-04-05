@@ -240,7 +240,7 @@ export function BillingClient({
         {isTrialing && (
           <div className="flex items-center gap-2 rounded-lg border border-gold-500/20 bg-gold-500/5 px-3 py-2.5">
             <Sparkles className="h-4 w-4 text-gold-400 shrink-0" />
-            <p className="text-sm text-muted-foreground">Ao esgotar os créditos gratuitos, escolha um plano para continuar usando a IA.</p>
+            <p className="text-sm text-muted-foreground">Acesso gratuito por 7 dias. Ao expirar, escolha um plano para continuar com a IA.</p>
           </div>
         )}
 
