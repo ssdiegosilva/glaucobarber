@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2, Clock } from "lucide-react";
+import { Sparkles, Loader2, Clock, FlaskConical, RefreshCw, ShoppingBag } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const POLL_MS = 30_000;
@@ -32,10 +32,19 @@ function formatRelative(iso: string): string {
   return `${days}d atrás`;
 }
 
+function BucketBar({ used, limit, color }: { used: number; limit: number; color: string }) {
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  return (
+    <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+      <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initialTrialing = false }: Props) {
-  const [used,      setUsed]      = useState(initialUsed);
-  const [limit,     setLimit]     = useState(initialLimit);
-  const [credits,   setCredits]   = useState(initialCredits);
+  const [used,       setUsed]       = useState(initialUsed);
+  const [limit,      setLimit]      = useState(initialLimit);
+  const [credits,    setCredits]    = useState(initialCredits);
   const [isTrialing, setIsTrialing] = useState(initialTrialing);
   const [open,    setOpen]    = useState(false);
   const [logs,    setLogs]    = useState<CallLog[]>([]);
@@ -81,12 +90,28 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
     loadHistory();
   }
 
-  const total     = limit + credits;
-  const pct       = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 100;
-  const remaining = Math.max(0, total - used);
-  const isLow     = pct >= 80;
-  const isOut     = pct >= 100;
-  const isInfinite = isTrialing || limit === Infinity;
+  // Enterprise = truly infinite (limit comes as 999 from API when Infinity)
+  // We use 99999 as sentinel — actual enterprise would be very high
+  const isEnterprise = !isTrialing && limit >= 999;
+
+  // Summary for the button
+  const totalAvailable = isTrialing
+    ? Math.max(0, limit - used)                  // trial: remaining trial calls
+    : isEnterprise
+    ? Infinity
+    : Math.max(0, limit - used) + credits;       // paid: remaining monthly + purchased
+
+  const summaryPct = isEnterprise
+    ? 0
+    : isTrialing
+    ? Math.min(100, Math.round((used / limit) * 100))
+    : limit > 0 ? Math.min(100, Math.round((used / (limit + credits)) * 100)) : 100;
+
+  const isOut = !isEnterprise && totalAvailable === 0;
+  const isLow = !isEnterprise && !isOut && summaryPct >= 80;
+
+  const accentColor = isOut ? "text-red-400" : isLow ? "text-amber-400" : "text-gold-400";
+  const barColor    = isOut ? "bg-red-500"   : isLow ? "bg-amber-500"   : "bg-gold-500";
 
   return (
     <>
@@ -96,29 +121,31 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
       >
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
-            <Sparkles className={`h-3.5 w-3.5 ${isOut ? "text-red-400" : isLow ? "text-amber-400" : "text-gold-400"}`} />
-            <span className={`text-xs font-semibold ${isOut ? "text-red-400" : isLow ? "text-amber-400" : "text-gold-400"}`}>
-              {isOut ? "IA Esgotada" : "IA"}
+            <Sparkles className={`h-3.5 w-3.5 ${accentColor}`} />
+            <span className={`text-xs font-semibold ${accentColor}`}>
+              {isOut ? "IA Esgotada" : isTrialing ? "IA · Trial" : "IA"}
             </span>
           </div>
           <span className={`text-[10px] ${isOut ? "text-red-400" : "text-muted-foreground"}`}>
-            {isInfinite ? "∞" : `${used}/${total}`}
+            {isEnterprise ? "∞" : `${used}/${isTrialing ? limit : limit + credits}`}
           </span>
         </div>
-        {!isInfinite && (
+
+        {!isEnterprise && (
           <div className="h-1 rounded-full bg-surface-700 overflow-hidden mb-1.5">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${isOut ? "bg-red-500" : isLow ? "bg-amber-500" : "bg-gold-500"}`}
-              style={{ width: `${pct}%` }}
+              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+              style={{ width: `${summaryPct}%` }}
             />
           </div>
         )}
+
         <p className="text-[10px] text-muted-foreground">
-          {isInfinite
-            ? "Trial — IA disponível"
+          {isEnterprise
+            ? "Ilimitado"
             : isOut
             ? "Adicionar créditos →"
-            : `${remaining} chamada${remaining !== 1 ? "s" : ""} restante${remaining !== 1 ? "s" : ""}`}
+            : `${isEnterprise ? "∞" : totalAvailable} chamada${totalAvailable !== 1 ? "s" : ""} restante${totalAvailable !== 1 ? "s" : ""}`}
         </p>
       </button>
 
@@ -127,12 +154,72 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
           <SheetHeader className="px-5 py-4 border-b border-border/60">
             <SheetTitle className="flex items-center gap-2 text-sm">
               <Sparkles className="h-4 w-4 text-gold-400" />
-              Histórico de uso de IA
+              Créditos de IA
             </SheetTitle>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Últimas chamadas registradas (máx. 50)
-            </p>
           </SheetHeader>
+
+          {/* Buckets */}
+          <div className="px-5 py-4 border-b border-border/60 space-y-3">
+
+            {/* Bucket 1: Trial */}
+            {isTrialing && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <FlaskConical className="h-3.5 w-3.5 text-gold-400" />
+                    <span className="text-xs font-medium text-foreground">Trial</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">{Math.max(0, limit - used)} de {limit} restantes</span>
+                </div>
+                <BucketBar used={used} limit={limit} color={used >= limit ? "bg-red-500" : used / limit >= 0.8 ? "bg-amber-500" : "bg-gold-500"} />
+                <p className="text-[10px] text-muted-foreground">Usado apenas durante o período de trial.</p>
+              </div>
+            )}
+
+            {/* Bucket 2: Plano mensal */}
+            {!isTrialing && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 text-blue-400" />
+                    <span className="text-xs font-medium text-foreground">Plano mensal</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    {isEnterprise ? "∞" : `${Math.max(0, limit - used)} de ${limit} restantes`}
+                  </span>
+                </div>
+                {!isEnterprise && (
+                  <BucketBar used={used} limit={limit} color={used >= limit ? "bg-red-500" : used / limit >= 0.8 ? "bg-amber-500" : "bg-blue-500"} />
+                )}
+                <p className="text-[10px] text-muted-foreground">Renova todo mês com o plano.</p>
+              </div>
+            )}
+
+            {/* Bucket 3: Comprados avulso */}
+            {!isTrialing && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ShoppingBag className="h-3.5 w-3.5 text-purple-400" />
+                    <span className="text-xs font-medium text-foreground">Comprados</span>
+                  </div>
+                  <span className={`text-[11px] font-medium ${credits > 0 ? "text-purple-400" : "text-muted-foreground"}`}>
+                    {credits > 0 ? `${credits} disponíveis` : "Nenhum"}
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {credits > 0
+                    ? "Consumidos depois que o plano mensal esgotar."
+                    : <>Sem créditos avulsos. <Link href="/billing" onClick={() => setOpen(false)} className="text-purple-400 hover:underline">Comprar →</Link></>}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* History */}
+          <div className="px-5 py-3 border-b border-border/40">
+            <p className="text-[11px] text-muted-foreground">Últimas chamadas (máx. 50)</p>
+          </div>
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (
