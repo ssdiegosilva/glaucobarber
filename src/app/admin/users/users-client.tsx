@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ShieldCheck } from "lucide-react";
+import { Search, ShieldCheck, Trash2 } from "lucide-react";
 
 type Membership = { id: string; role: string; active: boolean; barbershopId: string; barbershopName: string; barbershopSlug: string };
 type User = { id: string; name: string; email: string; createdAt: string; memberships: Membership[] };
@@ -20,10 +20,19 @@ export function UsersClient({ data }: { data: User[] }) {
   const router = useRouter();
   const [q,       setQ]       = useState("");
   const [saving,  setSaving]  = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const filtered = data.filter((u) =>
     !q || u.name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase())
   );
+
+  async function deleteUser(userId: string, userName: string) {
+    if (!confirm(`Apagar o usuário "${userName || "sem nome"}"? Esta ação é irreversível.`)) return;
+    setDeleting(userId);
+    await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+    setDeleting(null);
+    router.refresh();
+  }
 
   async function toggleActive(membershipId: string, active: boolean) {
     setSaving(membershipId);
@@ -51,7 +60,7 @@ export function UsersClient({ data }: { data: User[] }) {
         <table className="w-full text-sm">
           <thead className="bg-surface-800 border-b border-border">
             <tr>
-              {["Usuário", "Memberships", "Cadastrado em"].map((h) => (
+              {["Usuário", "Memberships", "Cadastrado em", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
               ))}
             </tr>
@@ -94,6 +103,17 @@ export function UsersClient({ data }: { data: User[] }) {
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">
                   {new Date(u.createdAt).toLocaleDateString("pt-BR")}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={deleting === u.id}
+                    onClick={() => deleteUser(u.id, u.name)}
+                    className="h-7 w-7 p-0 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </td>
               </tr>
             ))}
