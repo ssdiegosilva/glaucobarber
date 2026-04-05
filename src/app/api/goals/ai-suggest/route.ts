@@ -7,28 +7,19 @@ import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
 
-// ── Regional mapping ──────────────────────────────────────────
+// ── Regional fallback (used only if web search fails) ────────
+// Fonte: SEBRAE "Como montar uma barbearia" 2023, Trinks Relatório do Setor 2023
 
 const STATE_TO_REGION: Record<string, string> = {
-  // Norte
-  AC: "Norte", AM: "Norte", AP: "Norte", PA: "Norte", RO: "Norte", RR: "Norte", TO: "Norte",
-  // Nordeste
+  AC: "Norte",  AM: "Norte",  AP: "Norte",  PA: "Norte",  RO: "Norte",  RR: "Norte",  TO: "Norte",
   AL: "Nordeste", BA: "Nordeste", CE: "Nordeste", MA: "Nordeste", PB: "Nordeste",
   PE: "Nordeste", PI: "Nordeste", RN: "Nordeste", SE: "Nordeste",
-  // Centro-Oeste
   DF: "Centro-Oeste", GO: "Centro-Oeste", MS: "Centro-Oeste", MT: "Centro-Oeste",
-  // Sudeste
   ES: "Sudeste", MG: "Sudeste", RJ: "Sudeste", SP: "Sudeste",
-  // Sul
   PR: "Sul", RS: "Sul", SC: "Sul",
 };
 
-/**
- * Ticket médio regional — corte simples (R$)
- * Fontes: SEBRAE "Como montar uma barbearia" 2023, Trinks Relatório do Setor 2023
- * Valores representam barbearias convencionais (sem salão premium)
- */
-const REGIONAL_TICKET: Record<string, { min: number; avg: number; max: number }> = {
+const REGIONAL_FALLBACK: Record<string, { min: number; avg: number; max: number }> = {
   Norte:          { min: 25, avg: 40,  max: 80  },
   Nordeste:       { min: 22, avg: 38,  max: 75  },
   "Centro-Oeste": { min: 35, avg: 55,  max: 110 },
@@ -48,10 +39,20 @@ function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[]): 
   return count;
 }
 
+function extractJson(text: string): Record<string, unknown> | null {
+  // Try ```json ... ``` block first, then raw JSON
+  const block = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw   = block ? block[1] : text;
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
+
 /**
  * POST /api/goals/ai-suggest
  * Body: { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour, wizardContext? }
- * Returns: { suggestedRevenueTarget, workingDaysCount, avgTicket, region, regionalBenchmark, explanation }
+ * Returns: { suggestedRevenueTarget, workingDaysCount, region, regionalBenchmark,
+ *            referenceTicket, historicalTicket, explanation }
  */
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -65,102 +66,163 @@ export async function POST(req: NextRequest) {
 
   const offDays: number[] = Array.isArray(offDaysOfWeek) ? offDaysOfWeek.map(Number) : [];
   const workingDaysCount  = calcWorkingDays(Number(month), Number(year), offDays);
-  const totalCapacity     = workingDaysCount * Number(hoursPerDay || 8) * Number(appointmentsPerHour || 2);
+  const hours             = Number(hoursPerDay || 8);
+  const apptsPerHour      = Number(appointmentsPerHour || 2);
+  const totalCapacity     = workingDaysCount * hours * apptsPerHour;
 
-  // ── Barbershop regional context ───────────────────────────────
+  // ── Barbershop context ────────────────────────────────────────
   const [barbershop, agg] = await Promise.all([
     prisma.barbershop.findUnique({
       where:  { id: session.user.barbershopId },
       select: { state: true, city: true },
     }),
     prisma.appointment.aggregate({
-      where: { barbershopId: session.user.barbershopId, status: "COMPLETED" },
-      _avg:  { price: true },
+      where:  { barbershopId: session.user.barbershopId, status: "COMPLETED" },
+      _avg:   { price: true },
       _count: { _all: true },
     }),
   ]);
 
-  const stateCode = barbershop?.state
-    ?.toUpperCase()
-    .trim()
-    .replace(/^([A-Z]{2}).*/, "$1") ?? null;
+  const stateCode      = barbershop?.state?.toUpperCase().trim().replace(/^([A-Z]{2}).*/, "$1") ?? null;
+  const city           = barbershop?.city?.trim() ?? null;
+  const region         = (stateCode && STATE_TO_REGION[stateCode]) ?? "Sudeste";
+  const fallback       = REGIONAL_FALLBACK[region];
+  const historicalTicket = agg._avg.price && agg._count._all >= 20 ? Number(agg._avg.price) : null;
 
-  const region    = (stateCode && STATE_TO_REGION[stateCode]) ?? "Sudeste";
-  const benchmark = REGIONAL_TICKET[region];
-
-  // Use regional avg as reference; historical only if meaningful (≥20 appointments)
-  const historicalTicket = agg._avg.price ? Number(agg._avg.price) : null;
-  const hasGoodHistory   = agg._count._all >= 20 && historicalTicket !== null;
-  const referenceTicket  = hasGoodHistory
-    ? Math.round((benchmark.avg + historicalTicket!) / 2)  // blend 50/50 when history is solid
-    : benchmark.avg;
-
-  const DAY_NAMES  = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  const DAY_NAMES   = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   const offDayNames = offDays.map((d) => DAY_NAMES[d]).join(", ") || "nenhum";
+  const locationStr = [city, stateCode, `Região ${region}`, "Brasil"].filter(Boolean).join(", ");
 
-  const prompt = `Você é um consultor financeiro especializado em barbearias brasileiras.
+  // ── Build prompt for web-search model ────────────────────────
+  const searchPrompt = `Você é um consultor financeiro especializado em barbearias brasileiras com acesso à internet.
 
-Dados da barbearia:
-- Mês de referência: ${month}/${year}
-- Estado: ${stateCode ?? "não informado"} — Região: ${region}
-- Dias de folga por semana: ${offDayNames}
-- Dias úteis no mês: ${workingDaysCount}
-- Horas de trabalho por dia: ${hoursPerDay || 8}h
-- Atendimentos por hora: ${appointmentsPerHour || 2}
-- Capacidade total de atendimentos no mês: ${totalCapacity}
+TAREFA:
+1. Busque na internet o ticket médio atual de barbearias na localidade: ${locationStr}
+   - Pesquise termos como "ticket médio barbearia ${city ?? stateCode ?? region} 2024 2025" ou "preço corte de cabelo barbearia ${city ?? region}"
+   - Foque em fontes como SEBRAE, Trinks, GetNinjas, Habitissimo, ou notícias do setor
 
-Benchmarks do setor para a região ${region} (SEBRAE/Trinks 2023):
-- Ticket médio regional: R$ ${benchmark.min}–${benchmark.max} (média: R$ ${benchmark.avg})
-- Ticket de referência para cálculo: R$ ${referenceTicket}${hasGoodHistory ? ` (média entre regional R$ ${benchmark.avg} e histórico R$ ${historicalTicket!.toFixed(0)})` : " (baseado na média regional — histórico insuficiente)"}
-- Ocupação típica de barbearias com agenda: 65–75% da capacidade
+2. Com base nos dados encontrados E nos parâmetros abaixo, calcule a meta de faturamento mensal:
+   - Localidade: ${locationStr}
+   - Mês: ${month}/${year}
+   - Dias de folga/semana: ${offDayNames}
+   - Dias úteis no mês: ${workingDaysCount}
+   - Horas trabalhadas/dia: ${hours}h
+   - Atendimentos/hora: ${apptsPerHour}
+   - Capacidade total do mês: ${totalCapacity} atendimentos
+   ${historicalTicket ? `- Ticket médio histórico desta barbearia: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} atendimentos)` : "- Sem histórico próprio de atendimentos"}
+   ${wizardContext ? `- Contexto informado pelo barbeiro: "${wizardContext}"` : ""}
 
-Com base nesses dados, calcule uma meta de faturamento mensal realista e desafiadora.
-Use o ticket de referência (R$ ${referenceTicket}) × capacidade × ocupação esperada de 70%.
-Meta estimada base: R$ ${Math.round(totalCapacity * 0.70 * referenceTicket)}
-Ajuste conforme o contexto.
-${wizardContext ? `\nContexto adicional: "${wizardContext}"` : ""}
+3. Assuma ocupação esperada de 70% da capacidade (padrão do setor).
 
-Responda SOMENTE em JSON:
+RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
+\`\`\`json
 {
   "suggestedRevenueTarget": <número inteiro em reais>,
-  "explanation": "<2 frases motivadoras em português mencionando os ${workingDaysCount} dias úteis, o ticket regional de R$ ${benchmark.avg} e a meta diária resultante>"
-}`;
+  "ticketMinFound": <ticket mínimo encontrado na pesquisa, ou null se não encontrou>,
+  "ticketAvgFound": <ticket médio encontrado na pesquisa, ou null>,
+  "ticketMaxFound": <ticket máximo encontrado na pesquisa, ou null>,
+  "ticketSource": "<fonte dos dados ex: 'SEBRAE 2025' ou 'GetNinjas.com.br' ou 'Dados regionais estimados'>",
+  "referenceTicket": <ticket usado para o cálculo>,
+  "explanation": "<2 frases motivadoras em português sobre os ${workingDaysCount} dias úteis, ticket regional encontrado e meta diária>"
+}
+\`\`\``;
 
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  // ── Step 1: Responses API with web search (same pattern as generateCampaignThemes) ───
   try {
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await (client as any).responses.create({
+      model: MODEL,
+      tools: [{ type: "web_search_preview" }],
+      input: searchPrompt,
+    });
+
+    const text: string = typeof response.output_text === "string"
+      ? response.output_text
+      : response.output?.find((o: any) => o.type === "message")?.content?.find((c: any) => c.type === "output_text")?.text ?? "";
+    const parsed = extractJson(text);
+
+    if (parsed && typeof parsed.suggestedRevenueTarget === "number") {
+      await consumeAiCredit(session.user.barbershopId, "goals_suggest");
+
+      const benchmarkFromSearch = (parsed.ticketAvgFound || parsed.ticketMinFound || parsed.ticketMaxFound)
+        ? {
+            min: Number(parsed.ticketMinFound ?? fallback.min),
+            avg: Number(parsed.ticketAvgFound ?? fallback.avg),
+            max: Number(parsed.ticketMaxFound ?? fallback.max),
+          }
+        : fallback;
+
+      return NextResponse.json({
+        suggestedRevenueTarget: Math.round(parsed.suggestedRevenueTarget as number),
+        workingDaysCount,
+        region,
+        regionalBenchmark:  benchmarkFromSearch,
+        referenceTicket:    Number(parsed.referenceTicket ?? benchmarkFromSearch.avg),
+        historicalTicket:   historicalTicket ? Math.round(historicalTicket) : null,
+        ticketSource:       parsed.ticketSource ?? "Pesquisa web",
+        webSearched:        true,
+        explanation: String(parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket regional encontrado de R$ ${benchmarkFromSearch.avg} você pode atingir esta meta.`),
+      });
+    }
+    // Parsed but invalid — fall through to step 2
+  } catch {
+    // web search model unavailable — fall through
+  }
+
+  // ── Step 2: fallback — use standard model + regional data ─────
+  try {
+    const fallbackPrompt = `Você é um consultor financeiro especializado em barbearias brasileiras.
+
+Dados regionais de referência para ${locationStr} (SEBRAE/Trinks 2023):
+- Ticket médio regional (${region}): R$ ${fallback.min}–${fallback.max} (média: R$ ${fallback.avg})
+${historicalTicket ? `- Ticket histórico desta barbearia: R$ ${historicalTicket.toFixed(2)}` : ""}
+
+Parâmetros da barbearia:
+- Mês: ${month}/${year} | Dias úteis: ${workingDaysCount} | Folgas: ${offDayNames}
+- Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade total: ${totalCapacity}
+${wizardContext ? `- Contexto: "${wizardContext}"` : ""}
+
+Calcule a meta considerando 70% de ocupação e o ticket médio regional como base.
+Responda APENAS em JSON:
+{"suggestedRevenueTarget":<inteiro>,"referenceTicket":<inteiro>,"explanation":"<2 frases>"}`;
+
     const completion = await client.chat.completions.create({
       model:           MODEL,
-      max_tokens:      300,
+      max_tokens:      256,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "Você é um consultor financeiro de barbearias. Responda sempre em JSON válido." },
-        { role: "user",   content: prompt },
+        { role: "system", content: "Consultor financeiro de barbearias. Responda em JSON." },
+        { role: "user",   content: fallbackPrompt },
       ],
     });
 
-    const text   = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
     await consumeAiCredit(session.user.barbershopId, "goals_suggest");
 
     return NextResponse.json({
-      suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.70 * referenceTicket),
+      suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.70 * fallback.avg),
       workingDaysCount,
       region,
-      regionalBenchmark: benchmark,
-      referenceTicket,
-      historicalTicket:  hasGoodHistory ? Math.round(historicalTicket!) : null,
-      explanation: parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket médio regional de R$ ${benchmark.avg} você pode atingir esta meta.`,
+      regionalBenchmark: fallback,
+      referenceTicket:   parsed.referenceTicket ?? fallback.avg,
+      historicalTicket:  historicalTicket ? Math.round(historicalTicket) : null,
+      ticketSource:      "SEBRAE / Trinks 2023 (dados regionais)",
+      webSearched:       false,
+      explanation: parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket regional de R$ ${fallback.avg} (${region}), a meta de 70% de ocupação resulta neste valor.`,
     });
   } catch {
-    const suggested = Math.round(totalCapacity * 0.70 * referenceTicket);
+    const suggested = Math.round(totalCapacity * 0.70 * fallback.avg);
     return NextResponse.json({
       suggestedRevenueTarget: suggested,
       workingDaysCount,
       region,
-      regionalBenchmark: benchmark,
-      referenceTicket,
-      historicalTicket:  hasGoodHistory ? Math.round(historicalTicket!) : null,
-      explanation: `Com ${workingDaysCount} dias úteis, ticket médio regional de R$ ${benchmark.avg} (${region}) e 70% de ocupação, a meta sugerida é R$ ${suggested.toLocaleString("pt-BR")}.`,
+      regionalBenchmark: fallback,
+      referenceTicket:   fallback.avg,
+      historicalTicket:  historicalTicket ? Math.round(historicalTicket) : null,
+      ticketSource:      "SEBRAE / Trinks 2023 (dados regionais)",
+      webSearched:       false,
+      explanation: `Com ${workingDaysCount} dias úteis, ticket médio de R$ ${fallback.avg} (${region}) e 70% de ocupação, a meta estimada é R$ ${suggested.toLocaleString("pt-BR")}.`,
     });
   }
 }
