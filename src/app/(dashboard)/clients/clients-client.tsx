@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, relativeTime, getInitials } from "@/lib/utils";
-import { Users, Star, Clock, Plus, Pencil, Loader2, Trash2 } from "lucide-react";
+import { Users, Star, Clock, Plus, Pencil, Loader2, Trash2, Download } from "lucide-react";
 import { CustomerDrawer, type CustomerRow } from "./customer-drawer";
+import { ImportContactsModal } from "./import-contacts-modal";
 
 const STATUS_LABEL   = { ACTIVE: "Ativo", INACTIVE: "Inativo", VIP: "VIP", BLOCKED: "Bloqueado" };
 const STATUS_VARIANT = { ACTIVE: "success", INACTIVE: "warning", VIP: "default", BLOCKED: "destructive" } as const;
@@ -44,9 +45,10 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
   const [vipCount, setVipCount]       = useState(initialVipCount);
   const [togglingVip, setTogglingVip] = useState<string | null>(null);
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
-  const [drawerMode, setDrawerMode]   = useState<"create" | "edit">("create");
-  const [drawerOpen, setDrawerOpen]   = useState(false);
-  const [editTarget, setEditTarget]   = useState<CustomerRow | null>(null);
+  const [drawerMode, setDrawerMode]     = useState<"create" | "edit">("create");
+  const [drawerOpen, setDrawerOpen]     = useState(false);
+  const [editTarget, setEditTarget]     = useState<CustomerRow | null>(null);
+  const [importOpen, setImportOpen]     = useState(false);
 
   const skip = (page - 1) * 100;
 
@@ -141,6 +143,9 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
             className="w-full max-w-sm rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </form>
+        <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="flex items-center gap-1.5">
+          <Download className="h-3.5 w-3.5" /> Importar
+        </Button>
         <Button size="sm" onClick={openCreate} className="flex items-center gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Novo cliente
         </Button>
@@ -340,6 +345,13 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSaved={handleSaved}
+      />
+      <ImportContactsModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={(count) => {
+          if (count > 0) window.location.reload();
+        }}
       />
     </div>
   );
