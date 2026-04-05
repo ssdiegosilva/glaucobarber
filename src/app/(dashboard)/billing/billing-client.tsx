@@ -353,9 +353,15 @@ export function BillingClient({
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Zap className="h-3 w-3 text-purple-400" />
-                    <span>Créditos comprados</span>
+                    <span>Comprados</span>
                   </div>
                   <span className="text-purple-400 font-semibold">{aiCreditsRemaining} disponíveis</span>
+                </div>
+                <div className="h-2 rounded-full bg-surface-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-purple-500 transition-all"
+                    style={{ width: `${Math.min(100, Math.round(((aiCreditsPurchased - aiCreditsRemaining) / Math.max(1, aiCreditsPurchased)) * 100))}%` }}
+                  />
                 </div>
                 <p className="text-[11px] text-muted-foreground">Não expiram — ativados automaticamente quando o trial esgotar</p>
               </div>
