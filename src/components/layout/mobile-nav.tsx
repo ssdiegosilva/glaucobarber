@@ -58,10 +58,9 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
       const res = await fetch("/api/ai/usage");
       if (!res.ok) return;
       const data = await res.json();
-      const isTrial = data.isTrialing ?? false;
-      setTrialing(isTrial);
-      setAiUsed(isTrial ? 0 : data.used);
-      setAiTotal(isTrial ? 1 : data.limit + data.credits);
+      setTrialing(data.isTrialing ?? false);
+      setAiUsed(data.used);
+      setAiTotal(data.limit);
     } catch {}
   }, []);
 
@@ -92,9 +91,9 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
     router.refresh();
   }
 
-  const pct       = trialing ? 0 : Math.min(1, aiUsed / Math.max(1, aiTotal));
-  const isLow     = !trialing && pct >= 0.8;
-  const isOut     = !trialing && pct >= 1;
+  const pct       = Math.min(1, aiUsed / Math.max(1, aiTotal));
+  const isLow     = pct >= 0.8;
+  const isOut     = pct >= 1;
   const ringColor = isOut ? "#ef4444" : isLow ? "#f59e0b" : "#C9A84C";
   const offset    = CIRC * (1 - pct);
   const unread    = notifs.length;
@@ -195,17 +194,12 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
               >
                 <svg className="absolute inset-0 -rotate-90" viewBox="0 0 32 32" aria-hidden="true">
                   <circle cx="16" cy="16" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
-                  {trialing ? (
-                    <circle cx="16" cy="16" r={R} fill="none" stroke="#C9A84C" strokeWidth="2"
-                      strokeDasharray={`${CIRC * 0.75} ${CIRC * 0.25}`} />
-                  ) : (
-                    <circle cx="16" cy="16" r={R} fill="none" stroke={ringColor} strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeDasharray={CIRC}
-                      strokeDashoffset={offset}
-                      style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
-                    />
-                  )}
+                  <circle cx="16" cy="16" r={R} fill="none" stroke={ringColor} strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray={CIRC}
+                    strokeDashoffset={offset}
+                    style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
+                  />
                 </svg>
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-500/20 border border-gold-500/30 text-[10px] font-bold text-gold-400 select-none">
                   {getInitials(userName)}
