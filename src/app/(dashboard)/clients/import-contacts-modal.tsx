@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Smartphone, Upload, Check, X, UserPlus } from "lucide-react";
+import { Loader2, Smartphone, Upload, Check, X, UserPlus, FileText } from "lucide-react";
 
 interface ContactPreview {
   name: string;
@@ -27,19 +27,33 @@ function parseCSV(text: string): ContactPreview[] {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   if (lines.length === 0) return [];
 
-  // Detect if first row is header
   const first = lines[0].toLowerCase();
   const hasHeader = first.includes("nome") || first.includes("name") || first.includes("telefone") || first.includes("phone");
   const dataLines = hasHeader ? lines.slice(1) : lines;
 
   return dataLines
     .map((line) => {
-      // Handle quoted CSV values
       const cols = line.split(/,|;/).map((v) => v.trim().replace(/^"|"$/g, ""));
       const name  = cols[0] ?? "";
       const phone = cols[1] || null;
       const email = cols[2] || null;
       return { name, phone, email, selected: true };
+    })
+    .filter((c) => c.name.length > 0);
+}
+
+function parseVCard(text: string): ContactPreview[] {
+  const cards = text.split(/BEGIN:VCARD/i).slice(1);
+  return cards
+    .map((card) => {
+      const get = (key: RegExp) => {
+        const m = card.match(key);
+        return m ? m[1].replace(/\\n/g, " ").replace(/\\,/g, ",").trim() : null;
+      };
+      const name  = get(/^FN[^:]*:(.+)$/m) ?? get(/^N[^:]*:([^;]+)/m) ?? "";
+      const phone = get(/^TEL[^:]*:(.+)$/m);
+      const email = get(/^EMAIL[^:]*:(.+)$/m);
+      return { name, phone: phone || null, email: email || null, selected: true };
     })
     .filter((c) => c.name.length > 0);
 }
@@ -50,7 +64,8 @@ export function ImportContactsModal({ open, onClose, onImported }: Props) {
   const [loading, setLoading]     = useState(false);
   const [result, setResult]       = useState<{ imported: number; skipped: number } | null>(null);
   const [error, setError]         = useState<string | null>(null);
-  const fileRef                   = useRef<HTMLInputElement>(null);
+  const csvRef                    = useRef<HTMLInputElement>(null);
+  const vcfRef                    = useRef<HTMLInputElement>(null);
 
   function reset() {
     setStep("choose");
@@ -94,13 +109,13 @@ export function ImportContactsModal({ open, onClose, onImported }: Props) {
     }
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, format: "csv" | "vcf") {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      const parsed = parseCSV(text);
+      const parsed = format === "vcf" ? parseVCard(text) : parseCSV(text);
       if (parsed.length === 0) {
         setError("Nenhum contato encontrado no arquivo. Verifique o formato.");
         return;
@@ -110,7 +125,6 @@ export function ImportContactsModal({ open, onClose, onImported }: Props) {
       setStep("preview");
     };
     reader.readAsText(file, "UTF-8");
-    // Reset so same file can be re-uploaded
     e.target.value = "";
   }
 
@@ -185,13 +199,36 @@ export function ImportContactsModal({ open, onClose, onImported }: Props) {
                   </div>
                   <div>
                     <p className="font-medium text-foreground text-sm">Agenda do celular</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Selecione contatos direto do seu dispositivo</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Selecione contatos direto do dispositivo (Android)</p>
                   </div>
                 </button>
               )}
 
+              {/* vCard — iPhone */}
               <button
-                onClick={() => fileRef.current?.click()}
+                onClick={() => vcfRef.current?.click()}
+                disabled={loading}
+                className="w-full flex items-center gap-4 rounded-xl border border-border bg-surface-800 hover:border-gold-500/40 hover:bg-surface-700 px-4 py-4 text-left transition-colors group"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-500/10 border border-gold-500/20 group-hover:bg-gold-500/20 shrink-0">
+                  <FileText className="h-5 w-5 text-gold-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground text-sm">vCard (.vcf) — iPhone</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Exporte contatos no app Contatos do iOS e importe aqui</p>
+                </div>
+              </button>
+              <input
+                ref={vcfRef}
+                type="file"
+                accept=".vcf"
+                className="hidden"
+                onChange={(e) => handleFileChange(e, "vcf")}
+              />
+
+              {/* CSV */}
+              <button
+                onClick={() => csvRef.current?.click()}
                 disabled={loading}
                 className="w-full flex items-center gap-4 rounded-xl border border-border bg-surface-800 hover:border-gold-500/40 hover:bg-surface-700 px-4 py-4 text-left transition-colors group"
               >
@@ -204,18 +241,17 @@ export function ImportContactsModal({ open, onClose, onImported }: Props) {
                 </div>
               </button>
               <input
-                ref={fileRef}
+                ref={csvRef}
                 type="file"
                 accept=".csv,.txt"
                 className="hidden"
-                onChange={handleFileChange}
+                onChange={(e) => handleFileChange(e, "csv")}
               />
 
               <div className="rounded-lg bg-surface-800/50 border border-border px-4 py-3 mt-2">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">Formato CSV:</strong> uma linha por cliente.<br />
-                  Colunas: <code className="text-gold-400">nome, telefone, email</code> (email opcional).<br />
-                  Ex: <code className="text-muted-foreground/70">João Silva, 11999990000, joao@email.com</code>
+                  <strong className="text-foreground">iPhone:</strong> Contatos → selecionar → Compartilhar → Exportar vCard.<br />
+                  <strong className="text-foreground">CSV:</strong> nome, telefone, email (uma linha por cliente).
                 </p>
               </div>
             </div>

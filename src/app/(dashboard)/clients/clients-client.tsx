@@ -38,9 +38,10 @@ interface Props {
   vipCount:       number;
   inactiveCount:  number;
   vipFilter?:     boolean;
+  inactiveFilter?: boolean;
 }
 
-export function ClientsClient({ customers: initial, total, page, totalPages, q, vipCount: initialVipCount, inactiveCount, vipFilter = false }: Props) {
+export function ClientsClient({ customers: initial, total, page, totalPages, q, vipCount: initialVipCount, inactiveCount, vipFilter = false, inactiveFilter = false }: Props) {
   const [customers, setCustomers]     = useState(initial);
   const [vipCount, setVipCount]       = useState(initialVipCount);
   const [togglingVip, setTogglingVip] = useState<string | null>(null);
@@ -121,7 +122,13 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
     <div className="space-y-6">
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard icon={<Users className="h-4 w-4" />} label="Total"    value={total} />
+        <StatCard
+          icon={<Users className="h-4 w-4" />}
+          label="Total"
+          value={total}
+          href={(vipFilter || inactiveFilter) ? `?${q ? `q=${q}` : ""}` : undefined}
+          active={!vipFilter && !inactiveFilter}
+        />
         <StatCard
           icon={<Star className="h-4 w-4" />}
           label="VIP"
@@ -130,7 +137,14 @@ export function ClientsClient({ customers: initial, total, page, totalPages, q, 
           active={vipFilter}
           valueClass={vipFilter ? "text-yellow-400" : "text-foreground"}
         />
-        <StatCard icon={<Clock className="h-4 w-4" />} label="Inativos" value={inactiveCount} valueClass="text-yellow-400" />
+        <StatCard
+          icon={<Clock className="h-4 w-4" />}
+          label="Inativos"
+          value={inactiveCount}
+          href={inactiveFilter ? `?${q ? `q=${q}` : ""}` : `?inactive=1${q ? `&q=${q}` : ""}`}
+          active={inactiveFilter}
+          valueClass={inactiveFilter ? "text-yellow-400" : "text-yellow-400"}
+        />
       </div>
 
       {/* Search + New */}
@@ -368,7 +382,6 @@ function StatCard({ icon, label, value, valueClass = "text-foreground", href, ac
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className={`text-xl font-bold tabular-nums ${valueClass}`}>{value}</p>
-        {active && <p className="text-[10px] text-yellow-500/70 mt-0.5">Filtro ativo · clique para limpar</p>}
       </div>
     </div>
   );

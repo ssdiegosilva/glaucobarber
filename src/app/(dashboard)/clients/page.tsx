@@ -9,20 +9,22 @@ const PAGE_SIZE = 100;
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; vip?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; vip?: string; inactive?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/onboarding");
 
-  const { page: pageParam, q, vip } = await searchParams;
-  const vipFilter = vip === "1";
+  const { page: pageParam, q, vip, inactive } = await searchParams;
+  const vipFilter      = vip === "1";
+  const inactiveFilter = inactive === "1";
   const page  = Math.max(1, parseInt(pageParam ?? "1"));
   const skip  = (page - 1) * PAGE_SIZE;
   const where = {
     barbershopId: session.user.barbershopId,
     deletedAt:    null,
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
-    ...(vipFilter ? { status: "VIP" as const } : {}),
+    ...(vipFilter      ? { status: "VIP"      as const } : {}),
+    ...(inactiveFilter ? { status: "INACTIVE" as const } : {}),
   };
 
   const [customers, total, vipCount, inactiveCount] = await Promise.all([
@@ -53,7 +55,7 @@ export default async function ClientsPage({
       />
       <div className="p-6">
         <ClientsClient
-          key={`${vipFilter ? "vip" : "all"}-${q ?? ""}-${page}`}
+          key={`${vipFilter ? "vip" : inactiveFilter ? "inactive" : "all"}-${q ?? ""}-${page}`}
           customers={customers.map((c) => ({
             id:             c.id,
             name:           c.name,
@@ -75,6 +77,7 @@ export default async function ClientsPage({
           vipCount={vipCount}
           inactiveCount={inactiveCount}
           vipFilter={vipFilter}
+          inactiveFilter={inactiveFilter}
         />
       </div>
     </div>
