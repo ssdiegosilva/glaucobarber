@@ -187,23 +187,17 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
 
             {/* Balde 3: Comprados avulso */}
             {aiCredits > 0 && (
-              <div className="space-y-1.5 border-t border-border/40 pt-2">
-                <div className="flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Zap className="h-3 w-3 text-purple-400" />
-                    <span>Comprados</span>
+              <div className="flex items-start gap-2.5 border-t border-border/40 pt-2">
+                <Zap className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">Comprados</span>
+                    <span className="text-purple-400 font-semibold text-[11px]">{aiCredits} disponíveis</span>
                   </div>
-                  <span className="text-purple-400 font-semibold">{aiCredits} disponíveis</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {aiTrialing ? "Ativados quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
+                  </p>
                 </div>
-                <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-purple-500 transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.round((aiCredits / 60) * 100))}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {aiTrialing ? "Ativados automaticamente quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
-                </p>
               </div>
             )}
 

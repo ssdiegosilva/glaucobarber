@@ -72,8 +72,8 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
       const data = await res.json();
       const isTrialing = data.isTrialing ?? false;
       setAiTrialing(isTrialing);
-      setAiUsed(isTrialing ? 0 : data.used);
-      setAiTotal(isTrialing ? 1 : data.limit + data.credits);
+      setAiUsed(data.used);
+      setAiTotal(data.limit);
     } catch {}
   }, []);
 
@@ -105,10 +105,10 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
   }
 
   const unread    = notifs.length;
-  const pct       = aiTrialing ? 0 : Math.min(1, aiUsed / Math.max(1, aiTotal));
-  const isLow     = !aiTrialing && pct >= 0.8;
-  const isOut     = !aiTrialing && pct >= 1;
-  const ringColor = isOut ? "#ef4444" : isLow ? "#f59e0b" : "#C9A84C";
+  const pct        = Math.min(1, aiUsed / Math.max(1, aiTotal));
+  const isLow      = pct >= 0.8;
+  const isOut      = pct >= 1;
+  const ringColor  = isOut ? "#ef4444" : isLow ? "#f59e0b" : "#C9A84C";
   const ringOffset = RING_CIRCUMFERENCE * (1 - pct);
 
   return (
@@ -219,28 +219,16 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
             >
               <svg className="absolute inset-0 -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
                 <circle cx="20" cy="20" r={RING_R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2.5" />
-                {!aiTrialing && (
-                  <circle
-                    cx="20" cy="20" r={RING_R}
-                    fill="none"
-                    stroke={ringColor}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeDasharray={RING_CIRCUMFERENCE}
-                    strokeDashoffset={ringOffset}
-                    style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
-                  />
-                )}
-                {aiTrialing && (
-                  <circle
-                    cx="20" cy="20" r={RING_R}
-                    fill="none"
-                    stroke="#C9A84C"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeDasharray={`${RING_CIRCUMFERENCE * 0.75} ${RING_CIRCUMFERENCE * 0.25}`}
-                  />
-                )}
+                <circle
+                  cx="20" cy="20" r={RING_R}
+                  fill="none"
+                  stroke={ringColor}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray={RING_CIRCUMFERENCE}
+                  strokeDashoffset={ringOffset}
+                  style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
+                />
               </svg>
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-500/20 border border-gold-500/30 text-[11px] font-bold text-gold-400 select-none">
                 {getInitials(userName)}

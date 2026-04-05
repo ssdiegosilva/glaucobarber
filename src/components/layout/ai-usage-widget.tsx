@@ -196,24 +196,28 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
             )}
 
             {/* Bucket 3: Comprados avulso */}
-            {(!isTrialing || credits > 0) && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <ShoppingBag className="h-3.5 w-3.5 text-purple-400" />
-                    <span className="text-xs font-medium text-foreground">Comprados</span>
+            {credits > 0 ? (
+              <div className="flex items-start gap-2.5">
+                <ShoppingBag className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">Comprados</span>
+                    <span className="text-purple-400 font-semibold text-[11px]">{credits} disponíveis</span>
                   </div>
-                  <span className={`text-[11px] font-medium ${credits > 0 ? "text-purple-400" : "text-muted-foreground"}`}>
-                    {credits > 0 ? `${credits} disponíveis` : "Nenhum"}
-                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {isTrialing ? "Ativados quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
+                  </p>
                 </div>
+              </div>
+            ) : !isTrialing ? (
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <p className="text-[10px] text-muted-foreground">
-                  {credits > 0
-                    ? "Consumidos depois que o plano mensal esgotar."
-                    : <>Sem créditos avulsos. <Link href="/billing" onClick={() => setOpen(false)} className="text-purple-400 hover:underline">Comprar →</Link></>}
+                  Sem créditos avulsos.{" "}
+                  <Link href="/billing" onClick={() => setOpen(false)} className="text-purple-400 hover:underline">Comprar →</Link>
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* History */}
