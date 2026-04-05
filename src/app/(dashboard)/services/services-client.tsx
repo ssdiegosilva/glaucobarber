@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
 import {
   Scissors, Pencil, Check, X, Loader2, Sparkles, TrendingUp,
-  ChevronDown, ChevronUp, Plus, Lightbulb, MapPin, Navigation,
+  ChevronDown, ChevronUp, Plus, Lightbulb, MapPin, Navigation, Globe, Star,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -35,12 +35,13 @@ interface Opportunity {
 }
 
 interface PriceRecommendation {
-  suggestedPrice: number;
-  minPrice:       number;
-  maxPrice:       number;
-  marketPosition: string;
-  rationale:      string;
-  location:       string;
+  isProprietaryService?: boolean;
+  suggestedPrice:        number;
+  minPrice:              number;
+  maxPrice:              number;
+  marketPosition:        string;
+  rationale:             string;
+  location:              string;
 }
 
 interface BarbershopLocation {
@@ -528,8 +529,8 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
             >
               {generatingOpps
                 ? <Loader2 className="h-3 w-3 animate-spin" />
-                : <Sparkles className="h-3 w-3" />}
-              {generatingOpps ? "Consultando IA..." : "Descobrir oportunidades"}
+                : <Globe className="h-3 w-3" />}
+              {generatingOpps ? "Pesquisando na web..." : "Descobrir oportunidades"}
             </Button>
             {hasLocation ? (
               <button
@@ -749,13 +750,40 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                         ? <Loader2 className="h-3 w-3 animate-spin" />
                         : rec
                           ? (isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)
-                          : <Sparkles className="h-3 w-3" />}
+                          : <Globe className="h-3 w-3" />}
                       {rec
-                        ? (isExpanded ? "Ocultar sugestão" : "Ver sugestão")
-                        : (loadingAI === s.id ? "Consultando IA..." : "Sugerir preço com IA")}
+                        ? (isExpanded ? "Ocultar análise" : "Ver análise")
+                        : (loadingAI === s.id ? "Pesquisando na web..." : "Sugerir preço com IA")}
                     </button>
 
                     {rec && isExpanded && (() => {
+                      if (rec.isProprietaryService) {
+                        return (
+                          <div className="mt-2 rounded-lg border border-purple-500/20 bg-purple-500/8 p-3 space-y-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <Star className="h-3.5 w-3.5 text-purple-400" />
+                              <span className="text-xs font-semibold text-purple-300">Serviço exclusivo</span>
+                              <span className="ml-auto text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full">Sem benchmark</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">{rec.rationale}</p>
+                            <p className="text-[10px] text-purple-300/70">Você pode definir o preço que melhor reflete o valor percebido pelo seu cliente.</p>
+                            <div className="flex gap-2 pt-0.5">
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs flex-1 bg-gold-500 hover:bg-gold-400 text-black"
+                                onClick={() => startEdit(s)}
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />Definir preço
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                                onClick={() => { setRecommendations((prev) => { const n = { ...prev }; delete n[s.id]; return n; }); setExpandedRec(null); }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       const chosen = selectedPrices[s.id] ?? rec.suggestedPrice;
                       const step   = 1;
                       return (
@@ -767,8 +795,8 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                           </div>
                           {rec.location && (
                             <div className="flex items-center gap-1 text-[10px] text-purple-300/70">
-                              <MapPin className="h-2.5 w-2.5" />
-                              Baseado em barbearias em <span className="font-semibold text-purple-300 ml-0.5">{rec.location}</span>
+                              <Globe className="h-2.5 w-2.5" />
+                              Pesquisado em barbearias de <span className="font-semibold text-purple-300 ml-0.5">{rec.location}</span>
                             </div>
                           )}
                           <p className="text-[11px] text-muted-foreground leading-relaxed">{rec.rationale}</p>

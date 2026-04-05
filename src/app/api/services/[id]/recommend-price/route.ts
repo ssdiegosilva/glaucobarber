@@ -29,7 +29,7 @@ export async function POST(
   const [service, barbershop] = await Promise.all([
     prisma.service.findFirst({
       where:  { id, barbershopId: session.user.barbershopId },
-      select: { id: true, name: true, category: true, price: true, durationMin: true },
+      select: { id: true, name: true, description: true, category: true, price: true, durationMin: true },
     }),
     prisma.barbershop.findUnique({
       where:  { id: session.user.barbershopId },
@@ -40,61 +40,75 @@ export async function POST(
   if (!service) return NextResponse.json({ error: "Serviço não encontrado" }, { status: 404 });
 
   const categoryPt = CATEGORY_PT[service.category] ?? "serviço";
-  // Build location from most specific to least: address → city/state → Brasil
   const locationParts = [barbershop?.address, barbershop?.city, barbershop?.state].filter(Boolean);
   const location      = locationParts.join(", ") || "Brasil";
-  // Neighborhood/city display for UI
   const displayLocation = [barbershop?.city, barbershop?.state].filter(Boolean).join(", ") || "Brasil";
+  const descriptionLine = service.description ? `\n- Descrição: ${service.description}` : "";
 
-  const prompt = `Você é um especialista em precificação para barbearias no Brasil.
+  const prompt = `Você é um especialista em precificação para barbearias no Brasil. Use busca na web para encontrar preços reais e atuais.
 
 Contexto:
 - Barbearia: ${barbershop?.name ?? "não informado"}
 - Endereço completo: ${location}
-- Serviço: ${service.name} (categoria: ${categoryPt})
+- Serviço: ${service.name} (categoria: ${categoryPt})${descriptionLine}
 - Duração: ${service.durationMin} minutos
 - Preço atual: R$ ${Number(service.price).toFixed(2)}
 
-Pesquise e analise o mercado de barbearias especificamente em ${displayLocation} e sugira um preço ideal para este serviço.
-Use o endereço completo para considerar o perfil socioeconômico da região e a concorrência local.
-Considere:
-1. Faixa de preço praticada por barbearias na região de ${displayLocation}
-2. Posicionamento de mercado (entrada, médio, premium) neste bairro/cidade
-3. Custo de tempo (${service.durationMin} min)
+PASSO 1 — AVALIAR SE É SERVIÇO COM BENCHMARK:
+Analise o nome e a descrição do serviço. Determine se é um serviço comum de barbearia (corte, barba, combo, hidratação, etc.) que tem preços praticados amplamente no mercado, ou se é um serviço exclusivo/inventado pela barbearia (ex: "Ritual do Guerreiro Premium", "Experiência Gold VIP") sem dados de mercado comparáveis.
 
-Responda EXCLUSIVAMENTE em JSON com este formato (sem markdown):
+SE for serviço exclusivo sem benchmark, responda EXCLUSIVAMENTE em JSON:
 {
+  "isProprietaryService": true,
+  "rationale": "Explique em 2 frases por que este serviço não tem benchmark de mercado e que o dono pode precificá-lo livremente baseado no valor percebido pelo cliente."
+}
+
+SE for serviço com benchmark, pesquise preços atuais em ${displayLocation} e responda EXCLUSIVAMENTE em JSON:
+{
+  "isProprietaryService": false,
   "suggestedPrice": 55.00,
   "minPrice": 40.00,
   "maxPrice": 80.00,
   "marketPosition": "médio",
-  "rationale": "Explicação em 2-3 frases mencionando explicitamente ${displayLocation} e os preços praticados na região."
-}`;
+  "rationale": "Explique em 2-3 frases os preços encontrados em ${displayLocation}, mencionando o perfil da região e a faixa de mercado."
+}
+
+Responda SOMENTE com o JSON, sem markdown, sem explicações adicionais.`;
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const searchModel = process.env.AI_SEARCH_MODEL ?? "gpt-4o-search-preview";
     const completion = await openai.chat.completions.create({
-      model:       process.env.AI_MODEL ?? "gpt-4o-mini",
-      messages:    [{ role: "user", content: prompt }],
-      temperature: 0.3,
-      max_tokens:  300,
+      model:    searchModel,
+      messages: [{ role: "user", content: prompt }],
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    // Strip possible ```json fences
     const cleaned = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
     const parsed  = JSON.parse(cleaned);
 
     await consumeAiCredit(session.user.barbershopId, "price_recommend");
+
+    if (parsed.isProprietaryService) {
+      return NextResponse.json({
+        serviceId:            service.id,
+        currentPrice:         Number(service.price),
+        isProprietaryService: true,
+        rationale:            String(parsed.rationale),
+        location:             displayLocation,
+      });
+    }
+
     return NextResponse.json({
-      serviceId:       service.id,
-      currentPrice:    Number(service.price),
-      suggestedPrice:  Number(parsed.suggestedPrice),
-      minPrice:        Number(parsed.minPrice),
-      maxPrice:        Number(parsed.maxPrice),
-      marketPosition:  String(parsed.marketPosition),
-      rationale:       String(parsed.rationale),
-      location:        displayLocation,
+      serviceId:            service.id,
+      currentPrice:         Number(service.price),
+      isProprietaryService: false,
+      suggestedPrice:       Number(parsed.suggestedPrice),
+      minPrice:             Number(parsed.minPrice),
+      maxPrice:             Number(parsed.maxPrice),
+      marketPosition:       String(parsed.marketPosition),
+      rationale:            String(parsed.rationale),
+      location:             displayLocation,
     });
   } catch (err) {
     console.error("[recommend-price]", err);

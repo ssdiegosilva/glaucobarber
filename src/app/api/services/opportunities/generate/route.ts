@@ -39,13 +39,15 @@ export async function POST() {
   const location = locationParts.join(", ");
   const existingList = existingServices.map((s) => s.name).join(", ");
 
-  const prompt = `Você é especialista em mercado de barbearias no Brasil.
+  const prompt = `Você é especialista em mercado de barbearias no Brasil. Use busca na web para encontrar tendências e serviços populares atuais.
 
 Barbearia: ${barbershop?.name ?? "sem nome"}
 Localização: ${location}
 Serviços que já oferece: ${existingList || "nenhum cadastrado"}
 
-Liste 3 serviços que são POPULARES em barbearias de ${location} e que esta barbearia ainda NÃO oferece.
+Pesquise na internet quais serviços estão em alta em barbearias de ${location} atualmente.
+Liste 3 serviços POPULARES e com demanda real em barbearias de ${location} que esta barbearia ainda NÃO oferece.
+Use dados reais do mercado local para sugerir preços precisos e relevantes.
 Seja específico, realista e relevante para o mercado local. Não repita nenhum serviço já existente (nem variação do mesmo).
 
 Responda EXCLUSIVAMENTE em JSON sem markdown:
@@ -55,17 +57,16 @@ Responda EXCLUSIVAMENTE em JSON sem markdown:
     "category": "HAIRCUT|BEARD|COMBO|TREATMENT|OTHER",
     "description": "Descrição curta do serviço (1 frase)",
     "suggestedPrice": 50.00,
-    "rationale": "Por que este serviço é procurado em ${location} e agrega valor (2 frases)."
+    "rationale": "Por que este serviço é procurado em ${location} atualmente e qual o preço praticado no mercado local (2 frases)."
   }
 ]`;
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const searchModel = process.env.AI_SEARCH_MODEL ?? "gpt-4o-search-preview";
     const completion = await openai.chat.completions.create({
-      model:       process.env.AI_MODEL ?? "gpt-4o-mini",
-      messages:    [{ role: "user", content: prompt }],
-      temperature: 0.4,
-      max_tokens:  600,
+      model:    searchModel,
+      messages: [{ role: "user", content: prompt }],
     });
 
     const raw     = completion.choices[0]?.message?.content?.trim() ?? "[]";

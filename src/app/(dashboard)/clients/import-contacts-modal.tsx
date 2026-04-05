@@ -70,18 +70,20 @@ export function ImportContactsModal({ open, onClose, onImported }: Props) {
     setLoading(true);
     setError(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const props = ["name", "tel", "email"];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const selected: any[] = await (navigator as any).contacts.select(props, { multiple: true });
+      const contactsApi = (navigator as unknown as { contacts: { select: (p: string[], o: object) => Promise<unknown[]> } }).contacts;
+      const selected: unknown[] = await contactsApi.select(props, { multiple: true });
       if (!selected || selected.length === 0) { setLoading(false); return; }
 
-      const parsed: ContactPreview[] = selected.map((c) => ({
-        name:     Array.isArray(c.name)  ? c.name[0]  : c.name  ?? "",
-        phone:    Array.isArray(c.tel)   ? c.tel[0]   : c.tel   ?? null,
-        email:    Array.isArray(c.email) ? c.email[0] : c.email ?? null,
-        selected: true,
-      })).filter((c) => c.name.length > 0);
+      const parsed: ContactPreview[] = selected.map((c) => {
+        const contact = c as Record<string, unknown>;
+        return {
+          name:     Array.isArray(contact.name)  ? String(contact.name[0] ?? "")  : String(contact.name  ?? ""),
+          phone:    Array.isArray(contact.tel)   ? String(contact.tel[0]  ?? "")  : contact.tel  ? String(contact.tel)  : null,
+          email:    Array.isArray(contact.email) ? String(contact.email[0] ?? "") : contact.email ? String(contact.email) : null,
+          selected: true,
+        };
+      }).filter((c) => c.name.length > 0);
 
       setContacts(parsed);
       setStep("preview");
