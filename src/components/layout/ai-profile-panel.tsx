@@ -54,11 +54,10 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
       const res = await fetch("/api/ai/usage");
       if (!res.ok) return;
       const data = await res.json();
-      const isTrialing = data.isTrialing ?? false;
-      setAiTrialing(isTrialing);
-      setAiUsed(isTrialing ? 0 : data.used);
-      setAiTotal(isTrialing ? 1 : data.limit + data.credits);
-      setAiCredits(isTrialing ? 0 : data.credits);
+      setAiTrialing(data.isTrialing ?? false);
+      setAiUsed(data.used);
+      setAiTotal(data.limit);
+      setAiCredits(data.credits);
     } catch {}
   }, []);
 
@@ -145,90 +144,99 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
         <div className="flex-1 overflow-y-auto">
 
           {/* Usage card */}
-          <div className="px-5 py-4 border-b border-border/60">
-            {aiTrialing ? (
-              <div className="rounded-lg bg-gold-500/8 border border-gold-500/20 px-4 py-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="h-3.5 w-3.5 text-gold-400" />
-                  <span className="text-xs font-semibold text-gold-400">Trial ativo — IA ilimitada</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Aproveite para explorar todas as funcionalidades de IA durante o trial.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
+          <div className="px-5 py-4 border-b border-border/60 space-y-3">
+
+            {/* Balde 1: Trial */}
+            {aiTrialing && (
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">Créditos de IA</span>
+                  <span className="text-xs font-semibold text-gold-400">Trial</span>
+                  <span className="text-[11px] text-muted-foreground">{Math.max(0, aiTotal - aiUsed)} de {aiTotal} restantes</span>
+                </div>
+                <div className="h-2 rounded-full bg-surface-700 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${aiUsed >= aiTotal ? "bg-red-500" : aiUsed / aiTotal >= 0.8 ? "bg-amber-500" : "bg-gold-500"}`}
+                    style={{ width: `${Math.min(100, Math.round((aiUsed / Math.max(1, aiTotal)) * 100))}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">Usado durante o período de trial.</p>
+              </div>
+            )}
+
+            {/* Balde 2: Plano mensal */}
+            {!aiTrialing && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground">Plano mensal</span>
                   <span className={`text-xs font-bold ${textColor}`}>{aiUsed} / {aiTotal}</span>
                 </div>
-
                 <div className="h-2 rounded-full bg-surface-700 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-
                 <div className="flex items-center justify-between text-[11px]">
                   <span className={isOut ? "text-red-400 font-medium" : "text-muted-foreground"}>
-                    {isOut
-                      ? "Limite atingido"
-                      : `${remaining} crédito${remaining !== 1 ? "s" : ""} restante${remaining !== 1 ? "s" : ""}`}
+                    {isOut ? "Limite atingido" : `${remaining} restante${remaining !== 1 ? "s" : ""}`}
                   </span>
                   <span className={textColor}>{pct}%</span>
                 </div>
+              </div>
+            )}
 
-                {aiCredits > 0 && (
-                  <div className="space-y-1.5 border-t border-border/40 pt-2">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Zap className="h-3 w-3 text-purple-400" />
-                        <span>Reserva de créditos</span>
-                      </div>
-                      <span className="text-purple-400 font-semibold">{aiCredits}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-purple-500 transition-all duration-500"
-                        style={{ width: `${Math.min(100, Math.round((aiCredits / 60) * 100))}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">Não expiram — ativados quando o plano mensal acabar</p>
+            {/* Balde 3: Comprados avulso */}
+            {aiCredits > 0 && (
+              <div className="space-y-1.5 border-t border-border/40 pt-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Zap className="h-3 w-3 text-purple-400" />
+                    <span>Comprados</span>
                   </div>
-                )}
+                  <span className="text-purple-400 font-semibold">{aiCredits} disponíveis</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-purple-500 transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.round((aiCredits / 60) * 100))}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {aiTrialing ? "Ativados automaticamente quando o trial esgotar." : "Não expiram — ativados quando o plano mensal acabar."}
+                </p>
+              </div>
+            )}
 
-                <div className="rounded-lg bg-surface-800/60 border border-border/40 px-3 py-2.5 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                    <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
-                    Como os créditos são consumidos
+            {/* Custo por ação (só fora do trial) */}
+            {!aiTrialing && (
+              <div className="rounded-lg bg-surface-800/60 border border-border/40 px-3 py-2.5 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                  <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
+                  Como os créditos são consumidos
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Chat, textos e análises</span>
+                    <span className="text-foreground font-medium">1 crédito</span>
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>Chat, textos e análises</span>
-                      <span className="text-foreground font-medium">1 crédito</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>Imagem de campanha</span>
-                      <span className="text-amber-400 font-semibold">10 créditos</span>
-                    </div>
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Imagem de campanha</span>
+                    <span className="text-amber-400 font-semibold">10 créditos</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {!aiTrialing && (
-              <Button
-                onClick={buyCredits}
-                disabled={buyingCredits}
-                className="mt-3 w-full bg-purple-600 hover:bg-purple-500 text-white text-xs h-8"
-              >
-                {buyingCredits
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <><Zap className="h-3.5 w-3.5 mr-1.5" />Comprar +60 chamadas — R$29</>
-                }
-              </Button>
-            )}
+            <Button
+              onClick={buyCredits}
+              disabled={buyingCredits}
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs h-8"
+            >
+              {buyingCredits
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <><Zap className="h-3.5 w-3.5 mr-1.5" />Comprar +60 chamadas — R$29</>
+              }
+            </Button>
           </div>
 
           {/* History */}
