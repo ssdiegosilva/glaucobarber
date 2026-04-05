@@ -318,7 +318,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: (msg: 
               ) : textTemplates.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border/60 p-6 text-center">
                   <p className="text-xs text-muted-foreground">Nenhum template de texto ativo.</p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-1">Crie templates na aba Templates → Texto manual.</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">Crie templates na aba Templates → Criar um template.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border rounded-lg border border-border overflow-hidden max-h-56 overflow-y-auto">
@@ -1071,10 +1071,10 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
     <div className="px-3 py-3 sm:px-6 sm:py-5 space-y-3">
 
       {/* ── Banner de status do envio automático ─────────────── */}
-      {!whatsappConfigured ? (
+      {hasAutoSend && !whatsappConfigured ? (
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          <span>WhatsApp não configurado — configure nas <a href="/settings" className="underline font-medium">Integrações</a> para ativar o envio.</span>
+          <span>WhatsApp não configurado para envio automático — configure nas <a href="/settings" className="underline font-medium">Integrações</a> para ativar.</span>
         </div>
       ) : !hasAutoSend ? (
         <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">

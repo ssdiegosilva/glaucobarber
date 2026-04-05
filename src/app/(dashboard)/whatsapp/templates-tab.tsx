@@ -255,16 +255,18 @@ export function TemplatesTab({ hasWabaId }: { hasWabaId?: boolean }) {
               ? "bg-gold-500/10 border border-gold-500/40 text-gold-400"
               : "text-muted-foreground hover:text-foreground"
           }`}>
-          ✏️ Texto manual
+          ✏️ Criar um template
         </button>
-        <button onClick={() => setSubTab("meta")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            subTab === "meta"
-              ? "bg-purple-500/10 border border-purple-500/40 text-purple-400"
-              : "text-muted-foreground hover:text-foreground"
-          }`}>
-          🤖 Meta (bot)
-        </button>
+        {hasWabaId && (
+          <button onClick={() => setSubTab("meta")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              subTab === "meta"
+                ? "bg-purple-500/10 border border-purple-500/40 text-purple-400"
+                : "text-muted-foreground hover:text-foreground"
+            }`}>
+            🤖 Meta (bot)
+          </button>
+        )}
       </div>
 
       {/* Header */}
