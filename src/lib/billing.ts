@@ -21,7 +21,7 @@ export const PLAN_LIMITS: Record<
 };
 
 // Limite de segurança do trial (invisível para o usuário)
-export const TRIAL_AI_LIMIT = 300;
+export const TRIAL_AI_LIMIT = 50;
 
 // R$1,00 por atendimento concluído no plano PRO
 export const APPOINTMENT_FEE_CENTS = 100;
