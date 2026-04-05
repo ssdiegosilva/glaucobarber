@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
   Building2, RefreshCw, Save, Pencil, MapPin, Phone, Globe,
-  Share2, Camera, X, Instagram, Download, Star,
+  Camera, X, Instagram,
 } from "lucide-react";
 
 export interface BarbershopData {
@@ -35,42 +35,6 @@ function buildQrUrl(url: string) {
 // ── View mode: shareable card ─────────────────────────────────────────────────
 function CardView({ data, onEdit }: { data: BarbershopData; onEdit: () => void }) {
   const location = [data.address, data.city, data.state].filter(Boolean).join(", ");
-  const cardRef  = useRef<HTMLDivElement>(null);
-  const [sharing, setSharing] = useState(false);
-
-  async function handleShare() {
-    if (!cardRef.current) return;
-    setSharing(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: "#0f0f0f",
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        const file = new File([blob], `${data.slug}-cartao.png`, { type: "image/png" });
-        if (navigator.canShare?.({ files: [file] })) {
-          try { await navigator.share({ files: [file], title: data.name }); } catch { /* cancelled */ }
-        } else {
-          // Fallback: download the image
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = file.name;
-          a.click();
-          URL.revokeObjectURL(url);
-          toast({ title: "Imagem baixada!", description: "Cartão salvo como imagem." });
-        }
-      }, "image/png");
-    } catch {
-      toast({ title: "Erro ao gerar imagem", variant: "destructive" });
-    } finally {
-      setSharing(false);
-    }
-  }
 
   const igUrl = data.instagramUrl?.startsWith("http")
     ? data.instagramUrl
@@ -83,8 +47,7 @@ function CardView({ data, onEdit }: { data: BarbershopData; onEdit: () => void }
       {/* Gold accent bar */}
       <div className="h-1 bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600" />
 
-      {/* Capturable card area */}
-      <div ref={cardRef} className="p-6 bg-gradient-to-br from-surface-900 via-surface-900 to-surface-800">
+      <div className="p-6 bg-gradient-to-br from-surface-900 via-surface-900 to-surface-800">
         <div className="flex items-start gap-4">
           {/* Logo */}
           <div className="shrink-0">
@@ -189,12 +152,7 @@ function CardView({ data, onEdit }: { data: BarbershopData; onEdit: () => void }
         </div>
       </div>
 
-      {/* Action buttons outside the capturable area */}
       <div className="px-6 pb-4 flex gap-2 justify-end">
-        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={handleShare} disabled={sharing}>
-          {sharing ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <><Share2 className="h-3.5 w-3.5" /><Download className="h-3 w-3 -ml-1" /></>}
-          {sharing ? "Gerando..." : "Compartilhar"}
-        </Button>
         <Button size="sm" className="h-8 text-xs gap-1.5" onClick={onEdit}>
           <Pencil className="h-3.5 w-3.5" /> Editar
         </Button>

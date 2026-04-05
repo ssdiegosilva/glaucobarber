@@ -44,6 +44,14 @@ export default async function SettingsPage({
   const integrationConnected = !!integration?.configJson;
   const identityConfigured   = !!(barbershop?.brandStyle?.trim() || barbershop?.campaignReferenceImageUrl?.trim());
 
+  const barbershopComplete = !!(
+    barbershop?.name?.trim() &&
+    barbershop?.phone?.trim() &&
+    barbershop?.address?.trim() &&
+    barbershop?.googleReviewUrl?.trim()
+  );
+  const barbershopPartial = !!barbershop && !barbershopComplete;
+
   return (
     <div className="flex flex-col h-full">
       <Header title="Configurações" userName={session.user.name} />
@@ -56,9 +64,13 @@ export default async function SettingsPage({
           title="Dados da barbearia"
           description="Nome, contato, logo e redes sociais"
           badge={
-            barbershop ? (
+            barbershopComplete ? (
               <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
                 <CheckCircle2 className="h-3 w-3" /> Configurado
+              </span>
+            ) : barbershopPartial ? (
+              <span className="inline-flex items-center gap-1 text-[10px] text-amber-400">
+                <AlertCircle className="h-3 w-3" /> Parcial
               </span>
             ) : undefined
           }
