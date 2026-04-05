@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, Clock, AlertTriangle, Receipt, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, AlertTriangle, Receipt, ChevronDown, ChevronUp, Info } from "lucide-react";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan display config ──────────────────────────────────────────────────────
@@ -143,9 +143,6 @@ export function BillingClient({
     !!stripeCustomerId &&
     (planStatus === "ACTIVE" || planStatus === "TRIALING" || planStatus === "PAST_DUE");
   const canUpgrade = !isManaged;
-  const trialDaysLeft = trialEndsAt
-    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
   const periodEndFormatted = currentPeriodEnd
     ? new Date(currentPeriodEnd).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
     : null;
@@ -227,7 +224,7 @@ export function BillingClient({
             </div>
             {isTrialing ? (
               <>
-                <p className="text-2xl font-bold text-gold-400">Trial gratuito</p>
+                <p className="text-2xl font-bold text-gold-400">Gratuito</p>
                 <p className="text-sm text-muted-foreground">Acesso completo a todos os recursos</p>
               </>
             ) : (
@@ -239,16 +236,11 @@ export function BillingClient({
           </div>
         </div>
 
-        {/* Trial countdown */}
-        {isTrialing && trialEndsAt && (
+        {/* Trial info */}
+        {isTrialing && (
           <div className="flex items-center gap-2 rounded-lg border border-gold-500/20 bg-gold-500/5 px-3 py-2.5">
-            <Clock className="h-4 w-4 text-gold-400 shrink-0" />
-            <div className="text-sm">
-              <span className="text-gold-400 font-medium">
-                {trialDaysLeft === 0 ? "Expira hoje" : `${trialDaysLeft} dia${trialDaysLeft !== 1 ? "s" : ""} restantes`}
-              </span>
-              <span className="text-muted-foreground"> — trial encerra em {new Date(trialEndsAt).toLocaleDateString("pt-BR")}. Após isso, migra para o plano Free.</span>
-            </div>
+            <Sparkles className="h-4 w-4 text-gold-400 shrink-0" />
+            <p className="text-sm text-muted-foreground">Ao esgotar os créditos gratuitos, escolha um plano para continuar usando a IA.</p>
           </div>
         )}
 
