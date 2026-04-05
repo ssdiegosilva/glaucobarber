@@ -288,7 +288,7 @@ export function BillingClient({
             Gerenciar assinatura
           </Button>
         )}
-        {canUpgrade && !isTrialing && (
+        {canUpgrade && (
           <div className="space-y-2 pt-1">
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
