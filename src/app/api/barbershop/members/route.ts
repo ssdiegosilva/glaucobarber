@@ -93,6 +93,13 @@ export async function POST(req: NextRequest) {
   }, { status: 201 });
 }
 
+// Helper: count active OWNERs in a barbershop
+async function countOwners(barbershopId: string): Promise<number> {
+  return prisma.membership.count({
+    where: { barbershopId, role: "OWNER", active: true },
+  });
+}
+
 // PATCH — update member role or active status
 export async function PATCH(req: NextRequest) {
   const session = await auth();
@@ -108,9 +115,67 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Apenas o dono pode editar membros" }, { status: 403 });
   }
 
-  const { membershipId, role, active } = await req.json();
+  const { membershipId, role, active, transferOwnership } = await req.json();
   if (!membershipId) {
     return NextResponse.json({ error: "membershipId é obrigatório" }, { status: 400 });
+  }
+
+  // Transfer ownership: promote target to OWNER, demote caller to BARBER
+  if (transferOwnership === true) {
+    const target = await prisma.membership.findUnique({
+      where: { id: membershipId, barbershopId },
+      select: { id: true, userId: true, role: true },
+    });
+    if (!target) {
+      return NextResponse.json({ error: "Membro não encontrado" }, { status: 404 });
+    }
+
+    await prisma.$transaction([
+      prisma.membership.update({
+        where: { id: target.id },
+        data: { role: "OWNER" },
+      }),
+      prisma.membership.update({
+        where: { userId_barbershopId: { userId: session.user.id, barbershopId } },
+        data: { role: "BARBER" },
+      }),
+    ]);
+
+    return NextResponse.json({ ok: true, transferred: true });
+  }
+
+  // Prevent removing the last OWNER via role change
+  if (role !== undefined && role !== "OWNER") {
+    const target = await prisma.membership.findUnique({
+      where: { id: membershipId, barbershopId },
+      select: { role: true },
+    });
+    if (target?.role === "OWNER") {
+      const ownerCount = await countOwners(barbershopId);
+      if (ownerCount <= 1) {
+        return NextResponse.json(
+          { error: "Não é possível remover o último dono. Transfira a propriedade antes." },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
+  // Prevent deactivating the last OWNER
+  if (active === false) {
+    const target = await prisma.membership.findUnique({
+      where: { id: membershipId, barbershopId },
+      select: { role: true },
+    });
+    if (target?.role === "OWNER") {
+      const ownerCount = await countOwners(barbershopId);
+      if (ownerCount <= 1) {
+        return NextResponse.json(
+          { error: "Não é possível desativar o último dono." },
+          { status: 400 }
+        );
+      }
+    }
   }
 
   const data: Record<string, unknown> = {};
@@ -164,13 +229,25 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "membershipId é obrigatório" }, { status: 400 });
   }
 
-  // Prevent owner from removing themselves via membershipId
   const target = await prisma.membership.findUnique({
     where: { id: membershipId, barbershopId },
-    select: { userId: true },
+    select: { userId: true, role: true },
   });
+
+  // Prevent owner from removing themselves via membershipId
   if (target?.userId === session.user.id) {
     return NextResponse.json({ error: "Você não pode remover a si mesmo" }, { status: 400 });
+  }
+
+  // Prevent removing the last OWNER
+  if (target?.role === "OWNER") {
+    const ownerCount = await countOwners(barbershopId);
+    if (ownerCount <= 1) {
+      return NextResponse.json(
+        { error: "Não é possível remover o último dono. Transfira a propriedade antes." },
+        { status: 400 }
+      );
+    }
   }
 
   await prisma.membership.delete({ where: { id: membershipId, barbershopId } });
