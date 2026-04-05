@@ -216,6 +216,129 @@ function AddressModal({
   );
 }
 
+const CATEGORIES = [
+  { value: "HAIRCUT",   label: "Corte" },
+  { value: "BEARD",     label: "Barba" },
+  { value: "COMBO",     label: "Combo" },
+  { value: "TREATMENT", label: "Tratamento" },
+  { value: "OTHER",     label: "Outro" },
+];
+
+function NewServiceModal({ onSave, onClose }: { onSave: (svc: Service) => void; onClose: () => void }) {
+  const [name, setName]           = useState("");
+  const [category, setCategory]   = useState("HAIRCUT");
+  const [price, setPrice]         = useState("");
+  const [duration, setDuration]   = useState("30");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving]       = useState(false);
+
+  async function handleSave() {
+    if (!name.trim() || !price) return;
+    setSaving(true);
+    try {
+      const res  = await fetch("/api/services", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ name, category, price: Number(price), durationMin: Number(duration), description }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao criar serviço");
+      onSave({ ...data.service, syncedFromTrinks: false });
+      toast({ title: `"${name}" adicionado ao catálogo!` });
+      onClose();
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Scissors className="h-4 w-4 text-gold-400" />
+            <h2 className="font-semibold text-foreground text-sm">Novo serviço</h2>
+          </div>
+          <button onClick={onClose} className="rounded p-1 hover:bg-surface-700 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Nome *</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Corte + Barba"
+              autoFocus
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Categoria</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Duração (min)</label>
+              <input
+                type="number" min="5" step="5" value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Preço (R$) *</label>
+            <input
+              type="number" min="0" step="0.01" value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="Ex: 45.00"
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Descrição (opcional)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descreva brevemente o serviço..."
+              rows={2}
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-border px-5 py-3 flex gap-2 justify-end">
+          <Button variant="ghost" size="sm" className="text-xs" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button
+            size="sm"
+            className="text-xs gap-1 bg-gold-500 hover:bg-gold-400 text-black"
+            onClick={handleSave}
+            disabled={saving || !name.trim() || !price}
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            {saving ? "Salvando..." : "Criar serviço"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ServicesClient({ initialServices, initialOpportunities, hasTrinks, barbershopLocation }: Props) {
   const [services, setServices]                   = useState(initialServices);
   const [opportunities, setOpportunities]         = useState(initialOpportunities);
@@ -235,6 +358,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   const [location, setLocation]                   = useState<BarbershopLocation>(barbershopLocation);
   const [showAddressModal, setShowAddressModal]   = useState(false);
   const [pendingGenerate, setPendingGenerate]     = useState(false);
+  const [showNewServiceModal, setShowNewServiceModal] = useState(false);
 
   function startEdit(svc: Service) {
     setEditingId(svc.id);
@@ -374,6 +498,12 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
           onClose={() => { setShowAddressModal(false); setPendingGenerate(false); }}
         />
       )}
+      {showNewServiceModal && (
+        <NewServiceModal
+          onSave={(svc) => setServices((prev) => [...prev, svc])}
+          onClose={() => setShowNewServiceModal(false)}
+        />
+      )}
 
     <div className="space-y-6">
       {/* ── Opportunity section ────────────────────────────────── */}
@@ -506,11 +636,22 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
 
       {/* ── Existing services ──────────────────────────────────── */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Scissors className="h-4 w-4 text-gold-400" />
-          Catálogo atual
-          <span className="text-xs text-muted-foreground font-normal">({services.length} serviços)</span>
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Scissors className="h-4 w-4 text-gold-400" />
+            Catálogo atual
+            <span className="text-xs text-muted-foreground font-normal">({services.length} serviços)</span>
+          </h3>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setShowNewServiceModal(true)}
+          >
+            <Plus className="h-3 w-3" />
+            Novo serviço
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map((s) => {
