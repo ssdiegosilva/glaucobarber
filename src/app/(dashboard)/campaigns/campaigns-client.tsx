@@ -855,7 +855,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             </p>
           </div>
           <Link
-            href="/settings"
+            href="/settings?section=identity"
             className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-[11px] font-medium text-purple-400 hover:bg-purple-500/20 transition-colors"
           >
             <Sparkles className="h-3 w-3" /> Configurar
@@ -943,19 +943,17 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             </div>
           )}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Button
-                onClick={createCampaign}
-                disabled={!theme}
-                className="text-xs gap-2 font-semibold bg-purple-600 hover:bg-purple-500 text-white"
-              >
-                <Wand2 className="h-3.5 w-3.5" />
-                Gerar campanha com IA
-              </Button>
-              {!instagramConfigured && (
-                <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/integrations" className="underline">configurar</a></p>
-              )}
-            </div>
+            <Button
+              onClick={createCampaign}
+              disabled={!theme}
+              className="text-xs gap-2 font-semibold bg-purple-600 hover:bg-purple-500 text-white"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Gerar campanha com IA
+            </Button>
+            {!instagramConfigured && (
+              <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/settings?section=integrations" className="underline">configurar</a></p>
+            )}
             <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
               <span>💡</span>
               Usa {1 + imageCreditCost} créditos de IA (1 texto + {imageCreditCost} imagem) — pode criar várias ao mesmo tempo

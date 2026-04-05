@@ -196,7 +196,16 @@ function OffDaysPicker({ offDaysOfWeek, setOffDaysOfWeek }: { offDaysOfWeek: num
 // ── AI Wizard ─────────────────────────────────────────────────
 
 type WizardStep = "idle" | "days" | "hours" | "context" | "suggesting" | "review";
-type AiResult = { suggestedRevenueTarget: number; workingDaysCount: number; explanation: string };
+type RegionalBenchmark = { min: number; avg: number; max: number };
+type AiResult = {
+  suggestedRevenueTarget: number;
+  workingDaysCount: number;
+  explanation: string;
+  region?: string;
+  regionalBenchmark?: RegionalBenchmark;
+  referenceTicket?: number;
+  historicalTicket?: number | null;
+};
 
 function AiWizard({
   targetMonth, targetYear,
@@ -265,7 +274,7 @@ function AiWizard({
 
       {step === "hours" && (
         <>
-          <p className="text-sm text-foreground">Qual sua capacidade de atendimento?</p>
+          <p className="text-sm text-foreground">Quantas horas você pretende trabalhar por dia?</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Horas por dia</label>
@@ -278,6 +287,10 @@ function AiWizard({
                 className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Capacidade estimada: <span className="text-foreground font-medium">{Math.round(Number(hours || 8) * Number(apptsPerHour || 2))} atendimentos/dia</span>
+            {" "}· Corte simples ~30 min → 2/h; combo barba ~45–60 min → 1–1,5/h
+          </p>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => setStep("days")}>← Voltar</Button>
             <Button size="sm" onClick={() => setStep("context")} disabled={!hours || !apptsPerHour}>Próximo →</Button>
@@ -308,12 +321,44 @@ function AiWizard({
       {step === "suggesting" && (
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="h-6 w-6 animate-spin text-gold-400" />
-          <p className="text-sm text-muted-foreground">A IA está calculando sua meta ideal...</p>
+          <p className="text-sm text-muted-foreground">Consultando benchmark regional e calculando sua meta...</p>
         </div>
       )}
 
       {step === "review" && suggestion && (
         <>
+          {/* Regional benchmark panel */}
+          {suggestion.region && suggestion.regionalBenchmark && (
+            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-1.5">
+              <p className="text-[11px] font-semibold text-blue-400 uppercase tracking-wide flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Referência de mercado — Região {suggestion.region}
+              </p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Ticket mín.</p>
+                  <p className="text-xs font-semibold text-foreground">{formatBRL(suggestion.regionalBenchmark.min)}</p>
+                </div>
+                <div className="border-x border-blue-500/20">
+                  <p className="text-[10px] text-muted-foreground">Ticket médio</p>
+                  <p className="text-xs font-semibold text-blue-300">{formatBRL(suggestion.regionalBenchmark.avg)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Ticket máx.</p>
+                  <p className="text-xs font-semibold text-foreground">{formatBRL(suggestion.regionalBenchmark.max)}</p>
+                </div>
+              </div>
+              {suggestion.historicalTicket !== null && suggestion.historicalTicket !== undefined && (
+                <p className="text-[10px] text-muted-foreground">
+                  Seu histórico: <span className="text-foreground font-medium">{formatBRL(suggestion.historicalTicket)}</span>
+                  {" "}· Referência usada (média): <span className="text-foreground font-medium">{formatBRL(suggestion.referenceTicket ?? suggestion.regionalBenchmark.avg)}</span>
+                </p>
+              )}
+              <p className="text-[9px] text-muted-foreground/60">Fonte: SEBRAE / Trinks Relatório do Setor 2023</p>
+            </div>
+          )}
+
+          {/* Suggestion result */}
           <div className="rounded-lg border border-green-500/30 bg-green-500/8 p-4 space-y-2">
             <p className="text-xs font-semibold text-green-400 uppercase tracking-wide">Sugestão da IA</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">{formatBRL(suggestion.suggestedRevenueTarget)}</p>

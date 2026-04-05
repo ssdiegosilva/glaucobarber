@@ -101,9 +101,11 @@ export default async function SettingsPage({
 
         {/* ── Identidade visual ──────────────────────────────── */}
         <CollapsibleSection
+          id="identity"
           icon={<Palette className="h-4 w-4" />}
           title="Identidade visual"
           description="Estilo de marca e imagem de referência para campanhas"
+          defaultOpen={section === "identity"}
           badge={
             identityConfigured ? (
               <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">

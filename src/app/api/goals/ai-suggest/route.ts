@@ -7,6 +7,37 @@ import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
 const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
 
+// ── Regional mapping ──────────────────────────────────────────
+
+const STATE_TO_REGION: Record<string, string> = {
+  // Norte
+  AC: "Norte", AM: "Norte", AP: "Norte", PA: "Norte", RO: "Norte", RR: "Norte", TO: "Norte",
+  // Nordeste
+  AL: "Nordeste", BA: "Nordeste", CE: "Nordeste", MA: "Nordeste", PB: "Nordeste",
+  PE: "Nordeste", PI: "Nordeste", RN: "Nordeste", SE: "Nordeste",
+  // Centro-Oeste
+  DF: "Centro-Oeste", GO: "Centro-Oeste", MS: "Centro-Oeste", MT: "Centro-Oeste",
+  // Sudeste
+  ES: "Sudeste", MG: "Sudeste", RJ: "Sudeste", SP: "Sudeste",
+  // Sul
+  PR: "Sul", RS: "Sul", SC: "Sul",
+};
+
+/**
+ * Ticket médio regional — corte simples (R$)
+ * Fontes: SEBRAE "Como montar uma barbearia" 2023, Trinks Relatório do Setor 2023
+ * Valores representam barbearias convencionais (sem salão premium)
+ */
+const REGIONAL_TICKET: Record<string, { min: number; avg: number; max: number }> = {
+  Norte:          { min: 25, avg: 40,  max: 80  },
+  Nordeste:       { min: 22, avg: 38,  max: 75  },
+  "Centro-Oeste": { min: 35, avg: 55,  max: 110 },
+  Sudeste:        { min: 40, avg: 70,  max: 150 },
+  Sul:            { min: 35, avg: 60,  max: 120 },
+};
+
+// ── Helpers ───────────────────────────────────────────────────
+
 function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[]): number {
   const total = getDaysInMonth(new Date(year, month - 1, 1));
   let count = 0;
@@ -19,8 +50,8 @@ function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[]): 
 
 /**
  * POST /api/goals/ai-suggest
- * Body: { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour }
- * Returns: { suggestedRevenueTarget, workingDaysCount, explanation }
+ * Body: { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour, wizardContext? }
+ * Returns: { suggestedRevenueTarget, workingDaysCount, avgTicket, region, regionalBenchmark, explanation }
  */
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -36,45 +67,74 @@ export async function POST(req: NextRequest) {
   const workingDaysCount  = calcWorkingDays(Number(month), Number(year), offDays);
   const totalCapacity     = workingDaysCount * Number(hoursPerDay || 8) * Number(appointmentsPerHour || 2);
 
-  // Get historical avg ticket for this barbershop
-  const agg = await prisma.appointment.aggregate({
-    where:  { barbershopId: session.user.barbershopId, status: "COMPLETED" },
-    _avg:   { price: true },
-    _count: { _all: true },
-  });
-  const avgTicket = agg._avg.price ? Number(agg._avg.price) : 80;
-  const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  // ── Barbershop regional context ───────────────────────────────
+  const [barbershop, agg] = await Promise.all([
+    prisma.barbershop.findUnique({
+      where:  { id: session.user.barbershopId },
+      select: { state: true, city: true },
+    }),
+    prisma.appointment.aggregate({
+      where: { barbershopId: session.user.barbershopId, status: "COMPLETED" },
+      _avg:  { price: true },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const stateCode = barbershop?.state
+    ?.toUpperCase()
+    .trim()
+    .replace(/^([A-Z]{2}).*/, "$1") ?? null;
+
+  const region    = (stateCode && STATE_TO_REGION[stateCode]) ?? "Sudeste";
+  const benchmark = REGIONAL_TICKET[region];
+
+  // Use regional avg as reference; historical only if meaningful (≥20 appointments)
+  const historicalTicket = agg._avg.price ? Number(agg._avg.price) : null;
+  const hasGoodHistory   = agg._count._all >= 20 && historicalTicket !== null;
+  const referenceTicket  = hasGoodHistory
+    ? Math.round((benchmark.avg + historicalTicket!) / 2)  // blend 50/50 when history is solid
+    : benchmark.avg;
+
+  const DAY_NAMES  = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   const offDayNames = offDays.map((d) => DAY_NAMES[d]).join(", ") || "nenhum";
 
-  const prompt = `Você é um consultor financeiro especializado em barbearias.
+  const prompt = `Você é um consultor financeiro especializado em barbearias brasileiras.
+
 Dados da barbearia:
 - Mês de referência: ${month}/${year}
+- Estado: ${stateCode ?? "não informado"} — Região: ${region}
 - Dias de folga por semana: ${offDayNames}
 - Dias úteis no mês: ${workingDaysCount}
 - Horas de trabalho por dia: ${hoursPerDay || 8}h
 - Atendimentos por hora: ${appointmentsPerHour || 2}
 - Capacidade total de atendimentos no mês: ${totalCapacity}
-- Ticket médio histórico: R$ ${avgTicket.toFixed(2)}
 
-Com base nesses dados, sugira uma meta de faturamento mensal realista mas desafiadora.
-Considere uma ocupação esperada entre 70% e 85% da capacidade total.
-${wizardContext ? `\nContexto adicional informado pelo barbeiro: "${wizardContext}"\nConsidere este contexto ao ajustar a meta (ex: feriados, eventos especiais, folgas extras).` : ""}
+Benchmarks do setor para a região ${region} (SEBRAE/Trinks 2023):
+- Ticket médio regional: R$ ${benchmark.min}–${benchmark.max} (média: R$ ${benchmark.avg})
+- Ticket de referência para cálculo: R$ ${referenceTicket}${hasGoodHistory ? ` (média entre regional R$ ${benchmark.avg} e histórico R$ ${historicalTicket!.toFixed(0)})` : " (baseado na média regional — histórico insuficiente)"}
+- Ocupação típica de barbearias com agenda: 65–75% da capacidade
 
-Responda SOMENTE em JSON com exatamente esse formato:
+Com base nesses dados, calcule uma meta de faturamento mensal realista e desafiadora.
+Use o ticket de referência (R$ ${referenceTicket}) × capacidade × ocupação esperada de 70%.
+Meta estimada base: R$ ${Math.round(totalCapacity * 0.70 * referenceTicket)}
+Ajuste conforme o contexto.
+${wizardContext ? `\nContexto adicional: "${wizardContext}"` : ""}
+
+Responda SOMENTE em JSON:
 {
-  "suggestedRevenueTarget": <número em reais, sem casas decimais>,
-  "explanation": "<explicação em 2 frases motivadoras em português, mencionando os ${workingDaysCount} dias úteis e a meta diária resultante>"
+  "suggestedRevenueTarget": <número inteiro em reais>,
+  "explanation": "<2 frases motivadoras em português mencionando os ${workingDaysCount} dias úteis, o ticket regional de R$ ${benchmark.avg} e a meta diária resultante>"
 }`;
 
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await client.chat.completions.create({
-      model: MODEL,
-      max_tokens: 256,
+      model:           MODEL,
+      max_tokens:      300,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Você é um consultor financeiro de barbearias. Responda sempre em JSON válido." },
-        { role: "user", content: prompt },
+        { role: "user",   content: prompt },
       ],
     });
 
@@ -83,19 +143,24 @@ Responda SOMENTE em JSON com exatamente esse formato:
     await consumeAiCredit(session.user.barbershopId, "goals_suggest");
 
     return NextResponse.json({
-      suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.75 * avgTicket),
+      suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.70 * referenceTicket),
       workingDaysCount,
-      avgTicket,
-      explanation: parsed.explanation ?? `Com ${workingDaysCount} dias úteis você tem capacidade para ${totalCapacity} atendimentos.`,
+      region,
+      regionalBenchmark: benchmark,
+      referenceTicket,
+      historicalTicket:  hasGoodHistory ? Math.round(historicalTicket!) : null,
+      explanation: parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket médio regional de R$ ${benchmark.avg} você pode atingir esta meta.`,
     });
   } catch {
-    // Fallback calculation if AI fails
-    const suggested = Math.round(totalCapacity * 0.75 * avgTicket);
+    const suggested = Math.round(totalCapacity * 0.70 * referenceTicket);
     return NextResponse.json({
       suggestedRevenueTarget: suggested,
       workingDaysCount,
-      avgTicket,
-      explanation: `Com ${workingDaysCount} dias úteis e ${totalCapacity} atendimentos possíveis, a meta sugerida considera 75% de ocupação.`,
+      region,
+      regionalBenchmark: benchmark,
+      referenceTicket,
+      historicalTicket:  hasGoodHistory ? Math.round(historicalTicket!) : null,
+      explanation: `Com ${workingDaysCount} dias úteis, ticket médio regional de R$ ${benchmark.avg} (${region}) e 70% de ocupação, a meta sugerida é R$ ${suggested.toLocaleString("pt-BR")}.`,
     });
   }
 }
