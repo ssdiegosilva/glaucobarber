@@ -9,7 +9,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const now = new Date();
+  const now   = new Date();
+  const start = Date.now();
+  const run   = await prisma.cronRun.create({
+    data: { cronName: "campaigns-publish", status: "running" },
+  });
 
   const scheduled = await prisma.campaign.findMany({
     where: {
@@ -20,6 +24,10 @@ export async function GET(req: NextRequest) {
   });
 
   if (scheduled.length === 0) {
+    await prisma.cronRun.update({
+      where: { id: run.id },
+      data: { status: "success", durationMs: Date.now() - start },
+    });
     return NextResponse.json({ date: now.toISOString(), total: 0, published: 0, failed: 0 });
   }
 
@@ -85,6 +93,11 @@ export async function GET(req: NextRequest) {
       failed++;
     }
   }
+
+  await prisma.cronRun.update({
+    where: { id: run.id },
+    data: { status: failed > 0 ? "failed" : "success", durationMs: Date.now() - start },
+  });
 
   return NextResponse.json({
     date:      now.toISOString(),

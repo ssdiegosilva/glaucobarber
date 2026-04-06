@@ -26,7 +26,7 @@ export default async function SettingsPage({
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
     prisma.integration.findUnique({
       where:  { barbershopId },
-      select: { status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true, whatsappWabaId: true },
+      select: { status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, instagramPageAccessToken: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true, whatsappWabaId: true },
     }),
     prisma.syncRun.findMany({
       where:   { barbershopId },
@@ -61,6 +61,19 @@ export default async function SettingsPage({
 
   const integrationConnected = !!integration?.configJson;
   const identityConfigured   = !!(barbershop?.brandStyle?.trim() || barbershop?.campaignReferenceImageUrl?.trim());
+
+  // Per-integration status: null = not started, "partial" = partially configured, "complete" = fully configured
+  const trinksStatus: "complete" | "partial" | null = integration?.status === "ACTIVE"
+    ? "complete"
+    : integration?.configJson ? "partial" : null;
+  const whatsappStatus: "complete" | "partial" | null =
+    integration?.whatsappAccessToken && integration?.whatsappPhoneNumberId
+      ? integration?.whatsappWabaId ? "complete" : "partial"
+      : null;
+  const instagramStatus: "complete" | "partial" | null =
+    integration?.instagramBusinessId
+      ? "complete"
+      : integration?.instagramPageAccessToken ? "partial" : null;
 
   const barbershopComplete = !!(
     barbershop?.name?.trim() &&
@@ -170,15 +183,33 @@ export default async function SettingsPage({
           description="Trinks, Instagram e WhatsApp"
           defaultOpen={section === "integrations"}
           badge={
-            integrationConnected ? (
-              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
-                <CheckCircle2 className="h-3 w-3" /> Conectado
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                <AlertCircle className="h-3 w-3" /> Não conectado
-              </span>
-            )
+            <span className="hidden sm:inline-flex items-center gap-1.5">
+              {[
+                { label: "Trinks",    status: trinksStatus    },
+                { label: "WhatsApp",  status: whatsappStatus  },
+                { label: "Instagram", status: instagramStatus },
+              ].map(({ label, status }) => (
+                <span
+                  key={label}
+                  className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
+                    status === "complete"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : status === "partial"
+                      ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"
+                      : "border-zinc-700 bg-zinc-800/50 text-zinc-500"
+                  }`}
+                >
+                  {status === "complete" ? (
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                  ) : status === "partial" ? (
+                    <AlertCircle className="h-2.5 w-2.5" />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-zinc-600" />
+                  )}
+                  {label}
+                </span>
+              ))}
+            </span>
           }
         >
           <Suspense>

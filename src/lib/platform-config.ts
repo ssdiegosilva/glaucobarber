@@ -59,3 +59,20 @@ export async function getStripePrices(
   }
   return map;
 }
+
+// ── Kill Switches ──────────────────────────────────────────────────────────────
+
+export type KillSwitchKey =
+  | "kill_ai_global"
+  | "kill_whatsapp_auto"
+  | "kill_trinks_sync"
+  | "kill_new_signups";
+
+/**
+ * Returns true if the kill switch is active (value === "true").
+ * Defaults to false (not killed) if the key doesn't exist.
+ */
+export async function getKillSwitch(key: KillSwitchKey): Promise<boolean> {
+  const row = await prisma.platformConfig.findUnique({ where: { key } });
+  return row?.value === "true";
+}

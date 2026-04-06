@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { getVerticalConfig } from "@/lib/core/vertical";
+import { getKillSwitch } from "@/lib/platform-config";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan limits (reads feature gates from vertical config) ────────────────────
@@ -130,6 +131,11 @@ export interface AiAllowance {
 }
 
 export async function checkAiAllowance(barbershopId: string): Promise<AiAllowance> {
+  if (await getKillSwitch("kill_ai_global")) {
+    const plan = await getPlan(barbershopId);
+    return { allowed: false, used: 0, limit: 0, creditsRemaining: 0, planTier: plan.tier, planStatus: plan.status };
+  }
+
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
 

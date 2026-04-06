@@ -1,0 +1,418 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Zap, MessageCircle, RefreshCw, UserPlus,
+  Clock, AlertTriangle, CheckCircle, XCircle,
+  Brain, Users, TrendingUp, BarChart3, Timer,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+type KillSwitches = {
+  kill_ai_global:     boolean;
+  kill_whatsapp_auto: boolean;
+  kill_trinks_sync:   boolean;
+  kill_new_signups:   boolean;
+};
+
+type CronRun = {
+  name:       string;
+  status:     string | null;
+  ranAt:      string | null;
+  durationMs: number | null;
+  error:      string | null;
+  isLate:     boolean;
+};
+
+type Queues = {
+  waQueued:            number;
+  waFailed:            number;
+  campaignsScheduled:  number;
+  syncFailures: {
+    id:             string;
+    barbershopName: string;
+    status:         string;
+    errorsCount:    number;
+    startedAt:      string;
+  }[];
+};
+
+type Metrics = {
+  totalShops:   number;
+  trialing:     number;
+  aiToday:      number;
+  aiThisMonth:  number;
+  trialsExpiringSoon: { barbershopId: string; barbershopName: string; trialEndsAt: string }[];
+  nearLimit:    { barbershopId: string; barbershopName: string; usageCount: number; limit: number }[];
+};
+
+interface Props {
+  killSwitches: KillSwitches;
+  cronRuns:     CronRun[];
+  queues:       Queues;
+  metrics:      Metrics;
+}
+
+const KILL_SWITCH_META: {
+  key: keyof KillSwitches;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}[] = [
+  {
+    key: "kill_ai_global",
+    label: "IA Global",
+    description: "Pausa toda geração de IA para todas as barbearias",
+    icon: Brain,
+    color: "purple",
+  },
+  {
+    key: "kill_whatsapp_auto",
+    label: "WhatsApp Auto-send",
+    description: "Para o envio automático de mensagens WhatsApp",
+    icon: MessageCircle,
+    color: "green",
+  },
+  {
+    key: "kill_trinks_sync",
+    label: "Sync Trinks",
+    description: "Pausa a sincronização com o Trinks",
+    icon: RefreshCw,
+    color: "blue",
+  },
+  {
+    key: "kill_new_signups",
+    label: "Novos Cadastros",
+    description: "Bloqueia o onboarding de novas barbearias",
+    icon: UserPlus,
+    color: "yellow",
+  },
+];
+
+const CRON_LABELS: Record<string, string> = {
+  "daily":              "Cron Diário",
+  "hourly-sync":        "Sync Horário",
+  "whatsapp-send":      "WhatsApp Send",
+  "campaigns-publish":  "Publica Campanhas",
+};
+
+function formatAgo(iso: string | null): string {
+  if (!iso) return "Nunca executou";
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(mins / 60);
+  const days  = Math.floor(hours / 24);
+  if (days > 0)  return `há ${days}d`;
+  if (hours > 0) return `há ${hours}h`;
+  return `há ${mins}min`;
+}
+
+function formatDuration(ms: number | null): string {
+  if (!ms) return "";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function daysUntil(iso: string): string {
+  const diff = new Date(iso).getTime() - Date.now();
+  const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
+  if (days <= 0) return "expira hoje";
+  if (days === 1) return "expira amanhã";
+  return `expira em ${days}d`;
+}
+
+export function OverviewClient({ killSwitches: initial, cronRuns, queues, metrics }: Props) {
+  const [kills, setKills] = useState<KillSwitches>(initial);
+  const [loading, setLoading] = useState<Partial<Record<keyof KillSwitches, boolean>>>({});
+
+  async function toggleKill(key: keyof KillSwitches) {
+    const newVal = !kills[key];
+    setLoading((l) => ({ ...l, [key]: true }));
+    try {
+      await fetch("/api/admin/platform-config", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ key, value: String(newVal) }),
+      });
+      setKills((k) => ({ ...k, [key]: newVal }));
+    } finally {
+      setLoading((l) => ({ ...l, [key]: false }));
+    }
+  }
+
+  const anyKillActive = Object.values(kills).some(Boolean);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="border-b border-zinc-800 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Overview</h1>
+            <p className="text-sm text-zinc-400 mt-0.5">Saúde da plataforma e controles de emergência</p>
+          </div>
+          {anyKillActive && (
+            <Badge className="border-red-500/40 bg-red-500/15 text-red-400 text-xs px-3 py-1">
+              <AlertTriangle className="w-3 h-3 mr-1.5" />
+              Kill switch ativo
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+        {/* ── Métricas rápidas ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "Total Barbearias", value: metrics.totalShops, icon: Users,     color: "zinc"   },
+            { label: "Em Trial",         value: metrics.trialing,   icon: Timer,     color: "blue"   },
+            { label: "IA Hoje",          value: metrics.aiToday,    icon: Brain,     color: "purple" },
+            { label: "IA Este Mês",      value: metrics.aiThisMonth, icon: BarChart3, color: "gold"  },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className={`w-4 h-4 text-${color}-400`} />
+                <span className="text-xs text-zinc-400">{label}</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Kill Switches ── */}
+        <section>
+          <h2 className="text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+            Kill Switches
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {KILL_SWITCH_META.map(({ key, label, description, icon: Icon, color }) => {
+              const active  = kills[key];
+              const pending = loading[key];
+              return (
+                <div
+                  key={key}
+                  className={`bg-zinc-900 border rounded-lg p-4 flex items-start justify-between gap-4 transition-colors ${
+                    active ? "border-red-500/40 bg-red-500/5" : "border-zinc-800"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 p-1.5 rounded-md ${active ? "bg-red-500/15" : `bg-${color}-500/10`}`}>
+                      <Icon className={`w-4 h-4 ${active ? "text-red-400" : `text-${color}-400`}`} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{label}</p>
+                      <p className="text-xs text-zinc-400 mt-0.5">{description}</p>
+                      {active && (
+                        <Badge className="mt-1.5 border-red-500/40 bg-red-500/10 text-red-400 text-xs px-2 py-0.5">
+                          ATIVO
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleKill(key)}
+                    disabled={pending}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-50 ${
+                      active ? "bg-red-500" : "bg-zinc-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        active ? "translate-x-5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Saúde dos Crons ── */}
+        <section>
+          <h2 className="text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+            Saúde dos Crons
+          </h2>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg divide-y divide-zinc-800">
+            {cronRuns.map((run) => {
+              const ok      = run.status === "success";
+              const failed  = run.status === "failed";
+              const running = run.status === "running";
+              const never   = !run.status;
+              return (
+                <div key={run.name} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      never   ? "bg-zinc-600" :
+                      running ? "bg-blue-400 animate-pulse" :
+                      failed  ? "bg-red-500" :
+                      run.isLate ? "bg-yellow-500" :
+                      "bg-green-500"
+                    }`} />
+                    <div>
+                      <p className="text-sm text-white">{CRON_LABELS[run.name] ?? run.name}</p>
+                      {run.error && !run.error.includes("active — skipped") && (
+                        <p className="text-xs text-red-400 mt-0.5 truncate max-w-xs">{run.error}</p>
+                      )}
+                      {run.error?.includes("active — skipped") && (
+                        <p className="text-xs text-yellow-400 mt-0.5">Pulado por kill switch</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-right">
+                    {run.durationMs && (
+                      <span className="text-xs text-zinc-500">{formatDuration(run.durationMs)}</span>
+                    )}
+                    <div className="text-xs">
+                      {never ? (
+                        <span className="text-zinc-500">Nunca executou</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className={run.isLate ? "text-yellow-400" : "text-zinc-400"}>
+                            {formatAgo(run.ranAt)}
+                          </span>
+                          {run.isLate && <AlertTriangle className="w-3 h-3 text-yellow-400" />}
+                          {failed && <XCircle className="w-3 h-3 text-red-400" />}
+                          {ok && !run.isLate && <CheckCircle className="w-3 h-3 text-green-500" />}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Filas & Erros ── */}
+        <section>
+          <h2 className="text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+            Filas & Erros
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            {[
+              {
+                label: "WhatsApp Fila",
+                value: queues.waQueued,
+                icon:  MessageCircle,
+                color: queues.waQueued > 0 ? "yellow" : "zinc",
+              },
+              {
+                label: "WhatsApp Falhas (24h)",
+                value: queues.waFailed,
+                icon:  XCircle,
+                color: queues.waFailed > 0 ? "red" : "zinc",
+              },
+              {
+                label: "Campanhas Agendadas",
+                value: queues.campaignsScheduled,
+                icon:  Clock,
+                color: "zinc",
+              },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <div
+                key={label}
+                className={`bg-zinc-900 border rounded-lg p-4 flex items-center justify-between ${
+                  color === "red"    ? "border-red-500/30"    :
+                  color === "yellow" ? "border-yellow-500/30" :
+                  "border-zinc-800"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-4 h-4 text-${color}-400`} />
+                  <span className="text-sm text-zinc-300">{label}</span>
+                </div>
+                <span className={`text-xl font-bold ${
+                  color === "red"    ? "text-red-400"    :
+                  color === "yellow" ? "text-yellow-400" :
+                  "text-white"
+                }`}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {queues.syncFailures.length > 0 && (
+            <div className="bg-zinc-900 border border-red-500/20 rounded-lg">
+              <div className="px-4 py-3 border-b border-zinc-800">
+                <p className="text-sm font-medium text-red-400 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Sync failures nas últimas 24h ({queues.syncFailures.length})
+                </p>
+              </div>
+              <div className="divide-y divide-zinc-800">
+                {queues.syncFailures.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-sm text-zinc-300">{s.barbershopName}</span>
+                    <div className="flex items-center gap-3">
+                      {s.errorsCount > 0 && (
+                        <span className="text-xs text-red-400">{s.errorsCount} erros</span>
+                      )}
+                      <Badge className={`text-xs ${
+                        s.status === "FAILED"
+                          ? "border-red-500/30 bg-red-500/10 text-red-400"
+                          : "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"
+                      }`}>
+                        {s.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Alertas ── */}
+        {(metrics.trialsExpiringSoon.length > 0 || metrics.nearLimit.length > 0) && (
+          <section>
+            <h2 className="text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+              Alertas
+            </h2>
+            <div className="space-y-3">
+              {metrics.trialsExpiringSoon.length > 0 && (
+                <div className="bg-zinc-900 border border-yellow-500/20 rounded-lg">
+                  <div className="px-4 py-3 border-b border-zinc-800">
+                    <p className="text-sm font-medium text-yellow-400 flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Trials expirando em ≤3 dias ({metrics.trialsExpiringSoon.length})
+                    </p>
+                  </div>
+                  <div className="divide-y divide-zinc-800">
+                    {metrics.trialsExpiringSoon.map((t) => (
+                      <div key={t.barbershopId} className="flex items-center justify-between px-4 py-2.5">
+                        <span className="text-sm text-zinc-300">{t.barbershopName}</span>
+                        <span className="text-xs text-yellow-400">{daysUntil(t.trialEndsAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {metrics.nearLimit.length > 0 && (
+                <div className="bg-zinc-900 border border-orange-500/20 rounded-lg">
+                  <div className="px-4 py-3 border-b border-zinc-800">
+                    <p className="text-sm font-medium text-orange-400 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Perto do limite de IA ≥80% ({metrics.nearLimit.length})
+                    </p>
+                  </div>
+                  <div className="divide-y divide-zinc-800">
+                    {metrics.nearLimit.map((n) => (
+                      <div key={n.barbershopId} className="flex items-center justify-between px-4 py-2.5">
+                        <span className="text-sm text-zinc-300">{n.barbershopName}</span>
+                        <span className="text-xs text-orange-400">
+                          {n.usageCount}/{n.limit} ({Math.round((n.usageCount / n.limit) * 100)}%)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}

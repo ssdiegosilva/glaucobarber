@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { getKillSwitch } from "@/lib/platform-config";
 
 export async function GET(req: NextRequest) {
   // Verifica secret do cron
@@ -14,7 +15,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const now = new Date();
+  const now   = new Date();
+  const start = Date.now();
+  const run   = await prisma.cronRun.create({
+    data: { cronName: "whatsapp-send", status: "running" },
+  });
+
+  if (await getKillSwitch("kill_whatsapp_auto")) {
+    await prisma.cronRun.update({
+      where: { id: run.id },
+      data: { status: "success", durationMs: Date.now() - start, error: "kill_whatsapp_auto active — skipped" },
+    });
+    return NextResponse.json({ date: now.toISOString(), skipped: true, reason: "kill_whatsapp_auto" });
+  }
 
   // Busca mensagens agendadas prontas para enviar, junto com as credenciais do barbershop
   const pending = await prisma.whatsappMessage.findMany({
@@ -72,6 +85,11 @@ export async function GET(req: NextRequest) {
       results.push({ id: msg.id, ok: false, error: String(err) });
     }
   }
+
+  await prisma.cronRun.update({
+    where: { id: run.id },
+    data: { status: "success", durationMs: Date.now() - start },
+  });
 
   return NextResponse.json({
     date:    now.toISOString(),

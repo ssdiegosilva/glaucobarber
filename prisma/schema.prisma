@@ -1138,3 +1138,19 @@ model SystemNotification {
   @@index([barbershopId, dismissed, createdAt])
   @@map("system_notifications")
 }
+
+// ============================================================
+// CRON RUN LOG — tracks last execution of each background job
+// ============================================================
+
+model CronRun {
+  id         String   @id @default(cuid())
+  cronName   String   // "daily" | "hourly-sync" | "whatsapp-send" | "campaigns-publish"
+  status     String   // "running" | "success" | "failed"
+  durationMs Int?
+  error      String?
+  ranAt      DateTime @default(now())
+
+  @@index([cronName, ranAt])
+  @@map("cron_runs")
+}

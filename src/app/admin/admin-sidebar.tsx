@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 const NAV = [
-  { href: "/admin",                label: "Overview",        icon: LayoutDashboard    },
+  { href: "/admin/overview",       label: "Overview",        icon: LayoutDashboard    },
   { href: "/admin/barbershops",    label: "Barbearias",      icon: Store              },
   { href: "/admin/users",          label: "Usuários",        icon: Users              },
   { href: "/admin/features",       label: "Funcionalidades", icon: ToggleLeft         },
@@ -48,7 +48,7 @@ export function AdminSidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
         {NAV.map(({ href, label, icon: Icon }) => {
-          const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+          const active = pathname.startsWith(href);
           return (
             <Link
               key={href}

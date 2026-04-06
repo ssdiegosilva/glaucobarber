@@ -18,6 +18,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const start    = Date.now();
+  const cronRun  = await prisma.cronRun.create({
+    data: { cronName: "daily", status: "running" },
+  });
+
   const provider = getAIProvider();
 
   // ── Data cleanup ─────────────────────────────────────────────────────────────
@@ -197,6 +202,11 @@ export async function GET(req: NextRequest) {
 
     billingResult = { invoiced, errors };
   }
+
+  await prisma.cronRun.update({
+    where: { id: cronRun.id },
+    data: { status: "success", durationMs: Date.now() - start },
+  });
 
   return NextResponse.json({
     date:    new Date().toISOString(),
