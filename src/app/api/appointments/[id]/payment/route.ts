@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { paidValue, discountValue, note } = await req.json();
+  const { paidValue, discountValue, note, paymentMethod } = await req.json();
   const appointment = await prisma.appointment.findFirst({
     where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
   });
@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     paidValue: paidValue ?? null,
     discountValue: discountValue ?? null,
     description: note ?? null,
+    paymentMethod: paymentMethod ?? null,
     paidAt: paidValue ? new Date() : null,
   };
 

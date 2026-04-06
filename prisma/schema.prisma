@@ -893,6 +893,12 @@ enum PaymentDomain {
   BARBERSHOP_SERVICE     // serviços de agenda
 }
 
+enum PaymentMethod {
+  CARD
+  PIX
+  CASH
+}
+
 model Payment {
   id           String        @id @default(cuid())
   barbershopId String
@@ -906,6 +912,7 @@ model Payment {
   description  String?
   discountValue Decimal?     @db.Decimal(10, 2)
   paidValue     Decimal?     @db.Decimal(10, 2)
+  paymentMethod PaymentMethod?
 
   // Stripe refs
   stripePaymentIntentId String?

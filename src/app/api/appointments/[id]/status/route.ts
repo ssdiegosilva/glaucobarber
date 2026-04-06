@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { AppointmentStatus } from "@prisma/client";
+import { AppointmentStatus, PaymentMethod, PaymentStatus } from "@prisma/client";
 import { buildTrinksClient } from "@/lib/integrations/trinks/client";
 import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
 import { createAppointmentBillingEvent } from "@/lib/billing";
@@ -22,8 +22,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { status } = await req.json();
+  const { status, paymentMethod } = await req.json();
   if (!allowed.includes(status)) return NextResponse.json({ error: "Status inválido" }, { status: 400 });
+  const validMethods: PaymentMethod[] = ["CARD", "PIX", "CASH"];
+  if (paymentMethod && !validMethods.includes(paymentMethod)) {
+    return NextResponse.json({ error: "Método de pagamento inválido" }, { status: 400 });
+  }
 
   const appointment = await prisma.appointment.findFirst({
     where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
@@ -101,6 +105,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     } catch (err) {
       console.error("[status] failed to sync to Trinks:", err);
+    }
+  }
+
+  // Registra pagamento com método escolhido
+  if (status === "COMPLETED" && paymentMethod) {
+    const existing = await prisma.payment.findFirst({
+      where: { appointmentId: appointment.id, domain: "BARBERSHOP_SERVICE" },
+    });
+    const paymentData = {
+      barbershopId: session.user.barbershopId,
+      appointmentId: appointment.id,
+      customerId: appointment.customerId,
+      domain: "BARBERSHOP_SERVICE" as const,
+      status: PaymentStatus.PAID,
+      amount: appointment.price ?? 0,
+      paidValue: appointment.price ?? null,
+      paymentMethod: paymentMethod as PaymentMethod,
+      paidAt: now,
+    };
+    if (existing) {
+      await prisma.payment.update({ where: { id: existing.id }, data: paymentData });
+    } else {
+      await prisma.payment.create({ data: paymentData });
     }
   }
 

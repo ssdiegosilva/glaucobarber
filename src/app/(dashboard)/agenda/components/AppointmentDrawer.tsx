@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatTime, formatDate, relativeTime } from "@/lib/utils";
-import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle } from "lucide-react";
+import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote } from "lucide-react";
 import type { AgendaAppointment } from "../agenda-client";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -74,6 +74,8 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   const [newDate, setNewDate]             = useState("");
   const [newTime, setNewTime]             = useState("");
   const [showPastConfirm, setShowPastConfirm] = useState(false);
+  const [showPaymentMethod, setShowPaymentMethod] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   useEffect(() => {
     if (!appointment || !open) { setContext(null); return; }
     setLoadingCtx(true);
@@ -87,14 +89,24 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   async function handleStatus(status: string) {
     if (!appointment) return;
     if (status === "__reschedule__") { setRescheduling(true); return; }
+    if (status === "COMPLETED" && !showPaymentMethod) {
+      setShowPaymentMethod(true);
+      return;
+    }
     setUpdatingStatus(true);
     try {
+      const body: Record<string, string> = { status };
+      if (status === "COMPLETED" && selectedPaymentMethod) {
+        body.paymentMethod = selectedPaymentMethod;
+      }
       await fetch(`/api/appointments/${appointment.id}/status`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ status }),
+        body:    JSON.stringify(body),
       });
       onStatusChange(appointment.id, status);
+      setShowPaymentMethod(false);
+      setSelectedPaymentMethod(null);
     } finally {
       setUpdatingStatus(false);
     }
@@ -185,6 +197,47 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
               </div>
             )}
           </div>
+
+          {/* Payment method picker */}
+          {showPaymentMethod && (
+            <div className="rounded-lg border border-border/60 bg-surface-800 p-3 space-y-3">
+              <p className="text-xs font-medium text-foreground">Forma de pagamento</p>
+              <div className="flex gap-2">
+                {([
+                  { key: "CARD", label: "Cartão", icon: <CreditCard className="h-4 w-4" /> },
+                  { key: "PIX", label: "PIX", icon: <QrCode className="h-4 w-4" /> },
+                  { key: "CASH", label: "Dinheiro", icon: <Banknote className="h-4 w-4" /> },
+                ] as const).map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod(m.key)}
+                    className={`flex-1 flex flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-xs font-medium transition-colors ${
+                      selectedPaymentMethod === m.key
+                        ? "border-gold-500 bg-gold-500/10 text-gold-400"
+                        : "border-border/60 bg-surface-900 text-muted-foreground hover:border-border hover:text-foreground"
+                    }`}
+                  >
+                    {m.icon}
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={"success" as any}
+                  disabled={!selectedPaymentMethod || updatingStatus}
+                  onClick={() => handleStatus("COMPLETED")}
+                >
+                  {updatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : "Concluir"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowPaymentMethod(false); setSelectedPaymentMethod(null); }}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Reschedule form */}
           {rescheduling && (
