@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { formatBRL } from "@/lib/utils";
 import {
   Target, CheckCircle2, Loader2, Sparkles, X as XIcon,
   Calendar, TrendingUp, ChevronLeft, ChevronRight, Sun,
-  Plus, Pencil, Trash2,
+  Plus, Pencil, Trash2, AlertTriangle,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getDaysInMonth } from "date-fns";
@@ -197,6 +197,8 @@ function OffDaysPicker({ offDaysOfWeek, setOffDaysOfWeek }: { offDaysOfWeek: num
 
 type WizardStep = "idle" | "days" | "hours" | "context" | "suggesting" | "review";
 type RegionalBenchmark = { min: number; avg: number; max: number };
+type HolidayItem = { day: number; name: string; type: string };
+
 type AiResult = {
   suggestedRevenueTarget: number;
   workingDaysCount: number;
@@ -206,6 +208,7 @@ type AiResult = {
   referenceTicket?: number;
   historicalTicket?: number | null;
   avgMonthlyExpenses?: number | null;
+  holidays?: HolidayItem[];
 };
 
 function AiWizard({
@@ -361,6 +364,23 @@ function AiWizard({
                   {" "}· Margem estimada: <span className="font-medium">{formatBRL(suggestion.suggestedRevenueTarget - suggestion.avgMonthlyExpenses)}</span>
                 </p>
               )}
+              {suggestion.holidays && suggestion.holidays.length > 0 && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/8 px-3 py-2 mt-1">
+                  <p className="text-[10px] font-semibold text-amber-400 flex items-center gap-1 mb-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {suggestion.holidays.length} feriado{suggestion.holidays.length !== 1 ? "s" : ""} encontrado{suggestion.holidays.length !== 1 ? "s" : ""} neste mês
+                  </p>
+                  <ul className="space-y-0.5">
+                    {suggestion.holidays.map((h, i) => (
+                      <li key={i} className="text-[10px] text-amber-300/80">
+                        Dia {h.day} — {h.name}
+                        <span className="ml-1 text-amber-500/60">({h.type})</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[9px] text-muted-foreground mt-1">Os dias úteis já foram calculados descontando estes feriados.</p>
+                </div>
+              )}
               <p className="text-[9px] text-muted-foreground/60">Fonte: SEBRAE / Trinks Relatório do Setor 2023</p>
             </div>
           )}
@@ -413,6 +433,15 @@ function GoalForm({
   const [extraWorkDays, setExtraWorkDays] = useState(initial.extraWorkDays);
   const [saving,        setSaving]        = useState(false);
   const [showWizard,    setShowWizard]    = useState(false);
+  const [holidays,      setHolidays]      = useState<HolidayItem[]>([]);
+
+  // Fetch holidays for this month on mount
+  useEffect(() => {
+    fetch(`/api/goals/holidays?month=${month}&year=${year}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data.holidays)) setHolidays(data.holidays); })
+      .catch(() => {});
+  }, [month, year]);
 
   const workDays    = countWorkingDays(month, year, offDaysOfWeek, extraOffDays, extraWorkDays);
   const dailyTarget = revenueTarget && workDays > 0 ? Number(revenueTarget) / workDays : null;
@@ -457,6 +486,35 @@ function GoalForm({
           onAccept={acceptAi}
           onClose={() => setShowWizard(false)}
         />
+      )}
+
+      {/* Holidays warning */}
+      {holidays.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 space-y-1.5">
+          <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {holidays.length} feriado{holidays.length !== 1 ? "s" : ""} em {MONTH_NAMES[month - 1]} {year}
+          </p>
+          <ul className="space-y-0.5">
+            {holidays.map((h, i) => (
+              <li key={i} className="text-[11px] text-amber-300/80 flex items-center justify-between">
+                <span>Dia {h.day} — {h.name} <span className="text-amber-500/60">({h.type})</span></span>
+                {!extraOffDays.includes(h.day) && (
+                  <button
+                    type="button"
+                    onClick={() => setExtraOffDays((p) => [...p, h.day])}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 underline ml-2 shrink-0"
+                  >
+                    Marcar como folga
+                  </button>
+                )}
+                {extraOffDays.includes(h.day) && (
+                  <span className="text-[10px] text-emerald-400 ml-2 shrink-0">✓ marcado</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Off days */}

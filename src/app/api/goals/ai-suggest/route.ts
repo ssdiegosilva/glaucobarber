@@ -29,12 +29,12 @@ const REGIONAL_FALLBACK: Record<string, { min: number; avg: number; max: number 
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[]): number {
+function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[], holidayDays: number[] = []): number {
   const total = getDaysInMonth(new Date(year, month - 1, 1));
   let count = 0;
   for (let d = 1; d <= total; d++) {
     const dow = new Date(year, month - 1, d).getDay();
-    if (!offDaysOfWeek.includes(dow)) count++;
+    if (!offDaysOfWeek.includes(dow) && !holidayDays.includes(d)) count++;
   }
   return count;
 }
@@ -65,7 +65,15 @@ export async function POST(req: NextRequest) {
   if (!month || !year) return NextResponse.json({ error: "month e year obrigatórios" }, { status: 400 });
 
   const offDays: number[] = Array.isArray(offDaysOfWeek) ? offDaysOfWeek.map(Number) : [];
-  const workingDaysCount  = calcWorkingDays(Number(month), Number(year), offDays);
+
+  // ── Load cached holidays (if any) ────────────────────────────
+  const cacheKey     = `holidays_${year}_${String(month).padStart(2, "0")}`;
+  const cachedHols   = await prisma.platformConfig.findUnique({ where: { key: cacheKey } });
+  type CachedHol = { day: number; name: string; type: string };
+  const cachedHolidays: CachedHol[] = cachedHols ? (() => { try { return JSON.parse(cachedHols.value); } catch { return []; } })() : [];
+  const cachedHolidayDays = cachedHolidays.map((h) => h.day);
+
+  const workingDaysCount = calcWorkingDays(Number(month), Number(year), offDays, cachedHolidayDays);
   const hours             = Number(hoursPerDay || 8);
   const apptsPerHour      = Number(appointmentsPerHour || 2);
   const totalCapacity     = workingDaysCount * hours * apptsPerHour;
@@ -129,40 +137,48 @@ export async function POST(req: NextRequest) {
   const offDayNames = offDays.map((d) => DAY_NAMES[d]).join(", ") || "nenhum";
   const locationStr = [city, stateCode, `Região ${region}`, "Brasil"].filter(Boolean).join(", ");
 
+  const MONTH_NAMES_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const monthName = MONTH_NAMES_PT[Number(month) - 1];
+
   // ── Build prompt for web-search model ────────────────────────
   const searchPrompt = `Você é um consultor financeiro especializado em barbearias brasileiras com acesso à internet.
 
-TAREFA:
-1. Busque na internet o ticket médio atual de barbearias na localidade: ${locationStr}
-   - Pesquise termos como "ticket médio barbearia ${city ?? stateCode ?? region} 2024 2025" ou "preço corte de cabelo barbearia ${city ?? region}"
-   - Foque em fontes como SEBRAE, Trinks, GetNinjas, Habitissimo, ou notícias do setor
+TAREFA — faça as duas pesquisas abaixo em paralelo:
 
-2. Com base nos dados encontrados E nos parâmetros abaixo, calcule a meta de faturamento mensal:
-   - Localidade: ${locationStr}
-   - Mês: ${month}/${year}
-   - Dias de folga/semana: ${offDayNames}
-   - Dias úteis no mês: ${workingDaysCount}
-   - Horas trabalhadas/dia: ${hours}h
-   - Atendimentos/hora: ${apptsPerHour}
-   - Capacidade total do mês: ${totalCapacity} atendimentos
-   ${historicalTicket ? `- Ticket médio histórico desta barbearia: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} atendimentos)` : "- Sem histórico próprio de atendimentos"}
-   ${avgMonthlyExpenses ? `- Custos mensais médios dos últimos ${expenseMonthsWithData.length} meses: R$ ${avgMonthlyExpenses.toFixed(0)}` : "- Sem custos cadastrados"}
-   ${topExpenses.length > 0 ? `- Principais custos: ${topExpenses.join(" | ")}` : ""}
-   ${wizardContext ? `- Contexto informado pelo barbeiro: "${wizardContext}"` : ""}
+1. FERIADOS: Busque todos os feriados de ${monthName}/${year} para ${locationStr}.
+   Inclua: feriados nacionais, estaduais de ${stateCode ?? "SP"}, municipais de ${city ?? "São Paulo"} e pontos facultativos.
+   ${cachedHolidays.length > 0 ? `(Já temos estes feriados cacheados: ${cachedHolidays.map((h) => `dia ${h.day} - ${h.name}`).join(", ")})` : ""}
 
-3. Assuma ocupação esperada de 70% da capacidade (padrão do setor).
-4. Se houver custos mensais cadastrados, a meta sugerida deve ser suficiente para cobri-los com margem de lucro razoável (mínimo 30% acima dos custos).
+2. TICKET MÉDIO: Busque o ticket médio atual de barbearias em ${locationStr}.
+   Pesquise: "ticket médio barbearia ${city ?? stateCode ?? region} 2024 2025", "preço corte de cabelo ${city ?? region}".
+   Fontes: SEBRAE, Trinks, GetNinjas, Habitissimo.
+
+Com base nos dados, calcule a meta de faturamento mensal:
+- Localidade: ${locationStr}
+- Mês: ${monthName}/${year}
+- Dias de folga/semana: ${offDayNames}
+- Dias úteis (excluindo folgas e feriados que caem em dias úteis): ${workingDaysCount}
+- Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade: ${totalCapacity}
+${historicalTicket ? `- Ticket histórico da barbearia: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} atend.)` : "- Sem histórico de atendimentos"}
+${avgMonthlyExpenses ? `- Custos mensais médios: R$ ${avgMonthlyExpenses.toFixed(0)} (${topExpenses.join(" | ")})` : "- Sem custos cadastrados"}
+${wizardContext ? `- Contexto do barbeiro: "${wizardContext}"` : ""}
+
+Regras:
+- Ocupação esperada: 70% da capacidade
+- Se há custos cadastrados: meta mínima = custos × 1,30 (30% de margem)
 
 RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
 \`\`\`json
 {
   "suggestedRevenueTarget": <número inteiro em reais>,
-  "ticketMinFound": <ticket mínimo encontrado na pesquisa, ou null se não encontrou>,
-  "ticketAvgFound": <ticket médio encontrado na pesquisa, ou null>,
-  "ticketMaxFound": <ticket máximo encontrado na pesquisa, ou null>,
-  "ticketSource": "<fonte dos dados ex: 'SEBRAE 2025' ou 'GetNinjas.com.br' ou 'Dados regionais estimados'>",
-  "referenceTicket": <ticket usado para o cálculo>,
-  "explanation": "<2 frases motivadoras em português sobre os ${workingDaysCount} dias úteis, ticket regional encontrado e meta diária>"
+  "workingDaysActual": <dias úteis reais após descontar feriados que caem em dias de trabalho>,
+  "holidays": [{ "day": <dia do mês>, "name": "<nome>", "type": "nacional|estadual|municipal|facultativo" }],
+  "ticketMinFound": <ou null>,
+  "ticketAvgFound": <ou null>,
+  "ticketMaxFound": <ou null>,
+  "ticketSource": "<fonte>",
+  "referenceTicket": <ticket usado no cálculo>,
+  "explanation": "<2 frases motivadoras mencionando dias úteis reais, feriados do mês e meta diária>"
 }
 \`\`\``;
 
@@ -184,6 +200,23 @@ RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
     if (parsed && typeof parsed.suggestedRevenueTarget === "number") {
       await consumeAiCredit(session.user.barbershopId, "goals_suggest");
 
+      // Save holidays to cache if returned
+      const returnedHolidays: CachedHol[] = Array.isArray(parsed.holidays)
+        ? (parsed.holidays as any[]).filter((h) => typeof h.day === "number" && typeof h.name === "string")
+        : cachedHolidays;
+
+      if (returnedHolidays.length > 0) {
+        await prisma.platformConfig.upsert({
+          where:  { key: cacheKey },
+          update: { value: JSON.stringify(returnedHolidays) },
+          create: { key: cacheKey, value: JSON.stringify(returnedHolidays) },
+        });
+      }
+
+      const actualWorkingDays = typeof parsed.workingDaysActual === "number"
+        ? Number(parsed.workingDaysActual)
+        : workingDaysCount;
+
       const benchmarkFromSearch = (parsed.ticketAvgFound || parsed.ticketMinFound || parsed.ticketMaxFound)
         ? {
             min: Number(parsed.ticketMinFound ?? fallback.min),
@@ -194,15 +227,16 @@ RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
 
       return NextResponse.json({
         suggestedRevenueTarget: Math.round(parsed.suggestedRevenueTarget as number),
-        workingDaysCount,
+        workingDaysCount:       actualWorkingDays,
+        holidays:               returnedHolidays,
         region,
-        regionalBenchmark:  benchmarkFromSearch,
-        referenceTicket:    Number(parsed.referenceTicket ?? benchmarkFromSearch.avg),
-        historicalTicket:     historicalTicket ? Math.round(historicalTicket) : null,
-        avgMonthlyExpenses:   avgMonthlyExpenses ? Math.round(avgMonthlyExpenses) : null,
-        ticketSource:         parsed.ticketSource ?? "Pesquisa web",
-        webSearched:          true,
-        explanation: String(parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket regional encontrado de R$ ${benchmarkFromSearch.avg} você pode atingir esta meta.`),
+        regionalBenchmark:      benchmarkFromSearch,
+        referenceTicket:        Number(parsed.referenceTicket ?? benchmarkFromSearch.avg),
+        historicalTicket:       historicalTicket ? Math.round(historicalTicket) : null,
+        avgMonthlyExpenses:     avgMonthlyExpenses ? Math.round(avgMonthlyExpenses) : null,
+        ticketSource:           parsed.ticketSource ?? "Pesquisa web",
+        webSearched:            true,
+        explanation: String(parsed.explanation ?? `Com ${actualWorkingDays} dias úteis e ticket regional encontrado de R$ ${benchmarkFromSearch.avg} você pode atingir esta meta.`),
       });
     }
     // Parsed but invalid — fall through to step 2
@@ -245,6 +279,7 @@ Responda APENAS em JSON:
     return NextResponse.json({
       suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.70 * fallback.avg),
       workingDaysCount,
+      holidays:          cachedHolidays,
       region,
       regionalBenchmark: fallback,
       referenceTicket:   parsed.referenceTicket ?? fallback.avg,
@@ -259,6 +294,7 @@ Responda APENAS em JSON:
     return NextResponse.json({
       suggestedRevenueTarget: suggested,
       workingDaysCount,
+      holidays:          cachedHolidays,
       region,
       regionalBenchmark: fallback,
       referenceTicket:   fallback.avg,
