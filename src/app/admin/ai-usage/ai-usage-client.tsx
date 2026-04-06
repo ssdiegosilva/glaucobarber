@@ -68,13 +68,17 @@ function SegmentedBar({ row }: { row: Row }) {
     const pct   = Math.min((row.usageCount / row.trialCap) * 100, 100);
     const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-blue-400";
     return (
-      <div className="space-y-1 min-w-40">
+      <div className="space-y-1 min-w-44">
         <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
           <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
         </div>
-        <div className="flex justify-between text-[10px] text-muted-foreground">
-          <span>{row.usageCount} usado</span>
-          <span>/ {row.trialCap} cap trial</span>
+        <div className="flex justify-between text-[10px]">
+          <span className="text-muted-foreground">{row.usageCount} / {row.trialCap} trial</span>
+          {row.aiCreditsPurchased > 0 && (
+            <span className="text-purple-400/70" title="Créditos comprados — usáveis após o trial">
+              +{row.aiCreditBalance} créditos reservados
+            </span>
+          )}
         </div>
       </div>
     );

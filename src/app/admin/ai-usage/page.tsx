@@ -1,12 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { AiUsageClient } from "./ai-usage-client";
-import { PLAN_LIMITS } from "@/lib/billing";
+import { PLAN_LIMITS, TRIAL_AI_LIMIT } from "@/lib/billing";
 
 export default async function AdminAiUsagePage() {
   const now = new Date();
   const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const TRIAL_CAP = 300;
 
   const usages = await prisma.aiUsageMonth.findMany({
     where: { yearMonth: { in: [yearMonth, "trialing"] } },
@@ -35,7 +34,7 @@ export default async function AdminAiUsagePage() {
       planTier:           tier,
       planStatus:         sub?.status ?? "ACTIVE",
       planLimit:          limit === Infinity ? 9999 : limit,
-      trialCap:           TRIAL_CAP,
+      trialCap:           TRIAL_AI_LIMIT,
       aiCreditBalance:    sub?.aiCreditBalance    ?? 0,
       aiCreditsPurchased: sub?.aiCreditsPurchased ?? 0,
     };
