@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 type ErrorSource = "cron" | "sync" | "whatsapp" | "campaign";
-type Period = "24h" | "7d" | "30d";
+type Period = "24h" | "7d";
 
 type ErrorEvent = {
   id:        string;
@@ -33,10 +33,10 @@ type Summary = {
   sync24h:     number;
   whatsapp24h: number;
   campaign24h: number;
-  cron30d:     number;
-  sync30d:     number;
-  whatsapp30d: number;
-  campaign30d: number;
+  cron7d:      number;
+  sync7d:      number;
+  whatsapp7d:  number;
+  campaign7d:  number;
 };
 
 const SOURCE_META: Record<ErrorSource, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
@@ -49,7 +49,6 @@ const SOURCE_META: Record<ErrorSource, { label: string; icon: React.ComponentTyp
 const PERIOD_MS: Record<Period, number> = {
   "24h": 24 * 60 * 60 * 1000,
   "7d":  7  * 24 * 60 * 60 * 1000,
-  "30d": 30 * 24 * 60 * 60 * 1000,
 };
 
 function formatTs(iso: string) {
@@ -127,7 +126,7 @@ function ErrorRow({ ev }: { ev: ErrorEvent }) {
 export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[]; summary: Summary }) {
   const [q,       setQ]       = useState("");
   const [sources, setSources] = useState<Set<ErrorSource>>(new Set());
-  const [period,  setPeriod]  = useState<Period>("7d");
+  const [period,  setPeriod]  = useState<Period>("24h");
 
   function toggleSource(s: ErrorSource) {
     setSources((prev) => {
@@ -155,18 +154,6 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
     });
   }, [errors, sources, q, period]);
 
-  // Counts for the selected period
-  const periodCounts = useMemo(() => {
-    const cutoff = Date.now() - PERIOD_MS[period];
-    const inPeriod = errors.filter((ev) => new Date(ev.timestamp).getTime() >= cutoff);
-    return {
-      cron:     inPeriod.filter((e) => e.source === "cron").length,
-      sync:     inPeriod.filter((e) => e.source === "sync").length,
-      whatsapp: inPeriod.filter((e) => e.source === "whatsapp").length,
-      campaign: inPeriod.filter((e) => e.source === "campaign").length,
-    };
-  }, [errors, period]);
-
   const total24h = summary.cron24h + summary.sync24h + summary.whatsapp24h + summary.campaign24h;
 
   return (
@@ -176,7 +163,7 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-white">Observabilidade</h1>
-            <p className="text-sm text-zinc-400 mt-0.5">Erros da plataforma — últimos 30 dias disponíveis</p>
+            <p className="text-sm text-zinc-400 mt-0.5">Erros da plataforma nos últimos 7 dias</p>
           </div>
           {total24h > 0 && (
             <Badge className="border-red-500/40 bg-red-500/15 text-red-400 text-xs px-3 py-1">
@@ -219,7 +206,7 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
                 <p className={`text-2xl font-bold ${hasError ? "text-red-400" : "text-white"}`}>
                   {count24h}
                 </p>
-                <p className="text-xs text-zinc-600 mt-0.5">24h · {countPeriod} no período</p>
+                <p className="text-xs text-zinc-600 mt-0.5">24h · {summary[`${src}7d` as keyof Summary]} em 7d</p>
               </button>
             );
           })}
@@ -229,7 +216,7 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
         <div className="flex items-center gap-3 flex-wrap">
           {/* Period selector */}
           <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
-            {(["24h", "7d", "30d"] as Period[]).map((p) => (
+            {(["24h", "7d"] as Period[]).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
@@ -275,7 +262,7 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
             <div className="px-4 py-14 text-center">
               <AlertTriangle className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
               <p className="text-sm text-zinc-500">
-                {errors.length === 0 ? "Nenhum erro nos últimos 30 dias." : "Nenhum erro encontrado com esse filtro."}
+                {errors.length === 0 ? "Nenhum erro nos últimos 7 dias." : "Nenhum erro encontrado com esse filtro."}
               </p>
             </div>
           ) : (

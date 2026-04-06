@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ObservabilityClient } from "./observability-client";
 
 export default async function AdminObservabilityPage() {
-  const ago30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const ago30d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const ago24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const [
@@ -113,10 +113,10 @@ export default async function AdminObservabilityPage() {
         sync24h:      syncErrors24h,
         whatsapp24h:  waErrors24h,
         campaign24h:  campaignErrors24h,
-        cron30d:      cronErrors.length,
-        sync30d:      syncErrors.length,
-        whatsapp30d:  waErrors.length,
-        campaign30d:  campaignErrors.length,
+        cron7d:      cronErrors.length,
+        sync7d:      syncErrors.length,
+        whatsapp7d:  waErrors.length,
+        campaign7d:  campaignErrors.length,
       }}
     />
   );
