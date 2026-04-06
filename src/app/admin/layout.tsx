@@ -7,7 +7,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
 
-  if (!session?.user || !session.user.isAdmin || session.user.email !== ADMIN_EMAIL) {
+  if (!session?.user || session.user.email !== ADMIN_EMAIL) {
     redirect("/login");
   }
 
