@@ -140,6 +140,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
         body:    JSON.stringify({ scheduledAt }),
       });
       onReschedule(appointment.id, scheduledAt);
+      setLocalStatus("SCHEDULED");
       setRescheduling(false);
     } finally {
       setUpdatingStatus(false);
