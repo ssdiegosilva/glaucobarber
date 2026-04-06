@@ -140,7 +140,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   const [syncingAvec,      setSyncingAvec]      = useState(false);
   const [disconnectingAvec, setDisconnectingAvec] = useState(false);
   const [togglingAvec,     setTogglingAvec]     = useState(false);
-  const [showAvecForm,     setShowAvecForm]     = useState(!avecConfigured);
+  // Abre form só se Avec for o provider ativo mas ainda sem credenciais (nunca quando Trinks está ativo)
+  const [showAvecForm,     setShowAvecForm]     = useState(isAvecProvider && !avecConfigured);
 
   // Provider selector
   const activeProvider: "trinks" | "avec" | null =
