@@ -33,7 +33,7 @@ export async function POST() {
             type:         "SYSTEM",
             title:        "Importação da Trinks concluída",
             body:         `${result.customersUpserted} clientes, ${result.servicesUpserted} serviços e ${result.appointmentsUpserted} agendamentos importados com sucesso.`,
-            link:         "/clientes",
+            link:         null,
           },
         });
 
