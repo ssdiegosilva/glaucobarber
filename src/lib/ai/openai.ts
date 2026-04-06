@@ -326,8 +326,11 @@ Retorne JSON com:
     }
   }
 
-  async generateHaircutVisual(imageBuffer: Buffer): Promise<{ url: string } | { b64: string }> {
-    const prompt = getVerticalConfig().ai.haircutVisualPrompt;
+  async generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string): Promise<{ url: string } | { b64: string }> {
+    const base   = getVerticalConfig().ai.haircutVisualPrompt;
+    const prompt = suggestedStyle
+      ? `${base}\n\nApply specifically: ${suggestedStyle}`
+      : base;
     try {
       const { toFile } = await import("openai");
       const img = await this.client.images.edit({

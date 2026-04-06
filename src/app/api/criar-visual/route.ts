@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   // Step 2: Generate visual — single credit charge for the full operation
   let imageResult;
   try {
-    imageResult = await ai.generateHaircutVisual(buffer);
+    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle);
   } catch (err) {
     console.error("[criar-visual] generateHaircutVisual error:", err);
     return NextResponse.json({ error: "Erro ao gerar o visual. Tente novamente." }, { status: 500 });
