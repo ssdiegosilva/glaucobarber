@@ -559,46 +559,48 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 <p className="text-xs text-muted-foreground">Escolha uma — Trinks ou Avec. Só uma ativa por barbearia.</p>
               </div>
             </div>
-            {/* Active provider status + actions in header */}
-            <div className="flex items-center gap-2 shrink-0">
-              {activeProvider && integration?.status && (
-                <Badge variant={integration.status === "ACTIVE" ? "success" : "warning"}>
-                  {integration.status === "ACTIVE" ? "Ativa" : "Pausada"}
-                </Badge>
-              )}
-              {!isAvecProvider && integration?.configured && (
-                <>
-                  {integration.status === "ACTIVE"
-                    ? <Button size="sm" variant="outline" className="text-xs" onClick={() => handleToggleTrinks(false)} disabled={togglingTrinks}>
-                        {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
-                      </Button>
-                    : <Button size="sm" variant="outline" className="text-xs text-green-400 border-green-500/30" onClick={() => handleToggleTrinks(true)} disabled={togglingTrinks}>
-                        {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
-                      </Button>
-                  }
-                  <Button onClick={handleSync} disabled={syncing || integration.status !== "ACTIVE"} size="sm">
-                    <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                    <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync"}</span>
-                  </Button>
-                </>
-              )}
-              {isAvecProvider && avecConfigured && (
-                <>
-                  {integration?.status === "ACTIVE"
-                    ? <Button size="sm" variant="outline" className="text-xs" onClick={() => handleToggleAvec(false)} disabled={togglingAvec}>
-                        {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
-                      </Button>
-                    : <Button size="sm" variant="outline" className="text-xs text-green-400 border-green-500/30" onClick={() => handleToggleAvec(true)} disabled={togglingAvec}>
-                        {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
-                      </Button>
-                  }
-                  <Button onClick={handleSyncAvec} disabled={syncingAvec || integration?.status !== "ACTIVE"} size="sm">
-                    <RefreshCw className={`h-3.5 w-3.5 ${syncingAvec ? "animate-spin" : ""}`} />
-                    <span className="hidden sm:inline">{syncingAvec ? "Sincronizando..." : "Sync"}</span>
-                  </Button>
-                </>
-              )}
-            </div>
+            {/* Active provider status + actions in header — hidden after disconnect override */}
+            {!disconnectedOverride && (
+              <div className="flex items-center gap-2 shrink-0">
+                {activeProvider && integration?.status && (
+                  <Badge variant={integration.status === "ACTIVE" ? "success" : "warning"}>
+                    {integration.status === "ACTIVE" ? "Ativa" : "Pausada"}
+                  </Badge>
+                )}
+                {!isAvecProvider && integration?.configured && (
+                  <>
+                    {integration.status === "ACTIVE"
+                      ? <Button size="sm" variant="outline" className="text-xs" onClick={() => handleToggleTrinks(false)} disabled={togglingTrinks}>
+                          {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
+                        </Button>
+                      : <Button size="sm" variant="outline" className="text-xs text-green-400 border-green-500/30" onClick={() => handleToggleTrinks(true)} disabled={togglingTrinks}>
+                          {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
+                        </Button>
+                    }
+                    <Button onClick={handleSync} disabled={syncing || integration.status !== "ACTIVE"} size="sm">
+                      <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+                      <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync"}</span>
+                    </Button>
+                  </>
+                )}
+                {isAvecProvider && avecConfigured && (
+                  <>
+                    {integration?.status === "ACTIVE"
+                      ? <Button size="sm" variant="outline" className="text-xs" onClick={() => handleToggleAvec(false)} disabled={togglingAvec}>
+                          {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
+                        </Button>
+                      : <Button size="sm" variant="outline" className="text-xs text-green-400 border-green-500/30" onClick={() => handleToggleAvec(true)} disabled={togglingAvec}>
+                          {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
+                        </Button>
+                    }
+                    <Button onClick={handleSyncAvec} disabled={syncingAvec || integration?.status !== "ACTIVE"} size="sm">
+                      <RefreshCw className={`h-3.5 w-3.5 ${syncingAvec ? "animate-spin" : ""}`} />
+                      <span className="hidden sm:inline">{syncingAvec ? "Sincronizando..." : "Sync"}</span>
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
