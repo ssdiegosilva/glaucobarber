@@ -574,6 +574,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       scheduledAt:        null,
       imageUrl:           null,
       instagramPermalink: null,
+      errorMsg:           null,
     };
 
     setCampaigns((prev) => [placeholder, ...prev]);
