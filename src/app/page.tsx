@@ -323,11 +323,10 @@ export default async function RootPage() {
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "30 chamadas de IA",
+                  "30 créditos de IA (trial único)",
                   "Agenda ao vivo (Trinks)",
                   "Gestão de clientes",
-                  "Copilot IA",
-                  "Campanhas (rascunho)",
+                  "Metas de faturamento",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
@@ -335,9 +334,10 @@ export default async function RootPage() {
                   </li>
                 ))}
                 {[
-                  "WhatsApp automático",
-                  "Instagram publicação",
-                  "Metas e relatórios",
+                  "Copilot IA",
+                  "Campanhas e marketing",
+                  "WhatsApp",
+                  "Financeiro",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground/40">
                     <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -362,11 +362,11 @@ export default async function RootPage() {
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "200 chamadas de IA/mês",
+                  "200 créditos de IA/mês",
                   "Agenda ao vivo (Trinks)",
-                  "Gestão de clientes",
-                  "Copilot IA",
-                  "Campanhas + publicação Instagram",
+                  "Gestão de clientes + Metas",
+                  "Campanhas com IA (texto + arte)",
+                  "Criar Visual (análise de corte)",
                   "WhatsApp — envio manual",
                   "Pós-venda inteligente",
                 ].map((f) => (
@@ -376,8 +376,9 @@ export default async function RootPage() {
                   </li>
                 ))}
                 {[
+                  "Copilot IA",
                   "WhatsApp automático (bot)",
-                  "Metas e relatórios financeiros",
+                  "Relatórios financeiros",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground/40">
                     <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -405,10 +406,11 @@ export default async function RootPage() {
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "1.000 chamadas de IA/mês",
+                  "1.000 créditos de IA/mês",
                   "Tudo do Starter",
+                  "Copilot IA (CEO advisor)",
                   "WhatsApp BOT automático",
-                  "Metas e relatórios financeiros",
+                  "Relatórios financeiros completos",
                   "Suporte prioritário",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-foreground">
