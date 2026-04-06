@@ -142,6 +142,28 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   const [togglingAvec,     setTogglingAvec]     = useState(false);
   const [showAvecForm,     setShowAvecForm]     = useState(!avecConfigured);
 
+  // Provider selector
+  const activeProvider: "trinks" | "avec" | null =
+    isAvecProvider ? "avec" : (integration?.configured ? "trinks" : null);
+  const [switchConfirm, setSwitchConfirm] = useState<"trinks" | "avec" | null>(null);
+
+  function handleSelectProvider(target: "trinks" | "avec") {
+    if (target === activeProvider && !showForm && !showAvecForm) return;
+    if (activeProvider !== null && target !== activeProvider) {
+      setSwitchConfirm(target);
+      return;
+    }
+    if (target === "trinks") { setShowForm(true);     setShowAvecForm(false); }
+    else                     { setShowAvecForm(true); setShowForm(false);     }
+  }
+
+  function handleConfirmSwitch() {
+    const target = switchConfirm;
+    setSwitchConfirm(null);
+    if (target === "trinks") { setShowForm(true);     setShowAvecForm(false); }
+    else                     { setShowAvecForm(true); setShowForm(false);     }
+  }
+
   // ── Trinks ────────────────────────────────────────────────────
 
   async function handleSave() {
@@ -512,191 +534,305 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   return (
     <div className="space-y-4">
 
-      {/* ── Trinks ────────────────────────────────────────── */}
+      {/* ── Plataforma operacional (Trinks / Avec) ────────── */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20">
-                <span className="text-lg font-black text-gold-400 leading-none">T</span>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-800 border border-border">
+                <Plug className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="min-w-0">
-                <CardTitle className="text-base">Trinks</CardTitle>
-                <p className="text-xs text-muted-foreground">Plataforma operacional · <span className="text-gold-500/70">um por barbearia</span></p>
+                <CardTitle className="text-base">Plataforma operacional</CardTitle>
+                <p className="text-xs text-muted-foreground">Escolha uma — Trinks ou Avec. Só uma ativa por barbearia.</p>
               </div>
             </div>
+            {/* Active provider status + actions in header */}
             <div className="flex items-center gap-2 shrink-0">
-              {isAvecProvider ? (
-                <Badge variant="outline" className="text-xs text-blue-400 border-blue-500/30">Inativo (usando Avec)</Badge>
-              ) : (
-                <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
-                  {integration?.status ?? "UNCONFIGURED"}
+              {activeProvider && integration?.status && (
+                <Badge variant={integration.status === "ACTIVE" ? "success" : "warning"}>
+                  {integration.status === "ACTIVE" ? "Ativa" : "Pausada"}
                 </Badge>
               )}
-              {integration?.configured && !isAvecProvider && (
+              {!isAvecProvider && integration?.configured && (
                 <>
-                  {integration.status === "ACTIVE" ? (
-                    <Button size="sm" variant="outline" className="text-xs gap-1"
-                      onClick={() => handleToggleTrinks(false)} disabled={togglingTrinks}>
-                      {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" className="text-xs gap-1 text-green-400 border-green-500/30"
-                      onClick={() => handleToggleTrinks(true)} disabled={togglingTrinks}>
-                      {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
-                    </Button>
-                  )}
+                  {integration.status === "ACTIVE"
+                    ? <Button size="sm" variant="outline" className="text-xs" onClick={() => handleToggleTrinks(false)} disabled={togglingTrinks}>
+                        {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
+                      </Button>
+                    : <Button size="sm" variant="outline" className="text-xs text-green-400 border-green-500/30" onClick={() => handleToggleTrinks(true)} disabled={togglingTrinks}>
+                        {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
+                      </Button>
+                  }
+                  <Button onClick={handleSync} disabled={syncing || integration.status !== "ACTIVE"} size="sm">
+                    <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+                    <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync"}</span>
+                  </Button>
                 </>
               )}
-              <Button onClick={handleSync} disabled={syncing || !integration?.configured || isAvecProvider || integration?.status !== "ACTIVE"} size="sm">
-                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync Manual"}</span>
-                <span className="sm:hidden">{syncing ? "..." : "Sync"}</span>
-              </Button>
+              {isAvecProvider && avecConfigured && (
+                <>
+                  {integration?.status === "ACTIVE"
+                    ? <Button size="sm" variant="outline" className="text-xs" onClick={() => handleToggleAvec(false)} disabled={togglingAvec}>
+                        {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
+                      </Button>
+                    : <Button size="sm" variant="outline" className="text-xs text-green-400 border-green-500/30" onClick={() => handleToggleAvec(true)} disabled={togglingAvec}>
+                        {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
+                      </Button>
+                  }
+                  <Button onClick={handleSyncAvec} disabled={syncingAvec || integration?.status !== "ACTIVE"} size="sm">
+                    <RefreshCw className={`h-3.5 w-3.5 ${syncingAvec ? "animate-spin" : ""}`} />
+                    <span className="hidden sm:inline">{syncingAvec ? "Sincronizando..." : "Sync"}</span>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {!isAvecProvider && (
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Último sync</p>
-                <p className="text-foreground text-sm">
-                  {integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Configurada</p>
-                <p className={`text-sm ${integration?.configured ? "text-green-400" : "text-yellow-400"}`}>
-                  {integration?.configured ? "Sim" : "Não"}
-                </p>
-              </div>
-            </div>
-          )}
+        <CardContent className="space-y-4">
 
-          {!isAvecProvider && integration?.errorMsg && (
-            <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-300">{integration.errorMsg}</p>
-            </div>
-          )}
-
-          {/* When Avec is active, Trinks is mutually excluded */}
-          {isAvecProvider && (
-            <div className="rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
-              Avec está ativa — só uma integração por vez. Desconecte a Avec para usar o Trinks.
-            </div>
-          )}
-
-          {/* Config form */}
-          {!isAvecProvider && showForm ? (
-            <div className="space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
-              <p className="text-xs font-semibold text-foreground">Configurar credenciais da Trinks</p>
-
-              {/* Instructions */}
-              <div className="rounded-lg border border-blue-500/20 bg-blue-500/8 px-3 py-2.5 space-y-1.5">
-                <p className="text-xs font-semibold text-blue-300">Como obter sua API Key</p>
-                <p className="text-xs text-muted-foreground">
-                  1. Acesse{" "}
-                  <a
-                    href="https://www.trinks.com/MinhaArea/MeuCadastro"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-400 hover:underline"
-                  >
-                    trinks.com/MinhaArea/MeuCadastro
-                  </a>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  2. Localize a seção <span className="text-foreground font-medium">Token de API Pessoal</span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  3. Clique em <span className="text-foreground font-medium">Visualizar token</span>, copie o código e cole abaixo
-                </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">API Key</label>
-                <input
-                  type="text" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Cole sua API Key da Trinks aqui"
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Estabelecimento</label>
-                {estabs.length > 0 ? (
-                  <select value={estabId} onChange={(e) => setEstabId(e.target.value)}
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                    <option value="">Selecione seu estabelecimento</option>
-                    {estabs.map((e) => <option key={e.id} value={e.id}>{e.nome} (ID {e.id})</option>)}
-                  </select>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full text-xs justify-center"
-                    onClick={handleFetchEstabs}
-                    disabled={!apiKey || loadingEstab}
-                  >
-                    <RefreshCw className={`h-3 w-3 mr-1.5 ${loadingEstab ? "animate-spin" : ""}`} />
-                    {loadingEstab ? "Buscando estabelecimentos..." : "Buscar estabelecimentos"}
-                  </Button>
+          {/* ── Seletor de plataforma ── */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Trinks tile */}
+            <button
+              onClick={() => handleSelectProvider("trinks")}
+              className={`rounded-lg border p-3 text-left transition-all ${
+                !isAvecProvider && integration?.configured
+                  ? "border-gold-500/40 bg-gold-500/8"
+                  : "border-border hover:border-gold-500/20 hover:bg-gold-500/5"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gold-500/15 border border-gold-500/20">
+                  <span className="text-sm font-black text-gold-400">T</span>
+                </div>
+                <span className="text-sm font-semibold">Trinks</span>
+                {!isAvecProvider && integration?.configured && (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 ml-auto shrink-0" />
                 )}
               </div>
+              <p className="text-[11px] text-muted-foreground">API Key + Estabelecimento</p>
+            </button>
 
-              {formError && <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{formError}</p>}
+            {/* Avec tile */}
+            <button
+              onClick={() => handleSelectProvider("avec")}
+              className={`rounded-lg border p-3 text-left transition-all ${
+                isAvecProvider && avecConfigured
+                  ? "border-blue-500/40 bg-blue-500/8"
+                  : "border-border hover:border-blue-500/20 hover:bg-blue-500/5"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500/15 border border-blue-500/20">
+                  <span className="text-sm font-black text-blue-400">A</span>
+                </div>
+                <span className="text-sm font-semibold">Avec</span>
+                {isAvecProvider && avecConfigured && (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 ml-auto shrink-0" />
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Token + Base URL</p>
+            </button>
+          </div>
+
+          {/* ── Confirmação de troca de plataforma ── */}
+          {switchConfirm && (
+            <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 px-4 py-3 space-y-2">
+              <p className="text-xs font-semibold text-yellow-300">
+                Trocar para {switchConfirm === "trinks" ? "Trinks" : "Avec"}?
+              </p>
+              <p className="text-xs text-muted-foreground">
+                A integração com {isAvecProvider ? "Avec" : "Trinks"} será desconectada. Os dados sincronizados são preservados e ficam editáveis.
+              </p>
               <div className="flex gap-2">
-                <Button size="sm" className="text-xs" onClick={handleSave} disabled={saving || !apiKey || !estabId}>
-                  {saving ? <><RefreshCw className="h-3 w-3 animate-spin mr-1" />Salvando...</> : "Salvar e sincronizar"}
-                </Button>
-                {integration?.configured && (
-                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowForm(false)}>Cancelar</Button>
-                )}
+                <Button size="sm" className="text-xs h-7" onClick={handleConfirmSwitch}>Confirmar troca</Button>
+                <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setSwitchConfirm(null)}>Cancelar</Button>
               </div>
             </div>
-          ) : !isAvecProvider && integration?.configured ? (
-            <div className="rounded-md border border-green-500/30 bg-green-500/8 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2"
-                  onClick={() => setShowForm(true)}>
-                  <Settings className="h-3.5 w-3.5" /> Editar
-                </Button>
-                <Button size="sm" variant="ghost" className="text-xs gap-1 h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
-                  onClick={handleDisconnectTrinks} disabled={disconnectingTrinks} title="Desconectar Trinks">
-                  {disconnectingTrinks ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          )}
 
-          {/* Sync history (collapsible, last 5) */}
-          {runs.length > 0 && (
+          {/* ── Trinks: config (shown when Trinks is selected/active) ── */}
+          {(showForm || (!isAvecProvider && integration?.configured)) && !switchConfirm && (
+            <div className="space-y-3 rounded-lg border border-gold-500/20 bg-gold-500/5 p-4">
+              <p className="text-xs font-semibold text-gold-400">Trinks</p>
+
+              {integration?.errorMsg && !isAvecProvider && (
+                <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-300">{integration.errorMsg}</p>
+                </div>
+              )}
+
+              {showForm ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/8 px-3 py-2.5 space-y-1.5">
+                    <p className="text-xs font-semibold text-blue-300">Como obter sua API Key</p>
+                    <p className="text-xs text-muted-foreground">
+                      1. Acesse{" "}
+                      <a href="https://www.trinks.com/MinhaArea/MeuCadastro" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">
+                        trinks.com/MinhaArea/MeuCadastro
+                      </a>
+                    </p>
+                    <p className="text-xs text-muted-foreground">2. Localize <span className="text-foreground font-medium">Token de API Pessoal</span></p>
+                    <p className="text-xs text-muted-foreground">3. Clique em <span className="text-foreground font-medium">Visualizar token</span>, copie e cole abaixo</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">API Key</label>
+                    <input type="text" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Cole sua API Key da Trinks aqui"
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Estabelecimento</label>
+                    {estabs.length > 0 ? (
+                      <select value={estabId} onChange={(e) => setEstabId(e.target.value)}
+                        className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                        <option value="">Selecione seu estabelecimento</option>
+                        {estabs.map((e) => <option key={e.id} value={e.id}>{e.nome} (ID {e.id})</option>)}
+                      </select>
+                    ) : (
+                      <Button size="sm" variant="outline" className="w-full text-xs justify-center" onClick={handleFetchEstabs} disabled={!apiKey || loadingEstab}>
+                        <RefreshCw className={`h-3 w-3 mr-1.5 ${loadingEstab ? "animate-spin" : ""}`} />
+                        {loadingEstab ? "Buscando estabelecimentos..." : "Buscar estabelecimentos"}
+                      </Button>
+                    )}
+                  </div>
+                  {formError && <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{formError}</p>}
+                  <div className="flex gap-2">
+                    <Button size="sm" className="text-xs" onClick={handleSave} disabled={saving || !apiKey || !estabId}>
+                      {saving ? <><RefreshCw className="h-3 w-3 animate-spin mr-1" />Salvando...</> : "Salvar e sincronizar"}
+                    </Button>
+                    {integration?.configured && !isAvecProvider && (
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowForm(false)}>Cancelar</Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Último sync</p>
+                      <p className="text-foreground text-sm">{integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Status</p>
+                      <p className={`text-sm ${integration?.status === "ACTIVE" ? "text-green-400" : "text-yellow-400"}`}>
+                        {integration?.status === "ACTIVE" ? "Ativa" : "Pausada"}
+                      </p>
+                    </div>
+                  </div>
+                  {integration?.status === "UNCONFIGURED" && integration?.configured && (
+                    <p className="text-xs text-yellow-400">Integração pausada. Clique em &quot;Religar&quot; no topo para retomar o sync.</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2" onClick={() => setShowForm(true)}>
+                      <Settings className="h-3.5 w-3.5" /> Editar credenciais
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs gap-1 h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                      onClick={handleDisconnectTrinks} disabled={disconnectingTrinks}>
+                      {disconnectingTrinks ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+                      Desconectar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Avec: config (shown when Avec is selected/active) ── */}
+          {(showAvecForm || (isAvecProvider && integration?.configured)) && !switchConfirm && (
+            <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
+              <p className="text-xs font-semibold text-blue-400">Avec</p>
+
+              {isAvecProvider && integration?.errorMsg && (
+                <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-300">{integration.errorMsg}</p>
+                </div>
+              )}
+
+              {showAvecForm ? (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Base URL da API</label>
+                    <input type="text" value={avecBaseUrl} onChange={(e) => setAvecBaseUrl(e.target.value)}
+                      placeholder="https://api.seudominio.com.br"
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    <p className="text-[11px] text-muted-foreground">Obtida no painel da Avec em Configurações → API</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Token de acesso</label>
+                    <input type="password" value={avecToken} onChange={(e) => setAvecToken(e.target.value)}
+                      placeholder="Bearer token da Avec"
+                      className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  {avecFormError && <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{avecFormError}</p>}
+                  <div className="flex gap-2">
+                    <Button size="sm" className="text-xs" onClick={handleSaveAvec} disabled={savingAvec || !avecToken || !avecBaseUrl}>
+                      {savingAvec ? <><RefreshCw className="h-3 w-3 animate-spin mr-1" />Salvando...</> : "Salvar e sincronizar"}
+                    </Button>
+                    {avecConfigured && (
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowAvecForm(false)}>Cancelar</Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Último sync</p>
+                      <p className="text-foreground text-sm">{integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Status</p>
+                      <p className={`text-sm ${integration?.status === "ACTIVE" ? "text-green-400" : "text-yellow-400"}`}>
+                        {integration?.status === "ACTIVE" ? "Ativa" : "Pausada"}
+                      </p>
+                    </div>
+                  </div>
+                  {integration?.status === "UNCONFIGURED" && integration?.configured && (
+                    <p className="text-xs text-yellow-400">Integração pausada. Clique em &quot;Religar&quot; no topo para retomar o sync.</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2" onClick={() => setShowAvecForm(true)}>
+                      <Settings className="h-3.5 w-3.5" /> Editar credenciais
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs gap-1 h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                      onClick={handleDisconnectAvec} disabled={disconnectingAvec}>
+                      {disconnectingAvec ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+                      Desconectar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Nenhuma plataforma selecionada ainda */}
+          {!activeProvider && !showForm && !showAvecForm && !switchConfirm && (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              Selecione uma plataforma acima para começar.
+            </p>
+          )}
+
+          {/* Sync history — só para Trinks */}
+          {!isAvecProvider && runs.length > 0 && (
             <div className="border-t border-border pt-3">
-              <button
-                onClick={() => setShowHistory((v) => !v)}
-                className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <button onClick={() => setShowHistory((v) => !v)}
+                className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors">
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
                   Histórico de sincronizações ({runs.length})
                 </span>
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`} />
               </button>
-
               {showHistory && (
                 <div className="mt-3 space-y-2">
                   {runs.map((r) => (
                     <div key={r.id}>
-                      <button
-                        onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
-                        className="w-full text-left rounded-lg border border-border bg-surface-900 px-3 py-2.5 hover:bg-surface-800/50 transition-colors"
-                      >
+                      <button onClick={() => setExpandedRun(expandedRun === r.id ? null : r.id)}
+                        className="w-full text-left rounded-lg border border-border bg-surface-900 px-3 py-2.5 hover:bg-surface-800/50 transition-colors">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs text-muted-foreground">{relativeTime(r.startedAt)}</span>
                           <div className="flex items-center gap-2">
@@ -710,23 +846,17 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                           <span>Clientes: {r.customersUpserted}</span>
                           <span>Serviços: {r.servicesUpserted}</span>
                           <span>Agendamentos: {r.appointmentsUpserted}</span>
-                          <span className={r.errorsCount > 0 ? "text-red-400" : "text-green-400"}>
-                            Erros: {r.errorsCount}
-                          </span>
+                          <span className={r.errorsCount > 0 ? "text-red-400" : "text-green-400"}>Erros: {r.errorsCount}</span>
                           {r.durationMs && <span>Duração: {(r.durationMs / 1000).toFixed(1)}s</span>}
                         </div>
                       </button>
-
                       {expandedRun === r.id && r.errorDetails && (() => {
                         const details = (() => { try { return JSON.parse(r.errorDetails!); } catch { return r.errorDetails; } })();
                         return (
                           <div className="rounded-b-lg border border-t-0 border-border bg-surface-900 px-3 py-2 space-y-1">
                             {Array.isArray(details)
-                              ? details.map((d: any, i: number) => (
-                                  <p key={i} className="text-xs text-red-300">• {d.entity ?? "?"}: {d.message ?? JSON.stringify(d)}</p>
-                                ))
-                              : <p className="text-xs text-red-300">{String(details)}</p>
-                            }
+                              ? details.map((d: any, i: number) => <p key={i} className="text-xs text-red-300">• {d.entity ?? "?"}: {d.message ?? JSON.stringify(d)}</p>)
+                              : <p className="text-xs text-red-300">{String(details)}</p>}
                           </div>
                         );
                       })()}
@@ -736,142 +866,6 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* ── Avec ──────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <span className="text-lg font-black text-blue-400 leading-none">A</span>
-              </div>
-              <div className="min-w-0">
-                <CardTitle className="text-base">Avec</CardTitle>
-                <p className="text-xs text-muted-foreground">Plataforma operacional · <span className="text-blue-400/70">um por barbearia</span></p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {isAvecProvider && (
-                <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
-                  {integration?.status === "ACTIVE" ? "Ativa" : "Pausada"}
-                </Badge>
-              )}
-              {isAvecProvider && avecConfigured && (
-                <>
-                  {integration?.status === "ACTIVE" ? (
-                    <Button size="sm" variant="outline" className="text-xs gap-1"
-                      onClick={() => handleToggleAvec(false)} disabled={togglingAvec}>
-                      {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" className="text-xs gap-1 text-green-400 border-green-500/30"
-                      onClick={() => handleToggleAvec(true)} disabled={togglingAvec}>
-                      {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
-                    </Button>
-                  )}
-                  <Button onClick={handleSyncAvec} disabled={syncingAvec || integration?.status !== "ACTIVE"} size="sm">
-                    <RefreshCw className={`h-3.5 w-3.5 ${syncingAvec ? "animate-spin" : ""}`} />
-                    <span className="hidden sm:inline">{syncingAvec ? "Sincronizando..." : "Sync Manual"}</span>
-                    <span className="sm:hidden">{syncingAvec ? "..." : "Sync"}</span>
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-
-          {isAvecProvider && integration?.lastSyncAt && (
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Último sync</p>
-                <p className="text-foreground text-sm">{relativeTime(integration.lastSyncAt)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Status</p>
-                <p className={`text-sm ${integration.status === "ACTIVE" ? "text-green-400" : "text-yellow-400"}`}>
-                  {integration.status === "ACTIVE" ? "Ativa" : "Pausada"}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {isAvecProvider && integration?.status === "UNCONFIGURED" && integration?.configured && (
-            <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
-              Integração pausada. Os dados importados estão editáveis. Clique em &quot;Religar&quot; para retomar o sync.
-            </div>
-          )}
-
-          {isAvecProvider && integration?.errorMsg && (
-            <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-300">{integration.errorMsg}</p>
-            </div>
-          )}
-
-          {/* Avec config form */}
-          {(!isAvecProvider || showAvecForm) ? (
-            <div className="space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
-              <p className="text-xs font-semibold text-foreground">Configurar credenciais da Avec</p>
-
-              {!isAvecProvider && integration?.configured && (
-                <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
-                  Atenção: conectar a Avec irá substituir a integração atual com a Trinks. Os dados já sincronizados serão preservados.
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Base URL da API</label>
-                <input
-                  type="text" value={avecBaseUrl} onChange={(e) => setAvecBaseUrl(e.target.value)}
-                  placeholder="https://api.seudominio.com.br"
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <p className="text-[11px] text-muted-foreground">Obtida no painel da Avec em Configurações → API</p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Token de acesso</label>
-                <input
-                  type="password" value={avecToken} onChange={(e) => setAvecToken(e.target.value)}
-                  placeholder="Bearer token da Avec"
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              {avecFormError && (
-                <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{avecFormError}</p>
-              )}
-              <div className="flex gap-2">
-                <Button size="sm" className="text-xs" onClick={handleSaveAvec} disabled={savingAvec || !avecToken || !avecBaseUrl}>
-                  {savingAvec ? <><RefreshCw className="h-3 w-3 animate-spin mr-1" />Salvando...</> : "Salvar e sincronizar"}
-                </Button>
-                {avecConfigured && (
-                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowAvecForm(false)}>Cancelar</Button>
-                )}
-              </div>
-            </div>
-          ) : avecConfigured ? (
-            <div className="rounded-md border border-green-500/30 bg-green-500/8 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2"
-                  onClick={() => setShowAvecForm(true)}>
-                  <Settings className="h-3.5 w-3.5" /> Editar
-                </Button>
-                <Button size="sm" variant="ghost" className="text-xs gap-1 h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
-                  onClick={handleDisconnectAvec} disabled={disconnectingAvec} title="Desconectar Avec">
-                  {disconnectingAvec ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
         </CardContent>
       </Card>
 
