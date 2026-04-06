@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyWhatsappQueued } from "@/lib/notifications";
 
 // POST /api/whatsapp/messages/batch
 // Cria N mensagens de template agendadas (uma por cliente selecionado).
@@ -74,6 +75,10 @@ export async function POST(req: NextRequest) {
     where: { id: { in: customers.map((c) => c.id) } },
     data:  { lastWhatsappSentAt: new Date() },
   });
+
+  if (messages.length > 0) {
+    await notifyWhatsappQueued(barbershopId, messages.length);
+  }
 
   return NextResponse.json({ created: messages.length });
 }

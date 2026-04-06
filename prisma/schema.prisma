@@ -657,6 +657,7 @@ enum CampaignStatus {
   DISMISSED
   SCHEDULED
   PUBLISHED
+  FAILED
 }
 
 model Campaign {
@@ -675,6 +676,7 @@ model Campaign {
   imageUrl    String?
   instagramPostId    String?
   instagramPermalink String?
+  errorMsg           String?
   scheduledAt DateTime?
   publishedAt DateTime?
 
@@ -1120,6 +1122,7 @@ enum NotificationType {
   PAYMENT_FAILED
   PLAN_CHANGED
   SYSTEM
+  WHATSAPP_QUEUED
 }
 
 model SystemNotification {

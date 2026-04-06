@@ -1035,15 +1035,23 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          className="h-7 text-[11px] gap-1"
-                          onClick={(e) => { e.stopPropagation(); publish(c.id); }}
-                          disabled={!instagramConfigured || publishingId === c.id || !c.imageUrl}
-                          title={!instagramConfigured ? "Configure o Instagram em Integrações" : !c.imageUrl ? "Adicione uma imagem primeiro" : undefined}
-                        >
-                          {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
-                        </Button>
+                        {!instagramConfigured ? (
+                          <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
+                            <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
+                              <Settings className="h-3 w-3" />Conectar Instagram
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px] gap-1"
+                            onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                            disabled={publishingId === c.id || !c.imageUrl}
+                            title={!c.imageUrl ? "Adicione uma imagem primeiro" : undefined}
+                          >
+                            {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
+                          </Button>
+                        )}
                         <button
                           onClick={(e) => { e.stopPropagation(); if (editingText === c.id) { setEditingText(null); } else { setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); } }}
                           className={`rounded-md border p-1.5 transition-colors ${editingText === c.id ? "border-gold-500/40 text-gold-400 bg-gold-500/10" : "border-border text-muted-foreground hover:text-foreground hover:bg-surface-700"}`}

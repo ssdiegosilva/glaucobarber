@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { startOfDay, endOfDay, subDays } from "date-fns";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, type WhatsAppCredentials } from "@/lib/whatsapp";
+import { notifyWhatsappQueued } from "@/lib/notifications";
 
 /** Busca as credenciais WhatsApp do barbershop. Retorna null se não configurado. */
 async function getWhatsAppCreds(barbershopId: string): Promise<WhatsAppCredentials | null> {
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
 
     if (!creds) {
       // WhatsApp não configurado – mantém na fila para envio manual ou futuro
+      await notifyWhatsappQueued(session.user.barbershopId, 1, customerName);
       return NextResponse.json(
         { message: msg, warning: "WhatsApp não configurado para este barbershop." },
         { status: 201 }
@@ -101,6 +103,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Mensagem agendada — fica na fila até o horário
+  await notifyWhatsappQueued(session.user.barbershopId, 1, customerName);
   return NextResponse.json({ message: msg }, { status: 201 });
 }
 

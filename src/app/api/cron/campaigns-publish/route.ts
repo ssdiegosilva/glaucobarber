@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CampaignStatus } from "@prisma/client";
 import { signCampaignImage, deleteCampaignImage } from "@/lib/storage";
 import { publishCampaignToInstagram, fetchInstagramPermalink } from "@/lib/campaign-publish";
 
@@ -45,7 +46,11 @@ export async function GET(req: NextRequest) {
   for (const campaign of scheduled) {
     const integration = integrationMap[campaign.barbershopId];
     if (!integration?.instagramPageAccessToken || !integration.instagramBusinessId) {
-      // No Instagram configured — skip silently (don't mark as failed)
+      await prisma.campaign.update({
+        where: { id: campaign.id },
+        data: { status: CampaignStatus.FAILED, errorMsg: "Instagram não configurado. Acesse Configurações > Integrações para conectar." },
+      });
+      failed++;
       continue;
     }
 
