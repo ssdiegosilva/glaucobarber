@@ -193,14 +193,15 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
               )}
             </div>
             {actions.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {actions.map((a) => (
+              <div className="grid grid-cols-2 gap-2">
+                {actions.map((a, i) => (
                   <Button
                     key={a.status}
                     size="sm"
                     variant={a.variant as any}
                     disabled={updatingStatus}
                     onClick={() => handleStatus(a.status)}
+                    className={actions.length % 2 !== 0 && i === actions.length - 1 ? "col-span-2" : ""}
                   >
                     {updatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : a.label}
                   </Button>
