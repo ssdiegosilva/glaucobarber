@@ -27,6 +27,16 @@ export async function POST() {
           },
         });
 
+        await prisma.systemNotification.create({
+          data: {
+            barbershopId: session.user.barbershopId,
+            type:         "SYSTEM",
+            title:        "Importação da Trinks concluída",
+            body:         `${result.customersUpserted} clientes, ${result.servicesUpserted} serviços e ${result.appointmentsUpserted} agendamentos importados com sucesso.`,
+            link:         "/clientes",
+          },
+        });
+
         return NextResponse.json({ ...result, attempt: attempt + 1 });
       } catch (err) {
         lastError = err;
