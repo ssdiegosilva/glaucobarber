@@ -61,14 +61,15 @@ interface RecentAppt {
 }
 
 interface Props {
-  appointment: AgendaAppointment | null;
-  open: boolean;
-  onClose: () => void;
+  appointment:  AgendaAppointment | null;
+  open:         boolean;
+  onClose:      () => void;
   onStatusChange: (appointmentId: string, newStatus: string) => void;
   onReschedule: (appointmentId: string, scheduledAt: string) => void;
+  isAvecActive: boolean;
 }
 
-export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, onReschedule }: Props) {
+export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, onReschedule, isAvecActive }: Props) {
   const [context, setContext]             = useState<{ customer: CustomerContext | null; recentAppointments: RecentAppt[] } | null>(null);
   const [loadingCtx, setLoadingCtx]       = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -149,8 +150,17 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
 
   if (!appointment) return null;
 
+  const isReadOnly    = !!appointment.avecId && isAvecActive;
   const currentStatus = localStatus ?? appointment.status;
-  const actions = STATUS_NEXT[currentStatus] ?? [];
+  const actions       = isReadOnly ? [] : (STATUS_NEXT[currentStatus] ?? []);
+
+  // Badge de origem
+  const originBadge = appointment.avecId
+    ? { label: "Avec",   className: "bg-blue-500/10 text-blue-400 border-blue-500/30" }
+    : appointment.trinksId
+    ? { label: "Trinks", className: "bg-purple-500/10 text-purple-400 border-purple-500/30" }
+    : { label: "Manual", className: "bg-zinc-500/10 text-zinc-400 border-zinc-500/30" };
+
   const customer = context?.customer ?? null;
   const recent   = context?.recentAppointments ?? [];
 
@@ -188,11 +198,19 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
               <Badge variant={statusVariant(currentStatus) as any}>
                 {STATUS_LABELS[currentStatus] ?? currentStatus}
               </Badge>
+              <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded border font-medium ${originBadge.className}`}>
+                {originBadge.label}
+              </span>
               {appointment.price && (
                 <span className="ml-auto text-sm font-semibold text-foreground">{formatBRL(appointment.price)}</span>
               )}
             </div>
-            {actions.length > 0 && (
+
+            {isReadOnly ? (
+              <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-400">
+                Agendamento gerenciado pela Avec — acesse o painel Avec para confirmar ou cancelar.
+              </div>
+            ) : actions.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {actions.map((a, i) => (
                   <Button

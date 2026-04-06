@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncBarbershop } from "@/lib/integrations/trinks/sync";
+import { syncAvecBarbershop } from "@/lib/integrations/avec/sync";
 import { getKillSwitch } from "@/lib/platform-config";
 
 export async function GET(req: NextRequest) {
@@ -24,18 +25,25 @@ export async function GET(req: NextRequest) {
     }
 
     const barbershops = await prisma.barbershop.findMany({
-      where: { integration: { status: "ACTIVE" } },
-      select: { id: true },
+      where:  { integration: { status: "ACTIVE" } },
+      select: { id: true, integration: { select: { provider: true } } },
     });
 
-    const results: Array<{ barbershopId: string; ok: boolean; error?: string }> = [];
+    const results: Array<{ barbershopId: string; provider: string; ok: boolean; error?: string }> = [];
 
     for (const shop of barbershops) {
+      const provider = shop.integration?.provider ?? "trinks";
       try {
-        await syncBarbershop(shop.id, "cron:hourly");
-        results.push({ barbershopId: shop.id, ok: true });
+        if (provider === "avec") {
+          await syncAvecBarbershop(shop.id, "cron:hourly");
+        } else if (provider === "trinks") {
+          await syncBarbershop(shop.id, "cron:hourly");
+        } else {
+          console.warn(`[cron:hourly-sync] Unknown provider "${provider}" for barbershop ${shop.id} — skipping`);
+        }
+        results.push({ barbershopId: shop.id, provider, ok: true });
       } catch (err) {
-        results.push({ barbershopId: shop.id, ok: false, error: String(err) });
+        results.push({ barbershopId: shop.id, provider, ok: false, error: String(err) });
       }
     }
 

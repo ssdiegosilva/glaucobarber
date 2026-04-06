@@ -20,10 +20,24 @@ export async function PATCH(
   const newDate = new Date(scheduledAt);
   if (isNaN(newDate.getTime())) return NextResponse.json({ error: "Data inválida" }, { status: 400 });
 
-  const appointment = await prisma.appointment.findFirst({
-    where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
-  });
+  const [appointment, integration] = await Promise.all([
+    prisma.appointment.findFirst({
+      where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
+    }),
+    prisma.integration.findUnique({
+      where:  { barbershopId: session.user.barbershopId },
+      select: { provider: true, status: true, configJson: true },
+    }),
+  ]);
   if (!appointment) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Block write on Avec-sourced appointments while Avec integration is active
+  if (appointment.avecId && integration?.provider === "avec" && integration?.status === "ACTIVE") {
+    return NextResponse.json(
+      { error: "Agendamento gerenciado pela Avec — acesse o painel Avec para alterações" },
+      { status: 403 }
+    );
+  }
 
   await prisma.appointment.update({
     where: { id: appointment.id },
@@ -45,16 +59,11 @@ export async function PATCH(
   }
 
   // Mirror to Trinks (best-effort)
-  if (appointment.trinksId) {
+  if (appointment.trinksId && integration?.configJson && integration.provider === "trinks") {
     try {
-      const integration = await prisma.integration.findUnique({
-        where: { barbershopId: session.user.barbershopId },
-      });
-      if (integration?.configJson) {
-        const client      = buildTrinksClient(integration.configJson);
-        const trinksDatetime = format(newDate, "yyyy-MM-dd'T'HH:mm:ss");
-        await client.rescheduleAppointment(appointment.trinksId, trinksDatetime);
-      }
+      const client         = buildTrinksClient(integration.configJson);
+      const trinksDatetime = format(newDate, "yyyy-MM-dd'T'HH:mm:ss");
+      await client.rescheduleAppointment(appointment.trinksId, trinksDatetime);
     } catch (err) {
       console.error("[reschedule] failed to sync to Trinks:", err);
     }

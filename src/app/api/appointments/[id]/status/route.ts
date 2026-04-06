@@ -29,10 +29,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Método de pagamento inválido" }, { status: 400 });
   }
 
-  const appointment = await prisma.appointment.findFirst({
-    where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
-  });
+  const [appointment, integration] = await Promise.all([
+    prisma.appointment.findFirst({
+      where: { OR: [{ id }, { trinksId: id }], barbershopId: session.user.barbershopId },
+    }),
+    prisma.integration.findUnique({
+      where:  { barbershopId: session.user.barbershopId },
+      select: { provider: true, status: true },
+    }),
+  ]);
   if (!appointment) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Block write on Avec-sourced appointments while Avec integration is active
+  if (appointment.avecId && integration?.provider === "avec" && integration?.status === "ACTIVE") {
+    return NextResponse.json(
+      { error: "Agendamento gerenciado pela Avec — acesse o painel Avec para alterações" },
+      { status: 403 }
+    );
+  }
 
   const data: any = { status };
   const now = new Date();

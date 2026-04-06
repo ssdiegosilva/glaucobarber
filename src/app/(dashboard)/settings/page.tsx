@@ -26,7 +26,7 @@ export default async function SettingsPage({
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
     prisma.integration.findUnique({
       where:  { barbershopId },
-      select: { status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, instagramPageAccessToken: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true, whatsappWabaId: true },
+      select: { provider: true, status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, instagramPageAccessToken: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true, whatsappWabaId: true },
     }),
     prisma.syncRun.findMany({
       where:   { barbershopId },
@@ -215,6 +215,7 @@ export default async function SettingsPage({
           <Suspense>
             <IntegrationsClient
               integration={integration ? {
+                provider:            integration.provider,
                 status:              integration.status,
                 lastSyncAt:          integration.lastSyncAt?.toISOString() ?? null,
                 errorMsg:            integration.errorMsg,

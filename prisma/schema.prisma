@@ -309,6 +309,7 @@ model Customer {
   id           String         @id @default(cuid())
   barbershopId String
   trinksId     String?        // external ID from Trinks
+  avecId       String?        // external ID from Avec
   name         String
   phone        String?
   email        String?
@@ -346,6 +347,7 @@ model Customer {
 
   // Source tracking
   syncedFromTrinks  Boolean   @default(false)
+  syncedFromAvec    Boolean   @default(false)
   lastSyncedAt      DateTime?
   locallyModifiedAt DateTime? // set when user edits locally — prevents sync from overwriting
   deletedAt         DateTime? // soft delete: set on DELETE; sync skips records where this is non-null
@@ -361,6 +363,7 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   @@unique([barbershopId, trinksId])
+  @@unique([barbershopId, avecId])
   @@index([barbershopId, postSaleStatus])
   @@index([barbershopId, lastCompletedAppointmentAt])
   @@index([barbershopId, nextAppointmentAt])
@@ -426,6 +429,7 @@ model Service {
   id           String          @id @default(cuid())
   barbershopId String
   trinksId     String?
+  avecId       String?
   name         String
   description  String?
   category     ServiceCategory @default(HAIRCUT)
@@ -435,6 +439,7 @@ model Service {
   visible      Boolean         @default(true)
 
   syncedFromTrinks Boolean  @default(false)
+  syncedFromAvec   Boolean  @default(false)
   lastSyncedAt     DateTime?
 
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
@@ -446,6 +451,7 @@ model Service {
   updatedAt DateTime @updatedAt
 
   @@unique([barbershopId, trinksId])
+  @@unique([barbershopId, avecId])
   @@map("services")
 }
 
@@ -462,6 +468,7 @@ model Appointment {
   id           String            @id @default(cuid())
   barbershopId String
   trinksId     String?
+  avecId       String?
   customerId   String?
   serviceId    String?
   barberId     String?           // userId of barber (Membership role BARBER)
@@ -477,6 +484,7 @@ model Appointment {
 
   offerId     String?
   syncedFromTrinks Boolean  @default(false)
+  syncedFromAvec   Boolean  @default(false)
   lastSyncedAt     DateTime?
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
@@ -494,6 +502,7 @@ model Appointment {
   updatedAt DateTime @updatedAt
 
   @@unique([barbershopId, trinksId])
+  @@unique([barbershopId, avecId])
   @@map("appointments")
 }
 

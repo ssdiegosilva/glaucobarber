@@ -4,7 +4,7 @@
 
 SaaS multi-tenant para barbearias. Cada barbearia tem seus próprios dados, usuários e configurações.
 
-**Filosofia**: Trinks = backend operacional (agenda, clientes, serviços). Este app = camada de inteligência por cima (IA, campanhas, WhatsApp, financeiro).
+**Filosofia**: Trinks/Avec = backend operacional (agenda, clientes, serviços). Este app = camada de inteligência por cima (IA, campanhas, WhatsApp, financeiro).
 
 **Deploy**: Vercel + Supabase (PostgreSQL + Storage). Domínio: glaucobarber.com
 
@@ -60,6 +60,9 @@ src/
     prisma.ts             # Prisma client singleton
     storage.ts            # Wrappers de storage da barbearia (delega pro core/storage.ts)
     whatsapp.ts           # Envio via Meta API
+    integrations/
+      trinks/             # client.ts, sync.ts, mappers.ts, types.ts
+      avec/               # client.ts, sync.ts, mappers.ts, types.ts
   components/
     layout/               # Header, Sidebar
     ui/                   # shadcn/ui components
@@ -72,8 +75,8 @@ src/
 
 - **Barbershop**: tenant principal. Tem `brandStyle` (estilo visual para IA) e `campaignReferenceImageUrl` (foto de referência para campanhas)
 - **Membership**: usuário ↔ barbearia (role: OWNER/STAFF)
-- **Customer**: clientes com `lastWhatsappSentAt`, `lastAppointmentAt`
-- **Appointment**: agendamentos sincronizados do Trinks
+- **Customer**: clientes com `lastWhatsappSentAt`, `lastAppointmentAt`, `trinksId`, `avecId`
+- **Appointment**: agendamentos sincronizados do Trinks ou Avec (ou criados manualmente). Tem `trinksId` e `avecId` para rastrear origem.
 - **Campaign**: campanhas com `text`, `artBriefing`, `imageUrl`, `status` (DRAFT/APPROVED/DISMISSED/SCHEDULED/PUBLISHED)
 - **WhatsappMessage**: fila de mensagens com `status` (QUEUED/SENT/FAILED) e `sentManually`
 - **WhatsappTemplate**: templates sincronizados da Meta via WABA ID
@@ -145,6 +148,50 @@ Essa distinção visual sinaliza ao usuário que a ação vai consumir créditos
 - Botão "Enviar com bot" só aparece se `hasAutoSend && whatsappConfigured && hasWabaId`
 - Mensagem personalizada (wa.me) → cria direto com `status: SENT`, não vai para fila
 - Templates sincronizados via `POST /api/whatsapp/templates/sync`
+
+---
+
+## Integrações Operacionais (Trinks / Avec)
+
+Cada barbearia conecta **um** backend operacional. O campo `Integration.provider` define qual.
+
+### Regras de leitura/escrita por registro
+
+| Origem | Campo | Agendamento | Serviço | Cliente |
+|---|---|---|---|---|
+| Trinks ativo | `trinksId` | Ações completas (sync para Trinks) | Editável | Editável |
+| Avec ativo | `avecId` | **Somente leitura** | Editável | Editável |
+| Avec pausado/desconectado | `avecId` | Editável — liberado | Editável | Editável |
+| Manual | nenhum | Ações completas | Editável | Editável |
+
+**Regra chave**: `avecId` **nunca é apagado** no disconnect — serve como chave de deduplicação ao reconectar. A editabilidade é determinada em runtime: `avecId != null AND integration.provider="avec" AND status="ACTIVE"`.
+
+### Trinks
+- API REST completa (read + write). Autenticação: `X-Api-Key` header.
+- Sync: clientes, serviços, agendamentos. Permite atualizar status e reagendar.
+- Código: `src/lib/integrations/trinks/`
+
+### Avec
+- API de relatórios read-only (278 endpoints). Autenticação: `Authorization: Bearer <token>`.
+- Sync: clientes (`/reports/0004`), serviços (`/reports/0031`), agendamentos (`/reports/0051`).
+- Docs: https://doc.api.avec.beauty/llms.txt
+- Status de agendamentos **não documentados** — mapeamento inferido em `avec/mappers.ts`, logar valores desconhecidos.
+- Código: `src/lib/integrations/avec/`
+
+### Cron de sync (`src/app/api/cron/hourly-sync/route.ts`)
+- Roda a cada hora para todas as integrações com `status = ACTIVE`
+- Roteia por `integration.provider`: "avec" → `syncAvecBarbershop`, "trinks" → `syncBarbershop`
+- Providers desconhecidos são pulados com `console.warn` (sem lançar exceção)
+
+### Toggle pausar/religar (`POST /api/integrations/toggle`)
+- `enabled: false` → `status = UNCONFIGURED`, mantém `configJson` (credenciais preservadas)
+- `enabled: true` → valida com `ping()`, `status = ACTIVE`, dispara sync
+- Com integração pausada: dados existentes ficam editáveis, cron não roda
+
+### Troca de provider
+- Ao conectar Avec com Trinks ativo (ou vice-versa): provider anterior é desativado (`configJson = null`)
+- IDs externos (`trinksId`, `avecId`) são preservados para deduplicação futura
+- UI mostra dialog de confirmação antes de trocar
 
 ---
 

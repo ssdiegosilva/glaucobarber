@@ -13,6 +13,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 
 interface IntegrationInfo {
+  provider:   string;
   status:     string;
   lastSyncAt: string | null;
   errorMsg:   string | null;
@@ -127,6 +128,19 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
 
   // Trinks
   const [disconnectingTrinks, setDisconnectingTrinks] = useState(false);
+  const [togglingTrinks,      setTogglingTrinks]      = useState(false);
+
+  // Avec
+  const isAvecProvider    = integration?.provider === "avec";
+  const avecConfigured    = isAvecProvider && integration?.configured;
+  const [avecToken,        setAvecToken]        = useState("");
+  const [avecBaseUrl,      setAvecBaseUrl]      = useState("");
+  const [avecFormError,    setAvecFormError]    = useState("");
+  const [savingAvec,       setSavingAvec]       = useState(false);
+  const [syncingAvec,      setSyncingAvec]      = useState(false);
+  const [disconnectingAvec, setDisconnectingAvec] = useState(false);
+  const [togglingAvec,     setTogglingAvec]     = useState(false);
+  const [showAvecForm,     setShowAvecForm]     = useState(!avecConfigured);
 
   // ── Trinks ────────────────────────────────────────────────────
 
@@ -206,6 +220,111 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       toast({ title: "Erro ao desconectar", description: String(e), variant: "destructive" });
     } finally {
       setDisconnectingTrinks(false);
+    }
+  }
+
+  async function handleToggleTrinks(enabled: boolean) {
+    setTogglingTrinks(true);
+    try {
+      const res = await fetch("/api/integrations/toggle", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ provider: "trinks", enabled }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        toast({ title: "Erro", description: d.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: enabled ? "Trinks reativada" : "Trinks pausada" });
+      window.location.reload();
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setTogglingTrinks(false);
+    }
+  }
+
+  // ── Avec ──────────────────────────────────────────────────────
+
+  async function handleSaveAvec() {
+    setAvecFormError("");
+    setSavingAvec(true);
+    try {
+      const res = await fetch("/api/avec/configure", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ token: avecToken, baseUrl: avecBaseUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAvecFormError(data.error ?? "Erro ao salvar"); return; }
+      toast({ title: "Avec configurada!", description: "Iniciando sincronização dos dados..." });
+      setShowAvecForm(false);
+      await handleSyncAvec();
+      window.location.reload();
+    } catch {
+      setAvecFormError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSavingAvec(false);
+    }
+  }
+
+  async function handleSyncAvec() {
+    setSyncingAvec(true);
+    try {
+      const res = await fetch("/api/avec/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Sync failed");
+      toast({
+        title: "Sync Avec concluído",
+        description: `${data.customersUpserted} clientes, ${data.servicesUpserted} serviços, ${data.appointmentsUpserted} agendamentos.`,
+      });
+      window.dispatchEvent(new Event("notifications-changed"));
+    } catch (e) {
+      toast({ title: "Erro no sync Avec", description: String(e), variant: "destructive" });
+    } finally {
+      setSyncingAvec(false);
+    }
+  }
+
+  async function handleDisconnectAvec() {
+    if (!confirm("Desconectar Avec? O sync automático será interrompido. Os dados importados serão preservados e ficarão editáveis.")) return;
+    setDisconnectingAvec(true);
+    try {
+      const res = await fetch("/api/integrations/disconnect", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ provider: "avec" }),
+      });
+      if (!res.ok) throw new Error("Erro ao desconectar");
+      toast({ title: "Avec desconectada", description: "Dados preservados e agora editáveis." });
+      window.location.reload();
+    } catch (e) {
+      toast({ title: "Erro ao desconectar", description: String(e), variant: "destructive" });
+    } finally {
+      setDisconnectingAvec(false);
+    }
+  }
+
+  async function handleToggleAvec(enabled: boolean) {
+    setTogglingAvec(true);
+    try {
+      const res = await fetch("/api/integrations/toggle", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ provider: "avec", enabled }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        toast({ title: "Erro", description: d.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: enabled ? "Avec reativada" : "Avec pausada", description: enabled ? "Sync retomado." : "Dados permanecem editáveis enquanto pausada." });
+      window.location.reload();
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setTogglingAvec(false);
     }
   }
 
@@ -410,7 +529,22 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
               <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
                 {integration?.status ?? "UNCONFIGURED"}
               </Badge>
-              <Button onClick={handleSync} disabled={syncing || !integration?.configured} size="sm">
+              {integration?.configured && !isAvecProvider && (
+                <>
+                  {integration.status === "ACTIVE" ? (
+                    <Button size="sm" variant="outline" className="text-xs gap-1"
+                      onClick={() => handleToggleTrinks(false)} disabled={togglingTrinks}>
+                      {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" className="text-xs gap-1 text-green-400 border-green-500/30"
+                      onClick={() => handleToggleTrinks(true)} disabled={togglingTrinks}>
+                      {togglingTrinks ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
+                    </Button>
+                  )}
+                </>
+              )}
+              <Button onClick={handleSync} disabled={syncing || !integration?.configured || isAvecProvider || integration?.status !== "ACTIVE"} size="sm">
                 <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync Manual"}</span>
                 <span className="sm:hidden">{syncing ? "..." : "Sync"}</span>
@@ -589,6 +723,142 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── Avec ──────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <Plug className="h-5 w-5 text-blue-400" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base">Avec</CardTitle>
+                <p className="text-xs text-muted-foreground">Plataforma operacional alternativa</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {isAvecProvider && (
+                <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
+                  {integration?.status === "ACTIVE" ? "Ativa" : "Pausada"}
+                </Badge>
+              )}
+              {isAvecProvider && avecConfigured && (
+                <>
+                  {integration?.status === "ACTIVE" ? (
+                    <Button size="sm" variant="outline" className="text-xs gap-1"
+                      onClick={() => handleToggleAvec(false)} disabled={togglingAvec}>
+                      {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Pausar"}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" className="text-xs gap-1 text-green-400 border-green-500/30"
+                      onClick={() => handleToggleAvec(true)} disabled={togglingAvec}>
+                      {togglingAvec ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Religar"}
+                    </Button>
+                  )}
+                  <Button onClick={handleSyncAvec} disabled={syncingAvec || integration?.status !== "ACTIVE"} size="sm">
+                    <RefreshCw className={`h-3.5 w-3.5 ${syncingAvec ? "animate-spin" : ""}`} />
+                    <span className="hidden sm:inline">{syncingAvec ? "Sincronizando..." : "Sync Manual"}</span>
+                    <span className="sm:hidden">{syncingAvec ? "..." : "Sync"}</span>
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+
+          {isAvecProvider && integration?.lastSyncAt && (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Último sync</p>
+                <p className="text-foreground text-sm">{relativeTime(integration.lastSyncAt)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Status</p>
+                <p className={`text-sm ${integration.status === "ACTIVE" ? "text-green-400" : "text-yellow-400"}`}>
+                  {integration.status === "ACTIVE" ? "Ativa" : "Pausada"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isAvecProvider && integration?.status === "UNCONFIGURED" && integration?.configured && (
+            <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
+              Integração pausada. Os dados importados estão editáveis. Clique em &quot;Religar&quot; para retomar o sync.
+            </div>
+          )}
+
+          {isAvecProvider && integration?.errorMsg && (
+            <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-300">{integration.errorMsg}</p>
+            </div>
+          )}
+
+          {/* Avec config form */}
+          {(!isAvecProvider || showAvecForm) ? (
+            <div className="space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
+              <p className="text-xs font-semibold text-foreground">Configurar credenciais da Avec</p>
+
+              {!isAvecProvider && integration?.configured && (
+                <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
+                  Atenção: conectar a Avec irá substituir a integração atual com a Trinks. Os dados já sincronizados serão preservados.
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Base URL da API</label>
+                <input
+                  type="text" value={avecBaseUrl} onChange={(e) => setAvecBaseUrl(e.target.value)}
+                  placeholder="https://api.seudominio.com.br"
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <p className="text-[11px] text-muted-foreground">Obtida no painel da Avec em Configurações → API</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Token de acesso</label>
+                <input
+                  type="password" value={avecToken} onChange={(e) => setAvecToken(e.target.value)}
+                  placeholder="Bearer token da Avec"
+                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              {avecFormError && (
+                <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{avecFormError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" className="text-xs" onClick={handleSaveAvec} disabled={savingAvec || !avecToken || !avecBaseUrl}>
+                  {savingAvec ? <><RefreshCw className="h-3 w-3 animate-spin mr-1" />Salvando...</> : "Salvar e sincronizar"}
+                </Button>
+                {avecConfigured && (
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowAvecForm(false)}>Cancelar</Button>
+                )}
+              </div>
+            </div>
+          ) : avecConfigured ? (
+            <div className="rounded-md border border-green-500/30 bg-green-500/8 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                <p className="text-xs font-semibold text-green-400">Credenciais configuradas</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2"
+                  onClick={() => setShowAvecForm(true)}>
+                  <Settings className="h-3.5 w-3.5" /> Editar
+                </Button>
+                <Button size="sm" variant="ghost" className="text-xs gap-1 h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                  onClick={handleDisconnectAvec} disabled={disconnectingAvec} title="Desconectar Avec">
+                  {disconnectingAvec ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
         </CardContent>
       </Card>
 

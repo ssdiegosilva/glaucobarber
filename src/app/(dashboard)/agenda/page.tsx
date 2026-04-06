@@ -46,7 +46,7 @@ export default async function AgendaPage({
       },
       orderBy: { scheduledAt: "asc" },
     }),
-    prisma.integration.findUnique({ where: { barbershopId }, select: { configJson: true, status: true } }),
+    prisma.integration.findUnique({ where: { barbershopId }, select: { configJson: true, status: true, provider: true } }),
     prisma.barbershop.findUnique({ where: { id: barbershopId }, select: { agendaStartHour: true, agendaEndHour: true } }),
     prisma.goal.findUnique({
       where: { barbershopId_month_year: { barbershopId, month: targetMonth, year: targetYear } },
@@ -74,6 +74,7 @@ export default async function AgendaPage({
   const serialized: AgendaAppointment[] = appointments.map((a) => ({
     id:           a.id,
     trinksId:     a.trinksId,
+    avecId:       a.avecId,
     customerName: a.customer?.name ?? "Cliente",
     serviceName:  a.service?.name ?? null,
     scheduledAt:  a.scheduledAt.toISOString(),
@@ -97,7 +98,8 @@ export default async function AgendaPage({
     totalSlots:       TOTAL_SLOTS,
   };
 
-  const hasTrinks       = !!integration?.configJson && integration.status === "ACTIVE";
+  const hasTrinks       = !!integration?.configJson && integration.status === "ACTIVE" && integration.provider !== "avec";
+  const isAvecActive    = integration?.provider === "avec" && integration?.status === "ACTIVE";
   const agendaStartHour = barbershop?.agendaStartHour ?? 6;
   const agendaEndHour   = barbershop?.agendaEndHour   ?? 24;
   const dateLabel       = format(target, "EEEE, dd 'de' MMMM", { locale: ptBR });
@@ -118,6 +120,7 @@ export default async function AgendaPage({
           date={dateLabel}
           dateIso={dateIso}
           hasTrinks={hasTrinks}
+          isAvecActive={isAvecActive}
           agendaStartHour={agendaStartHour}
           agendaEndHour={agendaEndHour}
           currentYear={currentYear}

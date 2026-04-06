@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const PROVIDERS = ["trinks", "instagram", "whatsapp"] as const;
+const PROVIDERS = ["trinks", "avec", "instagram", "whatsapp"] as const;
 type Provider = typeof PROVIDERS[number];
 
 export async function POST(req: NextRequest) {
@@ -39,6 +39,20 @@ export async function POST(req: NextRequest) {
         data:  { trinksConfigured: false },
       }),
     ]);
+    // Note: trinksId fields are intentionally preserved for deduplication on reconnect
+  }
+
+  if (provider === "avec") {
+    await prisma.integration.update({
+      where: { barbershopId },
+      data: {
+        configJson: null,
+        status:     "UNCONFIGURED",
+        errorMsg:   null,
+        lastSyncAt: null,
+      },
+    });
+    // Note: avecId fields are intentionally preserved for deduplication on reconnect
   }
 
   if (provider === "instagram") {

@@ -15,6 +15,7 @@ import type { AgendaKPIs } from "./components/AgendaKPICards";
 export interface AgendaAppointment {
   id:            string;
   trinksId?:     string | null;
+  avecId?:       string | null;
   customerName:  string;
   serviceName?:  string | null;
   scheduledAt:   string;   // ISO string
@@ -39,6 +40,7 @@ interface Props {
   date:            string;   // formatted label e.g. "quinta-feira, 02 de abril"
   dateIso:         string;   // YYYY-MM-DD for the input
   hasTrinks:       boolean;
+  isAvecActive:    boolean;
   agendaStartHour: number;
   agendaEndHour:   number;
   currentYear:     number;
@@ -48,7 +50,7 @@ interface Props {
 const TOTAL_SLOTS = 20;
 
 export function AgendaClient({
-  appointments: initial, barbers, kpis, date, dateIso, hasTrinks,
+  appointments: initial, barbers, kpis, date, dateIso, hasTrinks, isAvecActive,
   agendaStartHour: initStart, agendaEndHour: initEnd, currentYear, isDayOff,
 }: Props) {
   const router       = useRouter();
@@ -320,6 +322,7 @@ export function AgendaClient({
                 onClose={() => setDrawerOpen(false)}
                 onStatusChange={handleStatusChange}
                 onReschedule={handleReschedule}
+                isAvecActive={isAvecActive}
               />
 
               <NewAppointmentDrawer
