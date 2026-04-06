@@ -192,10 +192,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       });
       const data = await res.json();
       if (!res.ok) { setFormError(data.error ?? "Erro ao salvar"); return; }
-      toast({ title: "Trinks configurada!", description: "Iniciando sincronização dos dados..." });
-      setShowForm(false);
-      setSaving(false);
-      await handleSync();
+      toast({ title: "Trinks configurada!", description: "Sincronização iniciada em background..." });
+      handleSync().catch(() => null); // fire-and-forget
       window.location.reload();
     } catch {
       setFormError("Erro de conexão. Tente novamente.");
@@ -295,9 +293,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       });
       const data = await res.json();
       if (!res.ok) { setAvecFormError(data.error ?? "Erro ao salvar"); return; }
-      toast({ title: "Avec configurada!", description: "Iniciando sincronização dos dados..." });
-      setShowAvecForm(false);
-      await handleSyncAvec();
+      toast({ title: "Avec configurada!", description: "Sincronização iniciada em background..." });
+      handleSyncAvec().catch(() => null); // fire-and-forget
       window.location.reload();
     } catch {
       setAvecFormError("Erro de conexão. Tente novamente.");
