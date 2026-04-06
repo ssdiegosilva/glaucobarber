@@ -41,6 +41,40 @@ next-env.d.ts
 prisma/*.db
 prisma/*.db-journal
 
+# AI coding assistants (local configs, not part of the project)
+.adal/
+.agents/
+.augment/
+.bob/
+.claude/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+skills/
+skills-lock.json
+
 # Capacitor — native projects (generated via `npx cap add <platform>`)
 # Regenerated from capacitor.config.ts + mobile-shell/
 # Only commit: capacitor.config.ts, mobile-shell/, src/lib/mobile/
