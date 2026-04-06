@@ -36,16 +36,6 @@ export default async function AdminObservabilityPage() {
       include: { barbershop: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
       take:    500,
-      select: {
-        id:           true,
-        barbershopId: true,
-        customerName: true,
-        phone:        true,
-        type:         true,
-        errorMessage: true,
-        updatedAt:    true,
-        barbershop:   { select: { name: true } },
-      },
     }),
 
     // Campaign failures last 30 days
