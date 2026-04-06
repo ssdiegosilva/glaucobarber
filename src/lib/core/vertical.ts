@@ -51,6 +51,8 @@ export interface VerticalConfig {
     brandStyleSystemPrompt: string;
     /** System prompt for haircut/service analysis */
     serviceAnalysisSystemPrompt: string;
+    /** Prompt sent to gpt-image-1 for the haircut visual transformation */
+    haircutVisualPrompt: string;
   };
 
   // ── Storage ───────────────────────────────────────────────

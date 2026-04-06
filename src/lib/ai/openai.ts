@@ -326,13 +326,14 @@ Retorne JSON com:
     }
   }
 
-  async generateHaircutVisual(imageBuffer: Buffer, imagePrompt: string): Promise<{ url: string } | { b64: string }> {
+  async generateHaircutVisual(imageBuffer: Buffer): Promise<{ url: string } | { b64: string }> {
+    const prompt = getVerticalConfig().ai.haircutVisualPrompt;
     try {
       const { toFile } = await import("openai");
       const img = await this.client.images.edit({
         model:  "gpt-image-1",
         image:  await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
-        prompt: imagePrompt,
+        prompt,
         size:   "1024x1024",
         n:      1,
       } as Parameters<typeof this.client.images.edit>[0]);
@@ -342,7 +343,7 @@ Retorne JSON com:
       return { b64 };
     } catch (err) {
       console.warn("[AI] gpt-image-1 haircut edit falhou, usando dall-e-3:", err);
-      return this._generateWithDallE3(imagePrompt);
+      return this._generateWithDallE3(prompt);
     }
   }
 

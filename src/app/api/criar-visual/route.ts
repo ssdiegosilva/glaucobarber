@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   const ai = getAIProvider();
 
-  // Step 1: Analyze face and get haircut suggestion
+  // Step 1: Analyze face and get haircut suggestion (text only — no credit charge)
   let suggestion;
   try {
     suggestion = await ai.analyzeAndSuggestHaircut(base64);
@@ -58,12 +58,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Erro ao analisar a foto. Tente novamente." }, { status: 500 });
   }
 
-  await consumeAiCredit(barbershopId, "visual_style_analyze");
-
-  // Step 2: Generate visual with suggested haircut
+  // Step 2: Generate visual — single credit charge for the full operation
   let imageResult;
   try {
-    imageResult = await ai.generateHaircutVisual(buffer, suggestion.imagePrompt);
+    imageResult = await ai.generateHaircutVisual(buffer);
   } catch (err) {
     console.error("[criar-visual] generateHaircutVisual error:", err);
     return NextResponse.json({ error: "Erro ao gerar o visual. Tente novamente." }, { status: 500 });
