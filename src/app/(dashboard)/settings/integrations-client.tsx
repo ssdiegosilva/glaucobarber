@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
 import {
   RefreshCw, CheckCircle2, AlertTriangle, Plug, Clock,
-  Settings, ChevronDown, Copy, Check, Unplug, LogIn,
+  Settings, ChevronDown, Copy, Check, Unplug, LogIn, Lock,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -592,61 +592,83 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         <CardContent className="space-y-4">
 
           {/* ── Seletor de plataforma ── */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Trinks tile */}
-            <button
-              onClick={() => handleSelectProvider("trinks")}
-              className={`rounded-lg border p-3 text-left transition-all ${
-                !isAvecProvider && integration?.configured
-                  ? "border-gold-500/40 bg-gold-500/8"
-                  : "border-border hover:border-gold-500/20 hover:bg-gold-500/5"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gold-500/15 border border-gold-500/20">
-                  <span className="text-sm font-black text-gold-400">T</span>
-                </div>
-                <span className="text-sm font-semibold">Trinks</span>
-                {!isAvecProvider && integration?.configured && (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 ml-auto shrink-0" />
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground">API Key + Estabelecimento</p>
-            </button>
+          {(() => {
+            const trinksConnected = !isAvecProvider && !!integration?.configured;
+            const avecConnected   = isAvecProvider  && !!avecConfigured;
+            const trinkslocked    = avecConnected;
+            const avecLocked      = trinksConnected;
 
-            {/* Avec tile */}
-            <button
-              onClick={() => handleSelectProvider("avec")}
-              className={`rounded-lg border p-3 text-left transition-all ${
-                isAvecProvider && avecConfigured
-                  ? "border-blue-500/40 bg-blue-500/8"
-                  : "border-border hover:border-blue-500/20 hover:bg-blue-500/5"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500/15 border border-blue-500/20">
-                  <span className="text-sm font-black text-blue-400">A</span>
-                </div>
-                <span className="text-sm font-semibold">Avec</span>
-                {isAvecProvider && avecConfigured && (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 ml-auto shrink-0" />
-                )}
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                {/* Trinks tile */}
+                <button
+                  onClick={() => handleSelectProvider("trinks")}
+                  title={trinkslocked ? "Clique para trocar para Trinks" : undefined}
+                  className={`relative rounded-lg border p-3 text-left transition-all ${
+                    trinksConnected
+                      ? "border-gold-500/50 bg-gold-500/10 cursor-default"
+                      : trinkslocked
+                      ? "border-border opacity-50 hover:opacity-70 hover:border-gold-500/30"
+                      : "border-border hover:border-gold-500/30 hover:bg-gold-500/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border ${trinksConnected ? "bg-gold-500/20 border-gold-500/30" : "bg-gold-500/10 border-gold-500/15"}`}>
+                      <span className="text-sm font-black text-gold-400">T</span>
+                    </div>
+                    <span className={`text-sm font-semibold ${trinksConnected ? "text-foreground" : "text-foreground/70"}`}>Trinks</span>
+                    {trinksConnected && <CheckCircle2 className="h-3.5 w-3.5 text-green-400 ml-auto shrink-0" />}
+                    {trinkslocked   && <Lock className="h-3 w-3 text-muted-foreground ml-auto shrink-0" />}
+                  </div>
+                  {trinksConnected
+                    ? <p className="text-[11px] text-green-400 font-medium">Conectado</p>
+                    : <p className="text-[11px] text-muted-foreground">API Key + Estabelecimento</p>
+                  }
+                </button>
+
+                {/* Avec tile */}
+                <button
+                  onClick={() => handleSelectProvider("avec")}
+                  title={avecLocked ? "Clique para trocar para Avec" : undefined}
+                  className={`relative rounded-lg border p-3 text-left transition-all ${
+                    avecConnected
+                      ? "border-blue-500/50 bg-blue-500/10 cursor-default"
+                      : avecLocked
+                      ? "border-border opacity-50 hover:opacity-70 hover:border-blue-500/30"
+                      : "border-border hover:border-blue-500/30 hover:bg-blue-500/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border ${avecConnected ? "bg-blue-500/20 border-blue-500/30" : "bg-blue-500/10 border-blue-500/15"}`}>
+                      <span className="text-sm font-black text-blue-400">A</span>
+                    </div>
+                    <span className={`text-sm font-semibold ${avecConnected ? "text-foreground" : "text-foreground/70"}`}>Avec</span>
+                    {avecConnected && <CheckCircle2 className="h-3.5 w-3.5 text-green-400 ml-auto shrink-0" />}
+                    {avecLocked    && <Lock className="h-3 w-3 text-muted-foreground ml-auto shrink-0" />}
+                  </div>
+                  {avecConnected
+                    ? <p className="text-[11px] text-green-400 font-medium">Conectado</p>
+                    : <p className="text-[11px] text-muted-foreground">Token + Base URL</p>
+                  }
+                </button>
               </div>
-              <p className="text-[11px] text-muted-foreground">Token + Base URL</p>
-            </button>
-          </div>
+            );
+          })()}
 
           {/* ── Confirmação de troca de plataforma ── */}
           {switchConfirm && (
             <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 px-4 py-3 space-y-2">
-              <p className="text-xs font-semibold text-yellow-300">
-                Trocar para {switchConfirm === "trinks" ? "Trinks" : "Avec"}?
-              </p>
+              <div className="flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
+                <p className="text-xs font-semibold text-yellow-300">
+                  Trocar para {switchConfirm === "trinks" ? "Trinks" : "Avec"}?
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground">
-                A integração com {isAvecProvider ? "Avec" : "Trinks"} será desconectada. Os dados sincronizados são preservados e ficam editáveis.
+                A integração atual com <span className="text-foreground">{isAvecProvider ? "Avec" : "Trinks"}</span> será desconectada e os dados sincronizados ficam editáveis. Você precisará configurar as credenciais de <span className="text-foreground">{switchConfirm === "trinks" ? "Trinks" : "Avec"}</span>.
               </p>
               <div className="flex gap-2">
-                <Button size="sm" className="text-xs h-7" onClick={handleConfirmSwitch}>Confirmar troca</Button>
+                <Button size="sm" className="text-xs h-7" onClick={handleConfirmSwitch}>Desbloquear e configurar {switchConfirm === "trinks" ? "Trinks" : "Avec"}</Button>
                 <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setSwitchConfirm(null)}>Cancelar</Button>
               </div>
             </div>
