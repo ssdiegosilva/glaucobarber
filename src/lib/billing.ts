@@ -221,6 +221,24 @@ export async function withAiCredit<T>(
 
 // ── consumeAiCredit ────────────────────────────────────────────────────────────
 
+// Estimated GPT-4o-mini costs per feature in USD cents
+// Based on: input $0.15/1M tokens + output $0.60/1M tokens
+const TEXT_FEATURE_COST_USD_CENTS: Record<string, number> = {
+  copilot_chat:         0.08, // ~2000 input + 800 output
+  campaign_text:        0.04, // ~800 input + 300 output
+  campaign_themes:      0.10, // web search + ~1500 tokens
+  ai_suggestion:        0.05, // ~1500 input + 400 output
+  post_sale:            0.02, // ~600 input + 200 output
+  whatsapp_template:    0.03, // ~800 input + 300 output
+  whatsapp_personalize: 0.02, // ~500 input + 200 output
+  goals_suggest:        0.04, // ~1000 input + 400 output
+  price_recommend:      0.03, // ~800 input + 300 output
+  brand_style_improve:  0.02, // ~400 input + 150 output
+  brand_style_logo:     0.04, // vision model ~1000 input
+  visual_style_analyze: 0.04, // vision model ~1000 input
+  opportunities:        0.04, // ~1200 input + 400 output
+};
+
 const IMAGE_FEATURES = new Set(getVerticalConfig().ai.imageFeatures);
 
 export async function consumeAiCredit(barbershopId: string, feature: string): Promise<void> {
@@ -240,7 +258,8 @@ export async function consumeAiCredit(barbershopId: string, feature: string): Pr
     costUsdCents = get("ai_image_cost_usd_cents", 4);
   } else {
     cost         = getFeatureCost(feature);
-    costUsdCents = 0;
+    // GPT-4o-mini estimated costs in USD cents (input $0.15/1M + output $0.60/1M)
+    costUsdCents = TEXT_FEATURE_COST_USD_CENTS[feature] ?? 0.03;
   }
 
   // Log this call with actual USD cost
