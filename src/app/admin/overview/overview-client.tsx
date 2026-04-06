@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Zap, MessageCircle, RefreshCw, UserPlus,
   Clock, AlertTriangle, CheckCircle, XCircle,
-  Brain, Users, TrendingUp, BarChart3, Timer,
+  Brain, Users, TrendingUp, BarChart3, Timer, Play, Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -125,6 +125,29 @@ function daysUntil(iso: string): string {
 export function OverviewClient({ killSwitches: initial, cronRuns, queues, metrics }: Props) {
   const [kills, setKills] = useState<KillSwitches>(initial);
   const [loading, setLoading] = useState<Partial<Record<keyof KillSwitches, boolean>>>({});
+  const [runningCron, setRunningCron] = useState<string | null>(null);
+  const [cronResult,  setCronResult]  = useState<Record<string, { ok: boolean; msg: string }>>({});
+
+  async function runCron(cronName: string) {
+    setRunningCron(cronName);
+    setCronResult((prev) => ({ ...prev, [cronName]: { ok: true, msg: "" } }));
+    try {
+      const res  = await fetch("/api/admin/run-cron", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ cronName }),
+      });
+      const data = await res.json();
+      setCronResult((prev) => ({
+        ...prev,
+        [cronName]: { ok: res.ok && data.ok, msg: res.ok ? "Executado com sucesso" : (data.error ?? "Erro") },
+      }));
+    } catch (e) {
+      setCronResult((prev) => ({ ...prev, [cronName]: { ok: false, msg: String(e) } }));
+    } finally {
+      setRunningCron(null);
+    }
+  }
 
   async function toggleKill(key: keyof KillSwitches) {
     const newVal = !kills[key];
@@ -261,6 +284,11 @@ export function OverviewClient({ killSwitches: initial, cronRuns, queues, metric
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-right">
+                    {cronResult[run.name]?.msg && (
+                      <span className={`text-xs ${cronResult[run.name].ok ? "text-green-400" : "text-red-400"}`}>
+                        {cronResult[run.name].msg}
+                      </span>
+                    )}
                     {run.durationMs && (
                       <span className="text-xs text-zinc-500">{formatDuration(run.durationMs)}</span>
                     )}
@@ -278,6 +306,16 @@ export function OverviewClient({ killSwitches: initial, cronRuns, queues, metric
                         </div>
                       )}
                     </div>
+                    <button
+                      onClick={() => runCron(run.name)}
+                      disabled={runningCron === run.name}
+                      title="Rodar manualmente"
+                      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                    >
+                      {runningCron === run.name
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Play className="w-3 h-3" />}
+                    </button>
                   </div>
                 </div>
               );
