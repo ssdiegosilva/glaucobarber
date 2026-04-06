@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
@@ -9,6 +10,7 @@ import {
   MessageCircle, Clock, Scissors,
   ChevronDown, ChevronUp, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
   UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles, X, Save,
+  Search,
 } from "lucide-react";
 
 // ── Status actions ────────────────────────────────────────────
@@ -149,12 +151,21 @@ interface Props {
 
 // ── Root component ────────────────────────────────────────────
 
-export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
-  const [active, setActive] = useState<FilterKey | null>(null);
+const VALID_FILTERS = new Set<FilterKey>(["emRisco", "recentes", "inativos", "reativados"]);
 
-  const filteredCustomers = active
+export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
+  const searchParams = useSearchParams();
+  const initialFilter = useMemo(() => {
+    const param = searchParams.get("filter") as FilterKey | null;
+    return param && VALID_FILTERS.has(param) ? param : null;
+  }, [searchParams]);
+  const [active, setActive] = useState<FilterKey | null>(initialFilter);
+  const [nameSearch, setNameSearch] = useState("");
+
+  const filteredCustomers = (active
     ? customers.filter((c) => c.postSaleStatus === FILTER_STATUS[active])
-    : customers;
+    : customers
+  ).filter((c) => !nameSearch || c.name.toLowerCase().includes(nameSearch.toLowerCase()));
 
   return (
     <div className="space-y-5">
@@ -166,7 +177,7 @@ export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
           return (
             <button
               key={cfg.key}
-              onClick={() => setActive((prev) => prev === cfg.key ? null : cfg.key)}
+              onClick={() => { setActive((prev) => prev === cfg.key ? null : cfg.key); setNameSearch(""); }}
               className={`rounded-lg border text-left p-3 sm:p-4 transition-all focus:outline-none focus:ring-2 focus:ring-ring ${
                 isActive
                   ? `${cfg.cardBorder} ${cfg.cardBg}`
@@ -194,6 +205,20 @@ export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
           );
         })}
       </div>
+
+      {/* Name search */}
+      {active && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Buscar por nome..."
+            value={nameSearch}
+            onChange={(e) => setNameSearch(e.target.value)}
+            className="w-full rounded-lg border border-border bg-surface-900 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+      )}
 
       {/* Customer list — expandable inline */}
       <CustomerList

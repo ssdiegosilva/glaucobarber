@@ -39,8 +39,7 @@ export default async function DashboardPage({
       prisma.customer.count({
         where: {
           barbershopId,
-          status:      "ACTIVE",
-          lastVisitAt: { lt: new Date(Date.now() - 30 * 86400_000) },
+          postSaleStatus: "INATIVO",
         },
       }),
 

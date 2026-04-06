@@ -608,9 +608,10 @@ export function DashboardClient({
             <KpiCard
               label="Clientes inativos"
               value={String(stats.inactiveClients)}
-              subValue="+30 dias sem vir"
+              subValue="+60 dias sem vir"
               icon={<Users className="h-4 w-4" />}
               valueClass={stats.inactiveClients > 0 ? "text-yellow-400" : "text-green-400"}
+              href="/post-sale?filter=inativos"
             />
           )}
         </div>
@@ -755,20 +756,23 @@ export function DashboardClient({
 // ── Sub-components ───────────────────────────────────────────
 
 function KpiCard({
-  label, value, subValue, icon, valueClass = "text-foreground",
+  label, value, subValue, icon, valueClass = "text-foreground", href,
 }: {
-  label: string; value: string; subValue: string; icon: React.ReactNode; valueClass?: string;
+  label: string; value: string; subValue: string; icon: React.ReactNode; valueClass?: string; href?: string;
 }) {
+  const Wrapper = href ? "a" : "div";
   return (
-    <Card className="hover:border-gold-500/20 transition-colors">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-muted-foreground font-medium">{label}</p>
-          <span className="text-muted-foreground">{icon}</span>
-        </div>
-        <p className={`text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
-        <p className="text-xs text-muted-foreground mt-1">{subValue}</p>
-      </CardContent>
+    <Card className={`hover:border-gold-500/20 transition-colors${href ? " cursor-pointer" : ""}`}>
+      <Wrapper href={href as string}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-muted-foreground font-medium">{label}</p>
+            <span className="text-muted-foreground">{icon}</span>
+          </div>
+          <p className={`text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{subValue}</p>
+        </CardContent>
+      </Wrapper>
     </Card>
   );
 }
@@ -1170,9 +1174,10 @@ function WidgetCard({
         <KpiCard
           label="Clientes inativos"
           value={String(stats.inactiveClients)}
-          subValue="+30 dias sem vir"
+          subValue="+60 dias sem vir"
           icon={<Users className="h-4 w-4" />}
           valueClass={stats.inactiveClients > 0 ? "text-yellow-400" : "text-green-400"}
+          href="/post-sale?filter=inativos"
         />
       );
 
