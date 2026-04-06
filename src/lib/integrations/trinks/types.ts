@@ -39,7 +39,7 @@ export interface TrinksCustomer {
   cpf?:           string;
   dataNascimento?: string;
   observacao?:    string;
-  telefones?:     { numero: string; tipo?: string }[];
+  telefones?:     { ddi: string; ddd: string; telefone: string }[];
   etiquetas?:     { id: number; nome: string }[];
   dataCadastro?:  string;
   dataAlteracao?: string;

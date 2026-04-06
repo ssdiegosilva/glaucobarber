@@ -12,7 +12,8 @@ export function mapTrinksCustomer(
   raw: TrinksCustomer,
   barbershopId: string
 ): Prisma.CustomerUpsertArgs["create"] {
-  const phone = raw.telefones?.[0]?.numero ?? null;
+  const t     = raw.telefones?.[0];
+  const phone = t ? `+${t.ddi}${t.ddd}${t.telefone}` : null;
   const tags  = raw.etiquetas?.map((e) => e.nome) ?? [];
 
   return {
