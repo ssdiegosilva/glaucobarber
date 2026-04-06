@@ -18,12 +18,12 @@ export interface AuthSession {
   };
 }
 
-/** Use in dashboard pages instead of manual redirect("/onboarding"). Admins go to /admin. */
+/** Use in dashboard pages instead of manual redirect("/onboarding"). */
 export async function requireBarbershop(): Promise<AuthSession & { user: AuthSession["user"] & { barbershopId: string } }> {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!session.user.barbershopId) {
-    redirect(session.user.isAdmin ? "/admin" : "/onboarding");
+    redirect("/onboarding");
   }
   return session as AuthSession & { user: AuthSession["user"] & { barbershopId: string } };
 }
