@@ -71,7 +71,15 @@ export async function POST(req: NextRequest) {
   const totalCapacity     = workingDaysCount * hours * apptsPerHour;
 
   // ── Barbershop context ────────────────────────────────────────
-  const [barbershop, agg] = await Promise.all([
+  // Last 3 months for expense history
+  const now3m    = new Date();
+  const months3: { month: number; year: number }[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(now3m.getFullYear(), now3m.getMonth() - i, 1);
+    months3.push({ month: d.getMonth() + 1, year: d.getFullYear() });
+  }
+
+  const [barbershop, agg, expenseHistory] = await Promise.all([
     prisma.barbershop.findUnique({
       where:  { id: session.user.barbershopId },
       select: { state: true, city: true },
@@ -81,7 +89,35 @@ export async function POST(req: NextRequest) {
       _avg:   { price: true },
       _count: { _all: true },
     }),
+    prisma.expense.findMany({
+      where: {
+        barbershopId: session.user.barbershopId,
+        OR: months3.map(({ month, year }) => ({ month, year })),
+      },
+      select: { label: true, amountCents: true, month: true, year: true },
+    }),
   ]);
+
+  // Group expenses by month and calculate average
+  const expenseByMonth: Record<string, number> = {};
+  for (const e of expenseHistory) {
+    const key = `${e.year}-${String(e.month).padStart(2, "0")}`;
+    expenseByMonth[key] = (expenseByMonth[key] ?? 0) + e.amountCents / 100;
+  }
+  const expenseMonthsWithData = Object.values(expenseByMonth);
+  const avgMonthlyExpenses    = expenseMonthsWithData.length > 0
+    ? expenseMonthsWithData.reduce((s, v) => s + v, 0) / expenseMonthsWithData.length
+    : null;
+
+  // Aggregate by label across all months for top costs
+  const expenseLabelMap: Record<string, number> = {};
+  for (const e of expenseHistory) {
+    expenseLabelMap[e.label] = (expenseLabelMap[e.label] ?? 0) + e.amountCents / 100;
+  }
+  const topExpenses = Object.entries(expenseLabelMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, total]) => `${label}: R$ ${(total / expenseMonthsWithData.length || 1).toFixed(0)}/mês`);
 
   const stateCode      = barbershop?.state?.toUpperCase().trim().replace(/^([A-Z]{2}).*/, "$1") ?? null;
   const city           = barbershop?.city?.trim() ?? null;
@@ -110,9 +146,12 @@ TAREFA:
    - Atendimentos/hora: ${apptsPerHour}
    - Capacidade total do mês: ${totalCapacity} atendimentos
    ${historicalTicket ? `- Ticket médio histórico desta barbearia: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} atendimentos)` : "- Sem histórico próprio de atendimentos"}
+   ${avgMonthlyExpenses ? `- Custos mensais médios dos últimos ${expenseMonthsWithData.length} meses: R$ ${avgMonthlyExpenses.toFixed(0)}` : "- Sem custos cadastrados"}
+   ${topExpenses.length > 0 ? `- Principais custos: ${topExpenses.join(" | ")}` : ""}
    ${wizardContext ? `- Contexto informado pelo barbeiro: "${wizardContext}"` : ""}
 
 3. Assuma ocupação esperada de 70% da capacidade (padrão do setor).
+4. Se houver custos mensais cadastrados, a meta sugerida deve ser suficiente para cobri-los com margem de lucro razoável (mínimo 30% acima dos custos).
 
 RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
 \`\`\`json
@@ -159,9 +198,10 @@ RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
         region,
         regionalBenchmark:  benchmarkFromSearch,
         referenceTicket:    Number(parsed.referenceTicket ?? benchmarkFromSearch.avg),
-        historicalTicket:   historicalTicket ? Math.round(historicalTicket) : null,
-        ticketSource:       parsed.ticketSource ?? "Pesquisa web",
-        webSearched:        true,
+        historicalTicket:     historicalTicket ? Math.round(historicalTicket) : null,
+        avgMonthlyExpenses:   avgMonthlyExpenses ? Math.round(avgMonthlyExpenses) : null,
+        ticketSource:         parsed.ticketSource ?? "Pesquisa web",
+        webSearched:          true,
         explanation: String(parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket regional encontrado de R$ ${benchmarkFromSearch.avg} você pode atingir esta meta.`),
       });
     }
@@ -181,9 +221,11 @@ ${historicalTicket ? `- Ticket histórico desta barbearia: R$ ${historicalTicket
 Parâmetros da barbearia:
 - Mês: ${month}/${year} | Dias úteis: ${workingDaysCount} | Folgas: ${offDayNames}
 - Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade total: ${totalCapacity}
+${avgMonthlyExpenses ? `- Custos mensais médios: R$ ${avgMonthlyExpenses.toFixed(0)} (${topExpenses.join(" | ")})` : "- Sem custos cadastrados"}
 ${wizardContext ? `- Contexto: "${wizardContext}"` : ""}
 
 Calcule a meta considerando 70% de ocupação e o ticket médio regional como base.
+${avgMonthlyExpenses ? `A meta deve cobrir os custos mensais (R$ ${avgMonthlyExpenses.toFixed(0)}) com pelo menos 30% de margem de lucro.` : ""}
 Responda APENAS em JSON:
 {"suggestedRevenueTarget":<inteiro>,"referenceTicket":<inteiro>,"explanation":"<2 frases>"}`;
 
@@ -206,9 +248,10 @@ Responda APENAS em JSON:
       region,
       regionalBenchmark: fallback,
       referenceTicket:   parsed.referenceTicket ?? fallback.avg,
-      historicalTicket:  historicalTicket ? Math.round(historicalTicket) : null,
-      ticketSource:      "SEBRAE / Trinks 2023 (dados regionais)",
-      webSearched:       false,
+      historicalTicket:    historicalTicket ? Math.round(historicalTicket) : null,
+      avgMonthlyExpenses:  avgMonthlyExpenses ? Math.round(avgMonthlyExpenses) : null,
+      ticketSource:        "SEBRAE / Trinks 2023 (dados regionais)",
+      webSearched:         false,
       explanation: parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket regional de R$ ${fallback.avg} (${region}), a meta de 70% de ocupação resulta neste valor.`,
     });
   } catch {
@@ -219,9 +262,10 @@ Responda APENAS em JSON:
       region,
       regionalBenchmark: fallback,
       referenceTicket:   fallback.avg,
-      historicalTicket:  historicalTicket ? Math.round(historicalTicket) : null,
-      ticketSource:      "SEBRAE / Trinks 2023 (dados regionais)",
-      webSearched:       false,
+      historicalTicket:    historicalTicket ? Math.round(historicalTicket) : null,
+      avgMonthlyExpenses:  avgMonthlyExpenses ? Math.round(avgMonthlyExpenses) : null,
+      ticketSource:        "SEBRAE / Trinks 2023 (dados regionais)",
+      webSearched:         false,
       explanation: `Com ${workingDaysCount} dias úteis, ticket médio de R$ ${fallback.avg} (${region}) e 70% de ocupação, a meta estimada é R$ ${suggested.toLocaleString("pt-BR")}.`,
     });
   }

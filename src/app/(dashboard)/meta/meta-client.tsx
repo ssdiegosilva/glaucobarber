@@ -205,6 +205,7 @@ type AiResult = {
   regionalBenchmark?: RegionalBenchmark;
   referenceTicket?: number;
   historicalTicket?: number | null;
+  avgMonthlyExpenses?: number | null;
 };
 
 function AiWizard({
@@ -352,6 +353,12 @@ function AiWizard({
                 <p className="text-[10px] text-muted-foreground">
                   Seu histórico: <span className="text-foreground font-medium">{formatBRL(suggestion.historicalTicket)}</span>
                   {" "}· Referência usada (média): <span className="text-foreground font-medium">{formatBRL(suggestion.referenceTicket ?? suggestion.regionalBenchmark.avg)}</span>
+                </p>
+              )}
+              {suggestion.avgMonthlyExpenses != null && suggestion.avgMonthlyExpenses > 0 && (
+                <p className="text-[10px] text-amber-400/80">
+                  Custos mensais médios considerados: <span className="font-medium">{formatBRL(suggestion.avgMonthlyExpenses)}</span>
+                  {" "}· Margem estimada: <span className="font-medium">{formatBRL(suggestion.suggestedRevenueTarget - suggestion.avgMonthlyExpenses)}</span>
                 </p>
               )}
               <p className="text-[9px] text-muted-foreground/60">Fonte: SEBRAE / Trinks Relatório do Setor 2023</p>
