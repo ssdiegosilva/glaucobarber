@@ -63,9 +63,13 @@ export default async function SettingsPage({
   const identityConfigured   = !!(barbershop?.brandStyle?.trim() || barbershop?.campaignReferenceImageUrl?.trim());
 
   // Per-integration status: null = not started, "partial" = partially configured, "complete" = fully configured
-  const trinksStatus: "complete" | "partial" | null = integration?.status === "ACTIVE"
+  const opProvider = integration?.provider ?? "trinks"; // "trinks" | "avec"
+  const opLabel    = opProvider === "avec" ? "Avec" : "Trinks";
+  const opStatus: "complete" | "partial" | null = integration?.status === "ACTIVE"
     ? "complete"
     : integration?.configJson ? "partial" : null;
+  // Keep trinksStatus as alias for backwards compat with badge array below
+  const trinksStatus = opStatus;
   const whatsappStatus: "complete" | "partial" | null =
     integration?.whatsappAccessToken && integration?.whatsappPhoneNumberId
       ? integration?.whatsappWabaId ? "complete" : "partial"
@@ -180,12 +184,12 @@ export default async function SettingsPage({
           id="integrations"
           icon={<Plug className="h-4 w-4" />}
           title="Integrações"
-          description="Trinks, Instagram e WhatsApp"
+          description={`${opLabel}, Instagram e WhatsApp`}
           defaultOpen={section === "integrations"}
           badge={
             <span className="hidden sm:inline-flex items-center gap-1.5">
               {[
-                { label: "Trinks",    status: trinksStatus    },
+                { label: opLabel,     status: trinksStatus    },
                 { label: "WhatsApp",  status: whatsappStatus  },
                 { label: "Instagram", status: instagramStatus },
               ].map(({ label, status }) => (
