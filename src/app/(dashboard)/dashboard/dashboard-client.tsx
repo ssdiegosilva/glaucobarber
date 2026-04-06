@@ -9,7 +9,7 @@ import {
   Calendar, Clock, TrendingUp, Users, Sparkles,
   CheckCircle2, XCircle, Megaphone, AlertTriangle,
   RefreshCw, ChevronRight, ArrowUpRight, BarChart3,
-  Scissors, CreditCard, Plus, Trash2,
+  Scissors, CreditCard, QrCode, Banknote, Plus, Trash2,
   ThumbsUp, Play, Flag, UserX, Ban, CalendarClock as CalendarClockIcon,
   MessageCircle, Zap, ChevronDown, Settings2, Star, MessageSquare,
   UserPlus, Repeat2, Target, X, ExternalLink, Plug, Unplug,
@@ -369,13 +369,13 @@ export function DashboardClient({
     }
   }
 
-  async function savePayment(id: string, paidValue: number | null, discountValue: number | null, note?: string) {
+  async function savePayment(id: string, paidValue: number | null, discountValue: number | null, note?: string, paymentMethod?: string | null) {
     setSavingPayment(id);
     try {
       const res = await fetch(`/api/appointments/${id}/payment`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paidValue, discountValue, note }),
+        body: JSON.stringify({ paidValue, discountValue, note, paymentMethod: paymentMethod ?? null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar pagamento");
@@ -714,7 +714,7 @@ export function DashboardClient({
                       onAddItem={(item) => addItem(apt.id, item)}
                       onRemoveItem={(itemId) => removeItem(apt.id, itemId)}
                       savingItem={savingItem === apt.id}
-                      onSavePayment={(paid) => savePayment(apt.id, paid, null)}
+                      onSavePayment={(paid, method) => savePayment(apt.id, paid, null, undefined, method)}
                       savingPayment={savingPayment === apt.id}
                       onReschedule={(scheduledAt) => rescheduleAppointment(apt.id, scheduledAt)}
                     />
@@ -838,13 +838,14 @@ function AppointmentPanel({
   onAddItem: (item: { name: string; quantity: number; unitPrice: number; serviceId?: string }) => void;
   onRemoveItem: (itemId: string) => void;
   savingItem: boolean;
-  onSavePayment: (paid: number | null) => void;
+  onSavePayment: (paid: number | null, paymentMethod: string | null) => void;
   savingPayment: boolean;
   onReschedule: (scheduledAt: string) => void;
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [showAddService, setShowAddService] = useState(false);
   const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
@@ -1040,6 +1041,29 @@ function AppointmentPanel({
               className="w-full rounded-md border border-border bg-surface-800 px-3 py-1.5 text-xs"
             />
           </div>
+          {/* Payment method selector */}
+          <div className="flex gap-2">
+            {([
+              { key: "CARD",  label: "Cartão",   icon: <CreditCard className="h-3.5 w-3.5" /> },
+              { key: "PIX",   label: "PIX",       icon: <QrCode     className="h-3.5 w-3.5" /> },
+              { key: "CASH",  label: "Dinheiro",  icon: <Banknote   className="h-3.5 w-3.5" /> },
+            ] as const).map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setSelectedPaymentMethod((prev) => prev === m.key ? null : m.key); }}
+                className={`flex-1 flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-[10px] font-medium transition-colors ${
+                  selectedPaymentMethod === m.key
+                    ? "border-gold-500 bg-gold-500/10 text-gold-400"
+                    : "border-border/60 bg-surface-900 text-muted-foreground hover:border-border hover:text-foreground"
+                }`}
+              >
+                {m.icon}
+                {m.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between text-[11px]">
             <div className="space-y-0.5">
               <div className="flex gap-4">
@@ -1060,7 +1084,7 @@ function AppointmentPanel({
               size="sm"
               className="text-[11px] h-8"
               disabled={savingPayment}
-              onClick={(e) => { e.stopPropagation(); onSavePayment(paidVal > 0 ? paidVal : null); }}
+              onClick={(e) => { e.stopPropagation(); onSavePayment(paidVal > 0 ? paidVal : null, selectedPaymentMethod); }}
             >
               {savingPayment ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar"}
             </Button>
