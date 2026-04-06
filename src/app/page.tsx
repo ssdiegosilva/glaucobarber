@@ -68,7 +68,7 @@ export default async function RootPage() {
           <div className="animate-fade-in">
             <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/8 px-3 py-1 text-xs text-gold-400 mb-8">
               <Sparkles className="h-3 w-3" />
-              Integrado com Trinks · IA · WhatsApp automático
+              Integrado com Trinks & Avec · IA · WhatsApp automático
             </div>
 
             <h1 className="font-display text-5xl lg:text-6xl xl:text-7xl font-bold leading-none mb-6 tracking-tight">
@@ -81,7 +81,7 @@ export default async function RootPage() {
             </h1>
 
             <p className="text-lg lg:text-xl text-muted-foreground mb-10 max-w-lg leading-relaxed">
-              Conecte o Trinks, veja sua agenda em tempo real,
+              Conecte o Trinks ou a Avec, veja sua agenda em tempo real,
               e deixe o bot recuperar clientes inativos por WhatsApp enquanto você trabalha.
             </p>
 
@@ -166,7 +166,7 @@ export default async function RootPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
                 </span>
-                <span className="text-xs font-medium text-green-400">Trinks ao vivo</span>
+                <span className="text-xs font-medium text-green-400">Agenda ao vivo</span>
               </div>
 
               {/* floating badge — bot */}
@@ -281,8 +281,8 @@ export default async function RootPage() {
               },
               {
                 icon: <Zap className="h-6 w-6" />,
-                title: "Integração Trinks",
-                desc: "Conecte em segundos com sua API Key. Todos os seus dados sincronizados sem retrabalho manual.",
+                title: "Integração Trinks / Avec",
+                desc: "Use Trinks ou Avec — conecte em segundos com sua API Key. Todos os seus dados sincronizados sem retrabalho manual.",
               },
             ].map((f) => (
               <div
@@ -324,7 +324,7 @@ export default async function RootPage() {
               <ul className="mt-7 space-y-3 flex-1">
                 {[
                   "30 créditos de IA (trial único)",
-                  "Agenda ao vivo (Trinks)",
+                  "Agenda ao vivo (Trinks / Avec)",
                   "Gestão de clientes",
                   "Metas de faturamento",
                 ].map((f) => (
@@ -363,7 +363,7 @@ export default async function RootPage() {
               <ul className="mt-7 space-y-3 flex-1">
                 {[
                   "200 créditos de IA/mês",
-                  "Agenda ao vivo (Trinks)",
+                  "Agenda ao vivo (Trinks / Avec)",
                   "Gestão de clientes + Metas",
                   "Campanhas com IA (texto + arte)",
                   "Criar Visual (análise de corte)",
@@ -488,7 +488,7 @@ export default async function RootPage() {
             </span>
           </h2>
           <p className="text-muted-foreground mb-10 text-lg">
-            Crie sua conta grátis e conecte o Trinks em menos de 2 minutos.
+            Crie sua conta grátis e conecte o Trinks ou a Avec em menos de 2 minutos.
           </p>
           <Link
             href="/signup"

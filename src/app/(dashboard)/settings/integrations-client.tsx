@@ -518,17 +518,21 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold-500/10 border border-gold-500/20">
-                <Plug className="h-5 w-5 text-gold-400" />
+                <span className="text-lg font-black text-gold-400 leading-none">T</span>
               </div>
               <div className="min-w-0">
                 <CardTitle className="text-base">Trinks</CardTitle>
-                <p className="text-xs text-muted-foreground">Plataforma operacional principal</p>
+                <p className="text-xs text-muted-foreground">Plataforma operacional · <span className="text-gold-500/70">um por barbearia</span></p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
-                {integration?.status ?? "UNCONFIGURED"}
-              </Badge>
+              {isAvecProvider ? (
+                <Badge variant="outline" className="text-xs text-blue-400 border-blue-500/30">Inativo (usando Avec)</Badge>
+              ) : (
+                <Badge variant={integration?.status === "ACTIVE" ? "success" : "warning"}>
+                  {integration?.status ?? "UNCONFIGURED"}
+                </Badge>
+              )}
               {integration?.configured && !isAvecProvider && (
                 <>
                   {integration.status === "ACTIVE" ? (
@@ -553,30 +557,39 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Último sync</p>
-              <p className="text-foreground text-sm">
-                {integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}
-              </p>
+          {!isAvecProvider && (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Último sync</p>
+                <p className="text-foreground text-sm">
+                  {integration?.lastSyncAt ? relativeTime(integration.lastSyncAt) : "Nunca"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Configurada</p>
+                <p className={`text-sm ${integration?.configured ? "text-green-400" : "text-yellow-400"}`}>
+                  {integration?.configured ? "Sim" : "Não"}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Configurada</p>
-              <p className={`text-sm ${integration?.configured ? "text-green-400" : "text-yellow-400"}`}>
-                {integration?.configured ? "Sim" : "Não"}
-              </p>
-            </div>
-          </div>
+          )}
 
-          {integration?.errorMsg && (
+          {!isAvecProvider && integration?.errorMsg && (
             <div className="rounded-md border border-red-500/20 bg-red-500/8 px-3 py-2 flex items-start gap-2">
               <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
               <p className="text-xs text-red-300">{integration.errorMsg}</p>
             </div>
           )}
 
+          {/* When Avec is active, Trinks is mutually excluded */}
+          {isAvecProvider && (
+            <div className="rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
+              Avec está ativa — só uma integração por vez. Desconecte a Avec para usar o Trinks.
+            </div>
+          )}
+
           {/* Config form */}
-          {showForm ? (
+          {!isAvecProvider && showForm ? (
             <div className="space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
               <p className="text-xs font-semibold text-foreground">Configurar credenciais da Trinks</p>
 
@@ -643,7 +656,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 )}
               </div>
             </div>
-          ) : integration?.configured ? (
+          ) : !isAvecProvider && integration?.configured ? (
             <div className="rounded-md border border-green-500/30 bg-green-500/8 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
@@ -732,11 +745,11 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <Plug className="h-5 w-5 text-blue-400" />
+                <span className="text-lg font-black text-blue-400 leading-none">A</span>
               </div>
               <div className="min-w-0">
                 <CardTitle className="text-base">Avec</CardTitle>
-                <p className="text-xs text-muted-foreground">Plataforma operacional alternativa</p>
+                <p className="text-xs text-muted-foreground">Plataforma operacional · <span className="text-blue-400/70">um por barbearia</span></p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
