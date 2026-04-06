@@ -588,12 +588,17 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     });
 
     // Fire request — UI não fica bloqueada, placeholder já está visível
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min
+
     try {
       const res = await fetch("/api/campaigns", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ theme: currentTheme, channel: "instagram", offerId: currentOfferId || undefined }),
+        signal:  controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); setCampaigns((prev) => prev.filter((c) => c.id !== tempId)); return; }
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar campanha");
@@ -615,9 +620,20 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
         }
       }
     } catch (e) {
-      // Remove placeholder e mostra erro
-      setCampaigns((prev) => prev.filter((c) => c.id !== tempId));
-      toast({ title: "Erro ao criar campanha", description: String(e), variant: "destructive" });
+      clearTimeout(timeoutId);
+      const isTimeout = e instanceof DOMException && e.name === "AbortError";
+      const errorMsg  = isTimeout
+        ? "Tempo limite excedido. Verifique sua conexão e tente novamente."
+        : String(e);
+
+      // Substitui placeholder por FAILED (fica visível com botão de retry)
+      setCampaigns((prev) => prev.map((c) =>
+        c.id === tempId ? { ...c, status: "FAILED", errorMsg } : c,
+      ));
+
+      toast({ title: "Falha ao criar campanha", description: errorMsg, variant: "destructive" });
+      // Atualiza sininho — page.tsx cleanup vai criar a notificação no próximo load
+      window.dispatchEvent(new Event("notifications-changed"));
     }
   }
 
@@ -791,6 +807,11 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   }
 
   async function remove(id: string) {
+    // Placeholder local (falhou antes de persistir no DB) — só remove do estado
+    if (id.startsWith("generating-")) {
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      return;
+    }
     setDeletingId(id);
     try {
       const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
@@ -1041,7 +1062,12 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {c.status === "FAILED" ? (
-                          !instagramConfigured ? (
+                          c.id.startsWith("generating-") ? (
+                            // Falhou durante geração — sem DB record, só descartar
+                            <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); remove(c.id); }}>
+                              Descartar
+                            </Button>
+                          ) :!instagramConfigured ? (
                             <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
                               <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
                                 <Settings className="h-3 w-3" />Conectar Instagram
@@ -1056,7 +1082,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                               <Send className="h-3 w-3" />Tentar novamente
                             </Button>
                           )
-                        ) : !instagramConfigured ? (
+                        ) :!instagramConfigured ? (
                           <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
                             <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
                               <Settings className="h-3 w-3" />Conectar Instagram

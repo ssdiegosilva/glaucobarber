@@ -7,6 +7,30 @@ import { getAiImageConfig } from "@/lib/platform-config";
 export default async function CampaignsPage() {
   const session = await requireBarbershop();
 
+  // Limpa campanhas travadas em GENERATING há mais de 5 minutos
+  const stuckThreshold = new Date(Date.now() - 5 * 60 * 1000);
+  const stuck = await prisma.campaign.findMany({
+    where: { barbershopId: session.user.barbershopId, status: "GENERATING", createdAt: { lt: stuckThreshold } },
+    select: { id: true, title: true },
+  });
+  if (stuck.length > 0) {
+    await prisma.campaign.updateMany({
+      where: { id: { in: stuck.map((c) => c.id) } },
+      data:  { status: "FAILED", errorMsg: "Tempo limite excedido ao gerar a campanha. Tente novamente." },
+    });
+    for (const c of stuck) {
+      await prisma.systemNotification.create({
+        data: {
+          barbershopId: session.user.barbershopId,
+          type:  "SYSTEM",
+          title: "Falha ao criar campanha",
+          body:  `"${c.title}" não foi criada a tempo. Toque para tentar novamente.`,
+          link:  "/campaigns",
+        },
+      }).catch(() => null);
+    }
+  }
+
   const [campaigns, integration, activeOffers, barbershop, aiConfig] = await Promise.all([
     prisma.campaign.findMany({
       where:   { barbershopId: session.user.barbershopId },
