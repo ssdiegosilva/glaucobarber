@@ -146,11 +146,14 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   // Provider selector
   const activeProvider: "trinks" | "avec" | null =
     isAvecProvider ? "avec" : (integration?.configured ? "trinks" : null);
-  const [switchConfirm, setSwitchConfirm] = useState<"trinks" | "avec" | null>(null);
+  const [switchConfirm,       setSwitchConfirm]       = useState<"trinks" | "avec" | null>(null);
+  const [switchingProvider,   setSwitchingProvider]   = useState(false);
+  // Override local state to "nothing connected" after a confirmed switch (before the new provider is saved)
+  const [disconnectedOverride, setDisconnectedOverride] = useState(false);
 
   function handleSelectProvider(target: "trinks" | "avec") {
     if (target === activeProvider && !showForm && !showAvecForm) return;
-    if (activeProvider !== null && target !== activeProvider) {
+    if (activeProvider !== null && target !== activeProvider && !disconnectedOverride) {
       setSwitchConfirm(target);
       return;
     }
@@ -158,9 +161,20 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
     else                     { setShowAvecForm(true); setShowForm(false);     }
   }
 
-  function handleConfirmSwitch() {
-    const target = switchConfirm;
+  async function handleConfirmSwitch() {
+    const target          = switchConfirm;
+    const currentProvider = isAvecProvider ? "avec" : "trinks";
     setSwitchConfirm(null);
+    setSwitchingProvider(true);
+    try {
+      await fetch("/api/integrations/disconnect", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ provider: currentProvider }),
+      });
+    } catch { /* best-effort */ }
+    setSwitchingProvider(false);
+    setDisconnectedOverride(true);
     if (target === "trinks") { setShowForm(true);     setShowAvecForm(false); }
     else                     { setShowAvecForm(true); setShowForm(false);     }
   }
@@ -594,8 +608,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
 
           {/* ── Seletor de plataforma ── */}
           {(() => {
-            const trinksConnected = !isAvecProvider && !!integration?.configured;
-            const avecConnected   = isAvecProvider  && !!avecConfigured;
+            const trinksConnected = !disconnectedOverride && !isAvecProvider && !!integration?.configured;
+            const avecConnected   = !disconnectedOverride && isAvecProvider  && !!avecConfigured;
             const trinkslocked    = avecConnected;
             const avecLocked      = trinksConnected;
 
@@ -669,14 +683,19 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 A integração atual com <span className="text-foreground">{isAvecProvider ? "Avec" : "Trinks"}</span> será desconectada e os dados sincronizados ficam editáveis. Você precisará configurar as credenciais de <span className="text-foreground">{switchConfirm === "trinks" ? "Trinks" : "Avec"}</span>.
               </p>
               <div className="flex gap-2">
-                <Button size="sm" className="text-xs h-7" onClick={handleConfirmSwitch}>Desbloquear e configurar {switchConfirm === "trinks" ? "Trinks" : "Avec"}</Button>
-                <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setSwitchConfirm(null)}>Cancelar</Button>
+                <Button size="sm" className="text-xs h-7" onClick={handleConfirmSwitch} disabled={switchingProvider}>
+                  {switchingProvider
+                    ? <><RefreshCw className="h-3 w-3 animate-spin mr-1" />Desconectando...</>
+                    : <>Desbloquear e configurar {switchConfirm === "trinks" ? "Trinks" : "Avec"}</>
+                  }
+                </Button>
+                <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setSwitchConfirm(null)} disabled={switchingProvider}>Cancelar</Button>
               </div>
             </div>
           )}
 
           {/* ── Trinks: config (shown when Trinks is selected/active) ── */}
-          {(showForm || (!isAvecProvider && integration?.configured)) && !switchConfirm && (
+          {(showForm || (!disconnectedOverride && !isAvecProvider && integration?.configured)) && !switchConfirm && (
             <div className="space-y-3 rounded-lg border border-gold-500/20 bg-gold-500/5 p-4">
               <p className="text-xs font-semibold text-gold-400">Trinks</p>
 
@@ -764,7 +783,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           )}
 
           {/* ── Avec: config (shown when Avec is selected/active) ── */}
-          {(showAvecForm || (isAvecProvider && integration?.configured)) && !switchConfirm && (
+          {(showAvecForm || (!disconnectedOverride && isAvecProvider && integration?.configured)) && !switchConfirm && (
             <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
               <p className="text-xs font-semibold text-blue-400">Avec</p>
 
