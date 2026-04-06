@@ -63,20 +63,30 @@ function featureIcon(f: string) { return FEATURE_ICON[f] ?? <Zap className="h-3 
 
 function SegmentedBar({ row }: { row: Row }) {
   const isTrial = row.yearMonth === "trialing" || row.planStatus === "TRIALING";
+  // aiCreditsPurchased may be 0 if credits were added directly to balance;
+  // fall back to aiCreditBalance as the "total" in that case.
+  const effectivePurchased = row.aiCreditsPurchased > 0 ? row.aiCreditsPurchased : row.aiCreditBalance;
 
   if (isTrial) {
     const pct   = Math.min((row.usageCount / row.trialCap) * 100, 100);
     const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-blue-400";
     return (
       <div className="space-y-1 min-w-44">
-        <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+        <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden flex">
           <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+          {/* Reserved credits shown as purple segment after the trial bar */}
+          {row.aiCreditBalance > 0 && (
+            <div
+              className="h-full bg-purple-400/40 transition-all"
+              style={{ width: `${Math.min((row.aiCreditBalance / (row.trialCap + effectivePurchased)) * 100, 100 - pct)}%` }}
+            />
+          )}
         </div>
         <div className="flex justify-between text-[10px]">
           <span className="text-muted-foreground">{row.usageCount} / {row.trialCap} trial</span>
-          {row.aiCreditsPurchased > 0 && (
-            <span className="text-purple-400/70" title="Créditos comprados — usáveis após o trial">
-              +{row.aiCreditBalance} créditos reservados
+          {row.aiCreditBalance > 0 && (
+            <span className="text-purple-400/80" title="Créditos comprados — usáveis após o trial">
+              +{row.aiCreditBalance} reservados
             </span>
           )}
         </div>
@@ -87,42 +97,37 @@ function SegmentedBar({ row }: { row: Row }) {
   const planUsed        = Math.min(row.usageCount, row.planLimit === 9999 ? row.usageCount : row.planLimit);
   const extrasUsed      = Math.max(0, row.usageCount - (row.planLimit === 9999 ? Infinity : row.planLimit));
   const extrasRemaining = row.aiCreditBalance;
-  const totalCap        = (row.planLimit === 9999 ? row.usageCount + 1 : row.planLimit) + row.aiCreditsPurchased;
+  const totalCap        = (row.planLimit === 9999 ? row.usageCount + 1 : row.planLimit) + effectivePurchased;
 
-  const pctPlan     = totalCap > 0 ? (planUsed     / totalCap) * 100 : 0;
-  const pctUsed     = totalCap > 0 ? (extrasUsed   / totalCap) * 100 : 0;
-  const pctRemain   = totalCap > 0 ? (extrasRemaining / totalCap) * 100 : 0;
-  const totalUsed   = totalCap > 0 ? (row.usageCount / totalCap) * 100 : 0;
+  const pctPlan   = totalCap > 0 ? (planUsed       / totalCap) * 100 : 0;
+  const pctUsed   = totalCap > 0 ? (extrasUsed     / totalCap) * 100 : 0;
+  const pctRemain = totalCap > 0 ? (extrasRemaining / totalCap) * 100 : 0;
+  const totalUsed = totalCap > 0 ? (row.usageCount  / totalCap) * 100 : 0;
 
   const overPlan = row.planLimit !== 9999 && row.usageCount > row.planLimit;
 
   return (
     <div className="space-y-1 min-w-44">
-      {/* Bar */}
       <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden flex">
-        {/* Plan used (green) */}
         <div
           className={`h-full ${overPlan ? "bg-green-500" : totalUsed >= 90 ? "bg-red-500" : totalUsed >= 70 ? "bg-yellow-500" : "bg-green-500"} transition-all`}
           style={{ width: `${pctPlan}%` }}
         />
-        {/* Extras used (purple solid) */}
         {extrasUsed > 0 && (
           <div className="h-full bg-purple-500 transition-all" style={{ width: `${pctUsed}%` }} />
         )}
-        {/* Extras remaining (purple faded) */}
         {extrasRemaining > 0 && (
           <div className="h-full bg-purple-400/30 transition-all" style={{ width: `${pctRemain}%` }} />
         )}
       </div>
-      {/* Labels */}
       <div className="flex justify-between text-[10px]">
         <span className="text-muted-foreground">
           {planUsed}/{row.planLimit === 9999 ? "∞" : row.planLimit} plano
           {extrasUsed > 0 && <span className="text-purple-400 ml-1">+{extrasUsed} extra</span>}
         </span>
-        {row.aiCreditsPurchased > 0 && (
+        {effectivePurchased > 0 && (
           <span className={extrasRemaining > 0 ? "text-purple-400" : "text-muted-foreground/50"}>
-            {extrasRemaining}/{row.aiCreditsPurchased} restam
+            {extrasRemaining}/{effectivePurchased} restam
           </span>
         )}
       </div>
@@ -398,10 +403,12 @@ export function AiUsageClient({ data, yearMonth }: { data: Row[]; yearMonth: str
                       <SegmentedBar row={r} />
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {r.aiCreditsPurchased > 0 ? (
+                      {(r.aiCreditsPurchased > 0 || r.aiCreditBalance > 0) ? (
                         <div>
                           <span className="text-purple-400 font-semibold">{r.aiCreditBalance}</span>
-                          <span className="text-muted-foreground text-xs"> / {r.aiCreditsPurchased}</span>
+                          {r.aiCreditsPurchased > 0 && (
+                            <span className="text-muted-foreground text-xs"> / {r.aiCreditsPurchased}</span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground">—</span>
