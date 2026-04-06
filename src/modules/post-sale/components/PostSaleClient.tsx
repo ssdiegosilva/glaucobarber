@@ -568,6 +568,8 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
     setError("");
     const digits  = localPhone.replace(/\D/g, "");
     const waPhone = digits.startsWith("55") ? digits : `55${digits}`;
+    // Abre antes do await para não ser bloqueado pelo browser como popup
+    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(message.trim())}`, "_blank");
     try {
       await fetch("/api/whatsapp/messages", {
         method:  "POST",
@@ -582,7 +584,6 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
           sentManually: true,
         }),
       });
-      window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(message.trim())}`, "_blank");
       onSent();
     } catch {
       setError("Erro ao registrar mensagem.");
