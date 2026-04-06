@@ -55,13 +55,33 @@ export async function syncBarbershop(
               create: data,
               // Only update the sync timestamp here — user-editable fields are protected below
               update: { lastSyncedAt: new Date() },
-              select: { id: true, locallyModifiedAt: true },
+              select: { id: true, locallyModifiedAt: true, phone: true },
             });
+
+            // List endpoint may not return telefones — fetch detail only
+            // for customers that are still missing phone in our DB
+            if (!data.phone && !existing.phone) {
+              try {
+                const detail = await client.getCustomerDetail(raw.id);
+                if (detail.telefones?.length) {
+                  data.phone = detail.telefones[0].numero ?? null;
+                }
+              } catch {
+                // Detail fetch failed — proceed without phone
+              }
+            }
+
             // Only overwrite user-editable fields if the customer was never edited locally
             if (!existing.locallyModifiedAt) {
               await prisma.customer.update({
                 where: { id: existing.id },
                 data:  { name: data.name, phone: data.phone, email: data.email, notes: data.notes, tags: data.tags },
+              });
+            } else if (!existing.phone && data.phone) {
+              // Even if locally modified, fill in phone if it was missing
+              await prisma.customer.update({
+                where: { id: existing.id },
+                data:  { phone: data.phone },
               });
             }
             customersUpserted++;

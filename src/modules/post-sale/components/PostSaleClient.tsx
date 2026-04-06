@@ -473,8 +473,13 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
   const [urlInput,       setUrlInput]       = useState("");
   const [savingUrl,      setSavingUrl]      = useState(false);
   const [urlError,       setUrlError]       = useState("");
+  const [localPhone,     setLocalPhone]     = useState(customer.phone ?? "");
+  const [phoneInput,     setPhoneInput]     = useState("");
+  const [savingPhone,    setSavingPhone]    = useState(false);
+  const [phoneError,     setPhoneError]     = useState("");
 
   const missingReviewUrl = action.isReview && !localReviewUrl;
+  const missingPhone     = !localPhone;
 
   const daysSinceVisit = customer.lastVisitAt
     ? Math.floor((Date.now() - new Date(customer.lastVisitAt).getTime()) / 86_400_000)
@@ -533,11 +538,35 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
     }
   }
 
+  async function handleSavePhone() {
+    const digits = phoneInput.replace(/\D/g, "");
+    if (digits.length < 10 || digits.length > 13) {
+      setPhoneError("Informe um telefone válido (DDD + número).");
+      return;
+    }
+    setSavingPhone(true);
+    setPhoneError("");
+    try {
+      const res = await fetch(`/api/customers/${customer.id}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ phone: digits }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setPhoneError(data.error ?? "Erro ao salvar telefone."); return; }
+      setLocalPhone(data.customer.phone);
+    } catch {
+      setPhoneError("Erro ao salvar telefone. Tente novamente.");
+    } finally {
+      setSavingPhone(false);
+    }
+  }
+
   async function handleSend() {
-    if (!customer.phone || !message.trim()) return;
+    if (!localPhone || !message.trim()) return;
     setSending(true);
     setError("");
-    const digits  = customer.phone.replace(/\D/g, "");
+    const digits  = localPhone.replace(/\D/g, "");
     const waPhone = digits.startsWith("55") ? digits : `55${digits}`;
     try {
       await fetch("/api/whatsapp/messages", {
@@ -546,7 +575,7 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
         body:    JSON.stringify({
           customerId:   customer.id,
           customerName: customer.name,
-          phone:        customer.phone,
+          phone:        localPhone,
           message:      message.trim(),
           type:         action.type,
           messageKind:  "text",
@@ -637,10 +666,33 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
             />
           </div>
 
-          {!customer.phone && (
-            <p className="text-xs text-amber-400 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" /> Cliente sem telefone cadastrado.
-            </p>
+          {missingPhone && (
+            <div className="space-y-2">
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
+                <Phone className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-300 leading-relaxed">
+                  Cliente sem telefone cadastrado. Informe o número para enviar a mensagem.
+                </p>
+              </div>
+              <input
+                type="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder="(11) 98765-4321"
+                className="w-full rounded-md border border-amber-500/30 bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                onKeyDown={(e) => { if (e.key === "Enter") handleSavePhone(); }}
+              />
+              {phoneError && <p className="text-xs text-red-400">{phoneError}</p>}
+              <Button
+                size="sm"
+                className="w-full text-xs gap-1.5 bg-gold-500 hover:bg-gold-400 text-black"
+                onClick={handleSavePhone}
+                disabled={!phoneInput.trim() || savingPhone}
+              >
+                {savingPhone ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                {savingPhone ? "Salvando..." : "Salvar telefone"}
+              </Button>
+            </div>
           )}
           {error && <p className="text-xs text-red-400">{error}</p>}
 
@@ -651,7 +703,7 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
             <Button
               size="sm"
               className="flex-1 text-xs gap-1.5 bg-purple-600 hover:bg-purple-500 text-white"
-              disabled={!customer.phone || !message.trim() || sending}
+              disabled={missingPhone || !message.trim() || sending}
               onClick={handleSend}
             >
               {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
