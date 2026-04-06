@@ -1,81 +1,137 @@
 "use client";
 
 import { useState } from "react";
-import { Brain, ChevronDown, ChevronRight, Loader2, TrendingUp, DollarSign, Zap, Image, MessageSquare, Sparkles } from "lucide-react";
+import {
+  Brain, ChevronDown, ChevronRight, Loader2,
+  TrendingUp, DollarSign, Zap, Image, MessageSquare, Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 type Row = {
-  barbershopId: string;
-  barbershopName: string;
-  yearMonth: string;
-  usageCount: number;
-  planTier: string;
-  limit: number;
-  aiCredits: number;
+  barbershopId:       string;
+  barbershopName:     string;
+  yearMonth:          string;  // "2026-04" or "trialing"
+  usageCount:         number;
+  planTier:           string;
+  planStatus:         string;  // TRIALING | ACTIVE | INACTIVE | PAST_DUE
+  planLimit:          number;  // 9999 = ∞
+  trialCap:           number;  // 300
+  aiCreditBalance:    number;  // remaining
+  aiCreditsPurchased: number;  // total ever purchased
 };
 
-type FeatureRow = {
-  feature: string;
-  label: string;
-  count: number;
-  totalCostUsdCents: number;
-};
-
-type LogEntry = {
-  id: string;
-  feature: string;
-  label: string;
-  costUsdCents: number;
-  createdAt: string;
-};
-
-type MonthEntry = {
-  yearMonth: string;
-  usageCount: number;
-};
+type FeatureRow   = { feature: string; label: string; count: number; totalCostUsdCents: number };
+type LogEntry     = { id: string; feature: string; label: string; costUsdCents: number; createdAt: string };
+type MonthEntry   = { yearMonth: string; usageCount: number };
 
 type DetailData = {
-  barbershop: { id: string; name: string; planTier: string; aiCreditBalance: number };
-  currentMonth: { yearMonth: string; usageCount: number; limit: number | null };
-  months: MonthEntry[];
-  byFeature: FeatureRow[];
-  recentLogs: LogEntry[];
+  barbershop:    { id: string; name: string; planTier: string; aiCreditBalance: number };
+  currentMonth:  { yearMonth: string; usageCount: number; limit: number | null };
+  months:        MonthEntry[];
+  byFeature:     FeatureRow[];
+  recentLogs:    LogEntry[];
   totalCostUsdCents: number;
   logsAvailable: number;
 };
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const PLAN_COLOR: Record<string, string> = {
   FREE: "text-zinc-400", STARTER: "text-blue-400", PRO: "text-gold-400", ENTERPRISE: "text-purple-400",
 };
 
-const FEATURE_ICON: Record<string, React.ReactElement> = {
-  campaign_image:  <Image className="h-3 w-3" />,
-  campaign_text:   <Sparkles className="h-3 w-3" />,
-  copilot_chat:    <MessageSquare className="h-3 w-3" />,
-  theme_suggest:   <Zap className="h-3 w-3" />,
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  TRIALING:  { label: "Trial",    cls: "bg-blue-500/15 text-blue-400 border-blue-500/30"   },
+  ACTIVE:    { label: "Ativo",    cls: "bg-green-500/15 text-green-400 border-green-500/30" },
+  INACTIVE:  { label: "Inativo",  cls: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"   },
+  PAST_DUE:  { label: "Atrasado", cls: "bg-red-500/15 text-red-400 border-red-500/30"       },
+  CANCELLED: { label: "Cancelado",cls: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"   },
 };
 
-function featureIcon(feature: string) {
-  return FEATURE_ICON[feature] ?? <Zap className="h-3 w-3" />;
-}
+const FEATURE_ICON: Record<string, React.ReactElement> = {
+  campaign_image: <Image     className="h-3 w-3" />,
+  campaign_text:  <Sparkles  className="h-3 w-3" />,
+  copilot_chat:   <MessageSquare className="h-3 w-3" />,
+  theme_suggest:  <Zap       className="h-3 w-3" />,
+};
 
-function UsageBar({ used, limit }: { used: number; limit: number }) {
-  const pct = Math.min((used / limit) * 100, 100);
-  const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-green-500";
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 rounded-full bg-surface-700 overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+function featureIcon(f: string) { return FEATURE_ICON[f] ?? <Zap className="h-3 w-3" />; }
+
+// ── Segmented usage bar ───────────────────────────────────────────────────────
+
+function SegmentedBar({ row }: { row: Row }) {
+  const isTrial = row.yearMonth === "trialing" || row.planStatus === "TRIALING";
+
+  if (isTrial) {
+    const pct   = Math.min((row.usageCount / row.trialCap) * 100, 100);
+    const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-blue-400";
+    return (
+      <div className="space-y-1 min-w-40">
+        <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+          <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+        </div>
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>{row.usageCount} usado</span>
+          <span>/ {row.trialCap} cap trial</span>
+        </div>
       </div>
-      <span className="text-xs text-muted-foreground w-16 text-right">{used}/{limit === 9999 ? "∞" : limit}</span>
+    );
+  }
+
+  const planUsed        = Math.min(row.usageCount, row.planLimit === 9999 ? row.usageCount : row.planLimit);
+  const extrasUsed      = Math.max(0, row.usageCount - (row.planLimit === 9999 ? Infinity : row.planLimit));
+  const extrasRemaining = row.aiCreditBalance;
+  const totalCap        = (row.planLimit === 9999 ? row.usageCount + 1 : row.planLimit) + row.aiCreditsPurchased;
+
+  const pctPlan     = totalCap > 0 ? (planUsed     / totalCap) * 100 : 0;
+  const pctUsed     = totalCap > 0 ? (extrasUsed   / totalCap) * 100 : 0;
+  const pctRemain   = totalCap > 0 ? (extrasRemaining / totalCap) * 100 : 0;
+  const totalUsed   = totalCap > 0 ? (row.usageCount / totalCap) * 100 : 0;
+
+  const overPlan = row.planLimit !== 9999 && row.usageCount > row.planLimit;
+
+  return (
+    <div className="space-y-1 min-w-44">
+      {/* Bar */}
+      <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden flex">
+        {/* Plan used (green) */}
+        <div
+          className={`h-full ${overPlan ? "bg-green-500" : totalUsed >= 90 ? "bg-red-500" : totalUsed >= 70 ? "bg-yellow-500" : "bg-green-500"} transition-all`}
+          style={{ width: `${pctPlan}%` }}
+        />
+        {/* Extras used (purple solid) */}
+        {extrasUsed > 0 && (
+          <div className="h-full bg-purple-500 transition-all" style={{ width: `${pctUsed}%` }} />
+        )}
+        {/* Extras remaining (purple faded) */}
+        {extrasRemaining > 0 && (
+          <div className="h-full bg-purple-400/30 transition-all" style={{ width: `${pctRemain}%` }} />
+        )}
+      </div>
+      {/* Labels */}
+      <div className="flex justify-between text-[10px]">
+        <span className="text-muted-foreground">
+          {planUsed}/{row.planLimit === 9999 ? "∞" : row.planLimit} plano
+          {extrasUsed > 0 && <span className="text-purple-400 ml-1">+{extrasUsed} extra</span>}
+        </span>
+        {row.aiCreditsPurchased > 0 && (
+          <span className={extrasRemaining > 0 ? "text-purple-400" : "text-muted-foreground/50"}>
+            {extrasRemaining}/{row.aiCreditsPurchased} restam
+          </span>
+        )}
+      </div>
     </div>
   );
 }
 
+// ── Detail panel ──────────────────────────────────────────────────────────────
+
 function DetailPanel({ barbershopId, yearMonth }: { barbershopId: string; yearMonth: string }) {
-  const [data, setData] = useState<DetailData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [data,        setData]        = useState<DetailData | null>(null);
+  const [loading,     setLoading]     = useState(false);
+  const [loaded,      setLoaded]      = useState(false);
   const [showAllLogs, setShowAllLogs] = useState(false);
 
   async function load() {
@@ -83,17 +139,12 @@ function DetailPanel({ barbershopId, yearMonth }: { barbershopId: string; yearMo
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/ai-usage/${barbershopId}?yearMonth=${yearMonth}`);
-      const d = await res.json();
-      setData(d);
+      setData(await res.json());
       setLoaded(true);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
   }
 
-  // auto-load on first render
   if (!loaded && !loading) load();
 
   if (loading) {
@@ -127,9 +178,9 @@ function DetailPanel({ barbershopId, yearMonth }: { barbershopId: string; yearMo
         />
         <SummaryCard
           icon={<TrendingUp className="h-4 w-4 text-blue-400" />}
-          label="Créditos extras"
+          label="Créditos restantes"
           value={data.barbershop.aiCreditBalance > 0 ? `+${data.barbershop.aiCreditBalance}` : "—"}
-          sub="não expiram"
+          sub="compra avulsa"
         />
         <SummaryCard
           icon={<Brain className="h-4 w-4 text-amber-400" />}
@@ -194,7 +245,7 @@ function DetailPanel({ barbershopId, yearMonth }: { barbershopId: string; yearMo
                   {data.months.map((m) => (
                     <tr key={m.yearMonth} className={`hover:bg-surface-800/30 ${m.yearMonth === yearMonth ? "bg-purple-500/5" : ""}`}>
                       <td className="px-3 py-2 text-foreground font-mono">
-                        {m.yearMonth === "trial" ? "Trial" : m.yearMonth}
+                        {m.yearMonth === "trial" || m.yearMonth === "trialing" ? "Trial" : m.yearMonth}
                         {m.yearMonth === yearMonth && <span className="ml-1.5 text-[10px] text-purple-400">atual</span>}
                       </td>
                       <td className="px-3 py-2 text-right font-mono font-semibold text-foreground">{m.usageCount}</td>
@@ -209,12 +260,10 @@ function DetailPanel({ barbershopId, yearMonth }: { barbershopId: string; yearMo
 
       {/* Recent call log */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Log de calls recentes
-            <span className="ml-1.5 normal-case font-normal text-muted-foreground/60">(mantidos os últimos {data.logsAvailable})</span>
-          </p>
-        </div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Log de calls recentes
+          <span className="ml-1.5 normal-case font-normal text-muted-foreground/60">(mantidos os últimos {data.logsAvailable})</span>
+        </p>
         {data.recentLogs.length === 0 ? (
           <p className="text-xs text-muted-foreground py-3">Nenhum log disponível.</p>
         ) : (
@@ -251,10 +300,7 @@ function DetailPanel({ barbershopId, yearMonth }: { barbershopId: string; yearMo
               </table>
             </div>
             {data.recentLogs.length > 10 && (
-              <button
-                onClick={() => setShowAllLogs(!showAllLogs)}
-                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
-              >
+              <button onClick={() => setShowAllLogs(!showAllLogs)} className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
                 {showAllLogs ? "Mostrar menos" : `Ver mais ${data.recentLogs.length - 10} calls`}
               </button>
             )}
@@ -278,11 +324,13 @@ function SummaryCard({ icon, label, value, sub }: { icon: React.ReactElement; la
   );
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
+
 export function AiUsageClient({ data, yearMonth }: { data: Row[]; yearMonth: string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [showAll,  setShowAll]  = useState(false);
 
-  const total = data.reduce((s, r) => s + r.usageCount, 0);
+  const total       = data.reduce((s, r) => s + r.usageCount, 0);
   const visibleData = showAll ? data : data.slice(0, 10);
 
   return (
@@ -292,24 +340,30 @@ export function AiUsageClient({ data, yearMonth }: { data: Row[]; yearMonth: str
           <h1 className="text-xl font-bold text-foreground">Uso de IA</h1>
           <p className="text-sm text-muted-foreground">{yearMonth} · {total} calls totais na plataforma</p>
         </div>
-        <div className="flex items-center gap-3">
-          <p className="text-xs text-muted-foreground">{data.length} barbearias ativas</p>
-        </div>
+        <p className="text-xs text-muted-foreground">{data.length} barbearias ativas</p>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1.5 rounded-full bg-green-500" />Créditos do plano</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1.5 rounded-full bg-purple-500" />Extras usados</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1.5 rounded-full bg-purple-400/30" />Extras restantes</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1.5 rounded-full bg-blue-400" />Trial</span>
       </div>
 
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-surface-800 border-b border-border">
             <tr>
-              {["", "Barbearia", "Plano", "Uso / Limite", "Créditos extras", "% usado"].map((h, i) => (
+              {["", "Barbearia", "Plano", "Uso", "Extras comprados"].map((h, i) => (
                 <th key={i} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {visibleData.map((r) => {
-              const pct = r.limit === 9999 ? 0 : Math.min(Math.round((r.usageCount / r.limit) * 100), 100);
               const isExpanded = expanded === r.barbershopId;
+              const badge      = STATUS_BADGE[r.planStatus] ?? STATUS_BADGE["ACTIVE"];
               return (
                 <>
                   <tr
@@ -319,36 +373,40 @@ export function AiUsageClient({ data, yearMonth }: { data: Row[]; yearMonth: str
                   >
                     <td className="pl-4 py-3 w-6">
                       {isExpanded
-                        ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      }
+                        ? <ChevronDown  className="h-3.5 w-3.5 text-muted-foreground" />
+                        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Brain className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-medium text-foreground">{r.barbershopName}</span>
+                        <div>
+                          <span className="font-medium text-foreground">{r.barbershopName}</span>
+                          <span className={`ml-2 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold ${PLAN_COLOR[r.planTier]}`}>{r.planTier}</span>
                     </td>
-                    <td className="px-4 py-3 min-w-40">
-                      <UsageBar used={r.usageCount} limit={r.limit} />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-foreground">{r.aiCredits > 0 ? `+${r.aiCredits}` : "—"}</td>
                     <td className="px-4 py-3">
-                      {r.limit === 9999 ? (
-                        <span className="text-sm text-muted-foreground">∞</span>
+                      <SegmentedBar row={r} />
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {r.aiCreditsPurchased > 0 ? (
+                        <div>
+                          <span className="text-purple-400 font-semibold">{r.aiCreditBalance}</span>
+                          <span className="text-muted-foreground text-xs"> / {r.aiCreditsPurchased}</span>
+                        </div>
                       ) : (
-                        <span className={`text-sm font-semibold ${pct >= 90 ? "text-red-400" : pct >= 70 ? "text-yellow-400" : "text-green-400"}`}>
-                          {pct}%
-                        </span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                   </tr>
                   {isExpanded && (
                     <tr key={`${r.barbershopId}-detail`}>
-                      <td colSpan={6} className="p-0">
+                      <td colSpan={5} className="p-0">
                         <DetailPanel barbershopId={r.barbershopId} yearMonth={yearMonth} />
                       </td>
                     </tr>
@@ -357,7 +415,7 @@ export function AiUsageClient({ data, yearMonth }: { data: Row[]; yearMonth: str
               );
             })}
             {data.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">Nenhum uso registrado este mês.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">Nenhum uso registrado este mês.</td></tr>
             )}
           </tbody>
         </table>
@@ -367,12 +425,7 @@ export function AiUsageClient({ data, yearMonth }: { data: Row[]; yearMonth: str
             <p className="text-xs text-muted-foreground">
               {showAll ? `Mostrando todas ${data.length}` : `Mostrando top 10 de ${data.length}`}
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7 gap-1.5"
-              onClick={() => setShowAll(!showAll)}
-            >
+            <Button variant="ghost" size="sm" className="text-xs h-7 gap-1.5" onClick={() => setShowAll(!showAll)}>
               {showAll ? "Mostrar menos" : `Ver mais ${data.length - 10} barbearias`}
             </Button>
           </div>
