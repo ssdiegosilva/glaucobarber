@@ -55,6 +55,7 @@ export async function auth(): Promise<AuthSession | null> {
     orderBy: { createdAt: "asc" },
   });
 
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
   const adminMembership = memberships.find((m) => m.role === "PLATFORM_ADMIN") ?? null;
   const shopMemberships = memberships.filter((m) => m.role !== "PLATFORM_ADMIN");
 
@@ -69,7 +70,7 @@ export async function auth(): Promise<AuthSession | null> {
   ) ?? shopMemberships[0] ?? null;
 
   const membership = adminMembership ?? shopMembership;
-  const isAdmin = !!adminMembership;
+  const isAdmin = !!adminMembership || (ADMIN_EMAIL !== "" && dbUser.email === ADMIN_EMAIL);
 
   return {
     user: {
