@@ -326,7 +326,7 @@ Retorne JSON com:
     }
   }
 
-  async generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string): Promise<{ url: string } | { b64: string }> {
+  async generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string): Promise<{ url: string } | { b64: string }> {
     const base   = getVerticalConfig().ai.haircutVisualPrompt;
     const prompt = suggestedStyle
       ? `${base}\n\nApply specifically: ${suggestedStyle}`
@@ -334,11 +334,12 @@ Retorne JSON com:
     try {
       const { toFile } = await import("openai");
       const img = await this.client.images.edit({
-        model:  "gpt-image-1",
-        image:  await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
+        model:   "gpt-image-1",
+        image:   await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
         prompt,
-        size:   "1024x1024",
-        n:      1,
+        size:    "1024x1024",
+        quality: (quality ?? "medium") as any,
+        n:       1,
       } as Parameters<typeof this.client.images.edit>[0]);
 
       const b64 = img.data?.[0]?.b64_json;

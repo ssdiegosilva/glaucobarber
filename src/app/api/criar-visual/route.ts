@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getAIProvider } from "@/lib/ai/provider";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 import { uploadCampaignImage } from "@/lib/storage";
+import { getAiImageConfig } from "@/lib/platform-config";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -59,9 +60,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Step 2: Generate visual — single credit charge for the full operation
+  const aiConfig = await getAiImageConfig();
   let imageResult;
   try {
-    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle);
+    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle, aiConfig.quality);
   } catch (err) {
     console.error("[criar-visual] generateHaircutVisual error:", err);
     return NextResponse.json({ error: "Erro ao gerar o visual. Tente novamente." }, { status: 500 });
