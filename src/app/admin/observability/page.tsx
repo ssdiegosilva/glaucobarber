@@ -2,31 +2,40 @@ import { prisma } from "@/lib/prisma";
 import { ObservabilityClient } from "./observability-client";
 
 export default async function AdminObservabilityPage() {
-  const ago7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+  const ago30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const ago24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [cronErrors, syncErrors, waErrors, cronErrorsTotal, syncErrorsTotal, waErrorsTotal] = await Promise.all([
-    // CronRun failures last 7 days
+  const [
+    cronErrors,
+    syncErrors,
+    waErrors,
+    campaignErrors,
+    cronErrors24h,
+    syncErrors24h,
+    waErrors24h,
+    campaignErrors24h,
+  ] = await Promise.all([
+    // CronRun failures last 30 days
     prisma.cronRun.findMany({
-      where:   { status: "failed", ranAt: { gte: ago7d } },
+      where:   { status: "failed", ranAt: { gte: ago30d } },
       orderBy: { ranAt: "desc" },
-      take:    200,
+      take:    500,
     }),
 
-    // SyncRun failures last 7 days
+    // SyncRun failures last 30 days
     prisma.syncRun.findMany({
-      where:   { status: { in: ["FAILED", "PARTIAL"] }, startedAt: { gte: ago7d } },
+      where:   { status: { in: ["FAILED", "PARTIAL"] }, startedAt: { gte: ago30d } },
       include: { barbershop: { select: { name: true } } },
       orderBy: { startedAt: "desc" },
-      take:    200,
+      take:    500,
     }),
 
-    // WhatsApp failures last 7 days
+    // WhatsApp failures last 30 days
     prisma.whatsappMessage.findMany({
-      where:   { status: "FAILED", updatedAt: { gte: ago7d } },
+      where:   { status: "FAILED", updatedAt: { gte: ago30d } },
       include: { barbershop: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
-      take:    200,
+      take:    500,
       select: {
         id:           true,
         barbershopId: true,
@@ -39,13 +48,21 @@ export default async function AdminObservabilityPage() {
       },
     }),
 
+    // Campaign failures last 30 days
+    prisma.campaign.findMany({
+      where:   { status: "FAILED", updatedAt: { gte: ago30d } },
+      include: { barbershop: { select: { name: true } } },
+      orderBy: { updatedAt: "desc" },
+      take:    500,
+    }),
+
     // 24h counts for summary cards
-    prisma.cronRun.count({ where: { status: "failed", ranAt: { gte: ago24h } } }),
+    prisma.cronRun.count({ where: { status: "failed",             ranAt:     { gte: ago24h } } }),
     prisma.syncRun.count({ where: { status: { in: ["FAILED", "PARTIAL"] }, startedAt: { gte: ago24h } } }),
-    prisma.whatsappMessage.count({ where: { status: "FAILED", updatedAt: { gte: ago24h } } }),
+    prisma.whatsappMessage.count({ where: { status: "FAILED",     updatedAt: { gte: ago24h } } }),
+    prisma.campaign.count({ where: { status: "FAILED",            updatedAt: { gte: ago24h } } }),
   ]);
 
-  // Build unified error feed
   const errors = [
     ...cronErrors.map((r) => ({
       id:        r.id,
@@ -76,18 +93,30 @@ export default async function AdminObservabilityPage() {
       shop:      r.barbershop.name,
       timestamp: r.updatedAt.toISOString(),
     })),
+
+    ...campaignErrors.map((r) => ({
+      id:        r.id,
+      source:    "campaign" as const,
+      title:     `Campanha falhou: ${r.title}`,
+      detail:    r.errorMsg ?? null,
+      context:   r.channel ? `canal: ${r.channel}` : null,
+      shop:      r.barbershop.name,
+      timestamp: r.updatedAt.toISOString(),
+    })),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return (
     <ObservabilityClient
       errors={errors}
       summary={{
-        cron24h:     cronErrorsTotal,
-        sync24h:     syncErrorsTotal,
-        whatsapp24h: waErrorsTotal,
-        cron7d:      cronErrors.length,
-        sync7d:      syncErrors.length,
-        whatsapp7d:  waErrors.length,
+        cron24h:      cronErrors24h,
+        sync24h:      syncErrors24h,
+        whatsapp24h:  waErrors24h,
+        campaign24h:  campaignErrors24h,
+        cron30d:      cronErrors.length,
+        sync30d:      syncErrors.length,
+        whatsapp30d:  waErrors.length,
+        campaign30d:  campaignErrors.length,
       }}
     />
   );

@@ -10,11 +10,13 @@ import {
   ChevronRight,
   Search,
   X,
+  Megaphone,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-type ErrorSource = "cron" | "sync" | "whatsapp";
+type ErrorSource = "cron" | "sync" | "whatsapp" | "campaign";
+type Period = "24h" | "7d" | "30d";
 
 type ErrorEvent = {
   id:        string;
@@ -30,32 +32,35 @@ type Summary = {
   cron24h:     number;
   sync24h:     number;
   whatsapp24h: number;
-  cron7d:      number;
-  sync7d:      number;
-  whatsapp7d:  number;
+  campaign24h: number;
+  cron30d:     number;
+  sync30d:     number;
+  whatsapp30d: number;
+  campaign30d: number;
 };
 
 const SOURCE_META: Record<ErrorSource, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  cron:      { label: "Cron",      icon: Clock,          color: "yellow"  },
-  sync:      { label: "Sync",      icon: RefreshCw,      color: "blue"    },
-  whatsapp:  { label: "WhatsApp",  icon: MessageCircle,  color: "green"   },
+  cron:      { label: "Cron",      icon: Clock,          color: "yellow" },
+  sync:      { label: "Sync",      icon: RefreshCw,      color: "blue"   },
+  whatsapp:  { label: "WhatsApp",  icon: MessageCircle,  color: "green"  },
+  campaign:  { label: "Campanhas", icon: Megaphone,      color: "purple" },
+};
+
+const PERIOD_MS: Record<Period, number> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "7d":  7  * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
 };
 
 function formatTs(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("pt-BR", {
-    day:    "2-digit",
-    month:  "2-digit",
-    hour:   "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
   });
 }
 
 function formatAgo(iso: string) {
   const diff  = Date.now() - new Date(iso).getTime();
-  const secs  = Math.floor(diff / 1000);
-  const mins  = Math.floor(secs  / 60);
+  const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(mins  / 60);
   const days  = Math.floor(hours / 24);
   if (days  > 0) return `há ${days}d`;
@@ -66,11 +71,7 @@ function formatAgo(iso: string) {
 
 function DetailBlock({ raw }: { raw: string }) {
   let pretty = raw;
-  try {
-    const parsed = JSON.parse(raw);
-    pretty = JSON.stringify(parsed, null, 2);
-  } catch { /* not json */ }
-
+  try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch { /* not json */ }
   return (
     <pre className="mt-2 rounded bg-zinc-950 border border-zinc-700 p-3 text-xs text-zinc-300 overflow-x-auto whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
       {pretty}
@@ -89,42 +90,29 @@ function ErrorRow({ ev }: { ev: ErrorEvent }) {
         className="w-full text-left px-4 py-3 flex items-start gap-3"
         onClick={() => setExpanded((e) => !e)}
       >
-        {/* Source icon */}
         <div className={`mt-0.5 shrink-0 p-1.5 rounded-md bg-${meta.color}-500/10`}>
           <Icon className={`w-3.5 h-3.5 text-${meta.color}-400`} />
         </div>
 
-        {/* Main content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm text-zinc-100 font-medium truncate">{ev.title}</span>
-            {ev.shop && (
-              <span className="text-xs text-zinc-500 truncate">· {ev.shop}</span>
-            )}
+            {ev.shop && <span className="text-xs text-zinc-500 truncate">· {ev.shop}</span>}
           </div>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-            {ev.context && (
-              <span className="text-xs text-zinc-500">{ev.context}</span>
-            )}
+            {ev.context && <span className="text-xs text-zinc-500">{ev.context}</span>}
             <span className="text-xs text-zinc-600">{formatAgo(ev.timestamp)}</span>
           </div>
         </div>
 
-        {/* Expand toggle */}
         <div className="shrink-0 mt-0.5">
-          {ev.detail ? (
-            expanded
-              ? <ChevronDown className="w-4 h-4 text-zinc-500" />
-              : <ChevronRight className="w-4 h-4 text-zinc-500" />
-          ) : (
-            <span className="w-4 h-4 block" />
-          )}
+          {ev.detail
+            ? (expanded ? <ChevronDown className="w-4 h-4 text-zinc-500" /> : <ChevronRight className="w-4 h-4 text-zinc-500" />)
+            : <span className="w-4 h-4 block" />
+          }
         </div>
 
-        {/* Timestamp */}
-        <span className="text-xs text-zinc-600 shrink-0 mt-0.5 hidden sm:block">
-          {formatTs(ev.timestamp)}
-        </span>
+        <span className="text-xs text-zinc-600 shrink-0 mt-0.5 hidden sm:block">{formatTs(ev.timestamp)}</span>
       </button>
 
       {expanded && ev.detail && (
@@ -139,21 +127,20 @@ function ErrorRow({ ev }: { ev: ErrorEvent }) {
 export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[]; summary: Summary }) {
   const [q,       setQ]       = useState("");
   const [sources, setSources] = useState<Set<ErrorSource>>(new Set());
-
-  const total7d  = summary.cron7d + summary.sync7d + summary.whatsapp7d;
-  const total24h = summary.cron24h + summary.sync24h + summary.whatsapp24h;
+  const [period,  setPeriod]  = useState<Period>("7d");
 
   function toggleSource(s: ErrorSource) {
     setSources((prev) => {
       const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
+      next.has(s) ? next.delete(s) : next.add(s);
       return next;
     });
   }
 
   const filtered = useMemo(() => {
+    const cutoff = Date.now() - PERIOD_MS[period];
     return errors.filter((ev) => {
+      if (new Date(ev.timestamp).getTime() < cutoff) return false;
       if (sources.size > 0 && !sources.has(ev.source)) return false;
       if (q) {
         const lq = q.toLowerCase();
@@ -166,7 +153,21 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
       }
       return true;
     });
-  }, [errors, sources, q]);
+  }, [errors, sources, q, period]);
+
+  // Counts for the selected period
+  const periodCounts = useMemo(() => {
+    const cutoff = Date.now() - PERIOD_MS[period];
+    const inPeriod = errors.filter((ev) => new Date(ev.timestamp).getTime() >= cutoff);
+    return {
+      cron:     inPeriod.filter((e) => e.source === "cron").length,
+      sync:     inPeriod.filter((e) => e.source === "sync").length,
+      whatsapp: inPeriod.filter((e) => e.source === "whatsapp").length,
+      campaign: inPeriod.filter((e) => e.source === "campaign").length,
+    };
+  }, [errors, period]);
+
+  const total24h = summary.cron24h + summary.sync24h + summary.whatsapp24h + summary.campaign24h;
 
   return (
     <div className="flex flex-col h-full">
@@ -175,7 +176,7 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-white">Observabilidade</h1>
-            <p className="text-sm text-zinc-400 mt-0.5">Erros da plataforma nos últimos 7 dias</p>
+            <p className="text-sm text-zinc-400 mt-0.5">Erros da plataforma — últimos 30 dias disponíveis</p>
           </div>
           {total24h > 0 && (
             <Badge className="border-red-500/40 bg-red-500/15 text-red-400 text-xs px-3 py-1">
@@ -189,12 +190,12 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {(["cron", "sync", "whatsapp"] as ErrorSource[]).map((src) => {
-            const meta = SOURCE_META[src];
-            const Icon = meta.icon;
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {(["cron", "sync", "whatsapp", "campaign"] as ErrorSource[]).map((src) => {
+            const meta     = SOURCE_META[src];
+            const Icon     = meta.icon;
             const count24h = summary[`${src}24h` as keyof Summary];
-            const count7d  = summary[`${src}7d`  as keyof Summary];
+            const countPeriod = periodCounts[src];
             const hasError = count24h > 0;
             return (
               <button
@@ -213,21 +214,36 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
                     <Icon className={`w-4 h-4 text-${meta.color}-400`} />
                     <span className="text-xs text-zinc-400 font-medium">{meta.label}</span>
                   </div>
-                  {sources.has(src) && (
-                    <X className="w-3 h-3 text-zinc-500" />
-                  )}
+                  {sources.has(src) && <X className="w-3 h-3 text-zinc-500" />}
                 </div>
                 <p className={`text-2xl font-bold ${hasError ? "text-red-400" : "text-white"}`}>
                   {count24h}
                 </p>
-                <p className="text-xs text-zinc-600 mt-0.5">24h · {count7d} em 7d</p>
+                <p className="text-xs text-zinc-600 mt-0.5">24h · {countPeriod} no período</p>
               </button>
             );
           })}
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-3">
+        {/* Filters row */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Period selector */}
+          <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+            {(["24h", "7d", "30d"] as Period[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 font-medium transition-colors ${
+                  period === p
+                    ? "bg-zinc-700 text-white"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -237,6 +253,7 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
               className="pl-9"
             />
           </div>
+
           {(sources.size > 0 || q) && (
             <button
               onClick={() => { setSources(new Set()); setQ(""); }}
@@ -246,8 +263,9 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
               Limpar filtros
             </button>
           )}
+
           <span className="text-xs text-zinc-600 ml-auto">
-            {filtered.length} de {total7d} erros
+            {filtered.length} erro{filtered.length !== 1 ? "s" : ""}
           </span>
         </div>
 
@@ -257,13 +275,14 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
             <div className="px-4 py-14 text-center">
               <AlertTriangle className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
               <p className="text-sm text-zinc-500">
-                {total7d === 0 ? "Nenhum erro nos últimos 7 dias." : "Nenhum erro encontrado com esse filtro."}
+                {errors.length === 0 ? "Nenhum erro nos últimos 30 dias." : "Nenhum erro encontrado com esse filtro."}
               </p>
             </div>
           ) : (
             filtered.map((ev) => <ErrorRow key={ev.id} ev={ev} />)
           )}
         </div>
+
       </div>
     </div>
   );
