@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyWhatsappQueued } from "@/lib/notifications";
 
 // Action types that enqueue a WhatsApp message on approval
 const WHATSAPP_TYPES = new Set([
@@ -62,6 +63,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
           status:       "QUEUED",
         })),
       });
+      await notifyWhatsappQueued(
+        action.barbershopId,
+        entries.length,
+        entries.length === 1 ? entries[0].name : undefined,
+      );
     }
   }
 

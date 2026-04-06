@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyWhatsappQueued } from "@/lib/notifications";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -63,6 +64,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
           },
         });
         whatsappQueued = true;
+        await notifyWhatsappQueued(suggestion.barbershopId, 1, client.name);
       }
     } catch {
       // context parse failed — skip queuing silently

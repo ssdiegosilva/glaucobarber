@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { notifyWhatsappQueued } from "@/lib/notifications";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -86,6 +87,8 @@ export async function notifyAppointmentEvent(opts: {
         status: "QUEUED",
       },
     });
+
+    await notifyWhatsappQueued(opts.barbershopId, 1, customer.name);
   } catch (err) {
     console.error("[appointment-notify] erro ao criar notificação:", err);
   }

@@ -11,8 +11,8 @@ import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Globe, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
 import Link from "next/link";
 
-const STATUS_LABEL: Record<string, string> = { GENERATING: "Criando...", DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada" };
-const STATUS_VARIANT: Record<string, string> = { GENERATING: "outline", DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success" };
+const STATUS_LABEL: Record<string, string> = { GENERATING: "Criando...", DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada", FAILED: "Falhou" };
+const STATUS_VARIANT: Record<string, string> = { GENERATING: "outline", DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success", FAILED: "destructive" };
 const STATUS_ICON: Record<string, React.ReactElement> = {
   GENERATING: <Sparkles className="h-3 w-3 animate-spin" />,
   DRAFT: <Clock className="h-3 w-3" />,
@@ -20,6 +20,7 @@ const STATUS_ICON: Record<string, React.ReactElement> = {
   DISMISSED: <XCircle className="h-3 w-3" />,
   SCHEDULED: <Clock className="h-3 w-3" />,
   PUBLISHED: <Send className="h-3 w-3" />,
+  FAILED: <XCircle className="h-3 w-3" />,
 };
 
 export interface OfferOption {
@@ -42,6 +43,7 @@ export interface CampaignDto {
   scheduledAt: string | null;
   imageUrl: string | null;
   instagramPermalink: string | null;
+  errorMsg: string | null;
 }
 
 // ── LaunchCountdown ───────────────────────────────────────────
@@ -807,7 +809,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
 
   // ── Helpers ────────────────────────────────────────────────
   const generatingCampaigns = campaigns.filter((c) => c.status === "GENERATING");
-  const queueCampaigns      = campaigns.filter((c) => ["SCHEDULED", "APPROVED"].includes(c.status));
+  const queueCampaigns      = campaigns.filter((c) => ["SCHEDULED", "APPROVED", "FAILED"].includes(c.status));
   const draftCampaigns      = campaigns.filter((c) => c.status === "DRAFT");
   const dismissedCampaigns  = campaigns.filter((c) => c.status === "DISMISSED");
 
@@ -1028,22 +1030,48 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                             <span className="text-[10px] text-red-400/80 shrink-0">sem imagem</span>
                           )}
                         </div>
-                        {dateStr ? (
+                        {c.status === "FAILED" && c.errorMsg ? (
+                          <p className="text-[11px] text-red-400/80 mt-0.5">{c.errorMsg}</p>
+                        ) : dateStr ? (
                           <p className="text-[11px] text-muted-foreground mt-0.5">{dateStr}</p>
                         ) : (
                           <p className="text-[11px] text-amber-400/70 mt-0.5">Sem data definida</p>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          className="h-7 text-[11px] gap-1"
-                          onClick={(e) => { e.stopPropagation(); publish(c.id); }}
-                          disabled={!instagramConfigured || publishingId === c.id || !c.imageUrl}
-                          title={!instagramConfigured ? "Configure o Instagram em Integrações" : !c.imageUrl ? "Adicione uma imagem primeiro" : undefined}
-                        >
-                          {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
-                        </Button>
+                        {c.status === "FAILED" ? (
+                          !instagramConfigured ? (
+                            <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
+                              <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
+                                <Settings className="h-3 w-3" />Conectar Instagram
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="h-7 text-[11px] gap-1"
+                              onClick={(e) => { e.stopPropagation(); setStatus(c.id, "SCHEDULED"); }}
+                            >
+                              <Send className="h-3 w-3" />Tentar novamente
+                            </Button>
+                          )
+                        ) : !instagramConfigured ? (
+                          <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
+                            <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
+                              <Settings className="h-3 w-3" />Conectar Instagram
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px] gap-1"
+                            onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                            disabled={publishingId === c.id || !c.imageUrl}
+                            title={!c.imageUrl ? "Adicione uma imagem primeiro" : undefined}
+                          >
+                            {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
+                          </Button>
+                        )}
                         <button
                           onClick={(e) => { e.stopPropagation(); if (editingText === c.id) { setEditingText(null); } else { setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); } }}
                           className={`rounded-md border p-1.5 transition-colors ${editingText === c.id ? "border-gold-500/40 text-gold-400 bg-gold-500/10" : "border-border text-muted-foreground hover:text-foreground hover:bg-surface-700"}`}
