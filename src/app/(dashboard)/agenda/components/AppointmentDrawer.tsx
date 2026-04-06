@@ -78,6 +78,12 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   const [showPastConfirm, setShowPastConfirm] = useState(false);
   const [showPaymentMethod, setShowPaymentMethod] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [localStatus, setLocalStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalStatus(null); // reset when appointment changes
+  }, [appointment?.id]);
+
   useEffect(() => {
     if (!appointment || !open) { setContext(null); return; }
     setLoadingCtx(true);
@@ -107,6 +113,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
         body:    JSON.stringify(body),
       });
       onStatusChange(appointment.id, status);
+      setLocalStatus(status);
       setShowPaymentMethod(false);
       setSelectedPaymentMethod(null);
     } finally {
@@ -141,7 +148,8 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
 
   if (!appointment) return null;
 
-  const actions = STATUS_NEXT[appointment.status] ?? [];
+  const currentStatus = localStatus ?? appointment.status;
+  const actions = STATUS_NEXT[currentStatus] ?? [];
   const customer = context?.customer ?? null;
   const recent   = context?.recentAppointments ?? [];
 
@@ -176,8 +184,8 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground uppercase tracking-wide">Status</span>
-              <Badge variant={statusVariant(appointment.status) as any}>
-                {STATUS_LABELS[appointment.status] ?? appointment.status}
+              <Badge variant={statusVariant(currentStatus) as any}>
+                {STATUS_LABELS[currentStatus] ?? currentStatus}
               </Badge>
               {appointment.price && (
                 <span className="ml-auto text-sm font-semibold text-foreground">{formatBRL(appointment.price)}</span>
