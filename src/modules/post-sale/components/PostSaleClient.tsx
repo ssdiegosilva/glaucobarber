@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
@@ -149,8 +150,15 @@ interface Props {
 
 // ── Root component ────────────────────────────────────────────
 
+const VALID_FILTERS = new Set<FilterKey>(["emRisco", "recentes", "inativos", "reativados"]);
+
 export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
-  const [active, setActive] = useState<FilterKey | null>(null);
+  const searchParams = useSearchParams();
+  const initialFilter = useMemo(() => {
+    const param = searchParams.get("filter") as FilterKey | null;
+    return param && VALID_FILTERS.has(param) ? param : null;
+  }, [searchParams]);
+  const [active, setActive] = useState<FilterKey | null>(initialFilter);
 
   const filteredCustomers = active
     ? customers.filter((c) => c.postSaleStatus === FILTER_STATUS[active])
