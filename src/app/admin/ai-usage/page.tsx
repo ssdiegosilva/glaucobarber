@@ -7,7 +7,7 @@ export default async function AdminAiUsagePage() {
   const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   const usages = await prisma.aiUsageMonth.findMany({
-    where: { yearMonth: { in: [yearMonth, "trial"] } },
+    where: { yearMonth: { in: [yearMonth, "trialing"] } },
     include: {
       barbershop: {
         select: { id: true, name: true, subscription: { select: { planTier: true, aiCreditBalance: true } } },

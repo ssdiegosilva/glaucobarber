@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const yearMonth = searchParams.get("yearMonth") ?? defaultYm;
 
   const usages = await prisma.aiUsageMonth.findMany({
-    where: { yearMonth: { in: [yearMonth, "trial"] } },
+    where: { yearMonth: { in: [yearMonth, "trialing"] } },
     include: {
       barbershop: {
         select: { id: true, name: true, subscription: { select: { planTier: true, aiCreditBalance: true } } },
