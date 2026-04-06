@@ -49,18 +49,6 @@ export async function syncBarbershop(
             });
             if (isDeleted) continue;
 
-            // List endpoint may not return telefones — fetch detail if missing
-            if (!raw.telefones?.length) {
-              try {
-                const detail = await client.getCustomerDetail(raw.id);
-                if (detail.telefones?.length) {
-                  raw.telefones = detail.telefones;
-                }
-              } catch {
-                // Detail fetch failed — proceed without phone
-              }
-            }
-
             const data = mapTrinksCustomer(raw, barbershopId);
             const existing = await prisma.customer.upsert({
               where:  { barbershopId_trinksId: { barbershopId, trinksId: String(raw.id) } },
@@ -69,6 +57,20 @@ export async function syncBarbershop(
               update: { lastSyncedAt: new Date() },
               select: { id: true, locallyModifiedAt: true, phone: true },
             });
+
+            // List endpoint may not return telefones — fetch detail only
+            // for customers that are still missing phone in our DB
+            if (!data.phone && !existing.phone) {
+              try {
+                const detail = await client.getCustomerDetail(raw.id);
+                if (detail.telefones?.length) {
+                  data.phone = detail.telefones[0].numero ?? null;
+                }
+              } catch {
+                // Detail fetch failed — proceed without phone
+              }
+            }
+
             // Only overwrite user-editable fields if the customer was never edited locally
             if (!existing.locallyModifiedAt) {
               await prisma.customer.update({
