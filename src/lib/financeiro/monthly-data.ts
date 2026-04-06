@@ -44,6 +44,11 @@ export interface MonthlyData {
     byDay:  { day: string; total: number }[];
     list:   DiscountEntry[];
   };
+  expenses: {
+    total: number;
+    items: { id: string; label: string; amountCents: number; note: string | null }[];
+  };
+  netRevenue: number;
 }
 
 export async function getMonthlyFinanceiroData(
@@ -70,6 +75,7 @@ export async function getMonthlyFinanceiroData(
     dailyRevenueRaw,
     dailyScheduledRaw,
     paymentMethodRaw,
+    expensesRaw,
   ] = await Promise.all([
     prisma.appointment.aggregate({
       where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
@@ -119,6 +125,11 @@ export async function getMonthlyFinanceiroData(
       where: { barbershopId, domain: "BARBERSHOP_SERVICE", paidAt: { gte: thisStart, lte: thisEnd } },
       _sum:  { paidValue: true },
       _count: { _all: true },
+    }),
+    prisma.expense.findMany({
+      where:   { barbershopId, month, year },
+      orderBy: { createdAt: "asc" },
+      select:  { id: true, label: true, amountCents: true, note: true },
     }),
   ]);
 
@@ -183,6 +194,9 @@ export async function getMonthlyFinanceiroData(
   }));
   const totalDiscount = discountList.reduce((s, d) => s + d.discountValue, 0);
 
+  const expenseTotal = expensesRaw.reduce((s, e) => s + e.amountCents / 100, 0);
+  const netRevenue   = revenue - expenseTotal;
+
   return {
     month,
     year,
@@ -218,5 +232,10 @@ export async function getMonthlyFinanceiroData(
       byDay: [...discountByDayMap.entries()].map(([day, total]) => ({ day, total })),
       list:  discountList,
     },
+    expenses: {
+      total: expenseTotal,
+      items: expensesRaw,
+    },
+    netRevenue,
   };
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Tag, ChevronDown, Lightbulb, Target, CreditCard, QrCode, Banknote, HelpCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Tag, ChevronDown, Lightbulb, Target, CreditCard, QrCode, Banknote, HelpCircle, Receipt, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 import type { MonthlyData } from "@/lib/financeiro/monthly-data";
 import {
@@ -79,6 +79,9 @@ function GoalRing({ pct }: { pct: number }) {
   );
 }
 
+// ── Expense item type ─────────────────────────────────────────
+type ExpenseItem = { id: string; label: string; amountCents: number; note: string | null };
+
 // ── Main component ────────────────────────────────────────────
 
 interface Props {
@@ -91,6 +94,77 @@ interface Props {
 
 export function MensalView({ data, currentMonth, currentYear, isLoading, onNavigate }: Props) {
   const [showDiscounts, setShowDiscounts] = useState(false);
+  const [showExpenses,  setShowExpenses]  = useState(false);
+
+  // Local expenses state (syncs when data changes)
+  const [expenses, setExpenses] = useState<ExpenseItem[]>(data.expenses.items);
+  useEffect(() => { setExpenses(data.expenses.items); }, [data.month, data.year]);
+
+  const expenseTotal = expenses.reduce((s, e) => s + e.amountCents / 100, 0);
+  const netRevenue   = data.revenue - expenseTotal;
+
+  // ── Expense form state ──
+  type FormMode = { type: "add" } | { type: "edit"; id: string } | null;
+  const [formMode,    setFormMode]    = useState<FormMode>(null);
+  const [formLabel,   setFormLabel]   = useState("");
+  const [formAmount,  setFormAmount]  = useState("");
+  const [formNote,    setFormNote]    = useState("");
+  const [formSaving,  setFormSaving]  = useState(false);
+
+  function openAdd() {
+    setFormMode({ type: "add" });
+    setFormLabel(""); setFormAmount(""); setFormNote("");
+  }
+
+  function openEdit(e: ExpenseItem) {
+    setFormMode({ type: "edit", id: e.id });
+    setFormLabel(e.label);
+    setFormAmount((e.amountCents / 100).toFixed(2).replace(".", ","));
+    setFormNote(e.note ?? "");
+  }
+
+  function cancelForm() { setFormMode(null); }
+
+  function parseAmount(raw: string): number {
+    return Math.round(parseFloat(raw.replace(",", ".").replace(/[^0-9.]/g, "")) * 100) || 0;
+  }
+
+  async function saveExpense() {
+    const amountCents = parseAmount(formAmount);
+    if (!formLabel.trim() || amountCents <= 0) return;
+    setFormSaving(true);
+    try {
+      if (formMode?.type === "add") {
+        const res = await fetch("/api/financeiro/expenses", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ label: formLabel, amountCents, month: data.month, year: data.year, note: formNote || null }),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          setExpenses((prev) => [...prev, created]);
+        }
+      } else if (formMode?.type === "edit") {
+        const res = await fetch(`/api/financeiro/expenses/${formMode.id}`, {
+          method:  "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ label: formLabel, amountCents, note: formNote || null }),
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setExpenses((prev) => prev.map((e) => e.id === updated.id ? updated : e));
+        }
+      }
+      setFormMode(null);
+    } finally {
+      setFormSaving(false);
+    }
+  }
+
+  async function deleteExpense(id: string) {
+    const res = await fetch(`/api/financeiro/expenses/${id}`, { method: "DELETE" });
+    if (res.ok) setExpenses((prev) => prev.filter((e) => e.id !== id));
+  }
 
   const isCurrentMonth = data.month === currentMonth && data.year === currentYear;
 
@@ -383,6 +457,199 @@ export function MensalView({ data, currentMonth, currentYear, isLoading, onNavig
           </div>
         );
       })()}
+
+      {/* ── Receita Líquida ──────────────────────────────── */}
+      <div className={`rounded-xl border bg-card p-4 ${netRevenue < 0 ? "border-red-500/40" : "border-emerald-500/30"}`}>
+        <div className="flex items-center gap-2 mb-3">
+          <Receipt className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-semibold text-foreground">Resultado do mês</p>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Receita bruta</span>
+            <span className="tabular-nums text-foreground font-medium">{formatBRL(data.revenue)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">(-) Custos</span>
+            <span className="tabular-nums text-red-400 font-medium">- {formatBRL(expenseTotal)}</span>
+          </div>
+          <div className="h-px bg-border my-1" />
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-foreground">(=) Receita líquida</span>
+            <span className={`text-lg font-bold tabular-nums ${netRevenue >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {formatBRL(netRevenue)}
+            </span>
+          </div>
+          {expenseTotal === 0 && (
+            <p className="text-[11px] text-muted-foreground pt-1">
+              Nenhum custo registrado — adicione na seção abaixo.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Custos do mês (colapsável) ────────────────────── */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <button
+          onClick={() => setShowExpenses((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-800/30 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Custos do mês</span>
+            {expenseTotal > 0
+              ? <span className="text-xs text-red-400 font-medium">{formatBRL(expenseTotal)}</span>
+              : <span className="text-xs text-muted-foreground">nenhum registrado</span>
+            }
+          </div>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showExpenses ? "rotate-180" : ""}`} />
+        </button>
+
+        {showExpenses && (
+          <div className="border-t border-border p-4 space-y-3">
+            {/* List */}
+            {expenses.length > 0 && (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-800/50">
+                      <th className="text-left px-3 py-2 text-muted-foreground font-medium">Descrição</th>
+                      <th className="text-left px-3 py-2 text-muted-foreground font-medium hidden sm:table-cell">Obs.</th>
+                      <th className="text-right px-3 py-2 text-muted-foreground font-medium">Valor</th>
+                      <th className="px-3 py-2 w-16" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {expenses.map((e) => (
+                      formMode?.type === "edit" && formMode.id === e.id ? (
+                        <tr key={e.id} className="bg-surface-800/30">
+                          <td className="px-2 py-1.5">
+                            <input
+                              className="w-full bg-surface-700 border border-border rounded px-2 py-1 text-xs text-foreground"
+                              value={formLabel}
+                              onChange={(ev) => setFormLabel(ev.target.value)}
+                              placeholder="Descrição"
+                              autoFocus
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 hidden sm:table-cell">
+                            <input
+                              className="w-full bg-surface-700 border border-border rounded px-2 py-1 text-xs text-foreground"
+                              value={formNote}
+                              onChange={(ev) => setFormNote(ev.target.value)}
+                              placeholder="Obs. (opcional)"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              className="w-full bg-surface-700 border border-border rounded px-2 py-1 text-xs text-foreground text-right tabular-nums"
+                              value={formAmount}
+                              onChange={(ev) => setFormAmount(ev.target.value)}
+                              placeholder="0,00"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex items-center gap-1 justify-end">
+                              <button onClick={saveExpense} disabled={formSaving}
+                                className="p-1 rounded text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50">
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={cancelForm}
+                                className="p-1 rounded text-muted-foreground hover:bg-surface-700">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={e.id} className="hover:bg-surface-800/20">
+                          <td className="px-3 py-2 text-foreground">{e.label}</td>
+                          <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">{e.note ?? "—"}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-red-400 font-medium">
+                            {formatBRL(e.amountCents / 100)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-1 justify-end">
+                              <button onClick={() => openEdit(e)}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-surface-700">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button onClick={() => deleteExpense(e.id)}
+                                className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    ))}
+                  </tbody>
+                  {expenses.length > 1 && (
+                    <tfoot>
+                      <tr className="border-t border-border bg-surface-800/30">
+                        <td colSpan={2} className="px-3 py-2 font-medium text-foreground hidden sm:table-cell">Total</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-red-400 font-bold">
+                          {formatBRL(expenseTotal)}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            )}
+
+            {/* Add form */}
+            {formMode?.type === "add" ? (
+              <div className="rounded-lg border border-border bg-surface-800/30 p-3 space-y-2">
+                <p className="text-xs font-medium text-foreground">Novo custo</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    className="bg-surface-700 border border-border rounded px-2 py-1.5 text-xs text-foreground sm:col-span-1"
+                    value={formLabel}
+                    onChange={(e) => setFormLabel(e.target.value)}
+                    placeholder="Descrição (ex: Aluguel)"
+                    autoFocus
+                  />
+                  <input
+                    className="bg-surface-700 border border-border rounded px-2 py-1.5 text-xs text-foreground"
+                    value={formNote}
+                    onChange={(e) => setFormNote(e.target.value)}
+                    placeholder="Obs. (opcional)"
+                  />
+                  <input
+                    className="bg-surface-700 border border-border rounded px-2 py-1.5 text-xs text-foreground text-right tabular-nums"
+                    value={formAmount}
+                    onChange={(e) => setFormAmount(e.target.value)}
+                    placeholder="Valor (ex: 1500,00)"
+                  />
+                </div>
+                <div className="flex items-center gap-2 justify-end">
+                  <button onClick={cancelForm}
+                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-surface-700">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={saveExpense}
+                    disabled={formSaving || !formLabel.trim() || !formAmount}
+                    className="text-xs bg-gold-500 hover:bg-gold-400 text-black font-medium px-3 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {formSaving ? "Salvando…" : "Salvar"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={openAdd}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar custo
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Descontos (colapsável) ────────────────────────── */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">

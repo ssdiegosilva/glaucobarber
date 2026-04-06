@@ -140,6 +140,7 @@ model Barbershop {
   billingEvents       BillingEvent[]
   aiCallLogs          AiCallLog[]
   systemNotifications SystemNotification[]
+  expenses            Expense[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1172,4 +1173,26 @@ model CronRun {
 
   @@index([cronName, ranAt])
   @@map("cron_runs")
+}
+
+// ============================================================
+// EXPENSES — monthly costs registered by the barbershop owner
+// ============================================================
+
+model Expense {
+  id           String  @id @default(cuid())
+  barbershopId String
+  month        Int     // 1-12
+  year         Int
+  label        String  // "Aluguel", "Produtos", etc.
+  amountCents  Int     // value in cents to avoid float precision issues
+  note         String?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([barbershopId, year, month])
+  @@map("expenses")
 }
