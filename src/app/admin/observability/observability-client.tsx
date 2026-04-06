@@ -182,7 +182,6 @@ export function ObservabilityClient({ errors, summary }: { errors: ErrorEvent[];
             const meta     = SOURCE_META[src];
             const Icon     = meta.icon;
             const count24h = summary[`${src}24h` as keyof Summary];
-            const countPeriod = periodCounts[src];
             const hasError = count24h > 0;
             return (
               <button
