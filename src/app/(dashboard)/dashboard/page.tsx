@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { DashboardClient } from "./dashboard-client";
@@ -14,8 +13,7 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.barbershopId) redirect("/onboarding");
+  const session = await requireBarbershop();
 
   const barbershopId = session.user.barbershopId;
   const now          = new Date();

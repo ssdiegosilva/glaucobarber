@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { ClientsClient } from "./clients-client";
@@ -11,8 +10,7 @@ export default async function ClientsPage({
 }: {
   searchParams: Promise<{ page?: string; q?: string; vip?: string; inactive?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.barbershopId) redirect("/onboarding");
+  const session = await requireBarbershop();
 
   const { page: pageParam, q, vip, inactive } = await searchParams;
   const vipFilter      = vip === "1";

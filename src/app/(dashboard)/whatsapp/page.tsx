@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { WhatsappClient } from "./whatsapp-client";
@@ -8,8 +7,7 @@ import { getPlan } from "@/lib/billing";
 import { canAccess } from "@/lib/access";
 
 export default async function WhatsappPage() {
-  const session = await auth();
-  if (!session?.user?.barbershopId) redirect("/onboarding");
+  const session = await requireBarbershop();
 
   const barbershopId = session.user.barbershopId;
   const now      = new Date();

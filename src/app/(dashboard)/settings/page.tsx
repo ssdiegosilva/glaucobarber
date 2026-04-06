@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { Building2, Palette, Plug, Users, CheckCircle2, AlertCircle } from "lucide-react";
@@ -17,8 +16,7 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ section?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.barbershopId) redirect("/onboarding");
+  const session = await requireBarbershop();
 
   const { section } = await searchParams;
 

@@ -1,12 +1,10 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { OffersClient } from "./offers-client";
 
 export default async function OffersPage() {
-  const session = await auth();
-  if (!session?.user?.barbershopId) redirect("/onboarding");
+  const session = await requireBarbershop();
 
   const barbershopId = session.user.barbershopId;
 

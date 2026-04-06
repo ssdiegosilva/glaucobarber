@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 export const ACTIVE_BARBERSHOP_COOKIE = "activeBarbershopId";
 
@@ -15,6 +16,16 @@ export interface AuthSession {
     isAdmin: boolean;
     memberships: { barbershopId: string; barbershopName: string; role: string }[];
   };
+}
+
+/** Use in dashboard pages instead of manual redirect("/onboarding"). Admins go to /admin. */
+export async function requireBarbershop(): Promise<AuthSession & { user: AuthSession["user"] & { barbershopId: string } }> {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  if (!session.user.barbershopId) {
+    redirect(session.user.isAdmin ? "/admin" : "/onboarding");
+  }
+  return session as AuthSession & { user: AuthSession["user"] & { barbershopId: string } };
 }
 
 export async function auth(): Promise<AuthSession | null> {

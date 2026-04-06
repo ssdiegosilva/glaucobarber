@@ -1,12 +1,10 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import CopilotClient from "./copilot-client";
 
 export default async function CopilotPage() {
-  const session = await auth();
-  if (!session?.user?.barbershopId) redirect("/onboarding");
+  const session = await requireBarbershop();
 
   // Auto-cleanup: remove threads older than 3 days
   const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);

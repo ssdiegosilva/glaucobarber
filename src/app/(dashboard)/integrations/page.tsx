@@ -1,12 +1,10 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { IntegrationsClient } from "./integrations-client";
 
 export default async function IntegrationsPage() {
-  const session = await auth();
-  if (!session?.user?.barbershopId) redirect("/onboarding");
+  const session = await requireBarbershop();
 
   const [integration, syncRuns] = await Promise.all([
     prisma.integration.findUnique({
