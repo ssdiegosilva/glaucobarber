@@ -122,15 +122,17 @@ function daysUntil(iso: string): string {
   return `expira em ${days}d`;
 }
 
-export function OverviewClient({ killSwitches: initial, cronRuns, queues, metrics }: Props) {
-  const [kills, setKills] = useState<KillSwitches>(initial);
-  const [loading, setLoading] = useState<Partial<Record<keyof KillSwitches, boolean>>>({});
-  const [runningCron, setRunningCron] = useState<string | null>(null);
-  const [cronResult,  setCronResult]  = useState<Record<string, { ok: boolean; msg: string }>>({});
+export function OverviewClient({ killSwitches: initial, cronRuns: initialCronRuns, queues, metrics }: Props) {
+  const [kills,      setKills]      = useState<KillSwitches>(initial);
+  const [loading,    setLoading]    = useState<Partial<Record<keyof KillSwitches, boolean>>>({});
+  const [runningCron,setRunningCron]= useState<string | null>(null);
+  const [localRuns,  setLocalRuns]  = useState<CronRun[]>(initialCronRuns);
+  const [cronMsg,    setCronMsg]    = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   async function runCron(cronName: string) {
     setRunningCron(cronName);
-    setCronResult((prev) => ({ ...prev, [cronName]: { ok: true, msg: "" } }));
+    setCronMsg((prev) => ({ ...prev, [cronName]: { ok: true, msg: "" } }));
+    const now = new Date().toISOString();
     try {
       const res  = await fetch("/api/admin/run-cron", {
         method:  "POST",
@@ -138,12 +140,24 @@ export function OverviewClient({ killSwitches: initial, cronRuns, queues, metric
         body:    JSON.stringify({ cronName }),
       });
       const data = await res.json();
-      setCronResult((prev) => ({
+      const ok   = res.ok && data.ok;
+      const errMsg = !ok ? (data.data?.error ?? data.error ?? "Erro desconhecido") : null;
+
+      // Update local cron run state so dot + time refresh immediately
+      setLocalRuns((prev) => prev.map((r) =>
+        r.name === cronName
+          ? { ...r, status: ok ? "success" : "failed", ranAt: now, isLate: false, error: errMsg }
+          : r,
+      ));
+      setCronMsg((prev) => ({
         ...prev,
-        [cronName]: { ok: res.ok && data.ok, msg: res.ok ? "Executado com sucesso" : (data.error ?? "Erro") },
+        [cronName]: { ok, msg: ok ? "OK" : (errMsg ?? "Erro") },
       }));
     } catch (e) {
-      setCronResult((prev) => ({ ...prev, [cronName]: { ok: false, msg: String(e) } }));
+      setLocalRuns((prev) => prev.map((r) =>
+        r.name === cronName ? { ...r, status: "failed", ranAt: now, isLate: false, error: String(e) } : r,
+      ));
+      setCronMsg((prev) => ({ ...prev, [cronName]: { ok: false, msg: String(e) } }));
     } finally {
       setRunningCron(null);
     }
@@ -258,7 +272,7 @@ export function OverviewClient({ killSwitches: initial, cronRuns, queues, metric
             Saúde dos Crons
           </h2>
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg divide-y divide-zinc-800">
-            {cronRuns.map((run) => {
+            {localRuns.map((run) => {
               const ok      = run.status === "success";
               const failed  = run.status === "failed";
               const running = run.status === "running";
@@ -284,9 +298,9 @@ export function OverviewClient({ killSwitches: initial, cronRuns, queues, metric
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-right">
-                    {cronResult[run.name]?.msg && (
-                      <span className={`text-xs ${cronResult[run.name].ok ? "text-green-400" : "text-red-400"}`}>
-                        {cronResult[run.name].msg}
+                    {cronMsg[run.name]?.msg && (
+                      <span className={`text-xs ${cronMsg[run.name].ok ? "text-green-400" : "text-red-400"}`}>
+                        {cronMsg[run.name].msg}
                       </span>
                     )}
                     {run.durationMs && (
