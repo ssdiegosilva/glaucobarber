@@ -1041,8 +1041,9 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                 const dateStr = formatScheduled(c.scheduledAt);
                 return (
                   <div key={c.id} className={`px-4 py-3 ${today ? "bg-amber-500/5" : ""}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
+                    <div className="flex flex-col gap-2">
+                      {/* Title + badges */}
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-xs font-semibold text-foreground truncate">{c.title}</p>
                           {today && c.scheduledAt && (
@@ -1060,7 +1061,8 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                           <p className="text-[11px] text-amber-400/70 mt-0.5">Sem data definida</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5">
                         {c.status === "FAILED" ? (
                           c.id.startsWith("generating-") ? (
                             // Falhou durante geração — sem DB record, só descartar
