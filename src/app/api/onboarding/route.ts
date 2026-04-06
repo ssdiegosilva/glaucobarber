@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const membership = await prisma.membership.findFirst({
-    where: { userId: session.user.id, active: true },
+    where: { userId: session.user.id, active: true, role: { not: "PLATFORM_ADMIN" } },
     select: { barbershopId: true },
   });
 

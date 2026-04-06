@@ -64,7 +64,8 @@ export async function syncBarbershop(
               try {
                 const detail = await client.getCustomerDetail(raw.id);
                 if (detail.telefones?.length) {
-                  data.phone = detail.telefones[0].numero ?? null;
+                  const t = detail.telefones[0];
+                  data.phone = `+${t.ddi}${t.ddd}${t.telefone}`;
                 }
               } catch {
                 // Detail fetch failed — proceed without phone
