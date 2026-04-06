@@ -102,6 +102,10 @@ export class TrinksClient {
     });
   }
 
+  async getCustomerDetail(trinksId: number | string): Promise<TrinksCustomer> {
+    return this.request("GET", `/v1/clientes/${trinksId}`);
+  }
+
   // ── Services ─────────────────────────────────────────────
 
   async getServices(page = 1, pageSize = 200): Promise<TrinksPage<TrinksService>> {
