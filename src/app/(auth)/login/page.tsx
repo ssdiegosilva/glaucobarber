@@ -30,7 +30,6 @@ export default function LoginPage() {
     }
 
     // Respect redirectTo param, fallback to /dashboard
-    // Dashboard layout redirects admin users to /admin automatically (server-side)
     const params = new URLSearchParams(window.location.search);
     const redirectTo = params.get("redirectTo") ?? "/dashboard";
     router.push(redirectTo);
