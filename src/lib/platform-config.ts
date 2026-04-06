@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 
 export interface AiImageConfig {
   model:        "gpt-image-1" | "dall-e-3" | "dall-e-2";
-  size:         "1024x1024" | "512x512" | "256x256";
-  quality:      "standard" | "hd";
+  size:         string;
+  quality:      "low" | "medium" | "high" | "standard" | "hd";
   creditCost:   number;  // credits charged to user per image generation
   costUsdCents: number;  // actual platform cost in USD cents (e.g. 4 = $0.04)
 }
@@ -13,9 +13,9 @@ export interface AiImageConfig {
 const AI_IMAGE_DEFAULTS: AiImageConfig = {
   model:        "gpt-image-1",
   size:         "1024x1024",
-  quality:      "standard",
+  quality:      "medium",
   creditCost:   10,
-  costUsdCents: 4,
+  costUsdCents: 7,
 };
 
 export async function getAiImageConfig(): Promise<AiImageConfig> {

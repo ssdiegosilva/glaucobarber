@@ -13,9 +13,9 @@ const AI_CONFIG_KEYS = [
 const AI_CONFIG_DEFAULTS: Record<string, string> = {
   ai_image_model:          "gpt-image-1",
   ai_image_size:           "1024x1024",
-  ai_image_quality:        "standard",
+  ai_image_quality:        "medium",
   ai_image_credit_cost:    "10",
-  ai_image_cost_usd_cents: "4",
+  ai_image_cost_usd_cents: "7",
 };
 
 export async function GET() {
