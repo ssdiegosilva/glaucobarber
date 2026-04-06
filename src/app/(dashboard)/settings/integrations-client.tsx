@@ -141,7 +141,10 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
       });
       const data = await res.json();
       if (!res.ok) { setFormError(data.error ?? "Erro ao salvar"); return; }
-      toast({ title: "Trinks configurada!", description: "Credenciais salvas e validadas." });
+      toast({ title: "Trinks configurada!", description: "Iniciando sincronização dos dados..." });
+      setShowForm(false);
+      setSaving(false);
+      await handleSync();
       window.location.reload();
     } catch {
       setFormError("Erro de conexão. Tente novamente.");
@@ -179,7 +182,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         title: "Sync concluído",
         description: `${data.customersUpserted} clientes, ${data.servicesUpserted} serviços, ${data.appointmentsUpserted} agendamentos.`,
       });
-      window.location.reload();
+      window.dispatchEvent(new Event("notifications-changed"));
     } catch (e) {
       toast({ title: "Erro no sync", description: String(e), variant: "destructive" });
     } finally {
@@ -442,6 +445,29 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           {showForm ? (
             <div className="space-y-3 rounded-lg border border-border bg-surface-800/50 p-4">
               <p className="text-xs font-semibold text-foreground">Configurar credenciais da Trinks</p>
+
+              {/* Instructions */}
+              <div className="rounded-lg border border-blue-500/20 bg-blue-500/8 px-3 py-2.5 space-y-1.5">
+                <p className="text-xs font-semibold text-blue-300">Como obter sua API Key</p>
+                <p className="text-xs text-muted-foreground">
+                  1. Acesse{" "}
+                  <a
+                    href="https://www.trinks.com/MinhaArea/MeuCadastro"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-400 hover:underline"
+                  >
+                    trinks.com/MinhaArea/MeuCadastro
+                  </a>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  2. Localize a seção <span className="text-foreground font-medium">Token de API Pessoal</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  3. Clique em <span className="text-foreground font-medium">Visualizar token</span>, copie o código e cole abaixo
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">API Key</label>
                 <input
@@ -450,30 +476,33 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
+
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground">ID do Estabelecimento</label>
-                  <Button size="icon-sm" variant="ghost" onClick={handleFetchEstabs} disabled={!apiKey || loadingEstab}>
-                    <RefreshCw className={`h-3 w-3 ${loadingEstab ? "animate-spin" : ""}`} />
-                  </Button>
-                </div>
+                <label className="text-xs text-muted-foreground">Estabelecimento</label>
                 {estabs.length > 0 ? (
                   <select value={estabId} onChange={(e) => setEstabId(e.target.value)}
                     className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                    <option value="">Selecione</option>
+                    <option value="">Selecione seu estabelecimento</option>
                     {estabs.map((e) => <option key={e.id} value={e.id}>{e.nome} (ID {e.id})</option>)}
                   </select>
                 ) : (
-                  <input type="text" value={estabId} onChange={(e) => setEstabId(e.target.value)}
-                    placeholder="Ex: 123456"
-                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs justify-center"
+                    onClick={handleFetchEstabs}
+                    disabled={!apiKey || loadingEstab}
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1.5 ${loadingEstab ? "animate-spin" : ""}`} />
+                    {loadingEstab ? "Buscando estabelecimentos..." : "Buscar estabelecimentos"}
+                  </Button>
                 )}
               </div>
+
               {formError && <p className="text-xs text-red-400 rounded border border-red-500/20 bg-red-500/8 px-3 py-2">{formError}</p>}
               <div className="flex gap-2">
                 <Button size="sm" className="text-xs" onClick={handleSave} disabled={saving || !apiKey || !estabId}>
-                  {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar e validar"}
+                  {saving ? <><RefreshCw className="h-3 w-3 animate-spin mr-1" />Salvando...</> : "Salvar e sincronizar"}
                 </Button>
                 {integration?.configured && (
                   <Button size="sm" variant="ghost" className="text-xs" onClick={() => setShowForm(false)}>Cancelar</Button>
