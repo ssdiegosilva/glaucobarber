@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Tag, ChevronDown, Lightbulb, Target } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Tag, ChevronDown, Lightbulb, Target, CreditCard, QrCode, Banknote, HelpCircle } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 import type { MonthlyData } from "@/lib/financeiro/monthly-data";
 import {
@@ -330,6 +330,59 @@ export function MensalView({ data, currentMonth, currentYear, isLoading, onNavig
           }
         </div>
       </div>
+
+      {/* ── Formas de pagamento ──────────────────────────── */}
+      {data.byPaymentMethod.length > 0 && (() => {
+        const METHOD_CFG = {
+          CARD: { label: "Cartão",   icon: <CreditCard className="h-3.5 w-3.5" />, color: "bg-blue-500/70",   text: "text-blue-400"   },
+          PIX:  { label: "PIX",      icon: <QrCode     className="h-3.5 w-3.5" />, color: "bg-emerald-500/70", text: "text-emerald-400" },
+          CASH: { label: "Dinheiro", icon: <Banknote   className="h-3.5 w-3.5" />, color: "bg-gold-500/70",   text: "text-gold-400"   },
+          null: { label: "Sem info", icon: <HelpCircle className="h-3.5 w-3.5" />, color: "bg-surface-600",   text: "text-muted-foreground" },
+        } as const;
+        const totalRecorded = data.byPaymentMethod.reduce((s, r) => s + r.revenue, 0);
+        const maxRevenue    = Math.max(...data.byPaymentMethod.map((r) => r.revenue), 0.001);
+        return (
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Formas de pagamento</p>
+              <span className="text-[10px] text-muted-foreground tabular-nums">
+                {formatBRL(totalRecorded)} registrado
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {data.byPaymentMethod.map((row) => {
+                const cfg = METHOD_CFG[row.method ?? "null"] ?? METHOD_CFG["null"];
+                const pct = totalRecorded > 0 ? (row.revenue / totalRecorded) * 100 : 0;
+                const barPct = (row.revenue / maxRevenue) * 100;
+                return (
+                  <div key={row.method ?? "null"} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className={`flex items-center gap-1.5 ${cfg.text}`}>
+                        {cfg.icon}
+                        <span className="font-medium">{cfg.label}</span>
+                        <span className="text-muted-foreground">({row.count}×)</span>
+                      </div>
+                      <div className="flex items-center gap-2 tabular-nums">
+                        <span className="text-muted-foreground text-[10px]">{pct.toFixed(0)}%</span>
+                        <span className="font-semibold text-foreground">{formatBRL(row.revenue)}</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                      <div className={`h-full rounded-full ${cfg.color} transition-all duration-500`}
+                        style={{ width: `${barPct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {totalRecorded < data.revenue && (
+              <p className="text-[10px] text-muted-foreground">
+                {formatBRL(data.revenue - totalRecorded)} sem meio de pagamento registrado
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Descontos (colapsável) ────────────────────────── */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">

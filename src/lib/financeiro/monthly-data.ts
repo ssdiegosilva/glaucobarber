@@ -36,6 +36,7 @@ export interface MonthlyData {
   dailyScheduled: { day: number; count: number }[];
   byCategory:    { category: string; revenue: number; count: number }[];
   byService:     { name: string; category: string; revenue: number; count: number }[];
+  byPaymentMethod: { method: "CARD" | "PIX" | "CASH" | null; revenue: number; count: number }[];
   discounts: {
     total:  number;
     count:  number;
@@ -68,6 +69,7 @@ export async function getMonthlyFinanceiroData(
     discountPayments,
     dailyRevenueRaw,
     dailyScheduledRaw,
+    paymentMethodRaw,
   ] = await Promise.all([
     prisma.appointment.aggregate({
       where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
@@ -111,6 +113,12 @@ export async function getMonthlyFinanceiroData(
         scheduledAt: { gte: now < thisStart ? thisStart : now, lte: thisEnd },
       },
       select: { scheduledAt: true },
+    }),
+    prisma.payment.groupBy({
+      by:    ["paymentMethod"],
+      where: { barbershopId, domain: "BARBERSHOP_SERVICE", paidAt: { gte: thisStart, lte: thisEnd } },
+      _sum:  { paidValue: true },
+      _count: { _all: true },
     }),
   ]);
 
@@ -198,6 +206,11 @@ export async function getMonthlyFinanceiroData(
     dailyScheduled,
     byCategory,
     byService,
+    byPaymentMethod: paymentMethodRaw.map((r) => ({
+      method:  r.paymentMethod as "CARD" | "PIX" | "CASH" | null,
+      revenue: Number(r._sum.paidValue ?? 0),
+      count:   r._count._all,
+    })).sort((a, b) => b.revenue - a.revenue),
     discounts: {
       total: totalDiscount,
       count: discountList.length,
