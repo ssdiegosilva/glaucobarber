@@ -63,7 +63,7 @@ export async function getLiveDayStats(barbershopId: string): Promise<LiveDayStat
       id:           String(a.id),
       customerName: a.cliente?.nome ?? "—",
       serviceName:  a.servico?.nome ?? "—",
-      scheduledAt:  new Date(a.dataHoraInicio),
+      scheduledAt:  new Date(a.dataHoraInicio + "-03:00"), // Trinks returns local BRT (UTC-3) without TZ info
       durationMin:  a.duracaoEmMinutos ?? 30,
       status:       a.status?.nome?.toLowerCase() ?? "agendado",
       statusLabel:  STATUS_LABEL[a.status?.nome?.toLowerCase() ?? ""] ?? a.status?.nome ?? "—",

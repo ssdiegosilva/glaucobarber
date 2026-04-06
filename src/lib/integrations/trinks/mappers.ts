@@ -66,7 +66,7 @@ export function mapTrinksAppointment(
     customerId:       raw.cliente?.id ? (customerIdMap.get(String(raw.cliente.id)) ?? null) : null,
     serviceId:        raw.servico?.id ? (serviceIdMap.get(String(raw.servico.id))  ?? null) : null,
     barberId:         raw.profissional?.id ? (barberIdMap.get(String(raw.profissional.id)) ?? null) : null,
-    scheduledAt:      new Date(raw.dataHoraInicio),
+    scheduledAt:      new Date(raw.dataHoraInicio + "-03:00"), // Trinks returns local BRT (UTC-3) without TZ info
     durationMin:      raw.duracaoEmMinutos ?? 30,
     status:           mapAppointmentStatus(raw.status?.nome ?? ""),
     price:            raw.valor ?? null,

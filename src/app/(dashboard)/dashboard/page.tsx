@@ -47,7 +47,7 @@ export default async function DashboardPage({
       prisma.appointment.findMany({
         where: {
           barbershopId,
-          scheduledAt: { gte: startOfDay(now), lte: endOfDay(now) },
+          scheduledAt: { gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 0, 0, 0)), lte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 2, 59, 59, 999)) },
           offerId:     { not: null },
         },
         select: { trinksId: true, offerId: true, offer: { select: { title: true } } },

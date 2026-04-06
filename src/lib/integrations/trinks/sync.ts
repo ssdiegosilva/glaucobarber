@@ -180,7 +180,7 @@ export async function syncBarbershop(
           const upserted = await prisma.appointment.upsert({
             where:  { barbershopId_trinksId: { barbershopId, trinksId: String(raw.id) } },
             create: data,
-            update: { status: data.status, price: data.price, durationMin: data.durationMin, notes: data.notes, barberId: data.barberId, lastSyncedAt: new Date() },
+            update: { status: data.status, price: data.price, durationMin: data.durationMin, notes: data.notes, barberId: data.barberId, scheduledAt: data.scheduledAt, lastSyncedAt: new Date() },
             select: { id: true },
           });
           if (data.status === "COMPLETED") {

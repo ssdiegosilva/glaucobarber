@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
-import { startOfDay, endOfDay, format } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendaClient } from "./agenda-client";
 import type { AgendaAppointment } from "./agenda-client";
@@ -22,10 +22,14 @@ export default async function AgendaPage({
   const { date: dateParam } = await searchParams;
 
   // Parse requested date (default: today)
-  const target = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date();
-  const start  = startOfDay(target);
-  const end    = endOfDay(target);
+  const target  = dateParam ? new Date(`${dateParam}T12:00:00`) : new Date();
   const dateIso = format(target, "yyyy-MM-dd");
+
+  // Brazil is permanently UTC-3 (no DST since 2019).
+  // Trinks times are stored as real UTC (midnight BRT = 03:00 UTC).
+  const [_y, _m, _d] = dateIso.split("-").map(Number);
+  const start = new Date(Date.UTC(_y, _m - 1, _d,     3,  0,  0,   0)); // 00:00 BRT = 03:00 UTC
+  const end   = new Date(Date.UTC(_y, _m - 1, _d + 1, 2, 59, 59, 999)); // 23:59:59 BRT = 02:59:59 UTC next day
 
   const targetMonth = target.getMonth() + 1;
   const targetYear  = target.getFullYear();
