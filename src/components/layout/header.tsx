@@ -178,7 +178,7 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
                             onClick={() => { setBellOpen(false); dismiss(n.id); }}
                             className="mt-1 inline-flex items-center gap-1 text-[10px] text-gold-400/70 hover:text-gold-400 transition-colors"
                           >
-                            Ver campanha →
+                            {n.link.startsWith("/settings") ? "Ver configurações →" : "Ver detalhes →"}
                           </Link>
                         )}
                       </div>

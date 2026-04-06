@@ -76,6 +76,12 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   const [showManualFallback, setShowManualFallback] = useState(false);
   const [igPendingLoading,  setIgPendingLoading]  = useState(false);
 
+  // Auto-open sync history when navigating from a notification
+  useEffect(() => {
+    if (searchParams.get("history") === "1") setShowHistory(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Handle OAuth callback query params
   useEffect(() => {
     const ig  = searchParams.get("ig");
