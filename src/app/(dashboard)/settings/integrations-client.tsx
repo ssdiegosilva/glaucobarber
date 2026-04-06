@@ -106,6 +106,16 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-open provider form after switch-and-reload
+  useEffect(() => {
+    const pending = sessionStorage.getItem("pendingConfigure");
+    if (!pending) return;
+    sessionStorage.removeItem("pendingConfigure");
+    if (pending === "trinks") { setShowForm(true);     setShowAvecForm(false); }
+    if (pending === "avec")   { setShowAvecForm(true); setShowForm(false);     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // WhatsApp
   const [waConfigured,   setWaConfigured]   = useState(integration?.whatsappConfigured ?? false);
   const [waEditing,      setWaEditing]      = useState(!integration?.whatsappConfigured);
@@ -146,14 +156,12 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
   // Provider selector
   const activeProvider: "trinks" | "avec" | null =
     isAvecProvider ? "avec" : (integration?.configured ? "trinks" : null);
-  const [switchConfirm,       setSwitchConfirm]       = useState<"trinks" | "avec" | null>(null);
-  const [switchingProvider,   setSwitchingProvider]   = useState(false);
-  // Override local state to "nothing connected" after a confirmed switch (before the new provider is saved)
-  const [disconnectedOverride, setDisconnectedOverride] = useState(false);
+  const [switchConfirm,     setSwitchConfirm]     = useState<"trinks" | "avec" | null>(null);
+  const [switchingProvider, setSwitchingProvider] = useState(false);
 
   function handleSelectProvider(target: "trinks" | "avec") {
     if (target === activeProvider && !showForm && !showAvecForm) return;
-    if (activeProvider !== null && target !== activeProvider && !disconnectedOverride) {
+    if (activeProvider !== null && target !== activeProvider) {
       setSwitchConfirm(target);
       return;
     }
@@ -173,10 +181,9 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
         body:    JSON.stringify({ provider: currentProvider }),
       });
     } catch { /* best-effort */ }
-    setSwitchingProvider(false);
-    setDisconnectedOverride(true);
-    if (target === "trinks") { setShowForm(true);     setShowAvecForm(false); }
-    else                     { setShowAvecForm(true); setShowForm(false);     }
+    // Reload so server-rendered header badges update; re-open the target form after reload
+    sessionStorage.setItem("pendingConfigure", target ?? "");
+    window.location.reload();
   }
 
   // ── Trinks ────────────────────────────────────────────────────
@@ -559,9 +566,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 <p className="text-xs text-muted-foreground">Escolha uma — Trinks ou Avec. Só uma ativa por barbearia.</p>
               </div>
             </div>
-            {/* Active provider status + actions in header — hidden after disconnect override */}
-            {!disconnectedOverride && (
-              <div className="flex items-center gap-2 shrink-0">
+            {/* Active provider status + actions in header */}
+            <div className="flex items-center gap-2 shrink-0">
                 {activeProvider && integration?.status && (
                   <Badge variant={integration.status === "ACTIVE" ? "success" : "warning"}>
                     {integration.status === "ACTIVE" ? "Ativa" : "Pausada"}
@@ -600,15 +606,14 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                   </>
                 )}
               </div>
-            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
 
           {/* ── Seletor de plataforma ── */}
           {(() => {
-            const trinksConnected = !disconnectedOverride && !isAvecProvider && !!integration?.configured;
-            const avecConnected   = !disconnectedOverride && isAvecProvider  && !!avecConfigured;
+            const trinksConnected = !isAvecProvider && !!integration?.configured;
+            const avecConnected   = isAvecProvider  && !!avecConfigured;
             const trinkslocked    = avecConnected;
             const avecLocked      = trinksConnected;
 
@@ -694,7 +699,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           )}
 
           {/* ── Trinks: config (shown when Trinks is selected/active) ── */}
-          {(showForm || (!disconnectedOverride && !isAvecProvider && integration?.configured)) && !switchConfirm && (
+          {(showForm || (!isAvecProvider && integration?.configured)) && !switchConfirm && (
             <div className="space-y-3 rounded-lg border border-gold-500/20 bg-gold-500/5 p-4">
               <p className="text-xs font-semibold text-gold-400">Trinks</p>
 
@@ -782,7 +787,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
           )}
 
           {/* ── Avec: config (shown when Avec is selected/active) ── */}
-          {(showAvecForm || (!disconnectedOverride && isAvecProvider && integration?.configured)) && !switchConfirm && (
+          {(showAvecForm || (isAvecProvider && integration?.configured)) && !switchConfirm && (
             <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
               <p className="text-xs font-semibold text-blue-400">Avec</p>
 
