@@ -20,10 +20,12 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_NEXT: Record<string, { label: string; status: string; variant: "default" | "destructive" | "outline" | "secondary" | "success" | "warning" }[]> = {
   SCHEDULED:   [
     { label: "Confirmar",       status: "CONFIRMED",   variant: "success" },
+    { label: "Concluir",        status: "COMPLETED",   variant: "warning" },
     { label: "Cancelar",        status: "CANCELLED",   variant: "destructive" },
   ],
   CONFIRMED:   [
     { label: "Iniciar",         status: "IN_PROGRESS", variant: "warning" },
+    { label: "Concluir",        status: "COMPLETED",   variant: "success" },
     { label: "Cancelar",        status: "CANCELLED",   variant: "destructive" },
   ],
   IN_PROGRESS: [
