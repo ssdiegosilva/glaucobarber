@@ -268,9 +268,10 @@ export function OpenAICostsClient() {
   const [year,       setYear]       = useState(String(new Date().getFullYear()));
   const [rows,       setRows]       = useState<Row[]>([]);
   const [lastSync,   setLastSync]   = useState<string | null>(null);
-  const [loading,    setLoading]    = useState(false);
-  const [syncing,    setSyncing]    = useState(false);
-  const [syncErrors, setSyncErrors] = useState<string[]>([]);
+  const [loading,         setLoading]         = useState(false);
+  const [syncing,         setSyncing]         = useState(false);
+  const [syncingInternal, setSyncingInternal] = useState(false);
+  const [syncErrors,      setSyncErrors]      = useState<string[]>([]);
 
   const currentYM = currentYearMonth();
   const isCurrentMonth = yearMonth === currentYM;
@@ -323,6 +324,35 @@ export function OpenAICostsClient() {
     }
   }
 
+  async function handleSyncInternal() {
+    setSyncingInternal(true);
+    setSyncErrors([]);
+    try {
+      const yearMonths =
+        view === "year"
+          ? Array.from({ length: 12 }, (_, i) =>
+              `${year}-${String(i + 1).padStart(2, "0")}`,
+            )
+          : [yearMonth];
+
+      const res = await fetch("/api/admin/openai-costs/sync-internal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yearMonths }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSyncErrors([data.error ?? "Erro ao estimar custos internos"]);
+        return;
+      }
+      await loadData();
+    } catch (err) {
+      setSyncErrors([(err as Error).message]);
+    } finally {
+      setSyncingInternal(false);
+    }
+  }
+
   // Summaries
   const totalRequests = rows.reduce((s, r) => s + r.nRequests, 0);
   const totalCost     = rows.reduce((s, r) => s + r.costUsd, 0);
@@ -359,8 +389,20 @@ export function OpenAICostsClient() {
             size="sm"
             variant="outline"
             className="gap-2"
+            onClick={handleSyncInternal}
+            disabled={syncingInternal || syncing}
+          >
+            {syncingInternal
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <Bot className="h-3.5 w-3.5" />}
+            {syncingInternal ? "Estimando..." : "Logs internos"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2"
             onClick={handleSync}
-            disabled={syncing}
+            disabled={syncing || syncingInternal}
           >
             {syncing
               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -374,10 +416,11 @@ export function OpenAICostsClient() {
       <div className="flex items-start gap-2.5 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-xs text-blue-300">
         <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-400" />
         <span>
-          O botão <strong>Sincronizar</strong> busca chamadas e tokens reais da{" "}
-          <strong>API de uso da OpenAI</strong> (requer chave com acesso de organização —{" "}
-          <code className="font-mono">OPENAI_ADMIN_API_KEY</code>). O custo é estimado
-          com base na tabela de preços salva localmente.
+          <strong>Sincronizar</strong> busca tokens reais da <strong>API OpenAI</strong>{" "}
+          (requer <code className="font-mono">OPENAI_ADMIN_API_KEY</code> com acesso de organização).{" "}
+          <strong>Logs internos</strong> estima o custo a partir dos registros de{" "}
+          <code className="font-mono">AiCallLog</code> salvos no banco — útil quando a chave
+          não tem permissão de uso.
         </span>
       </div>
 
