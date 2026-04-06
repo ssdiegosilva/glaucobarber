@@ -13,18 +13,20 @@ import {
   ToggleLeft,
   SlidersHorizontal,
   DollarSign,
+  Activity,
 } from "lucide-react";
 
 const NAV = [
-  { href: "/admin/overview",       label: "Overview",        icon: LayoutDashboard    },
-  { href: "/admin/barbershops",    label: "Barbearias",      icon: Store              },
-  { href: "/admin/users",          label: "Usuários",        icon: Users              },
-  { href: "/admin/features",       label: "Funcionalidades", icon: ToggleLeft         },
-  { href: "/admin/ai-config",      label: "Config IA",       icon: SlidersHorizontal  },
-  { href: "/admin/ai-usage",       label: "Uso de IA",       icon: Brain              },
-  { href: "/admin/openai-costs",   label: "Custos OpenAI",   icon: DollarSign         },
-  { href: "/admin/billing",        label: "Cobrança",        icon: Receipt            },
-  { href: "/admin/logs",           label: "Audit Logs",      icon: ScrollText         },
+  { href: "/admin/overview",         label: "Overview",          icon: LayoutDashboard    },
+  { href: "/admin/barbershops",      label: "Barbearias",        icon: Store              },
+  { href: "/admin/users",            label: "Usuários",          icon: Users              },
+  { href: "/admin/features",         label: "Funcionalidades",   icon: ToggleLeft         },
+  { href: "/admin/observability",    label: "Observabilidade",   icon: Activity           },
+  { href: "/admin/ai-config",        label: "Config IA",         icon: SlidersHorizontal  },
+  { href: "/admin/ai-usage",         label: "Uso de IA",         icon: Brain              },
+  { href: "/admin/openai-costs",     label: "Custos OpenAI",     icon: DollarSign         },
+  { href: "/admin/billing",          label: "Cobrança",          icon: Receipt            },
+  { href: "/admin/logs",             label: "Audit Logs",        icon: ScrollText         },
 ];
 
 export function AdminSidebar() {
