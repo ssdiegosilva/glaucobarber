@@ -418,7 +418,6 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
                     id={`upload-${c.id}`}
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
