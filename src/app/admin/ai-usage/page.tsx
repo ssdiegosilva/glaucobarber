@@ -22,34 +22,36 @@ export default async function AdminAiUsagePage() {
     orderBy: { usageCount: "desc" },
   });
 
-  // Deduplicate: prefer current-month record over "trialing" record per barbershop
-  // Also skip "trialing" records for barbershops no longer on trial
-  const seen = new Set<string>();
-  const currentMonthRecords = usages.filter((u) => u.yearMonth === yearMonth);
-  const trialRecords        = usages.filter((u) => u.yearMonth === "trialing");
+  // Build a map: barbershopId → current-month record (may not exist if no usage this month)
+  const currentMonthMap = new Map(
+    usages.filter((u) => u.yearMonth === yearMonth).map((u) => [u.barbershopId, u])
+  );
 
-  const deduped = [
-    ...currentMonthRecords,
-    ...trialRecords.filter((u) => {
-      if (seen.has(u.barbershopId)) return false;
-      // Only show trial record if the barbershop is still in trial
-      return u.barbershop.subscription?.status === "TRIALING";
-    }),
-  ].filter((u) => {
+  // Deduplicate: one row per barbershop, prefer current-month over trial
+  const seen = new Set<string>();
+  const deduped = usages.filter((u) => {
     if (seen.has(u.barbershopId)) return false;
+    // If there's a current-month record for this barbershop, skip the trial record
+    if (u.yearMonth === "trialing" && currentMonthMap.has(u.barbershopId)) return false;
     seen.add(u.barbershopId);
     return true;
   });
 
   const data = deduped.map((u) => {
-    const sub    = u.barbershop.subscription;
-    const tier   = (sub?.planTier ?? "FREE") as keyof typeof PLAN_LIMITS;
-    const limit  = PLAN_LIMITS[tier]?.aiPerPeriod ?? 30;
+    const sub       = u.barbershop.subscription;
+    const tier      = (sub?.planTier ?? "FREE") as keyof typeof PLAN_LIMITS;
+    const limit     = PLAN_LIMITS[tier]?.aiPerPeriod ?? 30;
+    const isTrial   = sub?.status === "TRIALING";
+
+    // For non-trial barbershops with only a trial record: show current month with 0 usage
+    const effectiveYearMonth = (!isTrial && u.yearMonth === "trialing") ? yearMonth : u.yearMonth;
+    const effectiveUsage     = (!isTrial && u.yearMonth === "trialing") ? 0 : u.usageCount;
+
     return {
       barbershopId:       u.barbershopId,
       barbershopName:     u.barbershop.name,
-      yearMonth:          u.yearMonth,
-      usageCount:         u.usageCount,
+      yearMonth:          effectiveYearMonth,
+      usageCount:         effectiveUsage,
       planTier:           tier,
       planStatus:         sub?.status ?? "ACTIVE",
       planLimit:          limit === Infinity ? 9999 : limit,
