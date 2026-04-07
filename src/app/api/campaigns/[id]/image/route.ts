@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
 import { uploadCampaignImage, uploadCampaignImageFromUrl } from "@/lib/storage";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
-import { getAiImageConfig } from "@/lib/platform-config";
+import { getAiImageConfig, getKillSwitch } from "@/lib/platform-config";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -13,8 +13,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { promptOverride?: string };
 
-  const { allowed } = await checkAiAllowance(session.user.barbershopId);
+  const [{ allowed }, imageKilled] = await Promise.all([
+    checkAiAllowance(session.user.barbershopId),
+    getKillSwitch("kill_image_generation"),
+  ]);
   if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
+  if (imageKilled) return NextResponse.json({ error: "image_generation_disabled", message: "Geração de imagens temporariamente indisponível." }, { status: 503 });
 
   const campaign = await prisma.campaign.findUnique({ where: { id }, include: { template: true } });
   if (!campaign || campaign.barbershopId !== session.user.barbershopId) return NextResponse.json({ error: "Not found" }, { status: 404 });

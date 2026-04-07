@@ -19,7 +19,7 @@ const AI_CONFIG_DEFAULTS: Record<string, string> = {
 
 export default async function AdminAiConfigPage() {
   const rows = await prisma.platformConfig.findMany({
-    where: { key: { in: [...AI_CONFIG_KEYS] } },
+    where: { key: { in: [...AI_CONFIG_KEYS, "kill_image_generation"] } },
   });
 
   const current: Record<string, string> = {};
@@ -27,5 +27,7 @@ export default async function AdminAiConfigPage() {
     current[key] = rows.find((r) => r.key === key)?.value ?? AI_CONFIG_DEFAULTS[key] ?? "";
   }
 
-  return <AiConfigClient current={current} />;
+  const killImageGeneration = rows.find((r) => r.key === "kill_image_generation")?.value === "true";
+
+  return <AiConfigClient current={current} killImageGeneration={killImageGeneration} />;
 }

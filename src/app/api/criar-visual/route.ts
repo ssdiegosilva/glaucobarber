@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getAIProvider } from "@/lib/ai/provider";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 import { uploadCampaignImage } from "@/lib/storage";
-import { getAiImageConfig } from "@/lib/platform-config";
+import { getAiImageConfig, getKillSwitch } from "@/lib/platform-config";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -16,11 +16,22 @@ export async function POST(req: NextRequest) {
 
   const { barbershopId } = session.user;
 
-  const allowance = await checkAiAllowance(barbershopId);
+  const [allowance, imageKilled] = await Promise.all([
+    checkAiAllowance(barbershopId),
+    getKillSwitch("kill_image_generation"),
+  ]);
+
   if (!allowance.allowed) {
     return NextResponse.json(
       { error: "Limite de IA atingido. Faça upgrade do plano para continuar." },
       { status: 402 }
+    );
+  }
+
+  if (imageKilled) {
+    return NextResponse.json(
+      { error: "Geração de imagens temporariamente indisponível. Tente novamente em breve." },
+      { status: 503 }
     );
   }
 

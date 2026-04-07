@@ -64,6 +64,7 @@ export async function getStripePrices(
 
 export type KillSwitchKey =
   | "kill_ai_global"
+  | "kill_image_generation"
   | "kill_whatsapp_auto"
   | "kill_trinks_sync"
   | "kill_new_signups";

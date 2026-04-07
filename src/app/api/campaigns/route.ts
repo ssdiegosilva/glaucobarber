@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
 import { uploadCampaignImage, uploadCampaignImageFromUrl } from "@/lib/storage";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
-import { getAiImageConfig } from "@/lib/platform-config";
+import { getAiImageConfig, getKillSwitch } from "@/lib/platform-config";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -93,8 +93,11 @@ Important:
 
   // Gera imagem agora (síncrono) — campanha só vai para DRAFT quando estiver completa
   let imageUrl: string | null = null;
-  const allowanceImage = await checkAiAllowance(session.user.barbershopId);
-  if (allowanceImage.allowed) {
+  const [allowanceImage, imageKilled] = await Promise.all([
+    checkAiAllowance(session.user.barbershopId),
+    getKillSwitch("kill_image_generation"),
+  ]);
+  if (allowanceImage.allowed && !imageKilled) {
     try {
       const aiConfig = await getAiImageConfig();
       const img = await provider.generateCampaignImage({

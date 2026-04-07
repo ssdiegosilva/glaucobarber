@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2 } from "lucide-react";
+import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2, ImageOff, AlertTriangle } from "lucide-react";
 
 // ── Model comparison table (hardcoded reference data) ─────────────────────────
 
@@ -50,12 +50,14 @@ interface CostData {
   };
 }
 
-export function AiConfigClient({ current }: { current: Record<string, string> }) {
+export function AiConfigClient({ current, killImageGeneration: initialKill }: { current: Record<string, string>; killImageGeneration: boolean }) {
   const [values,      setValues]      = useState<Record<string, string>>({ ...current });
   const [saving,      setSaving]      = useState(false);
   const [msg,         setMsg]         = useState("");
   const [costData,    setCostData]    = useState<CostData | null>(null);
   const [loadingCost, setLoadingCost] = useState(true);
+  const [killImage,   setKillImage]   = useState(initialKill);
+  const [togglingKill,setTogglingKill]= useState(false);
 
   useEffect(() => {
     fetch("/api/admin/ai-cost")
@@ -67,6 +69,21 @@ export function AiConfigClient({ current }: { current: Record<string, string> })
   const activeModel   = values["ai_image_model"]   || "gpt-image-1";
   const activeSize    = values["ai_image_size"]     || "1024x1024";
   const activeQuality = values["ai_image_quality"]  || "medium";
+
+  async function toggleKillImage() {
+    const newVal = !killImage;
+    setTogglingKill(true);
+    try {
+      await fetch("/api/admin/platform-config", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ key: "kill_image_generation", value: String(newVal) }),
+      });
+      setKillImage(newVal);
+    } finally {
+      setTogglingKill(false);
+    }
+  }
 
   async function save() {
     setSaving(true); setMsg("");
@@ -97,6 +114,42 @@ export function AiConfigClient({ current }: { current: Record<string, string> })
         <p className="text-sm text-muted-foreground mt-0.5">
           Controla qual modelo de imagem é usado e quanto cobrar dos usuários por geração.
         </p>
+      </div>
+
+      {/* ── Emergency kill switch ──────────────────────────────────────────── */}
+      <div className={`rounded-lg border p-4 flex items-center gap-4 ${
+        killImage
+          ? "border-red-500/60 bg-red-500/10"
+          : "border-border bg-surface-800/40"
+      }`}>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <ImageOff className={`h-5 w-5 shrink-0 ${killImage ? "text-red-400" : "text-muted-foreground"}`} />
+          <div>
+            <p className={`text-sm font-semibold ${killImage ? "text-red-400" : "text-foreground"}`}>
+              {killImage ? "⚠️ Geração de imagens DESLIGADA" : "Geração de imagens"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {killImage
+                ? "Campanhas e Criar Visual retornam erro imediatamente. Zero custo OpenAI."
+                : "Ativo — campanhas e Criar Visual geram imagens normalmente."}
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={toggleKillImage}
+          disabled={togglingKill}
+          className={`shrink-0 text-xs h-8 gap-1.5 ${
+            killImage
+              ? "bg-green-600 hover:bg-green-500 text-white"
+              : "bg-red-600 hover:bg-red-500 text-white"
+          }`}
+        >
+          {togglingKill
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <AlertTriangle className="h-3.5 w-3.5" />
+          }
+          {killImage ? "Religar imagens" : "Desligar imagens"}
+        </Button>
       </div>
 
       {/* ── Section 1: Config form ──────────────────────────────────────────── */}

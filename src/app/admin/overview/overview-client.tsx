@@ -4,15 +4,16 @@ import { useState } from "react";
 import {
   Zap, MessageCircle, RefreshCw, UserPlus,
   Clock, AlertTriangle, CheckCircle, XCircle,
-  Brain, Users, TrendingUp, BarChart3, Timer, Play, Loader2,
+  Brain, Users, TrendingUp, BarChart3, Timer, Play, Loader2, ImageOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type KillSwitches = {
-  kill_ai_global:     boolean;
-  kill_whatsapp_auto: boolean;
-  kill_trinks_sync:   boolean;
-  kill_new_signups:   boolean;
+  kill_ai_global:        boolean;
+  kill_image_generation: boolean;
+  kill_whatsapp_auto:    boolean;
+  kill_trinks_sync:      boolean;
+  kill_new_signups:      boolean;
 };
 
 type CronRun = {
@@ -66,6 +67,13 @@ const KILL_SWITCH_META: {
     description: "Pausa toda geração de IA para todas as barbearias",
     icon: Brain,
     color: "purple",
+  },
+  {
+    key: "kill_image_generation",
+    label: "Geração de Imagens",
+    description: "Bloqueia campanhas e Criar Visual (economia de emergência)",
+    icon: ImageOff,
+    color: "orange",
   },
   {
     key: "kill_whatsapp_auto",
