@@ -2,6 +2,7 @@ import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { WhatsappClient } from "./whatsapp-client";
+import { UpgradeWall } from "@/components/billing/UpgradeWall";
 import { startOfDay } from "date-fns";
 import { getPlan } from "@/lib/billing";
 import { canAccess } from "@/lib/access";
@@ -15,6 +16,20 @@ export default async function WhatsappPage() {
   const ago10    = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
 
   const { effectiveTier } = await getPlan(barbershopId);
+
+  const allowed = await canAccess(barbershopId, effectiveTier, "whatsapp");
+  if (!allowed) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="WhatsApp" subtitle="Gestão de comunicações" userName={session.user.name} />
+        <UpgradeWall
+          feature="WhatsApp"
+          requiredPlan="PRO"
+          description="Envie mensagens para clientes, gerencie templates e automatize a comunicação via WhatsApp."
+        />
+      </div>
+    );
+  }
 
   const [
     sentToday, queueMessages, failedToday, historyMessages,
