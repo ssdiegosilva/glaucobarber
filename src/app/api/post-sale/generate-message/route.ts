@@ -89,7 +89,17 @@ export async function POST(req: NextRequest) {
 
     await consumeAiCredit(barbershopId, "post_sale");
     return NextResponse.json({ message });
-  } catch {
+  } catch (err) {
+    console.error(`[post-sale/generate-message] error for ${barbershopId}:`, err);
+    await prisma.auditLog.create({
+      data: {
+        barbershopId,
+        userId:   session.user.id,
+        action:   "post_sale.generate.error",
+        entity:   "PostSale",
+        metadata: JSON.stringify({ actionType, customerName, error: String(err) }),
+      },
+    }).catch(() => {}); // don't let audit log failure mask the original error
     return NextResponse.json({ error: "Erro ao gerar mensagem" }, { status: 500 });
   }
 }

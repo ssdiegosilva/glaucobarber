@@ -78,7 +78,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
 
       // Atualiza rolling 60d (fire-and-forget)
-      refreshCustomer60dStats(appointment.customerId).catch(() => null);
+      refreshCustomer60dStats(appointment.customerId).catch((err) =>
+        console.error(`[status] refreshCustomer60dStats error for customer ${appointment.customerId}:`, err)
+      );
     }
     if (status === "SCHEDULED" || status === "CONFIRMED") {
       // Garante que nextAppointmentAt reflete este agendamento se for o mais próximo
@@ -147,7 +149,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Refresh post-sale status for this customer when appointment is completed
   if (status === "COMPLETED" && appointment.customerId) {
-    refreshPostSaleStatus(session.user.barbershopId).catch(() => null);
+    refreshPostSaleStatus(session.user.barbershopId).catch((err) => {
+      console.error(`[status] refreshPostSaleStatus error for ${session.user.barbershopId}:`, err);
+      prisma.auditLog.create({
+        data: {
+          barbershopId: session.user.barbershopId,
+          action:       "post_sale.refresh.error",
+          entity:       "Customer",
+          entityId:     appointment.customerId ?? undefined,
+          metadata:     JSON.stringify({ error: String(err) }),
+        },
+      }).catch(() => {});
+    });
   }
 
   // PRO plan: register per-appointment billing event (fire-and-forget)
