@@ -4,14 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
 import { uploadCampaignImage, uploadCampaignImageFromUrl } from "@/lib/storage";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
-import { getAiImageConfig, getKillSwitch } from "@/lib/platform-config";
+import { getAiImageConfig, getKillSwitch, tierToApiQuality, tierToUsdCents, type ImageQualityTier } from "@/lib/platform-config";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const body = (await req.json().catch(() => ({}))) as { promptOverride?: string };
+  const body = (await req.json().catch(() => ({}))) as { promptOverride?: string; imageQuality?: ImageQualityTier };
 
   const [{ allowed }, imageKilled] = await Promise.all([
     checkAiAllowance(session.user.barbershopId),
@@ -65,8 +65,14 @@ Important:
 
   const styleHint = undefined;
 
-  const provider  = getAIProvider();
-  const aiConfig  = await getAiImageConfig();
+  const provider      = getAIProvider();
+  const aiConfig      = await getAiImageConfig();
+  const imageQuality  = (body.imageQuality ?? "medium") as ImageQualityTier;
+  const apiQuality    = tierToApiQuality(imageQuality, aiConfig.model);
+  const usdCents      = tierToUsdCents(imageQuality, aiConfig.model);
+  const credits       = imageQuality === "low"  ? aiConfig.creditCostLow
+                      : imageQuality === "high" ? aiConfig.creditCostHigh
+                      : aiConfig.creditCostMedium;
   try {
     const img = await provider.generateCampaignImage({
       prompt,
@@ -74,7 +80,7 @@ Important:
       referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
       model:   aiConfig.model,
       size:    aiConfig.size,
-      quality: aiConfig.quality,
+      quality: apiQuality,
     });
 
     const stored = "b64" in img
@@ -92,7 +98,7 @@ Important:
         });
 
     await prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } });
-    await consumeAiCredit(session.user.barbershopId, "campaign_image");
+    await consumeAiCredit(session.user.barbershopId, "campaign_image", { credits, usdCents });
     return NextResponse.json({ url: stored.url });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

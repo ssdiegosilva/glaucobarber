@@ -6,6 +6,14 @@ import Image from "next/image";
 import { Upload, Wand2, Download, RefreshCw, X, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+type ImageQualityTier = "low" | "medium" | "high";
+
+const QUALITY_META: Record<ImageQualityTier, { label: string; desc: string; color: string }> = {
+  low:    { label: "Rascunho",       desc: "mais rápido",    color: "text-green-400" },
+  medium: { label: "Padrão",         desc: "recomendado",    color: "text-amber-400" },
+  high:   { label: "Alta qualidade", desc: "mais detalhado", color: "text-red-400"   },
+};
+
 interface HaircutSuggestion {
   faceShape: string;
   suggestedStyle: string;
@@ -26,7 +34,9 @@ const LOADING_MESSAGES = [
   "Finalizando os detalhes...",
 ];
 
-export default function CriarVisualClient() {
+export default function CriarVisualClient({ creditCosts = { low: 40, medium: 70, high: 190 } }: {
+  creditCosts?: { low: number; medium: number; high: number };
+}) {
   const { toast } = useToast();
 
   const [photo, setPhoto] = useState<File | null>(null);
@@ -35,6 +45,7 @@ export default function CriarVisualClient() {
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const [result, setResult] = useState<Result | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [imageQuality, setImageQuality] = useState<ImageQualityTier>("medium");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -95,6 +106,7 @@ export default function CriarVisualClient() {
     try {
       const formData = new FormData();
       formData.append("photo", photo);
+      formData.append("imageQuality", imageQuality);
 
       const res = await fetch("/api/criar-visual", { method: "POST", body: formData });
       const data = await res.json();
@@ -190,13 +202,39 @@ export default function CriarVisualClient() {
                   {photo ? (photo.size / 1024).toFixed(0) + " KB" : ""}
                 </p>
 
+                {/* Quality selector */}
+                <div className="space-y-1.5 w-full">
+                  <p className="text-[11px] font-medium text-muted-foreground">Qualidade da imagem</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(["low", "medium", "high"] as const).map((tier) => {
+                      const m = QUALITY_META[tier];
+                      const active = imageQuality === tier;
+                      return (
+                        <button
+                          key={tier}
+                          type="button"
+                          onClick={() => setImageQuality(tier)}
+                          className={`rounded-lg border px-2 py-1.5 text-center transition-colors ${
+                            active
+                              ? "border-purple-500/60 bg-purple-500/10"
+                              : "border-border bg-surface-900/50 hover:bg-surface-800"
+                          }`}
+                        >
+                          <p className={`text-[10px] font-semibold ${active ? "text-purple-300" : m.color}`}>{m.label}</p>
+                          <p className={`text-[11px] font-bold tabular-nums ${active ? "text-purple-300" : "text-foreground"}`}>{creditCosts[tier]} cred.</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <button
                   onClick={analyze}
                   disabled={loading}
                   className="flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full sm:w-auto"
                 >
                   <Wand2 className="h-4 w-4" />
-                  {loading ? "Analisando..." : "Analisar e Sugerir Corte"}
+                  {loading ? "Analisando..." : `Analisar e Sugerir Corte (${creditCosts[imageQuality]} cred.)`}
                 </button>
 
                 <button

@@ -6,31 +6,65 @@ export interface AiImageConfig {
   model:        "gpt-image-1" | "dall-e-3" | "dall-e-2";
   size:         string;
   quality:      "low" | "medium" | "high" | "standard" | "hd";
-  creditCost:   number;  // credits charged to user per image generation
-  costUsdCents: number;  // actual platform cost in USD cents (e.g. 4 = $0.04)
+  creditCost:   number;  // legacy / fallback — base credit cost
+  costUsdCents: number;  // actual platform cost in USD cents (e.g. 7 = $0.07)
+  // Per-quality-tier credit costs (shown to user in quality selector)
+  creditCostLow:    number;
+  creditCostMedium: number;
+  creditCostHigh:   number;
 }
 
 const AI_IMAGE_DEFAULTS: AiImageConfig = {
-  model:        "gpt-image-1",
-  size:         "1024x1024",
-  quality:      "medium",
-  creditCost:   10,
-  costUsdCents: 7,
+  model:           "gpt-image-1",
+  size:            "1024x1024",
+  quality:         "medium",
+  creditCost:      70,
+  costUsdCents:    7,
+  creditCostLow:   40,
+  creditCostMedium:70,
+  creditCostHigh:  190,
 };
+
+export type ImageQualityTier = "low" | "medium" | "high";
+
+/** Maps user-facing quality tier to the actual API quality param for each model */
+export function tierToApiQuality(tier: ImageQualityTier, model: string): string {
+  if (model === "dall-e-2") return "standard";
+  if (model === "dall-e-3") return tier === "high" ? "hd" : "standard";
+  return tier; // gpt-image-1: low / medium / high
+}
+
+/** Returns the USD cost in cents for a given tier + model (used for logging) */
+export function tierToUsdCents(tier: ImageQualityTier, model: string): number {
+  if (model === "dall-e-2") return 2;
+  if (model === "dall-e-3") return tier === "high" ? 8 : 4;
+  // gpt-image-1
+  if (tier === "low")    return 4;
+  if (tier === "high")   return 19;
+  return 7; // medium
+}
 
 export async function getAiImageConfig(): Promise<AiImageConfig> {
   const rows = await prisma.platformConfig.findMany({
     where: {
-      key: { in: ["ai_image_model", "ai_image_size", "ai_image_quality", "ai_image_credit_cost", "ai_image_cost_usd_cents"] },
+      key: { in: [
+        "ai_image_model", "ai_image_size", "ai_image_quality",
+        "ai_image_credit_cost", "ai_image_cost_usd_cents",
+        "ai_image_credit_cost_low", "ai_image_credit_cost_medium", "ai_image_credit_cost_high",
+      ]},
     },
   });
   const get = (k: string) => rows.find((r) => r.key === k)?.value;
+  const int = (k: string, def: number) => parseInt(get(k) ?? "") || def;
   return {
-    model:        (get("ai_image_model")   as AiImageConfig["model"])   ?? AI_IMAGE_DEFAULTS.model,
-    size:         (get("ai_image_size")    as AiImageConfig["size"])    ?? AI_IMAGE_DEFAULTS.size,
-    quality:      (get("ai_image_quality") as AiImageConfig["quality"]) ?? AI_IMAGE_DEFAULTS.quality,
-    creditCost:   parseInt(get("ai_image_credit_cost")    ?? "") || AI_IMAGE_DEFAULTS.creditCost,
-    costUsdCents: parseInt(get("ai_image_cost_usd_cents") ?? "") || AI_IMAGE_DEFAULTS.costUsdCents,
+    model:           (get("ai_image_model")   as AiImageConfig["model"])   ?? AI_IMAGE_DEFAULTS.model,
+    size:            (get("ai_image_size")    as AiImageConfig["size"])    ?? AI_IMAGE_DEFAULTS.size,
+    quality:         (get("ai_image_quality") as AiImageConfig["quality"]) ?? AI_IMAGE_DEFAULTS.quality,
+    creditCost:      int("ai_image_credit_cost",         AI_IMAGE_DEFAULTS.creditCost),
+    costUsdCents:    int("ai_image_cost_usd_cents",       AI_IMAGE_DEFAULTS.costUsdCents),
+    creditCostLow:   int("ai_image_credit_cost_low",     AI_IMAGE_DEFAULTS.creditCostLow),
+    creditCostMedium:int("ai_image_credit_cost_medium",  AI_IMAGE_DEFAULTS.creditCostMedium),
+    creditCostHigh:  int("ai_image_credit_cost_high",    AI_IMAGE_DEFAULTS.creditCostHigh),
   };
 }
 

@@ -247,7 +247,11 @@ const TEXT_FEATURE_COST_USD_CENTS: Record<string, number> = {
 
 const IMAGE_FEATURES = new Set(getVerticalConfig().ai.imageFeatures);
 
-export async function consumeAiCredit(barbershopId: string, feature: string): Promise<void> {
+export async function consumeAiCredit(
+  barbershopId: string,
+  feature: string,
+  overrides?: { credits?: number; usdCents?: number },
+): Promise<void> {
   const plan   = await getPlan(barbershopId);
   const limits = PLAN_LIMITS[plan.tier];
 
@@ -255,7 +259,11 @@ export async function consumeAiCredit(barbershopId: string, feature: string): Pr
   let cost: number;
   let costUsdCents: number;
 
-  if (IMAGE_FEATURES.has(feature)) {
+  if (overrides?.credits !== undefined) {
+    // Caller provides explicit values (e.g. quality-tier-specific pricing)
+    cost         = overrides.credits;
+    costUsdCents = overrides.usdCents ?? 0;
+  } else if (IMAGE_FEATURES.has(feature)) {
     const cfgs = await prisma.platformConfig.findMany({
       where: { key: { in: ["ai_image_credit_cost", "ai_image_cost_usd_cents"] } },
     });

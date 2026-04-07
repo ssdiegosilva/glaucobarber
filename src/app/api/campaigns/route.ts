@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAIProvider } from "@/lib/ai/provider";
 import { uploadCampaignImage, uploadCampaignImageFromUrl } from "@/lib/storage";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
-import { getAiImageConfig, getKillSwitch } from "@/lib/platform-config";
+import { getAiImageConfig, getKillSwitch, tierToApiQuality, tierToUsdCents, type ImageQualityTier } from "@/lib/platform-config";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -13,10 +13,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   // Strip ASCII control characters (mobile keyboards can insert null bytes / special chars that break JSON serialization)
   const sanitize = (s: unknown) => typeof s === "string" ? s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim() : s;
-  const theme     = sanitize(body.theme)     as string | undefined;
-  const objective = sanitize(body.objective) as string | undefined;
-  const channel   = sanitize(body.channel)   as string | undefined;
-  const offerId   = body.offerId             as string | undefined;
+  const theme        = sanitize(body.theme)     as string | undefined;
+  const objective    = sanitize(body.objective) as string | undefined;
+  const channel      = sanitize(body.channel)   as string | undefined;
+  const offerId      = body.offerId             as string | undefined;
+  const imageQuality = (body.imageQuality ?? "medium") as ImageQualityTier;
   if (!theme) return NextResponse.json({ error: "Tema é obrigatório" }, { status: 400 });
 
   // Verifica saldo para texto + imagem (2 créditos)
@@ -99,13 +100,18 @@ Important:
   ]);
   if (allowanceImage.allowed && !imageKilled) {
     try {
-      const aiConfig = await getAiImageConfig();
+      const aiConfig   = await getAiImageConfig();
+      const apiQuality = tierToApiQuality(imageQuality, aiConfig.model);
+      const usdCents   = tierToUsdCents(imageQuality, aiConfig.model);
+      const credits    = imageQuality === "low"  ? aiConfig.creditCostLow
+                       : imageQuality === "high" ? aiConfig.creditCostHigh
+                       : aiConfig.creditCostMedium;
       const img = await provider.generateCampaignImage({
         prompt:            imagePrompt,
         referenceImageUrl: barbershop?.campaignReferenceImageUrl ?? undefined,
         model:   aiConfig.model,
         size:    aiConfig.size,
-        quality: aiConfig.quality,
+        quality: apiQuality,
       });
 
       // Cria registro no DB para ter o ID antes de fazer upload
@@ -137,7 +143,7 @@ Important:
           });
 
       imageUrl = stored.url;
-      await consumeAiCredit(session.user.barbershopId, "campaign_image");
+      await consumeAiCredit(session.user.barbershopId, "campaign_image", { credits, usdCents });
 
       const campaign = await prisma.campaign.update({
         where: { id: tempCampaign.id },

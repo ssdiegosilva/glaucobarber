@@ -527,18 +527,27 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
 
 // ── Main client ───────────────────────────────────────────────
 
-export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCost = 10 }: {
+type ImageQualityTier = "low" | "medium" | "high";
+
+const QUALITY_META: Record<ImageQualityTier, { label: string; desc: string; color: string }> = {
+  low:    { label: "Rascunho",       desc: "mais rápido",       color: "text-green-400" },
+  medium: { label: "Padrão",         desc: "recomendado",       color: "text-amber-400" },
+  high:   { label: "Alta qualidade", desc: "mais detalhado",    color: "text-red-400"   },
+};
+
+export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCosts = { low: 40, medium: 70, high: 190 } }: {
   campaigns: CampaignDto[];
   instagramConfigured: boolean;
   hasBrandStyle?: boolean;
   availableOffers?: OfferOption[];
-  imageCreditCost?: number;
+  imageCreditCosts?: { low: number; medium: number; high: number };
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
 
   const [theme, setTheme] = useState("");
   const [selectedOfferId, setSelectedOfferId] = useState<string>("");
+  const [imageQuality, setImageQuality] = useState<ImageQualityTier>("medium");
   const [loadingThemes, setLoadingThemes] = useState(false);
   const [suggestedThemes, setSuggestedThemes] = useState<{ title: string; description: string }[]>([]);
   const [loadingCreate, setLoadingCreate] = useState(false);
@@ -595,7 +604,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       const res = await fetch("/api/campaigns", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ theme: currentTheme, channel: "instagram", offerId: currentOfferId || undefined }),
+        body:    JSON.stringify({ theme: currentTheme, channel: "instagram", offerId: currentOfferId || undefined, imageQuality }),
         signal:  controller.signal,
       });
       clearTimeout(timeoutId);
@@ -733,13 +742,13 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     }
   }
 
-  async function generateImage(id: string, promptOverride?: string): Promise<void> {
+  async function generateImage(id: string, promptOverride?: string, quality?: ImageQualityTier): Promise<void> {
     setGeneratingImage(id);
     try {
       const res = await fetch(`/api/campaigns/${id}/image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ promptOverride: promptOverride || undefined }),
+        body: JSON.stringify({ promptOverride: promptOverride || undefined, imageQuality: quality ?? imageQuality }),
       });
       const data = await res.json();
       if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); throw new Error("ai_limit_reached"); }
@@ -966,6 +975,34 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
               )}
             </div>
           )}
+          {/* Quality selector */}
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium text-muted-foreground">Qualidade da imagem</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(["low", "medium", "high"] as const).map((tier) => {
+                const m = QUALITY_META[tier];
+                const credits = imageCreditCosts[tier];
+                const active = imageQuality === tier;
+                return (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => setImageQuality(tier)}
+                    className={`rounded-lg border px-2 py-2 text-center transition-colors ${
+                      active
+                        ? "border-purple-500/60 bg-purple-500/10"
+                        : "border-border bg-surface-900/50 hover:bg-surface-800"
+                    }`}
+                  >
+                    <p className={`text-[11px] font-semibold ${active ? "text-purple-300" : m.color}`}>{m.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{m.desc}</p>
+                    <p className={`text-[11px] font-bold tabular-nums mt-0.5 ${active ? "text-purple-300" : "text-foreground"}`}>{credits} cred.</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Button
               onClick={createCampaign}
@@ -980,7 +1017,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             )}
             <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
               <span>💡</span>
-              Usa {1 + imageCreditCost} créditos de IA (1 texto + {imageCreditCost} imagem) — pode criar várias ao mesmo tempo
+              1 texto + {imageCreditCosts[imageQuality]} imagem ({QUALITY_META[imageQuality].label}) = {1 + imageCreditCosts[imageQuality]} créditos
             </p>
           </div>
         </CardContent>

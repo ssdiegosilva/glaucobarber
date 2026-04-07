@@ -67,7 +67,7 @@ export default async function CampaignsPage() {
           instagramConfigured={!!(integration?.instagramPageAccessToken && integration.instagramBusinessId)}
           hasBrandStyle={!!barbershop?.brandStyle?.trim()}
           availableOffers={activeOffers.map((o) => ({ id: o.id, title: o.title, salePrice: Number(o.salePrice), type: o.type }))}
-          imageCreditCost={aiConfig.creditCost}
+          imageCreditCosts={{ low: aiConfig.creditCostLow, medium: aiConfig.creditCostMedium, high: aiConfig.creditCostHigh }}
         />
       </div>
     </div>

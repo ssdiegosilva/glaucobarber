@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getAIProvider } from "@/lib/ai/provider";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 import { uploadCampaignImage } from "@/lib/storage";
-import { getAiImageConfig, getKillSwitch } from "@/lib/platform-config";
+import { getAiImageConfig, getKillSwitch, tierToApiQuality, tierToUsdCents, type ImageQualityTier } from "@/lib/platform-config";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Requisição inválida" }, { status: 400 });
   }
 
+  const imageQualityRaw = formData.get("imageQuality") as string | null;
+  const imageQuality    = (imageQualityRaw === "low" || imageQualityRaw === "high" ? imageQualityRaw : "medium") as ImageQualityTier;
+
   const file = formData.get("photo") as File | null;
   if (!file) {
     return NextResponse.json({ error: "Nenhuma foto enviada" }, { status: 400 });
@@ -71,16 +74,21 @@ export async function POST(req: NextRequest) {
   }
 
   // Step 2: Generate visual — single credit charge for the full operation
-  const aiConfig = await getAiImageConfig();
+  const aiConfig   = await getAiImageConfig();
+  const apiQuality = tierToApiQuality(imageQuality, aiConfig.model);
+  const usdCents   = tierToUsdCents(imageQuality, aiConfig.model);
+  const credits    = imageQuality === "low"  ? aiConfig.creditCostLow
+                   : imageQuality === "high" ? aiConfig.creditCostHigh
+                   : aiConfig.creditCostMedium;
   let imageResult;
   try {
-    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle, aiConfig.quality, aiConfig.model, aiConfig.size);
+    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle, apiQuality, aiConfig.model, aiConfig.size);
   } catch (err) {
     console.error("[criar-visual] generateHaircutVisual error:", err);
     return NextResponse.json({ error: "Erro ao gerar o visual. Tente novamente." }, { status: 500 });
   }
 
-  await consumeAiCredit(barbershopId, "visual_style_generate");
+  await consumeAiCredit(barbershopId, "visual_style_generate", { credits, usdCents });
 
   // Step 3: Upload generated image to Supabase Storage
   const visualId = `visual-${Date.now()}`;

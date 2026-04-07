@@ -7,14 +7,20 @@ const AI_CONFIG_KEYS = [
   "ai_image_quality",
   "ai_image_credit_cost",
   "ai_image_cost_usd_cents",
+  "ai_image_credit_cost_low",
+  "ai_image_credit_cost_medium",
+  "ai_image_credit_cost_high",
 ] as const;
 
 const AI_CONFIG_DEFAULTS: Record<string, string> = {
-  ai_image_model:          "gpt-image-1",
-  ai_image_size:           "1024x1024",
-  ai_image_quality:        "standard",
-  ai_image_credit_cost:    "10",
-  ai_image_cost_usd_cents: "4",
+  ai_image_model:              "gpt-image-1",
+  ai_image_size:               "1024x1024",
+  ai_image_quality:            "medium",
+  ai_image_credit_cost:        "70",
+  ai_image_cost_usd_cents:     "7",
+  ai_image_credit_cost_low:    "40",
+  ai_image_credit_cost_medium: "70",
+  ai_image_credit_cost_high:   "190",
 };
 
 export default async function AdminAiConfigPage() {

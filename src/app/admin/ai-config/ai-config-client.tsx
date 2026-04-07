@@ -210,36 +210,48 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Créditos cobrados do usuário por imagem
-            </label>
-            <Input
-              type="number"
-              min={1}
-              value={values["ai_image_credit_cost"] ?? "10"}
-              onChange={(e) => setValues((v) => ({ ...v, ai_image_credit_cost: e.target.value }))}
-              className="font-mono text-sm"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              1 campanha completa = 1 texto + {creditCost} imagem = {1 + creditCost} créditos
-            </p>
+        {/* Credit costs per quality tier */}
+        <div className="space-y-2 pt-1">
+          <p className="text-xs font-semibold text-muted-foreground">Créditos cobrados por tier de qualidade</p>
+          <div className="grid grid-cols-3 gap-3">
+            {(["low", "medium", "high"] as const).map((tier) => {
+              const key = `ai_image_credit_cost_${tier}` as const;
+              const defaults: Record<string, string> = { low: "40", medium: "70", high: "190" };
+              const labels: Record<string, string> = { low: "Rascunho", medium: "Padrão", high: "Alta qualidade" };
+              const colors: Record<string, string> = { low: "text-green-400", medium: "text-amber-400", high: "text-red-400" };
+              return (
+                <div key={tier} className="space-y-1.5">
+                  <label className={`text-xs font-medium ${colors[tier]}`}>{labels[tier]}</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={values[key] ?? defaults[tier]}
+                    onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                    className="font-mono text-sm"
+                  />
+                </div>
+              );
+            })}
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            O usuário escolhe o tier ao gerar a imagem e vê quantos créditos vai gastar antes de confirmar.
+          </p>
+        </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 pt-1">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              Custo real por imagem (centavos USD)
+              Custo real por imagem — tier Padrão (centavos USD)
             </label>
             <Input
               type="number"
               min={0}
-              value={values["ai_image_cost_usd_cents"] ?? "4"}
+              value={values["ai_image_cost_usd_cents"] ?? "7"}
               onChange={(e) => setValues((v) => ({ ...v, ai_image_cost_usd_cents: e.target.value }))}
               className="font-mono text-sm"
             />
             <p className="text-[10px] text-muted-foreground">
-              Usado apenas para cálculo de lucratividade. Ex: 4 = $0.04
+              Referência para cálculo de lucratividade. Ex: 7 = $0.07
               {costCents > 0 && ` → atualmente $${(costCents / 100).toFixed(3)}/imagem`}
             </p>
           </div>
@@ -284,14 +296,22 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                 return (
                   <tr
                     key={i}
-                    onClick={() => setValues((v) => ({
-                      ...v,
-                      ai_image_model:          row.model,
-                      ai_image_size:           row.size,
-                      ai_image_quality:        row.quality,
-                      ai_image_cost_usd_cents: String(row.costCents),
-                      ai_image_credit_cost:    String(row.suggestedCredits),
-                    }))}
+                    onClick={() => {
+                      // Map quality → tier key
+                      const tierKey = (row.quality === "low" || row.quality === "medium" || row.quality === "high")
+                        ? `ai_image_credit_cost_${row.quality}` as const
+                        : row.quality === "hd"
+                          ? "ai_image_credit_cost_high"
+                          : "ai_image_credit_cost_low";
+                      setValues((v) => ({
+                        ...v,
+                        ai_image_model:          row.model,
+                        ai_image_size:           row.size,
+                        ai_image_quality:        row.quality,
+                        ai_image_cost_usd_cents: String(row.costCents),
+                        [tierKey]:               String(row.suggestedCredits),
+                      }));
+                    }}
                     className={`cursor-pointer transition-colors ${
                       active
                         ? "bg-red-500/10 border-l-2 border-l-red-500"
