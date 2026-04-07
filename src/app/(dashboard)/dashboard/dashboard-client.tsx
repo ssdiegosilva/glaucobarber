@@ -430,11 +430,13 @@ export function DashboardClient({
     return           { label: "Atenção", color: "text-red-400",    bg: "bg-red-500/10 border-red-500/20",     dot: "bg-red-400" };
   })();
 
-  // ── Next appointment (first not COMPLETED/CANCELLED/NO_SHOW) ──
+  // ── Next appointment (first not COMPLETED/CANCELLED/NO_SHOW and scheduled in the future) ──
+  const nowTs = Date.now();
   const nextAppt = view === "today"
     ? appointments.find((a) => {
         const s = localStatuses[a.id] ?? a.status;
-        return !["COMPLETED", "CANCELLED", "NO_SHOW", "finalizado", "cancelado", "clientefaltou"].includes(s);
+        if (["COMPLETED", "CANCELLED", "NO_SHOW", "finalizado", "cancelado", "clientefaltou"].includes(s)) return false;
+        return new Date(a.scheduledAt).getTime() >= nowTs;
       })
     : null;
 
