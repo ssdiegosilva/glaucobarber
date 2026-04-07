@@ -905,7 +905,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <div>
               <CardTitle className="text-sm text-foreground">Criar campanha com IA</CardTitle>
               <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                A IA escreve o texto da campanha, sugere a arte e prepara tudo para publicar no Instagram. Você só precisa dizer o tema — ela cuida do resto.
+                A IA escreve o texto e sugere o briefing da arte. Depois você escolhe: gerar a imagem com IA ou usar uma foto sua.
               </p>
             </div>
           </div>
@@ -975,34 +975,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
               )}
             </div>
           )}
-          {/* Quality selector */}
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-medium text-muted-foreground">Qualidade da imagem</p>
-            <div className="grid grid-cols-3 gap-2">
-              {(["low", "medium", "high"] as const).map((tier) => {
-                const m = QUALITY_META[tier];
-                const credits = imageCreditCosts[tier];
-                const active = imageQuality === tier;
-                return (
-                  <button
-                    key={tier}
-                    type="button"
-                    onClick={() => setImageQuality(tier)}
-                    className={`rounded-lg border px-2 py-2 text-center transition-colors ${
-                      active
-                        ? "border-purple-500/60 bg-purple-500/10"
-                        : "border-border bg-surface-900/50 hover:bg-surface-800"
-                    }`}
-                  >
-                    <p className={`text-[11px] font-semibold ${active ? "text-purple-300" : m.color}`}>{m.label}</p>
-                    <p className="text-[10px] text-muted-foreground">{m.desc}</p>
-                    <p className={`text-[11px] font-bold tabular-nums mt-0.5 ${active ? "text-purple-300" : "text-foreground"}`}>{credits} cred.</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           <div className="space-y-1.5">
             <Button
               onClick={createCampaign}
@@ -1010,14 +982,14 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
               className="text-xs gap-2 font-semibold bg-purple-600 hover:bg-purple-500 text-white"
             >
               <Wand2 className="h-3.5 w-3.5" />
-              Gerar campanha com IA
+              Gerar texto da campanha
             </Button>
             {!instagramConfigured && (
               <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/settings?section=integrations" className="underline">configurar</a></p>
             )}
             <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
               <span>💡</span>
-              1 texto + {imageCreditCosts[imageQuality]} imagem ({QUALITY_META[imageQuality].label}) = {1 + imageCreditCosts[imageQuality]} créditos
+              1 crédito · a imagem pode ser gerada depois ou você pode usar uma foto própria
             </p>
           </div>
         </CardContent>
