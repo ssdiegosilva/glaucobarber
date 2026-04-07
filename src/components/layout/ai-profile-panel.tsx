@@ -221,9 +221,9 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
                     <span>Chat, textos e análises</span>
                     <span className="text-foreground font-medium">1 crédito</span>
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <div className="flex items-start justify-between text-[10px] text-muted-foreground gap-2">
                     <span>Imagem de campanha</span>
-                    <span className="text-amber-400 font-semibold">10 créditos</span>
+                    <span className="text-amber-400 font-semibold text-right shrink-0">varia pela qualidade<br/>escolhida</span>
                   </div>
                 </div>
               </div>
