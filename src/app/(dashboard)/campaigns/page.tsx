@@ -3,9 +3,27 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { CampaignsClient } from "./campaigns-client";
 import { getAiImageConfig } from "@/lib/platform-config";
+import { canAccess } from "@/lib/access";
+import { getPlan } from "@/lib/billing";
+import { UpgradeWall } from "@/components/billing/UpgradeWall";
 
 export default async function CampaignsPage() {
   const session = await requireBarbershop();
+
+  const { effectiveTier } = await getPlan(session.user.barbershopId);
+  const allowed = await canAccess(session.user.barbershopId, effectiveTier, "campaigns");
+  if (!allowed) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="Campanhas" subtitle="Marketing e comunicação" userName={session.user.name} />
+        <UpgradeWall
+          feature="Campanhas"
+          requiredPlan="STARTER"
+          description="Crie campanhas de marketing com IA, gere imagens e publique direto no Instagram."
+        />
+      </div>
+    );
+  }
 
   // Limpa campanhas travadas em GENERATING há mais de 5 minutos
   const stuckThreshold = new Date(Date.now() - 5 * 60 * 1000);

@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { FinanceiroClient } from "./financeiro-client";
-import { getPlan, hasFeature } from "@/lib/billing";
+import { getPlan } from "@/lib/billing";
+import { canAccess } from "@/lib/access";
 import { UpgradeWall } from "@/components/billing/UpgradeWall";
 import { getMonthlyFinanceiroData } from "@/lib/financeiro/monthly-data";
 
@@ -13,7 +14,8 @@ export default async function FinanceiroPage() {
   const barbershopId = session.user.barbershopId;
 
   const { effectiveTier } = await getPlan(barbershopId);
-  if (!hasFeature(effectiveTier, "financeiro")) {
+  const allowed = await canAccess(barbershopId, effectiveTier, "financeiro");
+  if (!allowed) {
     return (
       <div className="flex flex-col h-full">
         <Header title="Gestão Financeira" subtitle="Metas e análise de faturamento" userName={session.user.name} />
