@@ -23,6 +23,7 @@ export default async function AdminOverviewPage() {
     aiThisMonth,
     trialsExpiringSoon,
     aiUsagesThisMonth,
+    pricingConfigs,
   ] = await Promise.all([
     prisma.platformConfig.findMany({
       where: { key: { in: ["kill_ai_global", "kill_image_generation", "kill_whatsapp_auto", "kill_trinks_sync", "kill_new_signups"] } },
@@ -54,10 +55,13 @@ export default async function AdminOverviewPage() {
       where: { yearMonth },
       include: { barbershop: { select: { name: true, subscription: { select: { planTier: true } } } } },
     }),
+    prisma.platformConfig.findMany({
+      where: { key: { in: ["ai_image_usd_brl_rate", "ai_image_pricing_updated_at", "ai_image_pricing_rate_source", "ai_image_credit_cost_low", "ai_image_credit_cost_medium", "ai_image_credit_cost_high"] } },
+    }),
   ]);
 
   // Get last run per cron name
-  const CRON_NAMES = ["daily", "hourly-sync", "whatsapp-send", "campaigns-publish"];
+  const CRON_NAMES = ["daily", "hourly-sync", "whatsapp-send", "campaigns-publish", "update-image-pricing"];
   const lastCronRun = CRON_NAMES.map((name) => {
     const run = cronRuns.find((r) => r.cronName === name);
     return {
@@ -95,10 +99,23 @@ export default async function AdminOverviewPage() {
       limit:          MONTHLY_LIMITS[u.barbershop.subscription?.planTier ?? "FREE"] ?? 30,
     }));
 
+  const pricingMap = Object.fromEntries(pricingConfigs.map((c) => [c.key, c.value]));
+  const imagePricing = {
+    usdBrl:     pricingMap["ai_image_usd_brl_rate"]      ? parseFloat(pricingMap["ai_image_usd_brl_rate"])      : null,
+    rateSource: pricingMap["ai_image_pricing_rate_source"] ?? null,
+    updatedAt:  pricingMap["ai_image_pricing_updated_at"]  ?? null,
+    credits: pricingMap["ai_image_credit_cost_low"] ? {
+      low:    parseInt(pricingMap["ai_image_credit_cost_low"]),
+      medium: parseInt(pricingMap["ai_image_credit_cost_medium"]),
+      high:   parseInt(pricingMap["ai_image_credit_cost_high"]),
+    } : null,
+  };
+
   return (
     <OverviewClient
       killSwitches={killSwitches}
       cronRuns={lastCronRun}
+      imagePricing={imagePricing}
       queues={{
         waQueued,
         waFailed,

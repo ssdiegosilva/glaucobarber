@@ -47,11 +47,19 @@ type Metrics = {
   nearLimit:    { barbershopId: string; barbershopName: string; usageCount: number; limit: number }[];
 };
 
+type ImagePricing = {
+  usdBrl:     number | null;
+  rateSource: string | null;
+  updatedAt:  string | null;
+  credits:    { low: number; medium: number; high: number } | null;
+};
+
 interface Props {
-  killSwitches: KillSwitches;
-  cronRuns:     CronRun[];
-  queues:       Queues;
-  metrics:      Metrics;
+  killSwitches:  KillSwitches;
+  cronRuns:      CronRun[];
+  queues:        Queues;
+  metrics:       Metrics;
+  imagePricing:  ImagePricing;
 }
 
 const KILL_SWITCH_META: {
@@ -99,10 +107,11 @@ const KILL_SWITCH_META: {
 ];
 
 const CRON_LABELS: Record<string, string> = {
-  "daily":              "Cron Diário",
-  "hourly-sync":        "Sync Horário",
-  "whatsapp-send":      "WhatsApp Send",
-  "campaigns-publish":  "Publica Campanhas",
+  "daily":                  "Cron Diário",
+  "hourly-sync":            "Sync Horário",
+  "whatsapp-send":          "WhatsApp Send",
+  "campaigns-publish":      "Publica Campanhas",
+  "update-image-pricing":   "Precificação de Imagens",
 };
 
 function formatAgo(iso: string | null): string {
@@ -130,7 +139,7 @@ function daysUntil(iso: string): string {
   return `expira em ${days}d`;
 }
 
-export function OverviewClient({ killSwitches: initial, cronRuns: initialCronRuns, queues, metrics }: Props) {
+export function OverviewClient({ killSwitches: initial, cronRuns: initialCronRuns, queues, metrics, imagePricing }: Props) {
   const [kills,      setKills]      = useState<KillSwitches>(initial);
   const [loading,    setLoading]    = useState<Partial<Record<keyof KillSwitches, boolean>>>({});
   const [runningCron,setRunningCron]= useState<string | null>(null);
@@ -472,6 +481,62 @@ export function OverviewClient({ killSwitches: initial, cronRuns: initialCronRun
             </div>
           </section>
         )}
+
+      {/* ── Precificação de Imagens ──────────────────────────── */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-white">Precificação de Imagens (gpt-image-1)</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Atualizado diariamente via cron · 35% de margem</p>
+          </div>
+          <button
+            onClick={() => runCron("update-image-pricing")}
+            disabled={runningCron === "update-image-pricing"}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-white hover:border-zinc-500 transition-colors disabled:opacity-50"
+          >
+            {runningCron === "update-image-pricing"
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <RefreshCw className="h-3.5 w-3.5" />}
+            Atualizar agora
+          </button>
+        </div>
+
+        {imagePricing.updatedAt ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg border border-zinc-700 bg-zinc-800/60 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-zinc-500">USD/BRL</p>
+              <p className="text-lg font-bold text-white mt-1">
+                {imagePricing.usdBrl ? `R$${imagePricing.usdBrl.toFixed(2)}` : "—"}
+              </p>
+              <p className="text-[10px] text-zinc-600 mt-0.5">{imagePricing.rateSource ?? ""}</p>
+            </div>
+            <div className="rounded-lg border border-green-500/20 bg-zinc-800/60 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-green-400/70">Rascunho</p>
+              <p className="text-lg font-bold text-green-400 mt-1">{imagePricing.credits?.low ?? "—"} créditos</p>
+              <p className="text-[10px] text-zinc-500">≈ R${((imagePricing.credits?.low ?? 0) * 0.10).toFixed(2)}</p>
+            </div>
+            <div className="rounded-lg border border-amber-500/20 bg-zinc-800/60 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-amber-400/70">Padrão</p>
+              <p className="text-lg font-bold text-amber-400 mt-1">{imagePricing.credits?.medium ?? "—"} créditos</p>
+              <p className="text-[10px] text-zinc-500">≈ R${((imagePricing.credits?.medium ?? 0) * 0.10).toFixed(2)}</p>
+            </div>
+            <div className="rounded-lg border border-red-500/20 bg-zinc-800/60 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-red-400/70">Alta qualidade</p>
+              <p className="text-lg font-bold text-red-400 mt-1">{imagePricing.credits?.high ?? "—"} créditos</p>
+              <p className="text-[10px] text-zinc-500">≈ R${((imagePricing.credits?.high ?? 0) * 0.10).toFixed(2)}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-500">Cron ainda não executou. Clique em "Atualizar agora" para calcular.</p>
+        )}
+
+        {imagePricing.updatedAt && (
+          <p className="text-[10px] text-zinc-600">
+            Última atualização: {new Date(imagePricing.updatedAt).toLocaleString("pt-BR")}
+          </p>
+        )}
+      </div>
+
       </div>
     </div>
   );
