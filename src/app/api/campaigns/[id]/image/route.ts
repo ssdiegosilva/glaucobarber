@@ -99,6 +99,18 @@ Important:
 
     await prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } });
     await consumeAiCredit(session.user.barbershopId, "campaign_image", { credits, usdCents });
+
+    // Notify via bell icon
+    await prisma.systemNotification.create({
+      data: {
+        barbershopId: session.user.barbershopId,
+        type:  "SYSTEM",
+        title: "Arte gerada com sucesso!",
+        body:  `A imagem da campanha "${campaign.title}" está pronta.`,
+        link:  "/campaigns",
+      },
+    });
+
     return NextResponse.json({ url: stored.url });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
