@@ -4,13 +4,14 @@
 // gpt-image-1 credit costs with a 35% profit margin.
 //
 // Credit pack: R$20 = 200 credits → 1 credit = R$0.10
-// Formula: ceil(openai_cost_usd × usd_brl × 1.35 / 0.10)
+// Formula: ceil(openai_cost_usd × usd_brl / (0.10 × (1 - 0.35)))
+// Margin 35% means profit = 35% of selling price → price = cost / 0.65
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const MARGIN      = 1.35;           // 35% profit margin
+const MARGIN      = 0.35;           // 35% profit margin (of selling price)
 const CREDIT_BRL  = 0.10;           // R$0.10 per credit (R$20 / 200)
 const FALLBACK_RATE = 5.80;         // fallback if API is down
 
@@ -55,8 +56,11 @@ export async function GET(req: NextRequest) {
     }
 
     // ── 2. Calculate credit costs ──────────────────────────────
+    // Margem de lucro real: lucro = 35% do preço de venda
+    // preço_brl = custo_brl / (1 - margem)
+    // créditos = ceil(preço_brl / valor_por_crédito)
     const calc = (costUsd: number) =>
-      Math.ceil((costUsd * usdBrl * MARGIN) / CREDIT_BRL);
+      Math.ceil((costUsd * usdBrl) / (CREDIT_BRL * (1 - MARGIN)));
 
     const low    = calc(OPENAI_COSTS.low);
     const medium = calc(OPENAI_COSTS.medium);
@@ -91,7 +95,7 @@ export async function GET(req: NextRequest) {
       usdBrl,
       rateSource,
       credits:    { low, medium, high },
-      margin:     "35%",
+      margin:     "35% (sobre o preço de venda)",
       durationMs,
     });
 
