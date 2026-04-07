@@ -2,9 +2,27 @@ import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import CopilotClient from "./copilot-client";
+import { canAccess } from "@/lib/access";
+import { getPlan } from "@/lib/billing";
+import { UpgradeWall } from "@/components/billing/UpgradeWall";
 
 export default async function CopilotPage() {
   const session = await requireBarbershop();
+
+  const { effectiveTier } = await getPlan(session.user.barbershopId);
+  const allowed = await canAccess(session.user.barbershopId, effectiveTier, "copilot");
+  if (!allowed) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="CEO Copilot" subtitle="Pergunte qualquer coisa sobre o dia e aprove ações" userName={session.user.name} />
+        <UpgradeWall
+          feature="CEO Copilot"
+          requiredPlan="STARTER"
+          description="Assistente de IA que analisa seus dados em tempo real e sugere ações para crescer o negócio."
+        />
+      </div>
+    );
+  }
 
   // Auto-cleanup: remove threads older than 3 days
   const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);

@@ -5,12 +5,30 @@ import { prisma } from "@/lib/prisma";
 import { PostSaleClient } from "./components/PostSaleClient";
 import type { CustomerSummary } from "./types";
 import { subDays } from "date-fns";
+import { canAccess } from "@/lib/access";
+import { getPlan } from "@/lib/billing";
+import { UpgradeWall } from "@/components/billing/UpgradeWall";
 
 export default async function PostSalePage() {
   const session = await auth();
   if (!session?.user?.barbershopId) redirect("/login");
 
   const barbershopId = session.user.barbershopId;
+
+  const { effectiveTier } = await getPlan(barbershopId);
+  const allowed = await canAccess(barbershopId, effectiveTier, "post-sale");
+  if (!allowed) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="Pós-venda" subtitle="Reativação e fidelização de clientes" userName={session.user.name ?? ""} />
+        <UpgradeWall
+          feature="Pós-venda"
+          requiredPlan="STARTER"
+          description="Identifique clientes em risco, inativos e recentes. Envie mensagens automáticas para reativar e fidelizar."
+        />
+      </div>
+    );
+  }
   const now     = new Date();
   const since14d = subDays(now, 14);
   const since60d = subDays(now, 60);

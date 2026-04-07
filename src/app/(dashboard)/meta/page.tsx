@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { MetaClient } from "./meta-client";
-import { getPlan, hasFeature } from "@/lib/billing";
+import { getPlan } from "@/lib/billing";
+import { canAccess } from "@/lib/access";
 import { UpgradeWall } from "@/components/billing/UpgradeWall";
 import {
   startOfMonth, endOfMonth, startOfDay, endOfDay,
@@ -18,7 +19,8 @@ export default async function MetaPage() {
   const barbershopId = session.user.barbershopId;
 
   const { effectiveTier } = await getPlan(barbershopId);
-  if (!hasFeature(effectiveTier, "meta")) {
+  const allowed = await canAccess(barbershopId, effectiveTier, "meta");
+  if (!allowed) {
     return (
       <div className="flex flex-col h-full">
         <Header title="Metas" subtitle="Acompanhamento de metas diárias e mensais" userName={session.user.name} />

@@ -10,7 +10,7 @@ import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 function buildPlanLimits() {
   const v = getVerticalConfig();
   return {
-    FREE:       { aiPerPeriod: 30,       periodType: "trial"   as const, featureGates: v.billing.featureGates["FREE"]       ?? [], appointmentFee: v.billing.usageFee["FREE"]       ?? false },
+    FREE:       { aiPerPeriod: 0,        periodType: "trial"   as const, featureGates: v.billing.featureGates["FREE"]       ?? [], appointmentFee: v.billing.usageFee["FREE"]       ?? false },
     STARTER:    { aiPerPeriod: 200,      periodType: "monthly" as const, featureGates: v.billing.featureGates["STARTER"]    ?? [], appointmentFee: v.billing.usageFee["STARTER"]    ?? false },
     PRO:        { aiPerPeriod: 1000,     periodType: "monthly" as const, featureGates: v.billing.featureGates["PRO"]        ?? [], appointmentFee: v.billing.usageFee["PRO"]        ?? true  },
     ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly" as const, featureGates: v.billing.featureGates["ENTERPRISE"] ?? [], appointmentFee: v.billing.usageFee["ENTERPRISE"] ?? false },
