@@ -22,7 +22,26 @@ export default async function AdminAiUsagePage() {
     orderBy: { usageCount: "desc" },
   });
 
-  const data = usages.map((u) => {
+  // Deduplicate: prefer current-month record over "trialing" record per barbershop
+  // Also skip "trialing" records for barbershops no longer on trial
+  const seen = new Set<string>();
+  const currentMonthRecords = usages.filter((u) => u.yearMonth === yearMonth);
+  const trialRecords        = usages.filter((u) => u.yearMonth === "trialing");
+
+  const deduped = [
+    ...currentMonthRecords,
+    ...trialRecords.filter((u) => {
+      if (seen.has(u.barbershopId)) return false;
+      // Only show trial record if the barbershop is still in trial
+      return u.barbershop.subscription?.status === "TRIALING";
+    }),
+  ].filter((u) => {
+    if (seen.has(u.barbershopId)) return false;
+    seen.add(u.barbershopId);
+    return true;
+  });
+
+  const data = deduped.map((u) => {
     const sub    = u.barbershop.subscription;
     const tier   = (sub?.planTier ?? "FREE") as keyof typeof PLAN_LIMITS;
     const limit  = PLAN_LIMITS[tier]?.aiPerPeriod ?? 30;
