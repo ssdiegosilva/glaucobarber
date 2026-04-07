@@ -10,6 +10,7 @@ const AI_CONFIG_KEYS = [
   "ai_image_credit_cost_low",
   "ai_image_credit_cost_medium",
   "ai_image_credit_cost_high",
+  "ai_image_profit_margin",
 ] as const;
 
 const AI_CONFIG_DEFAULTS: Record<string, string> = {
@@ -20,7 +21,10 @@ const AI_CONFIG_DEFAULTS: Record<string, string> = {
   ai_image_credit_cost_low:   "40",
   ai_image_credit_cost_medium:"70",
   ai_image_credit_cost_high:  "190",
+  ai_image_profit_margin:     "35",
 };
+
+const MIN_MARGIN = 35; // never allow below 35%
 
 export async function GET() {
   const session = await auth();
@@ -48,10 +52,17 @@ export async function POST(req: NextRequest) {
 
   for (const key of AI_CONFIG_KEYS) {
     if (body[key] !== undefined) {
+      let value = String(body[key]);
+      // Enforce minimum margin
+      if (key === "ai_image_profit_margin") {
+        const parsed = parseFloat(value);
+        if (isNaN(parsed) || parsed < MIN_MARGIN) value = String(MIN_MARGIN);
+        if (parsed > 90) value = "90";
+      }
       await prisma.platformConfig.upsert({
         where:  { key },
-        update: { value: String(body[key]) },
-        create: { key,   value: String(body[key]) },
+        update: { value },
+        create: { key, value },
       });
     }
   }

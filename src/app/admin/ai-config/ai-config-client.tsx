@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2, ImageOff, AlertTriangle } from "lucide-react";
+import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2, ImageOff, AlertTriangle, TrendingUp } from "lucide-react";
 
 // ── Tier table — 3 rows, one per quality tier ────────────────────────────────
 // breakEven = costCents × 10  (1 crédito = $0.001)
@@ -162,9 +162,52 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           </p>
         </div>
 
+        {/* Profit margin */}
+        <div className="space-y-2 pt-1 border-t border-border/40">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-3.5 w-3.5 text-green-400" />
+            <p className="text-xs font-semibold text-foreground">Margem de lucro sobre preço de venda</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={35}
+                max={90}
+                step={1}
+                value={values["ai_image_profit_margin"] ?? "35"}
+                onChange={(e) => {
+                  const v = Math.max(35, Math.min(90, parseInt(e.target.value) || 35));
+                  setValues((prev) => ({ ...prev, ai_image_profit_margin: String(v) }));
+                }}
+                className="font-mono text-sm w-24"
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Mínimo 35% · Máximo 90% · O cron diário usa esse valor para calcular créditos automaticamente
+            </p>
+          </div>
+          {/* Preview with current margin */}
+          {(() => {
+            const margin = Math.max(35, parseInt(values["ai_image_profit_margin"] ?? "35") || 35) / 100;
+            const usdBrl = 5.80; // approximate — cron uses live rate
+            const OPENAI_USD = { low: 0.040, medium: 0.070, high: 0.190 };
+            const calc = (usd: number) => Math.ceil((usd * usdBrl) / (0.10 * (1 - margin)));
+            return (
+              <div className="rounded-md bg-surface-900/60 border border-border/40 px-3 py-2 flex gap-4 text-[11px]">
+                <span className="text-muted-foreground">Prévia (USD/BRL ≈ R$5,80):</span>
+                <span className="text-green-400">Rascunho: <b>{calc(OPENAI_USD.low)} cred.</b></span>
+                <span className="text-amber-400">Padrão: <b>{calc(OPENAI_USD.medium)} cred.</b></span>
+                <span className="text-red-400">Alta: <b>{calc(OPENAI_USD.high)} cred.</b></span>
+              </div>
+            );
+          })()}
+        </div>
+
         {/* Credit costs per quality tier */}
-        <div className="space-y-2 pt-1">
-          <p className="text-xs font-semibold text-muted-foreground">Créditos cobrados por tier de qualidade</p>
+        <div className="space-y-2 pt-1 border-t border-border/40">
+          <p className="text-xs font-semibold text-muted-foreground">Créditos cobrados por tier de qualidade <span className="font-normal">(sobrescreve o cron — edite só para ajuste manual)</span></p>
           <div className="grid grid-cols-3 gap-3">
             {(["low", "medium", "high"] as const).map((tier) => {
               const key = `ai_image_credit_cost_${tier}` as const;

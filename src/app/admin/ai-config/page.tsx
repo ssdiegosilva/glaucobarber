@@ -9,6 +9,7 @@ const AI_CONFIG_KEYS = [
   "ai_image_credit_cost_low",
   "ai_image_credit_cost_medium",
   "ai_image_credit_cost_high",
+  "ai_image_profit_margin",
 ] as const;
 
 const AI_CONFIG_DEFAULTS: Record<string, string> = {
@@ -19,6 +20,7 @@ const AI_CONFIG_DEFAULTS: Record<string, string> = {
   ai_image_credit_cost_low:    "40",
   ai_image_credit_cost_medium: "70",
   ai_image_credit_cost_high:   "190",
+  ai_image_profit_margin:      "35",
 };
 
 export default async function AdminAiConfigPage() {

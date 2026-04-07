@@ -11,9 +11,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const MARGIN      = 0.35;           // 35% profit margin (of selling price)
-const CREDIT_BRL  = 0.10;           // R$0.10 per credit (R$20 / 200)
-const FALLBACK_RATE = 5.80;         // fallback if API is down
+const MIN_MARGIN    = 0.35;         // never below 35% profit margin
+const CREDIT_BRL    = 0.10;         // R$0.10 per credit (R$20 / 200)
+const FALLBACK_RATE = 5.80;         // fallback if exchange API is down
 
 // gpt-image-1 1024×1024 costs in USD (source: OpenAI pricing page)
 const OPENAI_COSTS = {
@@ -34,6 +34,13 @@ export async function GET(req: NextRequest) {
   });
 
   try {
+    // ── 0. Read configured margin from DB ─────────────────────
+    const marginConfig = await prisma.platformConfig.findUnique({
+      where: { key: "ai_image_profit_margin" },
+    });
+    const configuredMargin = marginConfig ? parseFloat(marginConfig.value) / 100 : MIN_MARGIN;
+    const MARGIN = Math.max(MIN_MARGIN, Math.min(0.90, configuredMargin)); // clamp [35%, 90%]
+
     // ── 1. Fetch USD/BRL exchange rate ─────────────────────────
     let usdBrl = FALLBACK_RATE;
     let rateSource = "fallback";
@@ -95,7 +102,7 @@ export async function GET(req: NextRequest) {
       usdBrl,
       rateSource,
       credits:    { low, medium, high },
-      margin:     "35% (sobre o preço de venda)",
+      margin:     `${Math.round(MARGIN * 100)}% (sobre o preço de venda)`,
       durationMs,
     });
 
