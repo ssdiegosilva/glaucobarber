@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
+import { RefreshCw } from "lucide-react";
 
 const TIER_LABELS: Record<string, { label: string; color: string }> = {
   FREE:  { label: "Free",          color: "text-muted-foreground border-border/60" },
@@ -25,6 +26,24 @@ export function FeaturesClient({ matrix: initialMatrix, features, planTiers }: P
   const [matrix, setMatrix] = useState(initialMatrix);
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState<string | null>(null); // "feature:tier"
+  const [seeding, setSeeding] = useState(false);
+  const [seedMsg, setSeedMsg] = useState<string | null>(null);
+
+  async function resetToDefaults() {
+    setSeeding(true);
+    setSeedMsg(null);
+    try {
+      const res = await fetch("/api/admin/features/seed", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setSeedMsg(`Gates resetados com sucesso (${data.count} registros). Recarregue a página.`);
+      } else {
+        setSeedMsg("Erro ao resetar gates.");
+      }
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   async function toggle(feature: string, planTier: string) {
     const current = matrix[feature]?.[planTier] ?? true;
@@ -57,6 +76,19 @@ export function FeaturesClient({ matrix: initialMatrix, features, planTiers }: P
   }
 
   return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={resetToDefaults}
+          disabled={seeding}
+          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${seeding ? "animate-spin" : ""}`} />
+          Resetar gates para padrão
+        </button>
+        {seedMsg && <p className="text-xs text-green-400">{seedMsg}</p>}
+      </div>
+
     <div className="rounded-xl border border-border/60 overflow-hidden">
       <table className="w-full text-sm">
         <thead>
@@ -111,6 +143,7 @@ export function FeaturesClient({ matrix: initialMatrix, features, planTiers }: P
           ))}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
