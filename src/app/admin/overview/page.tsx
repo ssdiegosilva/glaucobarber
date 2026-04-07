@@ -26,7 +26,7 @@ export default async function AdminOverviewPage() {
     pricingConfigs,
   ] = await Promise.all([
     prisma.platformConfig.findMany({
-      where: { key: { in: ["kill_ai_global", "kill_image_generation", "kill_whatsapp_auto", "kill_trinks_sync", "kill_new_signups"] } },
+      where: { key: { in: ["kill_ai_global", "kill_image_generation", "kill_whatsapp_auto", "kill_trinks_sync", "kill_new_signups", "kill_image_pricing"] } },
     }),
     // Last run per cron — distinct by cronName
     prisma.cronRun.findMany({
@@ -82,6 +82,7 @@ export default async function AdminOverviewPage() {
     kill_whatsapp_auto:    killMap["kill_whatsapp_auto"]    ?? false,
     kill_trinks_sync:      killMap["kill_trinks_sync"]      ?? false,
     kill_new_signups:      killMap["kill_new_signups"]      ?? false,
+    kill_image_pricing:    killMap["kill_image_pricing"]    ?? false,
   };
 
   // Plan limits for 80% threshold check

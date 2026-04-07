@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getKillSwitch } from "@/lib/platform-config";
 
 const MIN_MARGIN    = 0.35;         // never below 35% profit margin
 const CREDIT_BRL    = 0.10;         // R$0.10 per credit (R$20 / 200)
@@ -26,6 +27,11 @@ export async function GET(req: NextRequest) {
   const secret = req.headers.get("authorization")?.replace("Bearer ", "");
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Kill switch — return 200 (not 401, so cron-job.org doesn't flag as error)
+  if (await getKillSwitch("kill_image_pricing")) {
+    return NextResponse.json({ skipped: true, reason: "kill_image_pricing active" });
   }
 
   const startedAt = Date.now();

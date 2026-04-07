@@ -14,6 +14,7 @@ type KillSwitches = {
   kill_whatsapp_auto:    boolean;
   kill_trinks_sync:      boolean;
   kill_new_signups:      boolean;
+  kill_image_pricing:    boolean;
 };
 
 type CronRun = {
@@ -103,6 +104,13 @@ const KILL_SWITCH_META: {
     description: "Bloqueia o onboarding de novas barbearias",
     icon: UserPlus,
     color: "yellow",
+  },
+  {
+    key: "kill_image_pricing",
+    label: "Precificação Auto",
+    description: "Pausa o cron de atualização de preços de imagem (USD/BRL)",
+    icon: TrendingUp,
+    color: "zinc",
   },
 ];
 
@@ -527,7 +535,7 @@ export function OverviewClient({ killSwitches: initial, cronRuns: initialCronRun
             </div>
           </div>
         ) : (
-          <p className="text-sm text-zinc-500">Cron ainda não executou. Clique em "Atualizar agora" para calcular.</p>
+          <p className="text-sm text-zinc-500">Cron ainda não executou. Clique em &ldquo;Atualizar agora&rdquo; para calcular.</p>
         )}
 
         {imagePricing.updatedAt && (
