@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export interface AiImageConfig {
   model:        "gpt-image-1" | "dall-e-3" | "dall-e-2";
-  size:         string;
+  size:         "1024x1024";
   quality:      "low" | "medium" | "high" | "standard" | "hd";
   creditCost:   number;  // legacy / fallback — base credit cost
   costUsdCents: number;  // actual platform cost in USD cents (e.g. 7 = $0.07)
@@ -48,7 +48,7 @@ export async function getAiImageConfig(): Promise<AiImageConfig> {
   const rows = await prisma.platformConfig.findMany({
     where: {
       key: { in: [
-        "ai_image_model", "ai_image_size", "ai_image_quality",
+        "ai_image_model", "ai_image_quality",
         "ai_image_credit_cost", "ai_image_cost_usd_cents",
         "ai_image_credit_cost_low", "ai_image_credit_cost_medium", "ai_image_credit_cost_high",
       ]},
@@ -58,7 +58,7 @@ export async function getAiImageConfig(): Promise<AiImageConfig> {
   const int = (k: string, def: number) => parseInt(get(k) ?? "") || def;
   return {
     model:           (get("ai_image_model")   as AiImageConfig["model"])   ?? AI_IMAGE_DEFAULTS.model,
-    size:            (get("ai_image_size")    as AiImageConfig["size"])    ?? AI_IMAGE_DEFAULTS.size,
+    size:            "1024x1024" as const,
     quality:         (get("ai_image_quality") as AiImageConfig["quality"]) ?? AI_IMAGE_DEFAULTS.quality,
     creditCost:      int("ai_image_credit_cost",         AI_IMAGE_DEFAULTS.creditCost),
     costUsdCents:    int("ai_image_cost_usd_cents",       AI_IMAGE_DEFAULTS.costUsdCents),

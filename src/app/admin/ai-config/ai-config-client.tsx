@@ -23,12 +23,6 @@ const COST_BY_MODEL: Record<string, { low: number; medium: number; high: number 
 
 const MODEL_OPTIONS = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
 
-const SIZE_OPTIONS_BY_MODEL: Record<string, string[]> = {
-  "gpt-image-1": ["1024x1024", "1024x1536", "1536x1024", "auto"],
-  "dall-e-3":    ["1024x1024", "1792x1024", "1024x1792"],
-  "dall-e-2":    ["256x256", "512x512", "1024x1024"],
-};
-
 interface CostData {
   trialStats: {
     count:             number;
@@ -65,7 +59,6 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
   }, []);
 
   const activeModel = values["ai_image_model"] || "gpt-image-1";
-  const activeSize  = values["ai_image_size"]  || "1024x1024";
 
   async function toggleKillImage() {
     const newVal = !killImage;
@@ -151,42 +144,22 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           <Cpu className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold text-foreground">Modelo ativo</span>
           <span className="ml-auto text-[11px] text-muted-foreground font-mono">
-            {activeModel} / {activeSize}
+            {activeModel} · 1024×1024
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Modelo</label>
-            <select
-              value={values["ai_image_model"] ?? "gpt-image-1"}
-              onChange={(e) => {
-                const newModel   = e.target.value;
-                const validSizes = SIZE_OPTIONS_BY_MODEL[newModel] ?? ["1024x1024"];
-                const currentSize = values["ai_image_size"] ?? "1024x1024";
-                const newSize    = validSizes.includes(currentSize) ? currentSize : "1024x1024";
-                setValues((v) => ({ ...v, ai_image_model: newModel, ai_image_size: newSize }));
-              }}
-              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground"
-            >
-              {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <p className="text-[10px] text-muted-foreground">
-              {activeModel === "gpt-image-1" ? "Suporta foto de referência (images.edit)" : "Geração sem referência"}
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Tamanho</label>
-            <select
-              value={values["ai_image_size"] ?? "1024x1024"}
-              onChange={(e) => setValues((v) => ({ ...v, ai_image_size: e.target.value }))}
-              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground"
-            >
-              {(SIZE_OPTIONS_BY_MODEL[activeModel] ?? ["1024x1024"]).map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <p className="text-[10px] text-muted-foreground">Qualidade é escolhida pelo usuário na hora de gerar</p>
-          </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Modelo</label>
+          <select
+            value={values["ai_image_model"] ?? "gpt-image-1"}
+            onChange={(e) => setValues((v) => ({ ...v, ai_image_model: e.target.value }))}
+            className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground sm:max-w-xs"
+          >
+            {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <p className="text-[10px] text-muted-foreground">
+            {activeModel === "gpt-image-1" ? "Suporta foto de referência (images.edit)" : "Geração sem referência"} · Tamanho fixo 1024×1024 (Instagram quadrado)
+          </p>
         </div>
 
         {/* Credit costs per quality tier */}
@@ -218,7 +191,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
         </div>
 
         <p className="text-[10px] text-muted-foreground/60 pt-1">
-          Custo OpenAI por tier é fixo pelo modelo ativo — Rascunho ${(modelCosts.low / 100).toFixed(3)} · Padrão ${(modelCosts.medium / 100).toFixed(3)} · Alta ${(modelCosts.high / 100).toFixed(3)}
+          Custo OpenAI para <span className="font-mono">{activeModel}</span> 1024×1024 — Rascunho ${(modelCosts.low / 100).toFixed(3)} · Padrão ${(modelCosts.medium / 100).toFixed(3)} · Alta ${(modelCosts.high / 100).toFixed(3)}
         </p>
 
         <div className="flex items-center gap-3">
@@ -242,7 +215,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
         <div className="px-4 py-3 bg-surface-800 border-b border-border flex items-center gap-2">
           <span className="text-sm font-semibold text-foreground">Referência por tier</span>
           <span className="text-[10px] text-muted-foreground ml-auto">
-            Custos para modelo ativo: <span className="font-mono">{activeModel}</span> — clique para preencher o crédito do tier
+            <span className="font-mono">{activeModel}</span> · 1024×1024 — clique para preencher o crédito do tier
           </span>
         </div>
         <div className="overflow-x-auto">

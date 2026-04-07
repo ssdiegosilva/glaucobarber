@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 
 const AI_CONFIG_KEYS = [
   "ai_image_model",
-  "ai_image_size",
   "ai_image_quality",
   "ai_image_credit_cost",
   "ai_image_cost_usd_cents",
@@ -15,7 +14,6 @@ const AI_CONFIG_KEYS = [
 
 const AI_CONFIG_DEFAULTS: Record<string, string> = {
   ai_image_model:             "gpt-image-1",
-  ai_image_size:              "1024x1024",
   ai_image_quality:           "medium",
   ai_image_credit_cost:       "70",
   ai_image_cost_usd_cents:    "7",
