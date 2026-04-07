@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Zap, Loader2, Clock, PencilLine, CreditCard, LogOut, Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
+import { Sparkles, Zap, Loader2, Clock, PencilLine, CreditCard, LogOut, Lightbulb, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -41,6 +41,7 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
   const [aiTrialing,         setAiTrialing]         = useState(false);
   const [aiCredits,          setAiCredits]          = useState(0);
   const [aiCreditsPurchased, setAiCreditsPurchased] = useState(0);
+  const [planTier,           setPlanTier]           = useState<string>("FREE");
   const [logs,          setLogs]          = useState<CallLog[]>([]);
   const [loadingLogs,   setLoadingLogs]   = useState(false);
   const [historyOpen,   setHistoryOpen]   = useState(false);
@@ -60,6 +61,7 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
       setAiTotal(data.limit);
       setAiCredits(data.credits);
       setAiCreditsPurchased(data.creditsPurchased ?? 0);
+      setPlanTier(data.planTier ?? "FREE");
     } catch {}
   }, []);
 
@@ -165,8 +167,28 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
               </div>
             )}
 
-            {/* Balde 2: Plano mensal */}
-            {!aiTrialing && (
+            {/* Balde 2: Plano mensal — FREE mostra aviso de upgrade, outros mostram barra */}
+            {!aiTrialing && planTier === "FREE" && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  <span className="text-xs font-semibold text-amber-400">Plano Free — sem créditos mensais</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  O plano Free não inclui créditos mensais de IA. Você pode comprar créditos avulsos para usar nas funcionalidades disponíveis, ou fazer upgrade para ter acesso completo.
+                </p>
+                <Link
+                  href="/billing"
+                  onClick={() => onOpenChange(false)}
+                  className="flex items-center justify-center gap-1.5 w-full rounded-md bg-gold-500/15 border border-gold-500/30 px-3 py-1.5 text-[11px] font-semibold text-gold-400 hover:bg-gold-500/25 transition-colors"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Ver planos e fazer upgrade
+                </Link>
+              </div>
+            )}
+
+            {!aiTrialing && planTier !== "FREE" && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-foreground">Plano mensal</span>

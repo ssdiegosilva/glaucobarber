@@ -19,5 +19,6 @@ export async function GET() {
     credits:           allowance.creditsRemaining,
     creditsPurchased:  plan.aiCreditsPurchased,
     isTrialing:        allowance.planStatus === "TRIALING",
+    planTier:          plan.effectiveTier,
   });
 }

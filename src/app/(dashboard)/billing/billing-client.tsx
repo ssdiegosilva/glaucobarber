@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, AlertTriangle, Receipt, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Sparkles, Zap, CheckCircle2, XCircle, TrendingUp, CreditCard, Loader2, AlertTriangle, Receipt, ChevronDown, ChevronUp, Info, Lock } from "lucide-react";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 
 // ── Plan display config ──────────────────────────────────────────────────────
@@ -369,7 +369,18 @@ export function BillingClient({
           </div>
         ) : (
         <div className="space-y-3">
-          {/* Barra do plano */}
+          {/* FREE: sem créditos mensais — aviso de upgrade */}
+          {planTier === "FREE" ? (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <span className="text-xs font-semibold text-amber-400">Plano Free — sem créditos mensais</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                O plano Free não inclui créditos mensais. Você pode comprar créditos avulsos para usar as funcionalidades disponíveis, ou fazer upgrade para ter acesso completo.
+              </p>
+            </div>
+          ) : (
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
               <span>{aiUsed} de {aiLimit === Infinity ? "∞" : aiLimit} chamadas usadas</span>
@@ -387,6 +398,7 @@ export function BillingClient({
             </div>
             <p className="text-xs text-muted-foreground mt-1">Renova todo mês com o plano</p>
           </div>
+          )}
 
           {/* Barra de créditos extras (reserva) */}
           {aiCreditsRemaining > 0 && (
