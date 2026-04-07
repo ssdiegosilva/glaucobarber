@@ -160,29 +160,29 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           <Cpu className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold text-foreground">Modelo ativo</span>
           <span className="ml-auto text-[11px] text-muted-foreground font-mono">
-            {activeModel} / {activeSize} / {activeQuality}
+            {activeModel} / {activeSize}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Modelo</label>
             <select
               value={values["ai_image_model"] ?? "gpt-image-1"}
               onChange={(e) => {
-                const newModel = e.target.value;
-                const validSizes    = SIZE_OPTIONS_BY_MODEL[newModel] ?? ["1024x1024"];
-                const validQualities = QUALITY_OPTIONS_BY_MODEL[newModel] ?? ["standard"];
-                const currentSize    = values["ai_image_size"]    ?? "1024x1024";
-                const currentQuality = values["ai_image_quality"] ?? "medium";
-                const newSize    = validSizes.includes(currentSize)       ? currentSize    : "1024x1024";
-                const newQuality = validQualities.includes(currentQuality) ? currentQuality : validQualities[0];
-                setValues((v) => ({ ...v, ai_image_model: newModel, ai_image_size: newSize, ai_image_quality: newQuality }));
+                const newModel   = e.target.value;
+                const validSizes = SIZE_OPTIONS_BY_MODEL[newModel] ?? ["1024x1024"];
+                const currentSize = values["ai_image_size"] ?? "1024x1024";
+                const newSize    = validSizes.includes(currentSize) ? currentSize : "1024x1024";
+                setValues((v) => ({ ...v, ai_image_model: newModel, ai_image_size: newSize }));
               }}
               className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground"
             >
               {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
+            <p className="text-[10px] text-muted-foreground">
+              {activeModel === "gpt-image-1" ? "Suporta foto de referência (images.edit)" : "Geração sem referência"}
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -194,19 +194,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
             >
               {(SIZE_OPTIONS_BY_MODEL[activeModel] ?? ["1024x1024"]).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Qualidade</label>
-            <select
-              value={values["ai_image_quality"] ?? "medium"}
-              onChange={(e) => setValues((v) => ({ ...v, ai_image_quality: e.target.value }))}
-              className="w-full rounded-md border border-border bg-surface-900 px-3 py-2 text-sm text-foreground"
-            >
-              {(QUALITY_OPTIONS_BY_MODEL[activeModel] ?? ["standard"]).map((q) => (
-                <option key={q} value={q}>{q}</option>
-              ))}
-            </select>
+            <p className="text-[10px] text-muted-foreground">Qualidade é escolhida pelo usuário na hora de gerar</p>
           </div>
         </div>
 
@@ -297,9 +285,9 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                   <tr
                     key={i}
                     onClick={() => {
-                      // Map quality → tier key
+                      // Map table row quality → credit tier key
                       const tierKey = (row.quality === "low" || row.quality === "medium" || row.quality === "high")
-                        ? `ai_image_credit_cost_${row.quality}` as const
+                        ? `ai_image_credit_cost_${row.quality}`
                         : row.quality === "hd"
                           ? "ai_image_credit_cost_high"
                           : "ai_image_credit_cost_low";
@@ -307,7 +295,6 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                         ...v,
                         ai_image_model:          row.model,
                         ai_image_size:           row.size,
-                        ai_image_quality:        row.quality,
                         ai_image_cost_usd_cents: String(row.costCents),
                         [tierKey]:               String(row.suggestedCredits),
                       }));
@@ -336,7 +323,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
         <div className="px-4 py-2 bg-surface-800/30 border-t border-border/40">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
-            Clicar em uma linha preenche modelo, tamanho, qualidade, custo OpenAI e créditos sugeridos (80% margem). Salve para aplicar.
+            Clicar em uma linha preenche modelo, tamanho, custo OpenAI e o crédito sugerido para aquele tier de qualidade. Salve para aplicar.
           </p>
         </div>
       </div>
