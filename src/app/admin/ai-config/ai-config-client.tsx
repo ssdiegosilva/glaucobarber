@@ -8,16 +8,17 @@ import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2, ImageOff, Alert
 // ── Model comparison table (hardcoded reference data) ─────────────────────────
 
 // costCents = USD cents paid to OpenAI per image
-// suggestedCredits = ceil(costCents / 2) → ~80% margin (1 crédito ≈ $0.10 USD no plano PRO)
+// breakEven  = costCents × 10  (1 crédito = $0.001 → precisa de cost/$0.001 créditos para se pagar)
+// margin80   = costCents × 50  (para 80% de margem: receita = custo / 0.20)
 const MODEL_TABLE = [
-  { model: "gpt-image-1", size: "1024x1024", quality: "low",      costCents: 4,  suggestedCredits: 2,  notes: "gpt-image-1 baixa — rascunho, mais barato" },
-  { model: "gpt-image-1", size: "1024x1024", quality: "medium",   costCents: 7,  suggestedCredits: 4,  notes: "gpt-image-1 média — recomendado (padrão)" },
-  { model: "gpt-image-1", size: "1024x1024", quality: "high",     costCents: 19, suggestedCredits: 10, notes: "gpt-image-1 alta — máxima qualidade" },
-  { model: "dall-e-3",    size: "1024x1024", quality: "standard", costCents: 4,  suggestedCredits: 2,  notes: "Boa qualidade, sem foto de referência" },
-  { model: "dall-e-3",    size: "1024x1024", quality: "hd",       costCents: 8,  suggestedCredits: 4,  notes: "Alta qualidade (HD), sem referência" },
-  { model: "dall-e-2",    size: "1024x1024", quality: "standard", costCents: 2,  suggestedCredits: 1,  notes: "Qualidade básica, sem referência" },
-  { model: "dall-e-2",    size: "512x512",   quality: "standard", costCents: 2,  suggestedCredits: 1,  notes: "Testes e dev — mais barato" },
-  { model: "dall-e-2",    size: "256x256",   quality: "standard", costCents: 2,  suggestedCredits: 1,  notes: "Só para testes, qualidade baixa" },
+  { model: "gpt-image-1", size: "1024x1024", quality: "low",      costCents: 4,  breakEven: 40,  margin80: 200,  notes: "gpt-image-1 baixa — rascunho, mais barato" },
+  { model: "gpt-image-1", size: "1024x1024", quality: "medium",   costCents: 7,  breakEven: 70,  margin80: 350,  notes: "gpt-image-1 média — recomendado (padrão)" },
+  { model: "gpt-image-1", size: "1024x1024", quality: "high",     costCents: 19, breakEven: 190, margin80: 950,  notes: "gpt-image-1 alta — máxima qualidade" },
+  { model: "dall-e-3",    size: "1024x1024", quality: "standard", costCents: 4,  breakEven: 40,  margin80: 200,  notes: "Boa qualidade, sem foto de referência" },
+  { model: "dall-e-3",    size: "1024x1024", quality: "hd",       costCents: 8,  breakEven: 80,  margin80: 400,  notes: "Alta qualidade (HD), sem referência" },
+  { model: "dall-e-2",    size: "1024x1024", quality: "standard", costCents: 2,  breakEven: 20,  margin80: 100,  notes: "Qualidade básica, sem referência" },
+  { model: "dall-e-2",    size: "512x512",   quality: "standard", costCents: 2,  breakEven: 20,  margin80: 100,  notes: "Testes e dev — mais barato" },
+  { model: "dall-e-2",    size: "256x256",   quality: "standard", costCents: 2,  breakEven: 20,  margin80: 100,  notes: "Só para testes, qualidade baixa" },
 ] as const;
 
 const MODEL_OPTIONS   = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
@@ -271,7 +272,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           <table className="w-full text-sm">
             <thead className="bg-surface-800/50">
               <tr>
-                {["Modelo", "Tamanho", "Qualidade", "Custo OpenAI", "Créditos (80%)", "Notas", ""].map((h) => (
+                {["Modelo", "Tamanho", "Qualidade", "Custo OpenAI", "Break-even", "80% margem", "Notas", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -296,7 +297,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                         ai_image_model:          row.model,
                         ai_image_size:           row.size,
                         ai_image_cost_usd_cents: String(row.costCents),
-                        [tierKey]:               String(row.suggestedCredits),
+                        [tierKey]:               String(row.breakEven),
                       }));
                     }}
                     className={`cursor-pointer transition-colors ${
@@ -309,7 +310,8 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{row.size}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{row.quality}</td>
                     <td className="px-4 py-3 text-xs font-semibold text-amber-400 whitespace-nowrap">${(row.costCents / 100).toFixed(3)}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-green-400 whitespace-nowrap">{row.suggestedCredits} créditos</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-blue-400 whitespace-nowrap">{row.breakEven}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-green-400 whitespace-nowrap">{row.margin80}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{row.notes}</td>
                     <td className="px-4 py-3 text-center">
                       {active && <CheckCircle2 className="h-4 w-4 text-red-400 mx-auto" />}
@@ -323,7 +325,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
         <div className="px-4 py-2 bg-surface-800/30 border-t border-border/40">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
-            Clicar em uma linha preenche modelo, tamanho, custo OpenAI e o crédito sugerido para aquele tier de qualidade. Salve para aplicar.
+            Break-even = mínimo para se pagar (1 crédito = $0.001). 80% margem = break-even × 5. Clicar preenche com o break-even do tier.
           </p>
         </div>
       </div>
