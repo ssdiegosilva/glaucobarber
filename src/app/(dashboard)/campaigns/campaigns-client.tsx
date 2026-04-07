@@ -811,6 +811,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); throw new Error("ai_limit_reached"); }
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar imagem");
       window.dispatchEvent(new Event("ai-used"));
+      window.dispatchEvent(new Event("notifications-changed"));
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl: data.url } : c)));
       toast({ title: "Imagem gerada", description: "Arte criada via IA." });
     } catch (e) {
@@ -1091,8 +1092,8 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             </p>
             <span className="rounded-full border border-purple-500/30 px-2 py-0.5 text-[10px] text-purple-400">{generatingCampaigns.length}</span>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {generatingCampaigns.map((c) => <GeneratingCard key={c.id} c={c} />)}
+          <div className="flex gap-4 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            {generatingCampaigns.map((c) => <div key={c.id} className="shrink-0 w-80 snap-start"><GeneratingCard c={c} /></div>)}
           </div>
 
         </div>
@@ -1105,16 +1106,18 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <p className="text-xs font-semibold text-foreground">Aguardando aprovação</p>
             <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{draftCampaigns.length}</span>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
             {draftCampaigns.map((c) => (
-              <CampaignCard
-                key={c.id} c={c}
-                uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
-                hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
-                imageCreditCosts={imageCreditCosts}
-                onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
-                onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
-              />
+              <div key={c.id} className="shrink-0 w-80 snap-start">
+                <CampaignCard
+                  c={c}
+                  uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
+                  hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                  imageCreditCosts={imageCreditCosts}
+                  onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
+                  onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -1130,56 +1133,39 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
               <span className="ml-auto rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{queueCampaigns.length}</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border">
+          <CardContent className="px-0 pb-3">
+            <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               {queueCampaigns.map((c) => {
                 const today   = isToday(c.scheduledAt);
                 const dateStr = formatScheduled(c.scheduledAt);
                 return (
-                  <div key={c.id} className={`px-4 py-3 ${today ? "bg-amber-500/5" : ""}`}>
-                    <div className="flex flex-col gap-2">
-                      {/* Title + badges */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs font-semibold text-foreground truncate">{c.title}</p>
-                          {today && c.scheduledAt && (
-                            <LaunchCountdown scheduledAt={c.scheduledAt} />
-                          )}
-                          {!c.imageUrl && (
-                            <span className="text-[10px] text-red-400/80 shrink-0">sem imagem</span>
-                          )}
-                        </div>
-                        {c.status === "FAILED" && c.errorMsg ? (
-                          <p className="text-[11px] text-red-400/80 mt-0.5">{c.errorMsg}</p>
-                        ) : dateStr ? (
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{dateStr}</p>
-                        ) : (
-                          <p className="text-[11px] text-amber-400/70 mt-0.5">Sem data definida</p>
+                  <div key={c.id} className={`shrink-0 w-72 snap-start rounded-lg border border-border p-3 flex flex-col gap-2 ${today ? "bg-amber-500/5 border-amber-500/20" : "bg-surface-800/40"}`}>
+                    {/* Title + badges */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs font-semibold text-foreground truncate">{c.title}</p>
+                        {today && c.scheduledAt && (
+                          <LaunchCountdown scheduledAt={c.scheduledAt} />
+                        )}
+                        {!c.imageUrl && (
+                          <span className="text-[10px] text-red-400/80 shrink-0">sem imagem</span>
                         )}
                       </div>
-                      {/* Actions */}
-                      <div className="flex items-center gap-1.5">
-                        {c.status === "FAILED" ? (
-                          c.id.startsWith("generating-") ? (
-                            // Falhou durante geração — sem DB record, só descartar
-                            <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); remove(c.id); }}>
-                              Descartar
-                            </Button>
-                          ) :!instagramConfigured ? (
-                            <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
-                              <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
-                                <Settings className="h-3 w-3" />Conectar Instagram
-                              </Button>
-                            </Link>
-                          ) : (
-                            <Button
-                              size="sm"
-                              className="h-7 text-[11px] gap-1"
-                              onClick={(e) => { e.stopPropagation(); setStatus(c.id, "SCHEDULED"); }}
-                            >
-                              <Send className="h-3 w-3" />Tentar novamente
-                            </Button>
-                          )
+                      {c.status === "FAILED" && c.errorMsg ? (
+                        <p className="text-[11px] text-red-400/80 mt-0.5">{c.errorMsg}</p>
+                      ) : dateStr ? (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{dateStr}</p>
+                      ) : (
+                        <p className="text-[11px] text-amber-400/70 mt-0.5">Sem data definida</p>
+                      )}
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5">
+                      {c.status === "FAILED" ? (
+                        c.id.startsWith("generating-") ? (
+                          <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); remove(c.id); }}>
+                            Descartar
+                          </Button>
                         ) :!instagramConfigured ? (
                           <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
                             <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
@@ -1190,42 +1176,56 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                           <Button
                             size="sm"
                             className="h-7 text-[11px] gap-1"
-                            onClick={(e) => { e.stopPropagation(); publish(c.id); }}
-                            disabled={publishingId === c.id || !c.imageUrl}
-                            title={!c.imageUrl ? "Adicione uma imagem primeiro" : undefined}
+                            onClick={(e) => { e.stopPropagation(); setStatus(c.id, "SCHEDULED"); }}
                           >
-                            {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
+                            <Send className="h-3 w-3" />Tentar novamente
                           </Button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if (editingText === c.id) { setEditingText(null); } else { setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); } }}
-                          className={`rounded-md border p-1.5 transition-colors ${editingText === c.id ? "border-gold-500/40 text-gold-400 bg-gold-500/10" : "border-border text-muted-foreground hover:text-foreground hover:bg-surface-700"}`}
-                          title="Editar texto"
+                        )
+                      ) :!instagramConfigured ? (
+                        <Link href="/settings?section=integrations#integrations" onClick={(e) => e.stopPropagation()}>
+                          <Button size="sm" className="h-7 text-[11px] gap-1 border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" variant="outline">
+                            <Settings className="h-3 w-3" />Conectar Instagram
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="h-7 text-[11px] gap-1"
+                          onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                          disabled={publishingId === c.id || !c.imageUrl}
+                          title={!c.imageUrl ? "Adicione uma imagem primeiro" : undefined}
                         >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setRescheduleModal(c.id); }}
-                          className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
-                          title="Alterar data"
-                        >
-                          <CalendarDays className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); remove(c.id); }}
-                          className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
+                          {publishingId === c.id ? <><Sparkles className="h-3 w-3 animate-spin" />Publicando...</> : <><Send className="h-3 w-3" />Enviar agora</>}
+                        </Button>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (editingText === c.id) { setEditingText(null); } else { setEditedText((prev) => ({ ...prev, [c.id]: c.text })); setEditingText(c.id); } }}
+                        className={`rounded-md border p-1.5 transition-colors ${editingText === c.id ? "border-gold-500/40 text-gold-400 bg-gold-500/10" : "border-border text-muted-foreground hover:text-foreground hover:bg-surface-700"}`}
+                        title="Editar texto"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setRescheduleModal(c.id); }}
+                        className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-700 transition-colors"
+                        title="Alterar data"
+                      >
+                        <CalendarDays className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); remove(c.id); }}
+                        className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
                     {editingText === c.id && (
-                      <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="mt-1 space-y-2" onClick={(e) => e.stopPropagation()}>
                         <textarea
                           value={editedText[c.id] ?? c.text}
                           onChange={(e) => setEditedText((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                          rows={5}
+                          rows={4}
                           className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring resize-none"
                         />
                         <div className="flex gap-2">
@@ -1312,16 +1312,18 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             <p className="text-xs font-semibold text-muted-foreground">Dispensadas</p>
             <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{dismissedCampaigns.length}</span>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
             {dismissedCampaigns.map((c) => (
-              <CampaignCard
-                key={c.id} c={c}
-                uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
-                hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
-                imageCreditCosts={imageCreditCosts}
-                onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
-                onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
-              />
+              <div key={c.id} className="shrink-0 w-80 snap-start">
+                <CampaignCard
+                  c={c}
+                  uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
+                  hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                  imageCreditCosts={imageCreditCosts}
+                  onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
+                  onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -1347,16 +1349,18 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
             const paginated  = archivedCampaigns.slice((archivedPage - 1) * ARCHIVED_PAGE_SIZE, archivedPage * ARCHIVED_PAGE_SIZE);
             return (
               <div className="space-y-3">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="flex gap-4 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                   {paginated.map((c) => (
-                    <CampaignCard
-                      key={c.id} c={c}
-                      uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
-                      hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
-                      imageCreditCosts={imageCreditCosts}
-                      onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
-                      onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
-                    />
+                    <div key={c.id} className="shrink-0 w-80 snap-start">
+                      <CampaignCard
+                        c={c}
+                        uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
+                        hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                        imageCreditCosts={imageCreditCosts}
+                        onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
+                        onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
+                      />
+                    </div>
                   ))}
                 </div>
                 {totalPages > 1 && (

@@ -270,8 +270,8 @@ export async function consumeAiCredit(
     costUsdCents = TEXT_FEATURE_COST_USD_CENTS[feature] ?? 0.03;
   }
 
-  // Log this call with actual USD cost
-  await logAiCall(barbershopId, feature, costUsdCents);
+  // Log this call with actual USD cost and credits consumed
+  await logAiCall(barbershopId, feature, costUsdCents, cost);
 
   // During trial: track against the 300-call safety cap under key "trialing"
   if (plan.status === "TRIALING") {
@@ -327,11 +327,11 @@ export async function consumeAiCredit(
 
 // ── logAiCall ──────────────────────────────────────────────────────────────────
 
-async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0): Promise<void> {
+async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0, credits = 1): Promise<void> {
   const label = AI_FEATURE_LABELS[feature] ?? feature;
 
   await prisma.aiCallLog.create({
-    data: { barbershopId, feature, label, costUsdCents },
+    data: { barbershopId, feature, label, credits, costUsdCents },
   });
 
   // Keep only the last AI_CALL_LOG_MAX entries per barbershop

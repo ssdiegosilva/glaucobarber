@@ -18,6 +18,7 @@ interface Props {
 interface CallLog {
   id:        string;
   label:     string;
+  credits:   number;
   createdAt: string;
 }
 
@@ -250,9 +251,12 @@ export function AiUsageWidget({ initialUsed, initialLimit, initialCredits, initi
                       <div className="h-1.5 w-1.5 rounded-full bg-gold-400 shrink-0" />
                       <span className="text-sm text-foreground truncate">{log.label}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
-                      <Clock className="h-3 w-3" />
-                      {formatRelative(log.createdAt)}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-medium text-gold-400">{log.credits ?? 1} cr</span>
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {formatRelative(log.createdAt)}
+                      </div>
                     </div>
                   </div>
                 ))}
