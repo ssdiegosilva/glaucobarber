@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     DELETE FROM ai_call_logs
     WHERE id NOT IN (
       SELECT id FROM (
-        SELECT id, ROW_NUMBER() OVER (PARTITION BY barbershop_id ORDER BY created_at DESC) AS rn
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY "barbershopId" ORDER BY "createdAt" DESC) AS rn
         FROM ai_call_logs
       ) ranked
       WHERE rn <= 30
