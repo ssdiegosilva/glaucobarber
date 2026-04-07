@@ -15,6 +15,7 @@ import {
   UserPlus, Repeat2, Target, X, ExternalLink, Plug, Unplug,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { CardDetailsPicker } from "@/components/payment/card-details-picker";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -369,13 +370,16 @@ export function DashboardClient({
     }
   }
 
-  async function savePayment(id: string, paidValue: number | null, discountValue: number | null, note?: string, paymentMethod?: string | null) {
+  async function savePayment(id: string, paidValue: number | null, discountValue: number | null, note?: string, paymentMethod?: string | null, cardDetails?: { cardBrand: string; cardPaymentType: string; cardInstallments: number } | null) {
     setSavingPayment(id);
     try {
       const res = await fetch(`/api/appointments/${id}/payment`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paidValue, discountValue, note, paymentMethod: paymentMethod ?? null }),
+        body: JSON.stringify({
+          paidValue, discountValue, note, paymentMethod: paymentMethod ?? null,
+          ...(cardDetails ?? {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar pagamento");
@@ -716,7 +720,7 @@ export function DashboardClient({
                       onAddItem={(item) => addItem(apt.id, item)}
                       onRemoveItem={(itemId) => removeItem(apt.id, itemId)}
                       savingItem={savingItem === apt.id}
-                      onSavePayment={(paid, method) => savePayment(apt.id, paid, null, undefined, method)}
+                      onSavePayment={(paid, method, cardDetails) => savePayment(apt.id, paid, null, undefined, method, cardDetails)}
                       savingPayment={savingPayment === apt.id}
                       onReschedule={(scheduledAt) => rescheduleAppointment(apt.id, scheduledAt)}
                     />
@@ -840,7 +844,7 @@ function AppointmentPanel({
   onAddItem: (item: { name: string; quantity: number; unitPrice: number; serviceId?: string }) => void;
   onRemoveItem: (itemId: string) => void;
   savingItem: boolean;
-  onSavePayment: (paid: number | null, paymentMethod: string | null) => void;
+  onSavePayment: (paid: number | null, paymentMethod: string | null, cardDetails?: { cardBrand: string; cardPaymentType: string; cardInstallments: number } | null) => void;
   savingPayment: boolean;
   onReschedule: (scheduledAt: string) => void;
 }) {
@@ -848,6 +852,8 @@ function AppointmentPanel({
   const [showAddService, setShowAddService] = useState(false);
   const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [cardBrand, setCardBrand] = useState<string | null>(null);
+  const [cardPaymentType, setCardPaymentType] = useState<string | null>(null);
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
@@ -1066,6 +1072,17 @@ function AppointmentPanel({
             ))}
           </div>
 
+          {/* Card brand + installment picker (inline) */}
+          {selectedPaymentMethod === "CARD" && (
+            <CardDetailsPicker
+              cardBrand={cardBrand}
+              cardPaymentType={cardPaymentType}
+              onBrandChange={setCardBrand}
+              onPaymentTypeChange={setCardPaymentType}
+              paidValue={paidVal > 0 ? paidVal : subtotal}
+            />
+          )}
+
           <div className="flex items-center justify-between text-[11px]">
             <div className="space-y-0.5">
               <div className="flex gap-4">
@@ -1086,7 +1103,13 @@ function AppointmentPanel({
               size="sm"
               className="text-[11px] h-8"
               disabled={savingPayment}
-              onClick={(e) => { e.stopPropagation(); onSavePayment(paidVal > 0 ? paidVal : null, selectedPaymentMethod); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const cd = selectedPaymentMethod === "CARD" && cardBrand && cardPaymentType
+                  ? { cardBrand, cardPaymentType, cardInstallments: cardPaymentType === "DEBIT" ? 1 : parseInt(cardPaymentType.replace("CREDIT_", "").replace("X", "")) }
+                  : null;
+                onSavePayment(paidVal > 0 ? paidVal : null, selectedPaymentMethod, cd);
+              }}
             >
               {savingPayment ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Salvar"}
             </Button>
