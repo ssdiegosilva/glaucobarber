@@ -5,28 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2, ImageOff, AlertTriangle } from "lucide-react";
 
-// ── Model comparison table (hardcoded reference data) ─────────────────────────
-
-// costCents = USD cents paid to OpenAI per image
-// breakEven  = costCents × 10  (1 crédito = $0.001 → precisa de cost/$0.001 créditos para se pagar)
-// margin80   = costCents × 50  (para 80% de margem: receita = custo / 0.20)
-const MODEL_TABLE = [
-  { model: "gpt-image-1", size: "1024x1024", quality: "low",      costCents: 4,  breakEven: 40,  margin80: 200,  notes: "gpt-image-1 baixa — rascunho, mais barato" },
-  { model: "gpt-image-1", size: "1024x1024", quality: "medium",   costCents: 7,  breakEven: 70,  margin80: 350,  notes: "gpt-image-1 média — recomendado (padrão)" },
-  { model: "gpt-image-1", size: "1024x1024", quality: "high",     costCents: 19, breakEven: 190, margin80: 950,  notes: "gpt-image-1 alta — máxima qualidade" },
-  { model: "dall-e-3",    size: "1024x1024", quality: "standard", costCents: 4,  breakEven: 40,  margin80: 200,  notes: "Boa qualidade, sem foto de referência" },
-  { model: "dall-e-3",    size: "1024x1024", quality: "hd",       costCents: 8,  breakEven: 80,  margin80: 400,  notes: "Alta qualidade (HD), sem referência" },
-  { model: "dall-e-2",    size: "1024x1024", quality: "standard", costCents: 2,  breakEven: 20,  margin80: 100,  notes: "Qualidade básica, sem referência" },
-  { model: "dall-e-2",    size: "512x512",   quality: "standard", costCents: 2,  breakEven: 20,  margin80: 100,  notes: "Testes e dev — mais barato" },
-  { model: "dall-e-2",    size: "256x256",   quality: "standard", costCents: 2,  breakEven: 20,  margin80: 100,  notes: "Só para testes, qualidade baixa" },
+// ── Tier table — 3 rows, one per quality tier ────────────────────────────────
+// breakEven = costCents × 10  (1 crédito = $0.001)
+// margin80  = costCents × 50  (80% de margem)
+const TIER_TABLE = [
+  { tier: "low",    label: "Rascunho",       creditKey: "ai_image_credit_cost_low",    costCents: 4,  breakEven: 40,  margin80: 200 },
+  { tier: "medium", label: "Padrão",         creditKey: "ai_image_credit_cost_medium", costCents: 7,  breakEven: 70,  margin80: 350 },
+  { tier: "high",   label: "Alta qualidade", creditKey: "ai_image_credit_cost_high",   costCents: 19, breakEven: 190, margin80: 950 },
 ] as const;
 
-const MODEL_OPTIONS   = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
-const QUALITY_OPTIONS_BY_MODEL: Record<string, string[]> = {
-  "gpt-image-1": ["low", "medium", "high"],
-  "dall-e-3":    ["standard", "hd"],
-  "dall-e-2":    ["standard"],
+// Custo real por tier/modelo — referência somente visual na tabela
+const COST_BY_MODEL: Record<string, { low: number; medium: number; high: number }> = {
+  "gpt-image-1": { low: 4, medium: 7,  high: 19 },
+  "dall-e-3":    { low: 4, medium: 4,  high: 8  }, // standard=low/medium, hd=high
+  "dall-e-2":    { low: 2, medium: 2,  high: 2  }, // always standard
 };
+
+const MODEL_OPTIONS = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
 
 const SIZE_OPTIONS_BY_MODEL: Record<string, string[]> = {
   "gpt-image-1": ["1024x1024", "1024x1536", "1536x1024", "auto"],
@@ -69,9 +64,8 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
       .catch(() => setLoadingCost(false));
   }, []);
 
-  const activeModel   = values["ai_image_model"]   || "gpt-image-1";
-  const activeSize    = values["ai_image_size"]     || "1024x1024";
-  const activeQuality = values["ai_image_quality"]  || "medium";
+  const activeModel = values["ai_image_model"] || "gpt-image-1";
+  const activeSize  = values["ai_image_size"]  || "1024x1024";
 
   async function toggleKillImage() {
     const newVal = !killImage;
@@ -104,11 +98,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
     }
   }
 
-  const isActiveRow = (row: (typeof MODEL_TABLE)[number]) =>
-    row.model === activeModel && row.size === activeSize && row.quality === activeQuality;
-
-  const creditCost = parseInt(values["ai_image_credit_cost"] ?? "10") || 10;
-  const costCents  = parseInt(values["ai_image_cost_usd_cents"] ?? "4") || 4;
+  const modelCosts = COST_BY_MODEL[activeModel] ?? COST_BY_MODEL["gpt-image-1"];
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -227,24 +217,9 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 pt-1">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Custo real por imagem — tier Padrão (centavos USD)
-            </label>
-            <Input
-              type="number"
-              min={0}
-              value={values["ai_image_cost_usd_cents"] ?? "7"}
-              onChange={(e) => setValues((v) => ({ ...v, ai_image_cost_usd_cents: e.target.value }))}
-              className="font-mono text-sm"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Referência para cálculo de lucratividade. Ex: 7 = $0.07
-              {costCents > 0 && ` → atualmente $${(costCents / 100).toFixed(3)}/imagem`}
-            </p>
-          </div>
-        </div>
+        <p className="text-[10px] text-muted-foreground/60 pt-1">
+          Custo OpenAI por tier é fixo pelo modelo ativo — Rascunho ${(modelCosts.low / 100).toFixed(3)} · Padrão ${(modelCosts.medium / 100).toFixed(3)} · Alta ${(modelCosts.high / 100).toFixed(3)}
+        </p>
 
         <div className="flex items-center gap-3">
           <Button
@@ -262,17 +237,19 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
         </div>
       </div>
 
-      {/* ── Section 2: Model comparison table ──────────────────────────────── */}
+      {/* ── Section 2: Tier reference table ─────────────────────────────────── */}
       <div className="rounded-lg border border-border overflow-hidden">
         <div className="px-4 py-3 bg-surface-800 border-b border-border flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">Comparativo de modelos</span>
-          <span className="text-[10px] text-muted-foreground ml-auto">Clique em uma linha para selecionar</span>
+          <span className="text-sm font-semibold text-foreground">Referência por tier</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">
+            Custos para modelo ativo: <span className="font-mono">{activeModel}</span> — clique para preencher o crédito do tier
+          </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-surface-800/50">
               <tr>
-                {["Modelo", "Tamanho", "Qualidade", "Custo OpenAI", "Break-even", "80% margem", "Notas", ""].map((h) => (
+                {["Tier", "Custo OpenAI", "Break-even", "80% margem", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -280,41 +257,24 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
-              {MODEL_TABLE.map((row, i) => {
-                const active = isActiveRow(row);
+              {TIER_TABLE.map((row) => {
+                const costCentsForModel = modelCosts[row.tier as keyof typeof modelCosts];
+                const breakEven = costCentsForModel * 10;
+                const margin80  = costCentsForModel * 50;
+                const currentCredits = parseInt(values[row.creditKey] ?? "") || row.breakEven;
+                const active = currentCredits === breakEven;
                 return (
                   <tr
-                    key={i}
-                    onClick={() => {
-                      // Map table row quality → credit tier key
-                      const tierKey = (row.quality === "low" || row.quality === "medium" || row.quality === "high")
-                        ? `ai_image_credit_cost_${row.quality}`
-                        : row.quality === "hd"
-                          ? "ai_image_credit_cost_high"
-                          : "ai_image_credit_cost_low";
-                      setValues((v) => ({
-                        ...v,
-                        ai_image_model:          row.model,
-                        ai_image_size:           row.size,
-                        ai_image_cost_usd_cents: String(row.costCents),
-                        [tierKey]:               String(row.breakEven),
-                      }));
-                    }}
-                    className={`cursor-pointer transition-colors ${
-                      active
-                        ? "bg-red-500/10 border-l-2 border-l-red-500"
-                        : "hover:bg-surface-800/40"
-                    }`}
+                    key={row.tier}
+                    onClick={() => setValues((v) => ({ ...v, [row.creditKey]: String(breakEven) }))}
+                    className="cursor-pointer hover:bg-surface-800/40 transition-colors"
                   >
-                    <td className="px-4 py-3 font-mono text-xs text-foreground whitespace-nowrap">{row.model}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{row.size}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{row.quality}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-amber-400 whitespace-nowrap">${(row.costCents / 100).toFixed(3)}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-blue-400 whitespace-nowrap">{row.breakEven}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-green-400 whitespace-nowrap">{row.margin80}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{row.notes}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-foreground">{row.label}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-amber-400 whitespace-nowrap">${(costCentsForModel / 100).toFixed(3)}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-blue-400 whitespace-nowrap">{breakEven} cred.</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-green-400 whitespace-nowrap">{margin80} cred.</td>
                     <td className="px-4 py-3 text-center">
-                      {active && <CheckCircle2 className="h-4 w-4 text-red-400 mx-auto" />}
+                      {active && <CheckCircle2 className="h-4 w-4 text-blue-400 mx-auto" />}
                     </td>
                   </tr>
                 );
@@ -325,7 +285,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
         <div className="px-4 py-2 bg-surface-800/30 border-t border-border/40">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
-            Break-even = mínimo para se pagar (1 crédito = $0.001). 80% margem = break-even × 5. Clicar preenche com o break-even do tier.
+            Break-even = mínimo para se pagar (1 crédito = $0.001). 80% margem = break-even × 5.
           </p>
         </div>
       </div>
