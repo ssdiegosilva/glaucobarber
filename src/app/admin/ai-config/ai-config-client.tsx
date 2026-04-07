@@ -162,6 +162,39 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           </p>
         </div>
 
+        {/* OpenAI costs per tier */}
+        <div className="space-y-2 pt-1 border-t border-border/40">
+          <div className="flex items-center gap-2">
+            <Cpu className="h-3.5 w-3.5 text-amber-400" />
+            <p className="text-xs font-semibold text-foreground">Custo OpenAI por tier (USD)</p>
+            <span className="text-[10px] text-muted-foreground ml-auto">gpt-image-1 · 1024×1024 · atualize quando a OpenAI mudar o preço</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {(["low", "medium", "high"] as const).map((tier) => {
+              const key = `ai_image_openai_cost_${tier}`;
+              const defaults: Record<string, string> = { low: "0.040", medium: "0.070", high: "0.190" };
+              const labels: Record<string, string> = { low: "Rascunho", medium: "Padrão", high: "Alta qualidade" };
+              const colors: Record<string, string> = { low: "text-green-400", medium: "text-amber-400", high: "text-red-400" };
+              return (
+                <div key={tier} className="space-y-1.5">
+                  <label className={`text-xs font-medium ${colors[tier]}`}>{labels[tier]}</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      min={0.001}
+                      step={0.001}
+                      value={values[key] ?? defaults[tier]}
+                      onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Profit margin */}
         <div className="space-y-2 pt-1 border-t border-border/40">
           <div className="flex items-center gap-2">
@@ -188,18 +221,22 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
               Mínimo 35% · Máximo 90% · O cron diário usa esse valor para calcular créditos automaticamente
             </p>
           </div>
-          {/* Preview with current margin */}
+          {/* Preview with current margin + configured OpenAI costs */}
           {(() => {
             const margin = Math.max(35, parseInt(values["ai_image_profit_margin"] ?? "35") || 35) / 100;
             const usdBrl = 5.80; // approximate — cron uses live rate
-            const OPENAI_USD = { low: 0.040, medium: 0.070, high: 0.190 };
+            const openaiCosts = {
+              low:    parseFloat(values["ai_image_openai_cost_low"]    ?? "0.040") || 0.040,
+              medium: parseFloat(values["ai_image_openai_cost_medium"] ?? "0.070") || 0.070,
+              high:   parseFloat(values["ai_image_openai_cost_high"]   ?? "0.190") || 0.190,
+            };
             const calc = (usd: number) => Math.ceil((usd * usdBrl) / (0.10 * (1 - margin)));
             return (
-              <div className="rounded-md bg-surface-900/60 border border-border/40 px-3 py-2 flex gap-4 text-[11px]">
+              <div className="rounded-md bg-surface-900/60 border border-border/40 px-3 py-2 flex flex-wrap gap-4 text-[11px]">
                 <span className="text-muted-foreground">Prévia (USD/BRL ≈ R$5,80):</span>
-                <span className="text-green-400">Rascunho: <b>{calc(OPENAI_USD.low)} cred.</b></span>
-                <span className="text-amber-400">Padrão: <b>{calc(OPENAI_USD.medium)} cred.</b></span>
-                <span className="text-red-400">Alta: <b>{calc(OPENAI_USD.high)} cred.</b></span>
+                <span className="text-green-400">Rascunho: <b>{calc(openaiCosts.low)} cred.</b></span>
+                <span className="text-amber-400">Padrão: <b>{calc(openaiCosts.medium)} cred.</b></span>
+                <span className="text-red-400">Alta: <b>{calc(openaiCosts.high)} cred.</b></span>
               </div>
             );
           })()}

@@ -15,8 +15,8 @@ const MIN_MARGIN    = 0.35;         // never below 35% profit margin
 const CREDIT_BRL    = 0.10;         // R$0.10 per credit (R$20 / 200)
 const FALLBACK_RATE = 5.80;         // fallback if exchange API is down
 
-// gpt-image-1 1024×1024 costs in USD (source: OpenAI pricing page)
-const OPENAI_COSTS = {
+// gpt-image-1 1024×1024 default costs in USD — overridden by PlatformConfig
+const OPENAI_COSTS_DEFAULTS = {
   low:    0.040,
   medium: 0.070,
   high:   0.190,
@@ -34,12 +34,25 @@ export async function GET(req: NextRequest) {
   });
 
   try {
-    // ── 0. Read configured margin from DB ─────────────────────
-    const marginConfig = await prisma.platformConfig.findUnique({
-      where: { key: "ai_image_profit_margin" },
+    // ── 0. Read configured margin + OpenAI costs from DB ──────
+    const configs = await prisma.platformConfig.findMany({
+      where: { key: { in: [
+        "ai_image_profit_margin",
+        "ai_image_openai_cost_low",
+        "ai_image_openai_cost_medium",
+        "ai_image_openai_cost_high",
+      ]}},
     });
-    const configuredMargin = marginConfig ? parseFloat(marginConfig.value) / 100 : MIN_MARGIN;
-    const MARGIN = Math.max(MIN_MARGIN, Math.min(0.90, configuredMargin)); // clamp [35%, 90%]
+    const cfg = Object.fromEntries(configs.map((c) => [c.key, c.value]));
+
+    const configuredMargin = cfg["ai_image_profit_margin"] ? parseFloat(cfg["ai_image_profit_margin"]) / 100 : MIN_MARGIN;
+    const MARGIN = Math.max(MIN_MARGIN, Math.min(0.90, configuredMargin));
+
+    const OPENAI_COSTS = {
+      low:    parseFloat(cfg["ai_image_openai_cost_low"]    ?? "") || OPENAI_COSTS_DEFAULTS.low,
+      medium: parseFloat(cfg["ai_image_openai_cost_medium"] ?? "") || OPENAI_COSTS_DEFAULTS.medium,
+      high:   parseFloat(cfg["ai_image_openai_cost_high"]   ?? "") || OPENAI_COSTS_DEFAULTS.high,
+    };
 
     // ── 1. Fetch USD/BRL exchange rate ─────────────────────────
     let usdBrl = FALLBACK_RATE;

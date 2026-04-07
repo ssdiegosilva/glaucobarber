@@ -11,17 +11,23 @@ const AI_CONFIG_KEYS = [
   "ai_image_credit_cost_medium",
   "ai_image_credit_cost_high",
   "ai_image_profit_margin",
+  "ai_image_openai_cost_low",
+  "ai_image_openai_cost_medium",
+  "ai_image_openai_cost_high",
 ] as const;
 
 const AI_CONFIG_DEFAULTS: Record<string, string> = {
-  ai_image_model:             "gpt-image-1",
-  ai_image_quality:           "medium",
-  ai_image_credit_cost:       "70",
-  ai_image_cost_usd_cents:    "7",
-  ai_image_credit_cost_low:   "40",
-  ai_image_credit_cost_medium:"70",
-  ai_image_credit_cost_high:  "190",
-  ai_image_profit_margin:     "35",
+  ai_image_model:              "gpt-image-1",
+  ai_image_quality:            "medium",
+  ai_image_credit_cost:        "70",
+  ai_image_cost_usd_cents:     "7",
+  ai_image_credit_cost_low:    "40",
+  ai_image_credit_cost_medium: "70",
+  ai_image_credit_cost_high:   "190",
+  ai_image_profit_margin:      "35",
+  ai_image_openai_cost_low:    "0.040",
+  ai_image_openai_cost_medium: "0.070",
+  ai_image_openai_cost_high:   "0.190",
 };
 
 const MIN_MARGIN = 35; // never allow below 35%
