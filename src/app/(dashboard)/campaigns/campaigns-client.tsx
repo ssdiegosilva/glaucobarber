@@ -285,19 +285,21 @@ interface CampaignCardProps {
   deletingId: string | null;
   hasBrandStyle: boolean;
   instagramConfigured: boolean;
+  imageCreditCosts: { low: number; medium: number; high: number };
   onUploadImage: (id: string, file: File) => void;
-  onGenerateImage: (id: string, prompt?: string) => Promise<void>;
+  onGenerateImage: (id: string, prompt?: string, quality?: ImageQualityTier) => Promise<void>;
   onSaveText: (id: string, text: string) => Promise<void>;
   onRemove: (id: string) => void;
   onApprove: (id: string) => void;
 }
 
-function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, onUploadImage, onGenerateImage, onSaveText, onRemove, onApprove }: CampaignCardProps) {
+function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, imageCreditCosts, onUploadImage, onGenerateImage, onSaveText, onRemove, onApprove }: CampaignCardProps) {
   const [imagePrompt, setImagePrompt] = useState("");
   const [editingImage, setEditingImage] = useState(false);
   const [editingText, setEditingText] = useState(false);
   const [editedText, setEditedText] = useState(c.text);
   const [savingText, setSavingText] = useState(false);
+  const [cardQuality, setCardQuality] = useState<ImageQualityTier>("medium");
 
   const openEditor = !c.imageUrl || editingImage;
 
@@ -313,7 +315,7 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
 
   async function handleGenerateImage() {
     try {
-      await onGenerateImage(c.id, imagePrompt || undefined);
+      await onGenerateImage(c.id, imagePrompt || undefined, cardQuality);
       setEditingImage(false);
     } catch {}
   }
@@ -413,6 +415,26 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
                   className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs"
                   onClick={(e) => e.stopPropagation()}
                 />
+                {/* Quality selector */}
+                <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  {(["low", "medium", "high"] as ImageQualityTier[]).map((q) => {
+                    const m = QUALITY_META[q];
+                    const cost = imageCreditCosts[q];
+                    const active = cardQuality === q;
+                    return (
+                      <button
+                        key={q}
+                        onClick={() => setCardQuality(q)}
+                        className={`flex-1 rounded-md border px-2 py-1.5 text-[10px] text-left transition-colors
+                          ${active ? "border-purple-500/50 bg-purple-500/15" : "border-border bg-surface-800 hover:border-border/80"}`}
+                      >
+                        <span className={`font-semibold ${active ? "text-purple-300" : m.color}`}>{m.label}</span>
+                        <span className="block text-muted-foreground">{cost} créditos</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   <input
                     id={`upload-${c.id}`}
@@ -433,7 +455,7 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
                     onClick={(e) => { e.stopPropagation(); document.getElementById(`upload-${c.id}`)?.click(); }}
                     disabled={uploadingImage === c.id}
                   >
-                    {uploadingImage === c.id ? "Enviando..." : "Enviar do celular"}
+                    {uploadingImage === c.id ? "Enviando..." : "Enviar foto"}
                   </Button>
                   <Button
                     size="sm"
@@ -1024,6 +1046,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                 key={c.id} c={c}
                 uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
                 hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                imageCreditCosts={imageCreditCosts}
                 onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
                 onRemove={remove} onApprove={(id) => setApproveModal(id)}
               />
@@ -1230,6 +1253,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                 key={c.id} c={c}
                 uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
                 hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                imageCreditCosts={imageCreditCosts}
                 onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
                 onRemove={remove} onApprove={(id) => setApproveModal(id)}
               />
