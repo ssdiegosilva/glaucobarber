@@ -16,20 +16,10 @@ export const barbershopVertical: VerticalConfig = {
   // ── Billing ───────────────────────────────────────────────
   billing: {
     featureGates: {
-      FREE:       ["financeiro", "meta", "whatsapp_auto"],
-      STARTER:    ["financeiro", "whatsapp_auto"],
+      FREE: ["financeiro", "meta", "whatsapp_auto", "campaigns", "copilot", "criar-visual", "post-sale"],
       PRO:        [],
       ENTERPRISE: [],
     },
-    usageFee: {
-      FREE:       false,
-      STARTER:    false,
-      PRO:        true,
-      ENTERPRISE: false,
-    },
-    usageEventName: "atendimentos_pro",
-    usageFeeCents: 100,        // R$1,00 por atendimento
-    usageFeeCapCents: 40_000,  // Cap: R$400/mês
   },
 
   // ── AI ────────────────────────────────────────────────────

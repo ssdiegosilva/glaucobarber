@@ -18,7 +18,7 @@ export default async function CampaignsPage() {
         <Header title="Campanhas" subtitle="Marketing e comunicação" userName={session.user.name} />
         <UpgradeWall
           feature="Campanhas"
-          requiredPlan="STARTER"
+          requiredPlan="PRO"
           description="Crie campanhas de marketing com IA, gere imagens e publique direto no Instagram."
         />
       </div>

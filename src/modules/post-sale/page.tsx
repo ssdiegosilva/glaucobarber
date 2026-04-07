@@ -23,7 +23,7 @@ export default async function PostSalePage() {
         <Header title="Pós-venda" subtitle="Reativação e fidelização de clientes" userName={session.user.name ?? ""} />
         <UpgradeWall
           feature="Pós-venda"
-          requiredPlan="STARTER"
+          requiredPlan="PRO"
           description="Identifique clientes em risco, inativos e recentes. Envie mensagens automáticas para reativar e fidelizar."
         />
       </div>

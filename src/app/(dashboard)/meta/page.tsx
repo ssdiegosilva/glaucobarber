@@ -26,7 +26,7 @@ export default async function MetaPage() {
         <Header title="Metas" subtitle="Acompanhamento de metas diárias e mensais" userName={session.user.name} />
         <UpgradeWall
           feature="Metas"
-          requiredPlan="STARTER"
+          requiredPlan="PRO"
           description="Defina metas de faturamento, acompanhe o progresso diário e use a IA para sugerir metas realistas."
         />
       </div>

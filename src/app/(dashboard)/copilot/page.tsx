@@ -17,7 +17,7 @@ export default async function CopilotPage() {
         <Header title="CEO Copilot" subtitle="Pergunte qualquer coisa sobre o dia e aprove ações" userName={session.user.name} />
         <UpgradeWall
           feature="CEO Copilot"
-          requiredPlan="STARTER"
+          requiredPlan="PRO"
           description="Assistente de IA que analisa seus dados em tempo real e sugere ações para crescer o negócio."
         />
       </div>

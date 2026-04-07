@@ -17,8 +17,8 @@ export function BillingAdminClient({ summary, events, currentYearMonth }: { summ
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Cobrança PRO</h1>
-        <p className="text-sm text-muted-foreground">Atendimentos cobráveis do plano Pro (R$1,50/atendimento)</p>
+        <h1 className="text-xl font-bold text-foreground">Assinaturas</h1>
+        <p className="text-sm text-muted-foreground">Taxa por atendimento removida — plano único Profissional a R$49,90/mês</p>
       </div>
 
       {/* Summary cards */}

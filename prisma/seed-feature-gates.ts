@@ -29,13 +29,12 @@ const ALL_FEATURES = [
   "billing",
 ] as const;
 
-const TIERS = ["TRIAL", "FREE", "STARTER", "PRO", "ENTERPRISE"] as const;
+const TIERS = ["TRIAL", "FREE", "PRO", "ENTERPRISE"] as const;
 
 // Features blocked per tier (everything else is allowed)
 const BLOCKED: Record<string, string[]> = {
   TRIAL:      [],  // trial = acesso total (simula PRO)
   FREE:       ["financeiro", "meta", "whatsapp_auto", "campaigns", "copilot", "post-sale", "criar-visual"],
-  STARTER:    ["financeiro", "whatsapp_auto"],
   PRO:        [],
   ENTERPRISE: [],
 };

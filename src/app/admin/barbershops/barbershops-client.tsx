@@ -17,7 +17,7 @@ type Shop = {
 
 const PLAN_COLOR: Record<string, string> = {
   FREE:       "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
-  STARTER:    "border-blue-500/30 bg-blue-500/10 text-blue-400",
+  STARTER:    "border-gold-500/30 bg-gold-500/10 text-gold-400",
   PRO:        "border-gold-500/30 bg-gold-500/10 text-gold-400",
   ENTERPRISE: "border-purple-500/30 bg-purple-500/10 text-purple-400",
 };
@@ -79,8 +79,7 @@ export function BarbershopsClient({ data: initialData }: { data: Shop[] }) {
         <select value={planF} onChange={(e) => setPlanF(e.target.value)} className="rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground">
           <option value="ALL">Todos os planos</option>
           <option value="FREE">Free</option>
-          <option value="STARTER">Starter</option>
-          <option value="PRO">Pro</option>
+          <option value="PRO">Profissional</option>
           <option value="ENTERPRISE">Enterprise</option>
         </select>
         <select value={statusF} onChange={(e) => setStatusF(e.target.value)} className="rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground">

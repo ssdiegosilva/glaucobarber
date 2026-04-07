@@ -127,17 +127,16 @@ async function upsertSubscription(sub: Stripe.Subscription, barbershopId: string
 
   // Map Stripe price to plan tier — read from DB first, fallback to env vars
   const dbConfigs = await prisma.platformConfig.findMany({
-    where: { key: { in: ["stripe_price_starter_monthly", "stripe_price_pro_monthly", "stripe_price_enterprise_monthly"] } },
+    where: { key: { in: ["stripe_price_pro_monthly", "stripe_price_enterprise_monthly"] } },
   });
   const get = (k: string) => dbConfigs.find((c) => c.key === k)?.value || process.env[k.toUpperCase()] || "";
 
-  const PRICE_PLAN_MAP: Record<string, "STARTER" | "PRO" | "ENTERPRISE"> = {
-    [get("stripe_price_starter_monthly")]:    "STARTER",
+  const PRICE_PLAN_MAP: Record<string, "PRO" | "ENTERPRISE"> = {
     [get("stripe_price_pro_monthly")]:        "PRO",
     [get("stripe_price_enterprise_monthly")]: "ENTERPRISE",
   };
 
-  const planTier = PRICE_PLAN_MAP[priceId] ?? "STARTER";
+  const planTier = PRICE_PLAN_MAP[priceId] ?? "PRO";
 
   const STATUS_MAP: Record<string, "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "UNPAID" | "INCOMPLETE"> = {
     trialing:          "TRIALING",

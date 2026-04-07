@@ -313,7 +313,7 @@ export default async function RootPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {/* FREE */}
             <div className="rounded-2xl border border-border bg-card p-7 flex flex-col">
               <div>
@@ -323,7 +323,7 @@ export default async function RootPage() {
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "30 créditos de IA (trial único)",
+                  "Trial de 7 dias com acesso completo",
                   "Agenda ao vivo (Trinks / Avec)",
                   "Gestão de clientes",
                   "Metas de faturamento",
@@ -336,8 +336,8 @@ export default async function RootPage() {
                 {[
                   "Copilot IA",
                   "Campanhas e marketing",
-                  "WhatsApp",
-                  "Financeiro",
+                  "WhatsApp automático",
+                  "Relatórios financeiros",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground/40">
                     <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -353,65 +353,26 @@ export default async function RootPage() {
               </Link>
             </div>
 
-            {/* STARTER */}
-            <div className="rounded-2xl border border-border bg-card p-7 flex flex-col">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Starter</p>
-                <p className="font-display text-4xl font-bold text-foreground">R$89<span className="text-lg font-normal text-muted-foreground">/mês</span></p>
-                <p className="text-xs text-muted-foreground mt-1">Ideal para começar</p>
-              </div>
-              <ul className="mt-7 space-y-3 flex-1">
-                {[
-                  "200 créditos de IA/mês",
-                  "Agenda ao vivo (Trinks / Avec)",
-                  "Gestão de clientes + Metas",
-                  "Campanhas com IA (texto + arte)",
-                  "Criar Visual (análise de corte)",
-                  "WhatsApp — envio manual",
-                  "Pós-venda inteligente",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
-                    {f}
-                  </li>
-                ))}
-                {[
-                  "Copilot IA",
-                  "WhatsApp automático (bot)",
-                  "Relatórios financeiros",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground/40">
-                    <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/signup"
-                className="mt-8 block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-800 transition-colors"
-              >
-                Assinar Starter
-              </Link>
-            </div>
-
-            {/* PRO */}
+            {/* PROFISSIONAL */}
             <div className="rounded-2xl border border-gold-500/40 bg-gradient-to-b from-gold-500/8 to-transparent p-7 flex flex-col relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Mais popular</span>
+                <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Plano único</span>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-2">Pro</p>
-                <p className="font-display text-4xl font-bold text-foreground">R$149<span className="text-lg font-normal text-muted-foreground">/mês</span></p>
-                <p className="text-xs text-muted-foreground mt-1">+ R$1 por atendimento concluído</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-2">Profissional</p>
+                <p className="font-display text-4xl font-bold text-foreground">R$49<span className="text-lg font-normal text-muted-foreground">,90/mês</span></p>
+                <p className="text-xs text-muted-foreground mt-1">Tudo desbloqueado, sem taxas extras</p>
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "1.000 créditos de IA/mês",
-                  "Tudo do Starter",
+                  "300 créditos de IA/mês",
                   "Copilot IA (CEO advisor)",
+                  "Campanhas com IA (texto + imagem)",
+                  "Criar Visual (análise de corte)",
                   "WhatsApp BOT automático",
                   "Relatórios financeiros completos",
-                  "Suporte prioritário",
+                  "Pós-venda inteligente",
+                  "Metas de faturamento",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
@@ -423,13 +384,13 @@ export default async function RootPage() {
                 href="/signup"
                 className="mt-8 block text-center rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-bold text-[#080810] hover:bg-gold-400 transition-colors"
               >
-                Assinar Pro
+                Assinar Profissional
               </Link>
             </div>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">
-            *R$1 por atendimento concluído no Pro, limitado a R$400/mês. Cancelamento a qualquer momento.
+            Cancelamento a qualquer momento. Créditos extras disponíveis por R$20 (+200 chamadas).
           </p>
         </div>
       </section>

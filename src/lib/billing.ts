@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
 import { getVerticalConfig } from "@/lib/core/vertical";
 import { getKillSwitch } from "@/lib/platform-config";
 import type { PlanTier, SubscriptionStatus } from "@prisma/client";
@@ -10,29 +9,24 @@ import type { PlanTier, SubscriptionStatus } from "@prisma/client";
 function buildPlanLimits() {
   const v = getVerticalConfig();
   return {
-    FREE:       { aiPerPeriod: 0,        periodType: "trial"   as const, featureGates: v.billing.featureGates["FREE"]       ?? [], appointmentFee: v.billing.usageFee["FREE"]       ?? false },
-    STARTER:    { aiPerPeriod: 200,      periodType: "monthly" as const, featureGates: v.billing.featureGates["STARTER"]    ?? [], appointmentFee: v.billing.usageFee["STARTER"]    ?? false },
-    PRO:        { aiPerPeriod: 1000,     periodType: "monthly" as const, featureGates: v.billing.featureGates["PRO"]        ?? [], appointmentFee: v.billing.usageFee["PRO"]        ?? true  },
-    ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly" as const, featureGates: v.billing.featureGates["ENTERPRISE"] ?? [], appointmentFee: v.billing.usageFee["ENTERPRISE"] ?? false },
-  } satisfies Record<PlanTier, { aiPerPeriod: number; periodType: "trial" | "monthly"; featureGates: string[]; appointmentFee: boolean }>;
+    FREE:       { aiPerPeriod: 0,        periodType: "trial"   as const, featureGates: v.billing.featureGates["FREE"]       ?? [] },
+    STARTER:    { aiPerPeriod: 300,      periodType: "monthly" as const, featureGates: [] },
+    PRO:        { aiPerPeriod: 300,      periodType: "monthly" as const, featureGates: v.billing.featureGates["PRO"]        ?? [] },
+    ENTERPRISE: { aiPerPeriod: Infinity, periodType: "monthly" as const, featureGates: v.billing.featureGates["ENTERPRISE"] ?? [] },
+  } satisfies Record<PlanTier, { aiPerPeriod: number; periodType: "trial" | "monthly"; featureGates: string[] }>;
 }
 
 export const PLAN_LIMITS: Record<
   PlanTier,
   {
-    aiPerPeriod:   number;
-    periodType:    "trial" | "monthly";
-    featureGates:  string[];
-    appointmentFee: boolean;
+    aiPerPeriod:  number;
+    periodType:   "trial" | "monthly";
+    featureGates: string[];
   }
 > = buildPlanLimits();
 
 // Limite de segurança do trial (invisível para o usuário)
 export const TRIAL_AI_LIMIT = 50;
-
-// Usage fee defaults (read from vertical config)
-export const APPOINTMENT_FEE_CENTS     = getVerticalConfig().billing.usageFeeCents;
-export const APPOINTMENT_FEE_CAP_CENTS = getVerticalConfig().billing.usageFeeCapCents;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -124,7 +118,7 @@ export function hasFeature(tier: PlanTier, feature: string): boolean {
 export interface AiAllowance {
   allowed:          boolean;
   used:             number;
-  limit:            number;      // base limit (not counting credits)
+  limit:            number;
   creditsRemaining: number;
   planTier:         PlanTier;
   planStatus:       SubscriptionStatus;
@@ -355,62 +349,3 @@ async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0
   }
 }
 
-// ── createAppointmentBillingEvent ──────────────────────────────────────────────
-
-export async function createAppointmentBillingEvent(
-  barbershopId:  string,
-  appointmentId: string,
-): Promise<void> {
-  const plan = await getPlan(barbershopId);
-  if (!PLAN_LIMITS[plan.tier].appointmentFee) return;
-
-  // Read configurable fee values from DB, fallback to code constants
-  const feeConfigs = await prisma.platformConfig.findMany({
-    where: { key: { in: ["pro_appointment_fee_cents", "pro_appointment_fee_cap_cents"] } },
-  });
-  const feeCents    = parseInt(feeConfigs.find((c) => c.key === "pro_appointment_fee_cents")?.value    ?? "") || APPOINTMENT_FEE_CENTS;
-  const feeCap      = parseInt(feeConfigs.find((c) => c.key === "pro_appointment_fee_cap_cents")?.value ?? "") || APPOINTMENT_FEE_CAP_CENTS;
-
-  const yearMonth = currentYearMonth();
-
-  // Check monthly cap: sum of uninvoiced + already invoiced this month
-  const monthTotal = await prisma.billingEvent.aggregate({
-    where:  { barbershopId, yearMonth },
-    _sum:   { amountCents: true },
-  });
-
-  const totalSoFar = monthTotal._sum.amountCents ?? 0;
-  if (totalSoFar >= feeCap) return; // cap reached
-
-  // Idempotent upsert: won't duplicate if called twice
-  const result = await prisma.billingEvent.upsert({
-    where:  { appointmentId },
-    create: { barbershopId, appointmentId, yearMonth, amountCents: feeCents },
-    update: {}, // already exists → no-op
-    select: { id: true, createdAt: true },
-  });
-
-  // Only report to Stripe on first creation (createdAt = now, not older)
-  const isNew = Date.now() - result.createdAt.getTime() < 5_000;
-  if (!isNew) return;
-
-  // Report metered usage to Stripe Meters API
-  const barbershop = await prisma.barbershop.findUnique({
-    where:  { id: barbershopId },
-    select: { stripeCustomerId: true },
-  });
-
-  if (barbershop?.stripeCustomerId) {
-    try {
-      await (stripe.billing as any).meterEvents.create({
-        event_name: getVerticalConfig().billing.usageEventName,
-        payload: {
-          stripe_customer_id: barbershop.stripeCustomerId,
-          value: "1",
-        },
-      });
-    } catch (err) {
-      console.error("[Stripe Meter] Failed to report usage:", err);
-    }
-  }
-}

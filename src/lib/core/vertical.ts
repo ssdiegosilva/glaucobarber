@@ -23,14 +23,6 @@ export interface VerticalConfig {
   billing: {
     /** Feature keys locked per plan tier */
     featureGates: Record<string, string[]>;
-    /** Whether each plan tier charges per usage event */
-    usageFee: Record<string, boolean>;
-    /** Usage event name for Stripe metering (e.g. "atendimentos_pro") */
-    usageEventName: string;
-    /** Default usage fee in cents */
-    usageFeeCents: number;
-    /** Monthly cap for usage fees in cents */
-    usageFeeCapCents: number;
   };
 
   // ── AI ────────────────────────────────────────────────────

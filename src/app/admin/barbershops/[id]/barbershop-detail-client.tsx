@@ -17,7 +17,7 @@ type Sub = { planTier: string; status: string; currentPeriodEnd: string; trialEn
 
 const PLAN_COLOR: Record<string, string> = {
   FREE: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
-  STARTER: "border-blue-500/30 bg-blue-500/10 text-blue-400",
+  STARTER: "border-gold-500/30 bg-gold-500/10 text-gold-400",
   PRO: "border-gold-500/30 bg-gold-500/10 text-gold-400",
   ENTERPRISE: "border-purple-500/30 bg-purple-500/10 text-purple-400",
 };
@@ -133,7 +133,7 @@ export function BarbershopDetailClient({
               <label className="text-xs text-muted-foreground mb-1 block">Plano</label>
               <select value={planTier} onChange={(e) => setPlanTier(e.target.value)}
                 className="w-full rounded-md border border-border bg-surface-700 px-3 py-2 text-sm text-foreground">
-                {["FREE","STARTER","PRO","ENTERPRISE"].map((p) => <option key={p} value={p}>{p}</option>)}
+                {["FREE","PRO","ENTERPRISE"].map((p) => <option key={p} value={p}>{p === "PRO" ? "Profissional" : p}</option>)}
               </select>
             </div>
             <div>

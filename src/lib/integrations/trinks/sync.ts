@@ -9,7 +9,7 @@ import { mapTrinksCustomer, mapTrinksService, mapTrinksAppointment } from "./map
 import type { SyncResult, SyncError, TrinksAppointment } from "./types";
 import { subDays, addDays, format } from "date-fns";
 import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
-import { createAppointmentBillingEvent } from "@/lib/billing";
+
 
 export async function syncBarbershop(
   barbershopId: string,
@@ -183,9 +183,6 @@ export async function syncBarbershop(
             update: { status: data.status, price: data.price, durationMin: data.durationMin, notes: data.notes, barberId: data.barberId, scheduledAt: data.scheduledAt, lastSyncedAt: new Date() },
             select: { id: true },
           });
-          if (data.status === "COMPLETED") {
-            createAppointmentBillingEvent(barbershopId, upserted.id).catch(() => null);
-          }
           appointmentsUpserted++;
         } catch (err) {
           errors.push({ entity: "Appointment", entityId: String(raw.id), message: String(err) });

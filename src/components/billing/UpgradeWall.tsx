@@ -3,8 +3,7 @@ import { Lock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const PLAN_LABEL: Record<string, string> = {
-  PRO:        "Pro",
-  STARTER:    "Start",
+  PRO:        "Profissional",
   ENTERPRISE: "Enterprise",
 };
 
@@ -34,23 +33,15 @@ export function UpgradeWall({ feature, requiredPlan, description }: Props) {
         <div className="rounded-lg border border-border/60 bg-surface-900 p-4 text-left space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-gold-400" />
-            <span className="text-sm font-medium text-foreground">Plano {planLabel}</span>
+            <span className="text-sm font-medium text-foreground">Plano {planLabel} — R$49,90/mês</span>
           </div>
-          {requiredPlan === "PRO" && (
-            <ul className="text-xs text-muted-foreground space-y-1 ml-6">
-              <li>• R$149/mês base + R$1,50 por atendimento concluído</li>
-              <li>• 1.000 chamadas de IA por mês</li>
-              <li>• Gestão financeira com metas e análise</li>
-              <li>• Todos os recursos desbloqueados</li>
-            </ul>
-          )}
-          {requiredPlan === "STARTER" && (
-            <ul className="text-xs text-muted-foreground space-y-1 ml-6">
-              <li>• R$89/mês</li>
-              <li>• 200 chamadas de IA por mês</li>
-              <li>• Pós-venda, copilot e campanhas</li>
-            </ul>
-          )}
+          <ul className="text-xs text-muted-foreground space-y-1 ml-6">
+            <li>• 300 créditos de IA por mês</li>
+            <li>• Copilot IA, campanhas e criar visual</li>
+            <li>• WhatsApp automático e pós-venda</li>
+            <li>• Relatórios financeiros completos</li>
+            <li>• Todos os recursos desbloqueados</li>
+          </ul>
         </div>
 
         <Button asChild className="w-full gap-2">

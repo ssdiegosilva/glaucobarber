@@ -9,7 +9,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAIProvider, buildAIContext, saveAISuggestions } from "@/lib/ai/provider";
-import { stripe } from "@/lib/stripe";
 
 export async function GET(req: NextRequest) {
   // Verify cron secret
@@ -155,63 +154,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // ── Monthly billing (runs only on the 1st of the month) ───────────────────
-  let billingResult: { invoiced: number; errors: string[] } | null = null;
-
-  if (new Date().getDate() === 1) {
-    const now       = new Date();
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const yyyy      = prevMonth.getFullYear();
-    const mm        = String(prevMonth.getMonth() + 1).padStart(2, "0");
-    const yearMonth = `${yyyy}-${mm}`;
-
-    const unbilledGroups = await prisma.billingEvent.groupBy({
-      by:    ["barbershopId"],
-      where: { yearMonth, invoicedAt: null },
-      _sum:  { amountCents: true },
-      _count: { _all: true },
-    });
-
-    const errors: string[] = [];
-    let invoiced = 0;
-
-    for (const group of unbilledGroups) {
-      const { barbershopId } = group;
-      const totalCents = group._sum.amountCents ?? 0;
-      const count      = group._count._all;
-      if (totalCents === 0) continue;
-
-      try {
-        const barbershop = await prisma.barbershop.findUnique({
-          where:  { id: barbershopId },
-          select: { stripeCustomerId: true, name: true, subscription: { select: { stripeSubId: true, planTier: true } } },
-        });
-
-        if (!barbershop?.stripeCustomerId || barbershop.subscription?.planTier !== "PRO") continue;
-
-        await stripe.invoiceItems.create({
-          customer:    barbershop.stripeCustomerId,
-          amount:      totalCents,
-          currency:    "brl",
-          description: `${count} atendimento${count !== 1 ? "s" : ""} concluído${count !== 1 ? "s" : ""} em ${mm}/${yyyy} — ${barbershop.name}`,
-          ...(barbershop.subscription?.stripeSubId ? { subscription: barbershop.subscription.stripeSubId } : {}),
-        });
-
-        await prisma.billingEvent.updateMany({
-          where: { barbershopId, yearMonth, invoicedAt: null },
-          data:  { invoicedAt: now },
-        });
-
-        invoiced++;
-      } catch (err) {
-        console.error(`[cron/billing] failed for ${barbershopId}:`, err);
-        errors.push(barbershopId);
-      }
-    }
-
-    billingResult = { invoiced, errors };
-  }
-
   await prisma.cronRun.update({
     where: { id: cronRun.id },
     data: { status: "success", durationMs: Date.now() - start },
@@ -221,6 +163,5 @@ export async function GET(req: NextRequest) {
     date:    new Date().toISOString(),
     results,
     total:   results.length,
-    billing: billingResult,
   });
 }

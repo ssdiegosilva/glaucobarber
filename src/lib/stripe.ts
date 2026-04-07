@@ -24,36 +24,21 @@ export const PLANS = {
     priceId:     "",              // no Stripe price
     monthlyBRL:  0,
     features: [
-      "30 chamadas de IA (vitalício)",
-      "Todos os recursos desbloqueados",
-      "Acesso ao Copilot, pós-venda e campanhas",
-      "Gestão financeira incluída no trial",
-    ],
-  },
-  STARTER: {
-    name:        "Start",
-    description: "Para barbearias que estão começando",
-    priceId:     process.env.STRIPE_PRICE_STARTER_MONTHLY ?? "",
-    monthlyBRL:  8900,            // R$89/mês
-    features: [
-      "200 chamadas de IA por mês",
-      "Agenda e gestão de clientes",
-      "Copilot, pós-venda e campanhas",
-      "Pós-venda com reativação automática",
+      "Trial com acesso completo por 7 dias",
+      "Agenda ao vivo e gestão de clientes",
+      "Metas e configurações básicas",
     ],
   },
   PRO: {
-    name:        "Pro",
-    description: "Para barbearias que querem crescer",
+    name:        "Profissional",
+    description: "Plano único — tudo desbloqueado",
     priceId:     process.env.STRIPE_PRICE_PRO_MONTHLY ?? "",
-    monthlyBRL:  14900,           // R$149/mês base
-    appointmentFeeCents: 100,     // +R$1,00 por atendimento concluído
-    appointmentCapCents: 40000,   // cap em R$400/mês
+    monthlyBRL:  4990,            // R$49,90/mês
     features: [
-      "1.000 chamadas de IA por mês",
-      "Gestão financeira com metas",
-      "R$1,00 por atendimento concluído (cap R$400/mês)",
-      "Sync automático com Trinks",
+      "300 créditos de IA por mês",
+      "Copilot IA, campanhas e criar visual",
+      "WhatsApp automático e pós-venda",
+      "Relatórios financeiros completos",
       "Todos os recursos desbloqueados",
     ],
     popular: true,
@@ -90,15 +75,9 @@ export async function createCheckoutSession({
   successUrl:       string;
   cancelUrl:        string;
 }) {
-  const proMeteredPriceId = process.env.STRIPE_PRICE_PRO_METERED ?? "";
-  const isProPlan = priceId === (process.env.STRIPE_PRICE_PRO_MONTHLY ?? "");
-
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
     { price: priceId, quantity: 1 },
   ];
-  if (isProPlan && proMeteredPriceId) {
-    lineItems.push({ price: proMeteredPriceId }); // metered — no quantity
-  }
 
   const params: Stripe.Checkout.SessionCreateParams = {
     mode:                       "subscription",
