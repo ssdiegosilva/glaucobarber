@@ -668,6 +668,7 @@ enum CampaignStatus {
   SCHEDULED
   PUBLISHED
   FAILED
+  ARCHIVED
 }
 
 model Campaign {

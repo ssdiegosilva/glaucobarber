@@ -25,13 +25,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       where: { id, barbershopId: session.user.barbershopId },
     });
     if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (campaign.status === "PUBLISHED") return NextResponse.json({ error: "Não é possível excluir publicada" }, { status: 400 });
+    if (campaign.status === "PUBLISHED") return NextResponse.json({ error: "Não é possível arquivar publicada" }, { status: 400 });
 
-    await prisma.campaign.delete({ where: { id } });
+    // Archive instead of delete — preserves generated images for future reuse
+    await prisma.campaign.update({ where: { id }, data: { status: "ARCHIVED" } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Erro ao deletar campanha", err);
-    return NextResponse.json({ error: "Erro ao deletar campanha" }, { status: 500 });
+    console.error("Erro ao arquivar campanha", err);
+    return NextResponse.json({ error: "Erro ao arquivar campanha" }, { status: 500 });
   }
 }
 
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const data: any = {};
   if (status) {
-    const allowed = ["DRAFT", "APPROVED", "DISMISSED", "SCHEDULED"];
+    const allowed = ["DRAFT", "APPROVED", "DISMISSED", "SCHEDULED", "ARCHIVED"];
     if (!allowed.includes(status)) return NextResponse.json({ error: "Status inválido" }, { status: 400 });
     data.status = status;
   }

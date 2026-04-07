@@ -8,11 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
 import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Globe, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
+import { Archive, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Globe, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
 import Link from "next/link";
 
-const STATUS_LABEL: Record<string, string> = { GENERATING: "Criando...", DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada", FAILED: "Falhou" };
-const STATUS_VARIANT: Record<string, string> = { GENERATING: "outline", DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success", FAILED: "destructive" };
+const STATUS_LABEL: Record<string, string> = { GENERATING: "Criando...", DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada", FAILED: "Falhou", ARCHIVED: "Arquivada" };
+const STATUS_VARIANT: Record<string, string> = { GENERATING: "outline", DRAFT: "outline", APPROVED: "default", DISMISSED: "secondary", SCHEDULED: "info", PUBLISHED: "success", FAILED: "destructive", ARCHIVED: "secondary" };
 const STATUS_ICON: Record<string, React.ReactElement> = {
   GENERATING: <Sparkles className="h-3 w-3 animate-spin" />,
   DRAFT: <Clock className="h-3 w-3" />,
@@ -21,6 +21,7 @@ const STATUS_ICON: Record<string, React.ReactElement> = {
   SCHEDULED: <Clock className="h-3 w-3" />,
   PUBLISHED: <Send className="h-3 w-3" />,
   FAILED: <XCircle className="h-3 w-3" />,
+  ARCHIVED: <Archive className="h-3 w-3" />,
 };
 
 export interface OfferOption {
@@ -290,10 +291,12 @@ interface CampaignCardProps {
   onGenerateImage: (id: string, prompt?: string, quality?: ImageQualityTier) => Promise<void>;
   onSaveText: (id: string, text: string) => Promise<void>;
   onRemove: (id: string) => void;
+  onRestore?: (id: string) => void;
+  onRepublish?: (id: string) => void;
   onApprove: (id: string) => void;
 }
 
-function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, imageCreditCosts, onUploadImage, onGenerateImage, onSaveText, onRemove, onApprove }: CampaignCardProps) {
+function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, imageCreditCosts, onUploadImage, onGenerateImage, onSaveText, onRemove, onRestore, onRepublish, onApprove }: CampaignCardProps) {
   const [imagePrompt, setImagePrompt] = useState("");
   const [editingImage, setEditingImage] = useState(false);
   const [editingText, setEditingText] = useState(false);
@@ -527,15 +530,30 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
               {c.channel && <Badge variant="outline" className="text-[10px]">{c.channel}</Badge>}
               <span className="text-[10px] text-muted-foreground">{relativeTime(c.createdAt)}</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {c.status === "DRAFT" && (
                 <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); onApprove(c.id); }}>
                   Aprovar
                 </Button>
               )}
-              {c.status !== "PUBLISHED" && (
-                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); onRemove(c.id); }} disabled={deletingId === c.id}>
-                  {deletingId === c.id ? "Deletando..." : "Deletar"}
+              {(c.status === "ARCHIVED" || c.status === "PUBLISHED") && onRepublish && (
+                <Button
+                  size="sm" variant="outline"
+                  className="h-7 text-[11px] gap-1 border-purple-500/40 text-purple-400 hover:bg-purple-500/10"
+                  onClick={(e) => { e.stopPropagation(); onRepublish(c.id); }}
+                >
+                  <Wand2 className="h-3 w-3" /> Republicar
+                </Button>
+              )}
+              {c.status === "ARCHIVED" && onRestore && (
+                <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); onRestore(c.id); }}>
+                  Restaurar
+                </Button>
+              )}
+              {c.status !== "PUBLISHED" && c.status !== "ARCHIVED" && (
+                <Button size="sm" variant="ghost" className="h-7 text-[11px] gap-1" onClick={(e) => { e.stopPropagation(); onRemove(c.id); }} disabled={deletingId === c.id}>
+                  <Archive className="h-3 w-3" />
+                  {deletingId === c.id ? "Arquivando..." : "Arquivar"}
                 </Button>
               )}
             </div>
@@ -556,12 +574,13 @@ const QUALITY_META: Record<ImageQualityTier, { label: string; desc: string; colo
   high:   { label: "Alta qualidade", desc: "mais detalhado",    color: "text-red-400"   },
 };
 
-export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCosts = { low: 40, medium: 70, high: 190 } }: {
+export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCosts = { low: 40, medium: 70, high: 190 }, aiAllowance = { used: 0, limit: 300, creditsRemaining: 0 } }: {
   campaigns: CampaignDto[];
   instagramConfigured: boolean;
   hasBrandStyle?: boolean;
   availableOffers?: OfferOption[];
   imageCreditCosts?: { low: number; medium: number; high: number };
+  aiAllowance?: { used: number; limit: number; creditsRemaining: number };
 }) {
   const [campaigns, setCampaigns] = useState<CampaignDto[]>(initial);
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
@@ -576,6 +595,9 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [archivedPage, setArchivedPage] = useState(1);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const ARCHIVED_PAGE_SIZE = 3;
   const [approveModal, setApproveModal]     = useState<string | null>(null); // campaignId
   const [rescheduleModal, setRescheduleModal] = useState<string | null>(null);
   const [schedulingId, setSchedulingId]     = useState<string | null>(null);
@@ -764,6 +786,20 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   }
 
   async function generateImage(id: string, promptOverride?: string, quality?: ImageQualityTier): Promise<void> {
+    // Pre-flight check: verify credits cover the cost before calling the API
+    const effectiveQuality = quality ?? imageQuality;
+    const cost = imageCreditCosts[effectiveQuality];
+    const available = (aiAllowance.limit - aiAllowance.used) + aiAllowance.creditsRemaining;
+    if (available < cost) {
+      const missing = cost - available;
+      toast({
+        title: "Créditos insuficientes",
+        description: `Gerar esta imagem custa ${cost} créditos, mas você tem apenas ${Math.max(0, available)} disponíveis. Faltam ${missing} créditos. Compre mais em Plano > Créditos extras.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setGeneratingImage(id);
     try {
       const res = await fetch(`/api/campaigns/${id}/image`, {
@@ -850,12 +886,40 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
         toast({ title: "Erro", description: data.error ?? "Não foi possível deletar" , variant: "destructive"});
         return;
       }
-      setCampaigns((prev) => prev.filter((c) => c.id !== id));
-      toast({ title: "Campanha deletada", description: "Removida com sucesso." });
+      // UPDATE local state: set status to ARCHIVED instead of removing
+      setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, status: "ARCHIVED" } : c));
+      toast({ title: "Campanha arquivada", description: "Guardada no arquivo para uso futuro." });
     } catch (e) {
       toast({ title: "Erro", description: String(e), variant: "destructive" });
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function restore(id: string) {
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DRAFT" }),
+      });
+      if (!res.ok) { toast({ title: "Erro ao restaurar", variant: "destructive" }); return; }
+      setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, status: "DRAFT" } : c));
+      toast({ title: "Campanha restaurada", description: "Movida de volta para rascunhos." });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    }
+  }
+
+  async function republish(id: string) {
+    try {
+      const res = await fetch(`/api/campaigns/${id}/republish`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast({ title: "Erro ao republicar", description: data.error, variant: "destructive" }); return; }
+      setCampaigns((prev) => [data.campaign, ...prev]);
+      toast({ title: "Nova campanha criada", description: "Adicionada aos rascunhos para aprovação." });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
     }
   }
 
@@ -864,6 +928,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const queueCampaigns      = campaigns.filter((c) => ["SCHEDULED", "APPROVED", "FAILED"].includes(c.status));
   const draftCampaigns      = campaigns.filter((c) => c.status === "DRAFT");
   const dismissedCampaigns  = campaigns.filter((c) => c.status === "DISMISSED");
+  const archivedCampaigns   = campaigns.filter((c) => c.status === "ARCHIVED");
 
   function isToday(dateStr: string | null) {
     if (!dateStr) return false;
@@ -1048,7 +1113,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                 hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
                 imageCreditCosts={imageCreditCosts}
                 onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
-                onRemove={remove} onApprove={(id) => setApproveModal(id)}
+                onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
               />
             ))}
           </div>
@@ -1255,10 +1320,67 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                 hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
                 imageCreditCosts={imageCreditCosts}
                 onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
-                onRemove={remove} onApprove={(id) => setApproveModal(id)}
+                onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Campanhas arquivadas ───────────────────────────── */}
+      {archivedCampaigns.length > 0 && (
+        <div className="space-y-3">
+          <button
+            className="flex items-center gap-2 px-0.5 w-full text-left"
+            onClick={() => { setArchivedOpen((v) => !v); setArchivedPage(1); }}
+          >
+            <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-xs font-semibold text-muted-foreground">Arquivadas</p>
+            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{archivedCampaigns.length}</span>
+            {archivedOpen
+              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto" />
+              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground ml-auto" />}
+          </button>
+
+          {archivedOpen && (() => {
+            const totalPages = Math.ceil(archivedCampaigns.length / ARCHIVED_PAGE_SIZE);
+            const paginated  = archivedCampaigns.slice((archivedPage - 1) * ARCHIVED_PAGE_SIZE, archivedPage * ARCHIVED_PAGE_SIZE);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {paginated.map((c) => (
+                    <CampaignCard
+                      key={c.id} c={c}
+                      uploadingImage={uploadingImage} generatingImage={generatingImage} deletingId={deletingId}
+                      hasBrandStyle={hasBrandStyle} instagramConfigured={instagramConfigured}
+                      imageCreditCosts={imageCreditCosts}
+                      onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
+                      onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
+                    />
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      size="sm" variant="outline" className="h-7 text-[11px]"
+                      disabled={archivedPage === 1}
+                      onClick={() => setArchivedPage((p) => p - 1)}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-[11px] text-muted-foreground">{archivedPage} / {totalPages}</span>
+                    <Button
+                      size="sm" variant="outline" className="h-7 text-[11px]"
+                      disabled={archivedPage === totalPages}
+                      onClick={() => setArchivedPage((p) => p + 1)}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
