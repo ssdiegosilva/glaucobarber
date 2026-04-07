@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
 const CRON_ROUTES: Record<string, string> = {
-  "daily":             "/api/cron/daily",
-  "hourly-sync":       "/api/cron/hourly-sync",
-  "whatsapp-send":     "/api/cron/whatsapp-send",
-  "campaigns-publish": "/api/cron/campaigns-publish",
+  "daily":                "/api/cron/daily",
+  "hourly-sync":          "/api/cron/hourly-sync",
+  "whatsapp-send":        "/api/cron/whatsapp-send",
+  "campaigns-publish":    "/api/cron/campaigns-publish",
+  "update-image-pricing": "/api/cron/update-image-pricing",
 };
 
 export async function POST(req: NextRequest) {
