@@ -2,13 +2,10 @@
 // Daily Cron – runs at 06:00 every day (configured in vercel.json)
 // - Data cleanup: WhatsApp (10d), AuditLog (90d), Suggestion/Action (90d), SyncRun (180d), AiCallLog (keep 30)
 // - Trial expiration: TRIALING → FREE after trialEndsAt
-// - AI suggestions: generates for all active barbershops
-// - On the 1st of the month: runs monthly billing for PRO plans
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAIProvider, buildAIContext, saveAISuggestions } from "@/lib/ai/provider";
 
 export async function GET(req: NextRequest) {
   // Verify cron secret
@@ -21,8 +18,6 @@ export async function GET(req: NextRequest) {
   const cronRun  = await prisma.cronRun.create({
     data: { cronName: "daily", status: "running" },
   });
-
-  const provider = getAIProvider();
 
   // ── Data cleanup ─────────────────────────────────────────────────────────────
   const now = new Date();
@@ -110,58 +105,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Find all active barbershops with AI enabled
-  const barbershops = await prisma.barbershop.findMany({
-    where: {
-      subscription: { status: { in: ["ACTIVE", "TRIALING"] } },
-    },
-    include: {
-      featureFlags: { where: { flag: "ai_suggestions", enabled: true } },
-    },
-  });
-
-  const results = [];
-
-  for (const shop of barbershops) {
-    if (shop.featureFlags.length === 0) continue;
-
-    try {
-      const context     = await buildAIContext(shop.id);
-      const suggestions = await provider.generateSuggestions(context);
-      await saveAISuggestions(shop.id, suggestions, context);
-
-      await prisma.auditLog.create({
-        data: {
-          barbershopId: shop.id,
-          action:       "cron.ai.suggestions",
-          entity:       "Suggestion",
-          metadata:     JSON.stringify({ count: suggestions.length }),
-        },
-      });
-
-      results.push({ barbershopId: shop.id, count: suggestions.length, ok: true });
-    } catch (err) {
-      console.error(`[cron/daily] ai suggestions error for ${shop.id}:`, err);
-      await prisma.auditLog.create({
-        data: {
-          barbershopId: shop.id,
-          action:       "cron.ai.suggestions.error",
-          entity:       "Suggestion",
-          metadata:     JSON.stringify({ error: String(err) }),
-        },
-      }).catch(() => {});
-      results.push({ barbershopId: shop.id, error: String(err), ok: false });
-    }
-  }
-
   await prisma.cronRun.update({
     where: { id: cronRun.id },
     data: { status: "success", durationMs: Date.now() - start },
   });
 
   return NextResponse.json({
-    date:    new Date().toISOString(),
-    results,
-    total:   results.length,
+    date: new Date().toISOString(),
+    ok:   true,
   });
 }
