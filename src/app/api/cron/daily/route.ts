@@ -142,6 +142,15 @@ export async function GET(req: NextRequest) {
 
       results.push({ barbershopId: shop.id, count: suggestions.length, ok: true });
     } catch (err) {
+      console.error(`[cron/daily] ai suggestions error for ${shop.id}:`, err);
+      await prisma.auditLog.create({
+        data: {
+          barbershopId: shop.id,
+          action:       "cron.ai.suggestions.error",
+          entity:       "Suggestion",
+          metadata:     JSON.stringify({ error: String(err) }),
+        },
+      }).catch(() => {});
       results.push({ barbershopId: shop.id, error: String(err), ok: false });
     }
   }

@@ -63,6 +63,16 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ suggestions, count: suggestions.length, gift: giftApplied });
   } catch (err) {
+    console.error(`[ai/suggestions] error for ${barbershopId}:`, err);
+    await prisma.auditLog.create({
+      data: {
+        barbershopId,
+        userId:   session.user.id,
+        action:   "ai.suggestions.error",
+        entity:   "Suggestion",
+        metadata: JSON.stringify({ error: String(err) }),
+      },
+    }).catch(() => {});
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

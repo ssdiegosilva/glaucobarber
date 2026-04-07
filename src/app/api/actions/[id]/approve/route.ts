@@ -78,6 +78,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       action:       "action.approved",
       entity:       "Action",
       entityId:     action.id,
+      metadata:     JSON.stringify({ type: action.type }),
     },
   });
 
