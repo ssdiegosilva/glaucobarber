@@ -3,16 +3,15 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2, ImageOff, AlertTriangle, TrendingUp } from "lucide-react";
+import { Save, Cpu, BarChart3, Lightbulb, Loader2, ImageOff, AlertTriangle, TrendingUp } from "lucide-react";
 
-// ── Tier table — 3 rows, one per quality tier ────────────────────────────────
-// breakEven = costCents × 10  (1 crédito = $0.001)
-// margin80  = costCents × 50  (80% de margem)
-const TIER_TABLE = [
-  { tier: "low",    label: "Rascunho",       creditKey: "ai_image_credit_cost_low",    costCents: 4,  breakEven: 40,  margin80: 200 },
-  { tier: "medium", label: "Padrão",         creditKey: "ai_image_credit_cost_medium", costCents: 7,  breakEven: 70,  margin80: 350 },
-  { tier: "high",   label: "Alta qualidade", creditKey: "ai_image_credit_cost_high",   costCents: 19, breakEven: 190, margin80: 950 },
-] as const;
+const TIER_LABELS: Record<string, string> = { low: "Rascunho", medium: "Padrão", high: "Alta qualidade" };
+const CREDIT_KEYS: Record<string, string> = {
+  low: "ai_image_credit_cost_low", medium: "ai_image_credit_cost_medium", high: "ai_image_credit_cost_high",
+};
+const OPENAI_COST_KEYS: Record<string, string> = {
+  low: "ai_image_openai_cost_low", medium: "ai_image_openai_cost_medium", high: "ai_image_openai_cost_high",
+};
 
 // Custo real por tier/modelo — referência somente visual na tabela
 const COST_BY_MODEL: Record<string, { low: number; medium: number; high: number }> = {
@@ -291,57 +290,71 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
       </div>
 
       {/* ── Section 2: Tier reference table ─────────────────────────────────── */}
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="px-4 py-3 bg-surface-800 border-b border-border flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">Referência por tier</span>
-          <span className="text-[10px] text-muted-foreground ml-auto">
-            <span className="font-mono">{activeModel}</span> · 1024×1024 — clique para preencher o crédito do tier
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-800/50">
-              <tr>
-                {["Tier", "Custo OpenAI", "Break-even", "80% margem", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {TIER_TABLE.map((row) => {
-                const costCentsForModel = modelCosts[row.tier as keyof typeof modelCosts];
-                const breakEven = costCentsForModel * 10;
-                const margin80  = costCentsForModel * 50;
-                const currentCredits = parseInt(values[row.creditKey] ?? "") || row.breakEven;
-                const active = currentCredits === breakEven;
-                return (
-                  <tr
-                    key={row.tier}
-                    onClick={() => setValues((v) => ({ ...v, [row.creditKey]: String(breakEven) }))}
-                    className="cursor-pointer hover:bg-surface-800/40 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-xs font-semibold text-foreground">{row.label}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-amber-400 whitespace-nowrap">${(costCentsForModel / 100).toFixed(3)}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-blue-400 whitespace-nowrap">{breakEven} cred.</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-green-400 whitespace-nowrap">{margin80} cred.</td>
-                    <td className="px-4 py-3 text-center">
-                      {active && <CheckCircle2 className="h-4 w-4 text-blue-400 mx-auto" />}
-                    </td>
+      {(() => {
+        const APPROX_USD_BRL = 5.80;
+        const CREDIT_BRL     = 0.10;
+        const margin = Math.max(35, Math.min(90, parseInt(values["ai_image_profit_margin"] ?? "35") || 35)) / 100;
+
+        const tiers = (["low", "medium", "high"] as const).map((tier) => {
+          const defaults: Record<string, number> = { low: 0.040, medium: 0.070, high: 0.190 };
+          const costUsd   = parseFloat(values[OPENAI_COST_KEYS[tier]] ?? "") || defaults[tier];
+          const breakEven = Math.ceil((costUsd * APPROX_USD_BRL) / CREDIT_BRL);
+          const atMargin  = Math.ceil((costUsd * APPROX_USD_BRL) / (CREDIT_BRL * (1 - margin)));
+          const at80      = Math.ceil((costUsd * APPROX_USD_BRL) / (CREDIT_BRL * 0.20));
+          const configured = parseInt(values[CREDIT_KEYS[tier]] ?? "") || atMargin;
+          const realMargin = configured > 0
+            ? Math.round(((configured * CREDIT_BRL - costUsd * APPROX_USD_BRL) / (configured * CREDIT_BRL)) * 100)
+            : 0;
+          return { tier, costUsd, breakEven, atMargin, at80, configured, realMargin };
+        });
+
+        return (
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="px-4 py-3 bg-surface-800 border-b border-border flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">Referência por tier</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                <span className="font-mono">{activeModel}</span> · 1024×1024 — USD/BRL ≈ R$5,80 (referência)
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-800/50">
+                  <tr>
+                    {["Tier", "Custo OpenAI", "Break-even", `${Math.round(margin * 100)}% margem`, "80% margem", "Configurado", "Margem real"].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-4 py-2 bg-surface-800/30 border-t border-border/40">
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
-            Break-even = mínimo para se pagar (1 crédito = $0.001). 80% margem = break-even × 5.
-          </p>
-        </div>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {tiers.map((row) => (
+                    <tr key={row.tier} className="hover:bg-surface-800/40 transition-colors">
+                      <td className="px-4 py-3 text-xs font-semibold text-foreground">{TIER_LABELS[row.tier]}</td>
+                      <td className="px-4 py-3 text-xs font-semibold text-amber-400 whitespace-nowrap">${row.costUsd.toFixed(3)}</td>
+                      <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">{row.breakEven} cred.</td>
+                      <td className="px-4 py-3 text-xs font-semibold text-blue-400 whitespace-nowrap">{row.atMargin} cred.</td>
+                      <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">{row.at80} cred.</td>
+                      <td className="px-4 py-3 text-xs font-bold text-foreground whitespace-nowrap">{row.configured} cred.</td>
+                      <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">
+                        <span className={row.realMargin >= 35 ? "text-green-400" : "text-red-400"}>
+                          {row.realMargin}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-2 bg-surface-800/30 border-t border-border/40">
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
+                Break-even = créditos mínimos para cobrir o custo (0% margem). Margem real = (receita − custo) ÷ receita, usando USD/BRL ≈ R$5,80 e 1 crédito = R$0,10.
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Section 3: Profitability stats ─────────────────────────────────── */}
       <div className="rounded-lg border border-border bg-surface-800/60 p-5 space-y-4">
@@ -404,7 +417,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                           </td>
                           <td className="px-4 py-2 text-xs text-green-400 font-medium">
                             {row.planRevenueCents > 0
-                              ? `R$${(row.planRevenueCents * row.shopCount / 100).toFixed(0)}`
+                              ? `R$${(row.planRevenueCents / 100).toFixed(0)}`
                               : <span className="text-muted-foreground">—</span>
                             }
                           </td>
