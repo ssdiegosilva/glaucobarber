@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   const aiConfig = await getAiImageConfig();
   let imageResult;
   try {
-    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle, aiConfig.quality);
+    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle, aiConfig.quality, aiConfig.model, aiConfig.size);
   } catch (err) {
     console.error("[criar-visual] generateHaircutVisual error:", err);
     return NextResponse.json({ error: "Erro ao gerar o visual. Tente novamente." }, { status: 500 });

@@ -326,28 +326,42 @@ Retorne JSON com:
     }
   }
 
-  async generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string): Promise<{ url: string } | { b64: string }> {
+  async generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string, model?: string, size?: string): Promise<{ url: string } | { b64: string }> {
     const base   = getVerticalConfig().ai.haircutVisualPrompt;
     const prompt = suggestedStyle
       ? `${base}\n\nApply specifically: ${suggestedStyle}`
       : base;
-    try {
-      const { toFile } = await import("openai");
-      const img = await this.client.images.edit({
-        model:   "gpt-image-1",
-        image:   await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
-        prompt,
-        size:    "1024x1024",
-        quality: (quality ?? "medium") as any,
-        n:       1,
-      } as Parameters<typeof this.client.images.edit>[0]);
+    const resolvedModel   = model   ?? "gpt-image-1";
+    const resolvedSize    = size    ?? "1024x1024";
+    const resolvedQuality = quality ?? "medium";
 
-      const b64 = img.data?.[0]?.b64_json;
-      if (!b64) throw new Error("gpt-image-1 não retornou imagem");
-      return { b64 };
-    } catch (err) {
-      console.warn("[AI] gpt-image-1 haircut edit falhou, usando dall-e-3:", err);
-      return this._generateWithDallE3(prompt);
+    // gpt-image-1 supports images.edit (photo of the client as reference)
+    if (resolvedModel === "gpt-image-1") {
+      try {
+        const { toFile } = await import("openai");
+        const img = await this.client.images.edit({
+          model:   "gpt-image-1",
+          image:   await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
+          prompt,
+          size:    resolvedSize as any,
+          quality: resolvedQuality as any,
+          n:       1,
+        } as Parameters<typeof this.client.images.edit>[0]);
+
+        const b64 = img.data?.[0]?.b64_json;
+        if (!b64) throw new Error("gpt-image-1 não retornou imagem");
+        return { b64 };
+      } catch (err) {
+        console.warn("[AI] gpt-image-1 haircut edit falhou, usando dall-e-3:", err);
+        return this._generateWithDallE3(prompt, resolvedSize);
+      }
+    }
+
+    // Other models: generate without reference image
+    try {
+      return await this._generateWithModel(prompt, resolvedModel, resolvedSize, resolvedQuality);
+    } catch {
+      return this._generateWithDallE3(prompt, resolvedSize);
     }
   }
 
