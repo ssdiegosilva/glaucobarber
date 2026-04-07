@@ -56,7 +56,7 @@ export async function getFeatureAccess(
       if (override) return [f, override.enabled];
       const gate = gates.find((g) => g.feature === f);
       if (gate !== undefined) return [f, gate.enabled];
-      return [f, true]; // default: allow
+      return [f, false]; // default: deny (use seed-feature-gates.ts to populate)
     })
   );
 }
@@ -70,7 +70,7 @@ export async function canAccess(
   feature: string
 ): Promise<boolean> {
   const map = await getFeatureAccess(barbershopId, planTier, [feature]);
-  return map[feature] ?? true;
+  return map[feature] ?? false;
 }
 
 /**
