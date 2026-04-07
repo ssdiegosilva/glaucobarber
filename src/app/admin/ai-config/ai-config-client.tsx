@@ -7,15 +7,17 @@ import { Save, Cpu, BarChart3, CheckCircle2, Lightbulb, Loader2, ImageOff, Alert
 
 // ── Model comparison table (hardcoded reference data) ─────────────────────────
 
+// costCents = USD cents paid to OpenAI per image
+// suggestedCredits = ceil(costCents / 2) → ~80% margin (1 crédito ≈ $0.10 USD no plano PRO)
 const MODEL_TABLE = [
-  { model: "gpt-image-1", size: "1024x1024", quality: "low",      usdCost: "$0.04",  notes: "gpt-image-1 baixa — rascunho, mais barato" },
-  { model: "gpt-image-1", size: "1024x1024", quality: "medium",   usdCost: "$0.07",  notes: "gpt-image-1 média — recomendado (padrão)" },
-  { model: "gpt-image-1", size: "1024x1024", quality: "high",     usdCost: "$0.19",  notes: "gpt-image-1 alta — máxima qualidade" },
-  { model: "dall-e-3",    size: "1024x1024", quality: "standard", usdCost: "$0.04",  notes: "Boa qualidade, sem foto de referência" },
-  { model: "dall-e-3",    size: "1024x1024", quality: "hd",       usdCost: "$0.08",  notes: "Alta qualidade (HD), sem referência" },
-  { model: "dall-e-2",    size: "1024x1024", quality: "standard", usdCost: "$0.020", notes: "Qualidade básica, sem referência" },
-  { model: "dall-e-2",    size: "512x512",   quality: "standard", usdCost: "$0.018", notes: "Testes e dev — mais barato" },
-  { model: "dall-e-2",    size: "256x256",   quality: "standard", usdCost: "$0.016", notes: "Só para testes, qualidade baixa" },
+  { model: "gpt-image-1", size: "1024x1024", quality: "low",      costCents: 4,  suggestedCredits: 2,  notes: "gpt-image-1 baixa — rascunho, mais barato" },
+  { model: "gpt-image-1", size: "1024x1024", quality: "medium",   costCents: 7,  suggestedCredits: 4,  notes: "gpt-image-1 média — recomendado (padrão)" },
+  { model: "gpt-image-1", size: "1024x1024", quality: "high",     costCents: 19, suggestedCredits: 10, notes: "gpt-image-1 alta — máxima qualidade" },
+  { model: "dall-e-3",    size: "1024x1024", quality: "standard", costCents: 4,  suggestedCredits: 2,  notes: "Boa qualidade, sem foto de referência" },
+  { model: "dall-e-3",    size: "1024x1024", quality: "hd",       costCents: 8,  suggestedCredits: 4,  notes: "Alta qualidade (HD), sem referência" },
+  { model: "dall-e-2",    size: "1024x1024", quality: "standard", costCents: 2,  suggestedCredits: 1,  notes: "Qualidade básica, sem referência" },
+  { model: "dall-e-2",    size: "512x512",   quality: "standard", costCents: 2,  suggestedCredits: 1,  notes: "Testes e dev — mais barato" },
+  { model: "dall-e-2",    size: "256x256",   quality: "standard", costCents: 2,  suggestedCredits: 1,  notes: "Só para testes, qualidade baixa" },
 ] as const;
 
 const MODEL_OPTIONS   = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
@@ -269,7 +271,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           <table className="w-full text-sm">
             <thead className="bg-surface-800/50">
               <tr>
-                {["Modelo", "Tamanho", "Qualidade", "Custo USD", "Notas", ""].map((h) => (
+                {["Modelo", "Tamanho", "Qualidade", "Custo OpenAI", "Créditos (80%)", "Notas", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -284,9 +286,11 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                     key={i}
                     onClick={() => setValues((v) => ({
                       ...v,
-                      ai_image_model:   row.model,
-                      ai_image_size:    row.size,
-                      ai_image_quality: row.quality,
+                      ai_image_model:          row.model,
+                      ai_image_size:           row.size,
+                      ai_image_quality:        row.quality,
+                      ai_image_cost_usd_cents: String(row.costCents),
+                      ai_image_credit_cost:    String(row.suggestedCredits),
                     }))}
                     className={`cursor-pointer transition-colors ${
                       active
@@ -297,7 +301,8 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
                     <td className="px-4 py-3 font-mono text-xs text-foreground whitespace-nowrap">{row.model}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{row.size}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{row.quality}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-green-400 whitespace-nowrap">{row.usdCost}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-amber-400 whitespace-nowrap">${(row.costCents / 100).toFixed(3)}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-green-400 whitespace-nowrap">{row.suggestedCredits} créditos</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{row.notes}</td>
                     <td className="px-4 py-3 text-center">
                       {active && <CheckCircle2 className="h-4 w-4 text-red-400 mx-auto" />}
@@ -311,7 +316,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
         <div className="px-4 py-2 bg-surface-800/30 border-t border-border/40">
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Lightbulb className="h-3 w-3 text-amber-400 shrink-0" />
-            Selecionar uma linha atualiza modelo/tamanho/qualidade mas não o custo USD — ajuste manualmente conforme o modelo escolhido.
+            Clicar em uma linha preenche modelo, tamanho, qualidade, custo OpenAI e créditos sugeridos (80% margem). Salve para aplicar.
           </p>
         </div>
       </div>
