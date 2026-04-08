@@ -7,8 +7,8 @@ const IMAGE_FEATURES = ["campaign_image", "visual_style_generate", "brand_style_
 // Approximate monthly plan revenue in BRL cents (for profitability context)
 const PLAN_REVENUE_CENTS: Record<string, number> = {
   FREE:       0,
-  STARTER:    8900,
-  PRO:        14900,
+  STARTER:    4990,
+  PRO:        4990,
   ENTERPRISE: 0,
 };
 
@@ -45,10 +45,10 @@ export async function GET() {
       : 0,
   };
 
-  // ── Per-plan breakdown (current month, paid only) ────────────────────────────
+  // ── Per-plan breakdown (all subs except platform admin) ─────────────────────
   const paidSubs = await prisma.platformSubscription.findMany({
-    where:  { status: { not: "TRIALING" } },
-    select: { barbershopId: true, planTier: true },
+    where:  { barbershop: { slug: { not: "__platform_admin__" } } },
+    select: { barbershopId: true, planTier: true, status: true },
   });
 
   const costByShop = await prisma.aiCallLog.groupBy({
@@ -67,10 +67,10 @@ export async function GET() {
     entry.totalCostUsdCents += costMap.get(sub.barbershopId) ?? 0;
   }
 
-  // Add usage counts from aiUsageMonth
+  // Add usage counts from aiUsageMonth (all statuses including trialing)
   const monthUsages = await prisma.aiUsageMonth.findMany({
-    where:  { yearMonth },
-    select: { barbershopId: true, usageCount: true },
+    where:  { yearMonth: { in: [yearMonth, "trialing"] } },
+    select: { barbershopId: true, usageCount: true, yearMonth: true },
   });
   for (const u of monthUsages) {
     const sub = paidSubs.find((s) => s.barbershopId === u.barbershopId);
@@ -79,13 +79,19 @@ export async function GET() {
     if (entry) entry.totalUsage += u.usageCount;
   }
 
-  const planBreakdown = [...tierMap.entries()].map(([tier, data]) => ({
-    tier,
-    shopCount:             data.shopIds.size,
-    totalUsage:            data.totalUsage,
-    estimatedCostUsdCents: data.totalCostUsdCents,
-    planRevenueCents:      data.shopIds.size * (PLAN_REVENUE_CENTS[tier] ?? 0),
-  })).sort((a, b) => b.planRevenueCents - a.planRevenueCents);
+  const planBreakdown = [...tierMap.entries()].map(([tier, data]) => {
+    const activeSubs  = paidSubs.filter((s) => s.planTier === tier && s.status !== "TRIALING").length;
+    const trialingSubs = paidSubs.filter((s) => s.planTier === tier && s.status === "TRIALING").length;
+    return {
+      tier,
+      shopCount:             data.shopIds.size,
+      activeSubs,
+      trialingSubs,
+      totalUsage:            data.totalUsage,
+      estimatedCostUsdCents: data.totalCostUsdCents,
+      planRevenueCents:      activeSubs * (PLAN_REVENUE_CENTS[tier] ?? 0),
+    };
+  }).sort((a, b) => b.planRevenueCents - a.planRevenueCents);
 
   // ── Image stats (current month) ──────────────────────────────────────────────
   const imageAgg = await prisma.aiCallLog.aggregate({

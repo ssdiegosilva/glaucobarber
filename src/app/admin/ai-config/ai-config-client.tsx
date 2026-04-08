@@ -31,6 +31,8 @@ interface CostData {
   planBreakdown: {
     tier:                  string;
     shopCount:             number;
+    activeSubs:            number;
+    trialingSubs:          number;
     totalUsage:            number;
     estimatedCostUsdCents: number;
     planRevenueCents:      number;
@@ -392,45 +394,51 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
             </div>
 
             {/* Plan breakdown */}
-            {costData.planBreakdown.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Por plano (assinantes)</p>
-                <div className="rounded-md border border-border overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-surface-800/50">
-                      <tr>
-                        {["Plano", "Barbearias", "Uso IA (créditos)", "Custo estimado", "Receita plano"].map((h) => (
-                          <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/30">
-                      {costData.planBreakdown.map((row) => (
-                        <tr key={row.tier} className="hover:bg-surface-800/30">
-                          <td className="px-4 py-2 text-xs font-semibold text-foreground">{row.tier}</td>
-                          <td className="px-4 py-2 text-xs text-muted-foreground">{row.shopCount}</td>
-                          <td className="px-4 py-2 text-xs text-muted-foreground">{row.totalUsage}</td>
-                          <td className="px-4 py-2 text-xs text-amber-400 font-medium">
-                            ${(row.estimatedCostUsdCents / 100).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-2 text-xs text-green-400 font-medium">
-                            {row.planRevenueCents > 0
-                              ? `R$${(row.planRevenueCents / 100).toFixed(0)}`
-                              : <span className="text-muted-foreground">—</span>
-                            }
-                          </td>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Por plano (todos)</p>
+              {costData.planBreakdown.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">Nenhuma barbearia cadastrada.</p>
+              ) : (
+                <>
+                  <div className="rounded-md border border-border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-surface-800/50">
+                        <tr>
+                          {["Plano", "Total", "Ativos", "Trial", "Uso IA", "Custo est.", "Receita"].map((h) => (
+                            <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                              {h}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1.5">
-                  Receita = estimativa baseada em preço base do plano × número de barbearias ativas.
-                </p>
-              </div>
-            )}
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {costData.planBreakdown.map((row) => (
+                          <tr key={row.tier} className="hover:bg-surface-800/30">
+                            <td className="px-4 py-2 text-xs font-semibold text-foreground">{row.tier}</td>
+                            <td className="px-4 py-2 text-xs text-muted-foreground">{row.shopCount}</td>
+                            <td className="px-4 py-2 text-xs text-green-400">{row.activeSubs || "—"}</td>
+                            <td className="px-4 py-2 text-xs text-amber-400">{row.trialingSubs || "—"}</td>
+                            <td className="px-4 py-2 text-xs text-muted-foreground">{row.totalUsage}</td>
+                            <td className="px-4 py-2 text-xs text-amber-400 font-medium">
+                              ${(row.estimatedCostUsdCents / 100).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-2 text-xs text-green-400 font-medium">
+                              {row.planRevenueCents > 0
+                                ? `R$${(row.planRevenueCents / 100).toFixed(0)}`
+                                : <span className="text-muted-foreground">—</span>
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    Receita = R$49,90 × barbearias ativas (não trial). Trial não gera receita.
+                  </p>
+                </>
+              )}
+            </div>
 
             {/* Image stats */}
             <div>
