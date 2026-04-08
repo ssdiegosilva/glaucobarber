@@ -622,15 +622,15 @@ function StatementSection({ planTier, planStatus, yearMonth }: {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Últimas chamadas</p>
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block" />Mensal</span>
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-purple-400 inline-block" />Comprado</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />Mensal</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-purple-500 inline-block" />Comprado</span>
                 </div>
               </div>
               {data.callLog.map((c) => {
                 const isCredits = c.source === "credits";
                 const isMixed   = c.source === "mixed";
-                const dotColor  = isCredits ? "bg-purple-400" : isMixed ? "bg-purple-400/60" : "bg-red-400/70";
-                const creditColor = (isCredits || isMixed) ? "text-purple-400/80" : "text-muted-foreground/50";
+                const dotColor  = isCredits ? "bg-purple-500" : isMixed ? "bg-purple-400" : "bg-red-500";
+                const creditColor = (isCredits || isMixed) ? "text-purple-400" : "text-red-400";
                 return (
                   <div key={c.id} className="flex items-center justify-between text-xs gap-2">
                     <div className="flex items-center gap-2 min-w-0">
