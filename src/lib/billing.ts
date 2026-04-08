@@ -306,16 +306,28 @@ export async function consumeAiCredit(
 
   const key = periodKey(plan.tier);
 
-  // Increment usage counter
-  const updated = await prisma.aiUsageMonth.upsert({
+  // Read current usage before incrementing to calculate the overflow correctly
+  const current = await prisma.aiUsageMonth.findUnique({
+    where: { barbershopId_yearMonth: { barbershopId, yearMonth: key } },
+  });
+  const usedBefore = current?.usageCount ?? 0;
+
+  // How much of this cost fits within the monthly quota vs must come from purchased credits
+  const spaceInMonthly = Math.max(0, limits.aiPerPeriod - usedBefore);
+  const fromMonthly    = Math.min(cost, spaceInMonthly);
+  const fromCredits    = cost - fromMonthly;
+
+  // Increment monthly usage counter (only by the portion that fits within the quota)
+  // This keeps the monthly counter capped at the plan limit — overflow is shown via aiCreditBalance
+  await prisma.aiUsageMonth.upsert({
     where:  { barbershopId_yearMonth: { barbershopId, yearMonth: key } },
-    create: { barbershopId, yearMonth: key, usageCount: cost },
-    update: { usageCount: { increment: cost } },
+    create: { barbershopId, yearMonth: key, usageCount: fromMonthly },
+    update: { usageCount: { increment: fromMonthly } },
   });
 
-  // If we've exceeded the base limit, burn from credit balance (never go below 0)
-  if (updated.usageCount > limits.aiPerPeriod && plan.aiCreditBalance > 0) {
-    const deduct = Math.min(cost, plan.aiCreditBalance);
+  // Deduct only the overflow portion from the purchased credit balance
+  if (fromCredits > 0 && plan.aiCreditBalance > 0) {
+    const deduct = Math.min(fromCredits, plan.aiCreditBalance);
     await prisma.platformSubscription.update({
       where: { barbershopId },
       data:  { aiCreditBalance: { decrement: deduct } },
