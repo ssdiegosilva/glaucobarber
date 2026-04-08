@@ -262,8 +262,14 @@ function PostCard({
             <Button
               size="sm"
               className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
-              onClick={() => onApprove(post.id)}
-              disabled={!post.caption?.trim()}
+              onClick={() => {
+                if (captionDirty && editingCaption.trim()) {
+                  onSaveCaption(post.id, editingCaption);
+                  setCaptionDirty(false);
+                }
+                onApprove(post.id);
+              }}
+              disabled={!editingCaption.trim()}
             >
               <CheckCircle2 className="h-3 w-3 mr-1" />
               Aprovar
