@@ -315,8 +315,11 @@ export async function consumeAiCredit(
   const fromMonthly    = Math.min(cost, spaceInMonthly);
   const fromCredits    = cost - fromMonthly;
 
-  // Log with correct source
-  const source = fromCredits > 0 ? "credits" : "monthly";
+  // Log with correct source:
+  // "credits" = entirely from purchased balance (monthly was already full)
+  // "mixed"   = partially monthly + partially purchased credits
+  // "monthly" = entirely within monthly quota
+  const source = fromCredits === 0 ? "monthly" : fromMonthly === 0 ? "credits" : "mixed";
   await logAiCall(barbershopId, feature, costUsdCents, cost, source);
 
   // Increment monthly usage counter (only by the portion that fits within the quota)
@@ -338,7 +341,7 @@ export async function consumeAiCredit(
 
 // ── logAiCall ──────────────────────────────────────────────────────────────────
 
-async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0, credits = 1, source: "monthly" | "credits" | "trial" = "monthly"): Promise<void> {
+async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0, credits = 1, source: "monthly" | "credits" | "mixed" | "trial" = "monthly"): Promise<void> {
   const label = AI_FEATURE_LABELS[feature] ?? feature;
 
   await prisma.aiCallLog.create({

@@ -511,7 +511,7 @@ interface StatementData {
   subscription: { planTier: string; priceCents: number; renewsAt: string | null; cancelAtPeriodEnd: boolean };
   aiUsage:      { used: number; limit: number | null };
   credits:      { balance: number; purchased: number };
-  callLog:      { id: string; label: string; credits: number; source: string; createdAt: string }[];
+  callLog:      { id: string; label: string; credits: number; source: string; fromMonthly?: number; fromCredits?: number; createdAt: string }[];
   history:      { yearMonth: string; usageCount: number }[];
 }
 
@@ -627,10 +627,10 @@ function StatementSection({ planTier, planStatus, yearMonth }: {
                 </div>
               </div>
               {data.callLog.map((c) => {
-                const dotColor = c.source === "credits" ? "bg-purple-400" : "bg-red-400/70";
-                const creditsLabel = c.source === "credits"
-                  ? <span className="text-purple-400/80 shrink-0">{c.credits} cr.</span>
-                  : <span className="text-muted-foreground/50 shrink-0">{c.credits} cr.</span>;
+                const isCredits = c.source === "credits";
+                const isMixed   = c.source === "mixed";
+                const dotColor  = isCredits ? "bg-purple-400" : isMixed ? "bg-purple-400/60" : "bg-red-400/70";
+                const creditColor = (isCredits || isMixed) ? "text-purple-400/80" : "text-muted-foreground/50";
                 return (
                   <div key={c.id} className="flex items-center justify-between text-xs gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -638,7 +638,7 @@ function StatementSection({ planTier, planStatus, yearMonth }: {
                       <span className="text-muted-foreground truncate">{c.label}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {creditsLabel}
+                      <span className={creditColor}>{c.credits} cr.</span>
                       <span className="text-muted-foreground/40">{formatRelative(c.createdAt)}</span>
                     </div>
                   </div>
