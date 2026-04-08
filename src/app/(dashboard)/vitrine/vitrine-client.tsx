@@ -119,6 +119,7 @@ function PostCard({
   instagramConfigured,
   aiAllowed,
   generatingCaption,
+  publishing,
 }: {
   post: VitrinPostDto;
   onApprove: (id: string) => void;
@@ -130,6 +131,7 @@ function PostCard({
   instagramConfigured: boolean;
   aiAllowed: boolean;
   generatingCaption: boolean;
+  publishing: boolean;
 }) {
   const [editingCaption, setEditingCaption] = useState(post.caption);
   const [captionDirty, setCaptionDirty] = useState(false);
@@ -145,27 +147,25 @@ function PostCard({
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
-      {/* Photo grid */}
-      <div className={cn(
-        "grid gap-0.5 bg-zinc-800",
-        post.images.length === 1 ? "grid-cols-1" :
-        post.images.length === 2 ? "grid-cols-2" : "grid-cols-3"
-      )}>
-        {post.images.length > 0 ? post.images.map((img) => (
-          <div key={img.id} className="aspect-square bg-zinc-800 relative overflow-hidden">
-            <img
-              src={`/api/vitrine/photo?path=${encodeURIComponent(img.path)}`}
-              alt={`Foto ${img.position + 1}`}
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
-          </div>
-        )) : (
-          <div className="aspect-square bg-zinc-800 flex items-center justify-center col-span-3">
-            <ImageIcon className="h-8 w-8 text-zinc-600" />
-          </div>
-        )}
-      </div>
+      {/* Photo grid — hidden for published posts with no images (deleted after upload) */}
+      {post.images.length > 0 && (
+        <div className={cn(
+          "grid gap-0.5 bg-zinc-800",
+          post.images.length === 1 ? "grid-cols-1" :
+          post.images.length === 2 ? "grid-cols-2" : "grid-cols-3"
+        )}>
+          {post.images.map((img) => (
+            <div key={img.id} className="aspect-square bg-zinc-800 relative overflow-hidden">
+              <img
+                src={`/api/vitrine/photo?path=${encodeURIComponent(img.path)}`}
+                alt={`Foto ${img.position + 1}`}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Content */}
       <div className="p-4 space-y-3">
@@ -276,17 +276,27 @@ function PostCard({
                   size="sm"
                   className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
                   onClick={() => onPublish(post.id)}
-                  disabled={!instagramConfigured}
+                  disabled={!instagramConfigured || publishing}
                   title={!instagramConfigured ? "Configure o Instagram em Configurações > Integrações" : undefined}
                 >
-                  <Send className="h-3 w-3 mr-1" />
-                  Publicar agora
+                  {publishing ? (
+                    <>
+                      <div className="h-3 w-3 mr-1 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      Publicando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-3 w-3 mr-1" />
+                      Publicar agora
+                    </>
+                  )}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
                   className="text-xs h-8"
                   onClick={() => onSchedule(post.id)}
+                  disabled={publishing}
                 >
                   <Calendar className="h-3 w-3 mr-1" />
                   Agendar
@@ -298,10 +308,19 @@ function PostCard({
                 size="sm"
                 className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
                 onClick={() => onPublish(post.id)}
-                disabled={!instagramConfigured}
+                disabled={!instagramConfigured || publishing}
               >
-                <Send className="h-3 w-3 mr-1" />
-                Publicar agora
+                {publishing ? (
+                  <>
+                    <div className="h-3 w-3 mr-1 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    Publicando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3 w-3 mr-1" />
+                    Publicar agora
+                  </>
+                )}
               </Button>
             )}
             <Button
@@ -389,6 +408,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading]     = useState<Record<string, boolean>>({});
   const [captioningId, setCaptioningId] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [schedulePostId, setSchedulePostId] = useState<string | null>(null);
   const [toast, setToast]         = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
@@ -475,7 +495,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
   // ── Publish ────────────────────────────────────────────────
 
   async function handlePublish(id: string) {
-    setPostLoading(id, true);
+    setPublishingId(id);
     try {
       const res = await fetch(`/api/vitrine/${id}/publish`, { method: "POST" });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
@@ -488,7 +508,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Erro ao publicar", "error");
     } finally {
-      setPostLoading(id, false);
+      setPublishingId(null);
     }
   }
 
@@ -588,6 +608,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
                   instagramConfigured={instagramConfigured}
                   aiAllowed={aiAllowed}
                   generatingCaption={captioningId === post.id}
+                  publishing={publishingId === post.id}
                 />
               </div>
             ))}
