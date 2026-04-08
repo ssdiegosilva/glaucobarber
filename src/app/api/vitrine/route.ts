@@ -46,12 +46,17 @@ export async function POST(req: NextRequest) {
     const file = files[i];
     const buffer = Buffer.from(await file.arrayBuffer());
     const fotoId = `${Date.now()}-${i}`;
+    // Sanitize content type: strip parameters (e.g. "image/heic;codecs=hvc1")
+    // and normalize HEIC/HEIF to jpeg (browser on iOS may send these)
+    const rawType = (file.type || "image/jpeg").split(";")[0].trim().toLowerCase();
+    const HEIC_TYPES: Record<string, string> = { "image/heic": "image/jpeg", "image/heif": "image/jpeg" };
+    const contentType = HEIC_TYPES[rawType] ?? (rawType.startsWith("image/") ? rawType : "image/jpeg");
     const { path } = await uploadVitrineFoto({
       barbershopId: session.user.barbershopId,
       postId: post.id,
       fotoId,
       buffer,
-      contentType: file.type || "image/jpeg",
+      contentType,
     });
     imageDatas.push({ path, position: i });
   }
