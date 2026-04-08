@@ -890,11 +890,13 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     // Pre-flight check: verify credits cover the cost before calling the API
     const effectiveQuality = quality ?? imageQuality;
     const cost = imageCreditCosts[effectiveQuality];
-    const available = (aiAllowance.limit - aiAllowance.used) + aiAllowance.creditsRemaining;
+    // Use Math.max(0, ...) so that over-usage of the base plan doesn't eat into purchased credits
+    const baseRemaining = Math.max(0, aiAllowance.limit - aiAllowance.used);
+    const available = baseRemaining + aiAllowance.creditsRemaining;
     if (available < cost) {
       const missing = cost - available;
       const err = new Error(
-        `Créditos insuficientes. Esta qualidade custa ${cost} créditos, mas você tem ${Math.max(0, available)} disponíveis (faltam ${missing}).`
+        `Créditos insuficientes. Esta qualidade custa ${cost} créditos, mas você tem ${available} disponíveis (faltam ${missing}).`
       );
       (err as any).code = "insufficient_credits";
       throw err;
