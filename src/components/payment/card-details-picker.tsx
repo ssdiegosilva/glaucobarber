@@ -13,6 +13,7 @@ import {
   calculateMachineFee,
 } from "@/lib/card-fees";
 import { formatBRL } from "@/lib/utils";
+import { CardBrandLogo } from "./card-brand-logo";
 
 interface Props {
   cardBrand: string | null;
