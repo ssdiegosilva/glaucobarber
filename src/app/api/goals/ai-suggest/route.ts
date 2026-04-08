@@ -197,7 +197,7 @@ RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
       : response.output?.find((o: any) => o.type === "message")?.content?.find((c: any) => c.type === "output_text")?.text ?? "";
     const parsed = extractJson(text);
 
-    if (parsed && typeof parsed.suggestedRevenueTarget === "number") {
+    if (parsed && typeof parsed.suggestedRevenueTarget === "number" && parsed.suggestedRevenueTarget > 0) {
       await consumeAiCredit(session.user.barbershopId, "goals_suggest");
 
       // Save holidays to cache if returned
@@ -277,7 +277,7 @@ Responda APENAS em JSON:
     await consumeAiCredit(session.user.barbershopId, "goals_suggest");
 
     return NextResponse.json({
-      suggestedRevenueTarget: parsed.suggestedRevenueTarget ?? Math.round(totalCapacity * 0.70 * fallback.avg),
+      suggestedRevenueTarget: parsed.suggestedRevenueTarget || Math.round(totalCapacity * 0.70 * fallback.avg),
       workingDaysCount,
       holidays:          cachedHolidays,
       region,
