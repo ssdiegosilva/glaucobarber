@@ -50,11 +50,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     include: { images: true },
   });
   if (!post) return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
-  if (post.status === "PUBLISHED") {
-    return NextResponse.json({ error: "Não é possível apagar um post já publicado" }, { status: 400 });
-  }
 
-  // Delete photos from storage
+  // Delete photos from storage (may already be deleted for published posts)
   await Promise.allSettled(post.images.map((img) => deleteVitrineFoto(img.path)));
 
   await prisma.vitrinPost.delete({ where: { id } });

@@ -504,10 +504,22 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
       const res = await fetch(`/api/vitrine/${id}/publish`, { method: "POST" });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       const { permalink } = await res.json();
-      setPosts((prev) => prev.map((p) => p.id === id
-        ? { ...p, status: "PUBLISHED", instagramPermalink: permalink, images: [] }
-        : p
-      ));
+      setPosts((prev) => {
+        const updated = prev.map((p) => p.id === id
+          ? { ...p, status: "PUBLISHED", instagramPermalink: permalink, images: [], publishedAt: new Date().toISOString() }
+          : p
+        );
+        // Keep only the 5 most recent published posts — remove oldest if over limit
+        const published = updated
+          .filter((p) => p.status === "PUBLISHED")
+          .sort((a, b) => new Date(b.publishedAt ?? b.createdAt).getTime() - new Date(a.publishedAt ?? a.createdAt).getTime());
+        if (published.length > 5) {
+          const toRemove = published.slice(5).map((p) => p.id);
+          toRemove.forEach((rid) => fetch(`/api/vitrine/${rid}`, { method: "DELETE" }).catch(() => null));
+          return updated.filter((p) => !toRemove.includes(p.id));
+        }
+        return updated;
+      });
       showToast("Publicado no Instagram!");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Erro ao publicar", "error");
@@ -544,8 +556,10 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
   const draftPosts     = posts.filter((p) => p.status === "DRAFT");
   const approvedPosts  = posts.filter((p) => p.status === "APPROVED");
   const scheduledPosts = posts.filter((p) => p.status === "SCHEDULED");
-  const publishedPosts = posts.filter((p) => p.status === "PUBLISHED").slice(0, 5);
+  const allPublished   = posts.filter((p) => p.status === "PUBLISHED").sort((a, b) => new Date(b.publishedAt ?? b.createdAt).getTime() - new Date(a.publishedAt ?? a.createdAt).getTime());
+  const publishedPosts = allPublished.slice(0, 5);
   const failedPosts    = posts.filter((p) => p.status === "FAILED");
+  const atPublishedLimit = allPublished.length >= 5;
 
   return (
     <div className="flex flex-col flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-4xl">
@@ -589,15 +603,21 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
       {/* Posts by status */}
       {[
         { label: "Rascunhos", posts: draftPosts },
-        { label: "Aprovados", posts: approvedPosts },
-        { label: "Agendados", posts: scheduledPosts },
+        { label: "Aprovados", posts: approvedPosts, warn: atPublishedLimit ? "Você já tem 5 publicados. Ao publicar, o mais antigo será removido automaticamente." : undefined },
+        { label: "Agendados", posts: scheduledPosts, warn: atPublishedLimit ? "Você já tem 5 publicados. Ao publicar, o mais antigo será removido automaticamente." : undefined },
         { label: "Publicados", posts: publishedPosts },
         { label: "Com erro", posts: failedPosts },
-      ].filter(({ posts }) => posts.length > 0).map(({ label, posts: group }) => (
+      ].filter(({ posts }) => posts.length > 0).map(({ label, posts: group, warn }: { label: string; posts: VitrinPostDto[]; warn?: string }) => (
         <div key={label}>
           <h2 className="text-sm font-semibold text-muted-foreground mb-3">
             {label} <span className="text-zinc-500">({group.length})</span>
           </h2>
+          {warn && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 mb-3">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-300">{warn}</p>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {group.map((post) => (
               <div key={post.id} className={cn(loading[post.id] && !captioningId && "opacity-60 pointer-events-none")}>
