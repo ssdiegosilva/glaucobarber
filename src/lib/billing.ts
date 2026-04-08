@@ -154,11 +154,8 @@ export async function checkAiAllowance(barbershopId: string): Promise<AiAllowanc
 
   const used             = usage?.usageCount ?? 0;
   const baseAllowance    = limits.aiPerPeriod;
-  const creditsRemaining = plan.aiCreditBalance;
-  // Correct check: within base plan OR has extra credits remaining.
-  // (Don't add creditsRemaining to totalAllowance — credits are already being
-  //  decremented from aiCreditBalance as they're consumed, so comparing
-  //  `used < base + remaining` double-counts and blocks valid credit usage.)
+  // Guard against negative balance (can happen when image cost > remaining balance)
+  const creditsRemaining = Math.max(0, plan.aiCreditBalance);
   const allowed = used < baseAllowance || creditsRemaining > 0;
 
   return {
@@ -316,11 +313,12 @@ export async function consumeAiCredit(
     update: { usageCount: { increment: cost } },
   });
 
-  // If we've exceeded the base limit, burn from credit balance
+  // If we've exceeded the base limit, burn from credit balance (never go below 0)
   if (updated.usageCount > limits.aiPerPeriod && plan.aiCreditBalance > 0) {
+    const deduct = Math.min(cost, plan.aiCreditBalance);
     await prisma.platformSubscription.update({
       where: { barbershopId },
-      data:  { aiCreditBalance: { decrement: cost } },
+      data:  { aiCreditBalance: { decrement: deduct } },
     });
   }
 }
