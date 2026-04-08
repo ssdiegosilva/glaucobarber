@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
-import { Building2, Palette, Plug, Users, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
+import { Building2, Palette, Plug, Users, CreditCard, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
 import { BarbershopCard } from "./barbershop-card";
 import { GoogleReviewCard } from "./google-review-card";
 import { BrandStyleCard } from "./brand-style-card";
@@ -11,6 +11,7 @@ import { IntegrationsClient } from "./integrations-client";
 import { CollapsibleSection } from "./collapsible-section";
 import { TeamCard } from "./team-card";
 import { CardFeesCard } from "./card-fees-card";
+import { ChangePasswordCard } from "./change-password-card";
 
 export default async function SettingsPage({
   searchParams,
@@ -211,6 +212,17 @@ export default async function SettingsPage({
               feePercent: Number(c.feePercent),
             }))}
           />
+        </CollapsibleSection>
+
+        {/* ── Segurança ──────────────────────────────────────── */}
+        <CollapsibleSection
+          id="security"
+          icon={<ShieldCheck className="h-4 w-4" />}
+          title="Segurança"
+          description="Alterar senha da sua conta"
+          defaultOpen={section === "security"}
+        >
+          <ChangePasswordCard />
         </CollapsibleSection>
 
         {/* ── Integrações ────────────────────────────────────── */}
