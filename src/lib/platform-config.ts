@@ -102,7 +102,8 @@ export type KillSwitchKey =
   | "kill_whatsapp_auto"
   | "kill_trinks_sync"
   | "kill_new_signups"
-  | "kill_image_pricing";
+  | "kill_image_pricing"
+  | "kill_vitrine";
 
 /**
  * Returns true if the kill switch is active (value === "true").

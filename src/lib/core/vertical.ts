@@ -45,6 +45,8 @@ export interface VerticalConfig {
     serviceAnalysisSystemPrompt: string;
     /** Prompt sent to gpt-image-1 for the haircut visual transformation */
     haircutVisualPrompt: string;
+    /** System prompt for vitrine (work showcase) caption generation */
+    vitrineCaptionSystemPrompt: string;
   };
 
   // ── Storage ───────────────────────────────────────────────

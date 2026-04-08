@@ -80,6 +80,7 @@ const FEATURE_DETAIL: Record<string, string> = {
   services:      "Catálogo de serviços com nome, preço e duração. Veja quais serviços geram mais receita e quais têm melhor ticket médio. Sincronizado automaticamente com a Trinks.",
   offers:        "Crie promoções com validade, desconto e público-alvo. Use o Copilot para gerar o texto da oferta e acompanhe quantas vezes foi aplicada.",
   campaigns:     "Crie campanhas de marketing completas: texto gerado por IA com base no seu objetivo, imagem criada automaticamente e publicação direta no Instagram. Programe a data de lançamento e acompanhe o status.",
+  vitrine:       "Poste carrosséis dos seus melhores cortes no Instagram. Envie até 3 fotos por post, gere a legenda com IA (1 crédito) e publique direto pelo app. Disponível em todos os planos.",
   whatsapp:      "Envie mensagens de WhatsApp para clientes individualmente usando templates ou texto livre. Gerencie a fila de mensagens agendadas, veja o histórico de enviadas e acompanhe falhas de entrega.",
   whatsapp_auto: "Bot que processa a fila de templates de WhatsApp automaticamente a cada 15 minutos — sem você precisar fazer nada. Ideal para pós-venda, reativação de inativos e campanhas em massa.",
   "post-sale":   "Painel de retenção com clientes segmentados por risco: em risco de sair (14–60 dias sem visita), recém-atendidos (janela ideal para pedir avaliação), inativos há mais de 60 dias e clientes reativados. Acione mensagens com um clique.",

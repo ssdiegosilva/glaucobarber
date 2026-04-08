@@ -15,6 +15,7 @@ type KillSwitches = {
   kill_trinks_sync:      boolean;
   kill_new_signups:      boolean;
   kill_image_pricing:    boolean;
+  kill_vitrine:          boolean;
 };
 
 type CronRun = {
@@ -112,6 +113,13 @@ const KILL_SWITCH_META: {
     icon: TrendingUp,
     color: "zinc",
   },
+  {
+    key: "kill_vitrine",
+    label: "Vitrine",
+    description: "Pausa geração de legenda e publicação da Vitrine",
+    icon: BarChart3,
+    color: "purple",
+  },
 ];
 
 const CRON_LABELS: Record<string, string> = {
@@ -119,6 +127,7 @@ const CRON_LABELS: Record<string, string> = {
   "hourly-sync":            "Sync Horário",
   "whatsapp-send":          "WhatsApp Send",
   "campaigns-publish":      "Publica Campanhas",
+  "vitrine-publish":        "Publica Vitrine",
   "update-image-pricing":   "Precificação de Imagens",
 };
 

@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   Zap, BarChart3, Users, Sparkles, Calendar,
   TrendingUp, Megaphone, ArrowRight, CheckCircle2,
-  MessageSquare, Bot, Send, Camera, X,
+  MessageSquare, Bot, Send, Camera, X, GalleryHorizontal,
 } from "lucide-react";
 import { InstallAppButton } from "@/components/pwa/install-button";
 
@@ -280,6 +280,11 @@ export default async function RootPage() {
                 desc: "Detecta clientes que acabaram de ser atendidos e sugere mensagem personalizada de avaliação ou retorno.",
               },
               {
+                icon: <GalleryHorizontal className="h-6 w-6" />,
+                title: "Vitrine de trabalhos",
+                desc: "Poste carrosséis dos seus melhores cortes no Instagram. A IA analisa a foto e gera a legenda. Disponível para todos os planos.",
+              },
+              {
                 icon: <Zap className="h-6 w-6" />,
                 title: "Integração Trinks / Avec",
                 desc: "Use Trinks ou Avec — conecte em segundos com sua API Key. Todos os seus dados sincronizados sem retrabalho manual.",
@@ -327,6 +332,7 @@ export default async function RootPage() {
                   "Agenda ao vivo (Trinks / Avec)",
                   "Gestão de clientes",
                   "Metas de faturamento",
+                  "Vitrine de trabalhos (carrossel no Instagram)",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
@@ -368,6 +374,7 @@ export default async function RootPage() {
                   "300 créditos de IA/mês",
                   "Copilot IA (CEO advisor)",
                   "Campanhas com IA (texto + imagem)",
+                  "Vitrine de trabalhos (carrossel no Instagram)",
                   "Criar Visual (análise de corte)",
                   "WhatsApp BOT automático",
                   "Relatórios financeiros completos",

@@ -10,6 +10,7 @@ export const ALL_FEATURES = [
   { key: "services",     label: "Serviços",      description: "Catálogo de serviços" },
   { key: "offers",       label: "Ofertas",       description: "Promoções e descontos" },
   { key: "campaigns",     label: "Campanhas",      description: "Marketing e comunicação" },
+  { key: "vitrine",       label: "Vitrine",        description: "Posts de trabalhos em carrossel no Instagram" },
   { key: "criar-visual",  label: "Criar Visual",   description: "Análise de foto e sugestão de corte com IA" },
   { key: "whatsapp",      label: "WhatsApp",       description: "Mensagens automáticas" },
   { key: "whatsapp_auto", label: "WhatsApp Automático", description: "Bot envia mensagens agendadas automaticamente (a cada 15 min)" },
