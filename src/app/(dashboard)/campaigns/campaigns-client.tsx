@@ -290,16 +290,19 @@ const QUALITY_OPTIONS: { tier: ImageQualityTier; icon: React.ReactElement; label
 function GenerateImageModal({
   generating,
   imageCreditCosts,
+  briefing,
   onGenerate,
   onClose,
 }: {
   generating: boolean;
   imageCreditCosts: { low: number; medium: number; high: number };
+  briefing?: string | null;
   onGenerate: (prompt?: string, quality?: ImageQualityTier) => void;
   onClose: () => void;
 }) {
-  const [quality, setQuality] = useState<ImageQualityTier>("medium");
-  const [prompt, setPrompt]   = useState("");
+  const [quality, setQuality]         = useState<ImageQualityTier>("medium");
+  const [editingBriefing, setEditingBriefing] = useState(false);
+  const [briefingText, setBriefingText]       = useState(briefing ?? "");
 
   return (
     <>
@@ -314,6 +317,32 @@ function GenerateImageModal({
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {/* Briefing da arte */}
+        {(briefingText || briefing) && (
+          <div className="rounded-md bg-surface-800 border border-border p-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Briefing da arte</p>
+              <button
+                onClick={() => setEditingBriefing((v) => !v)}
+                className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Editar briefing"
+              >
+                {editingBriefing ? <X className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
+              </button>
+            </div>
+            {editingBriefing ? (
+              <textarea
+                value={briefingText}
+                onChange={(e) => setBriefingText(e.target.value)}
+                rows={4}
+                className="w-full rounded-md border border-border bg-surface-700 px-2.5 py-2 text-xs text-foreground leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed">{briefingText}</p>
+            )}
+          </div>
+        )}
 
         {/* Quality — horizontal cards with icons */}
         <div className="space-y-1.5">
@@ -343,27 +372,13 @@ function GenerateImageModal({
           </div>
         </div>
 
-        {/* Optional description */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] text-muted-foreground font-medium">
-            Descrição adicional{" "}
-            <span className="text-muted-foreground/50 font-normal">(opcional)</span>
-          </label>
-          <input
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ex: iluminação dramática, fundo escuro..."
-            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={generating}>
             Cancelar
           </Button>
           <Button
             className="flex-1 bg-purple-600 hover:bg-purple-500 text-white gap-1.5"
-            onClick={() => onGenerate(prompt || undefined, quality)}
+            onClick={() => onGenerate(briefingText || undefined, quality)}
             disabled={generating}
           >
             {generating
@@ -466,21 +481,16 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
             <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.text}</p>
           )}
         </div>
-        {c.artBriefing && (
-          <div className="rounded-md bg-surface-800 p-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Briefing da arte</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{c.artBriefing}</p>
-          </div>
-        )}
         <div className="space-y-3">
           <div className="rounded-lg border border-dashed border-gold-500/30 bg-surface-900">
-            <div className="flex items-center justify-between px-3 py-2">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Arte</p>
-                <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {c.imageUrl && (
+            {/* Image preview — only shown when there's already an image */}
+            {c.imageUrl && (
+              <>
+                <div className="flex items-center justify-between px-3 py-2">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Arte</p>
+                    <p className="text-[11px] text-muted-foreground">Pré-visualize, aprove ou troque a imagem.</p>
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
@@ -489,26 +499,20 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
                   >
                     {editingImage ? <><X className="h-3 w-3" />Fechar</> : <><Wand2 className="h-3 w-3" />Mudar imagem</>}
                   </Button>
-                )}
-              </div>
-            </div>
-            <div className="bg-surface-800">
-              {c.imageUrl ? (
-                <img src={c.imageUrl} alt={`Arte da campanha ${c.title}`} className="w-full h-60 object-cover" />
-              ) : (
-                <div className="h-60 flex items-center justify-center text-[11px] text-muted-foreground">Nenhuma imagem ainda</div>
-              )}
-            </div>
-            {c.imageUrl && (
-              <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
-                <span>Prévia renderizada</span>
-                <a href={c.imageUrl} target="_blank" rel="noreferrer" className="text-gold-400 hover:text-gold-300 underline" onClick={(e) => e.stopPropagation()}>
-                  Abrir em nova aba
-                </a>
-              </div>
+                </div>
+                <div className="bg-surface-800">
+                  <img src={c.imageUrl} alt={`Arte da campanha ${c.title}`} className="w-full h-60 object-cover" />
+                </div>
+                <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
+                  <span>Prévia renderizada</span>
+                  <a href={c.imageUrl} target="_blank" rel="noreferrer" className="text-gold-400 hover:text-gold-300 underline" onClick={(e) => e.stopPropagation()}>
+                    Abrir em nova aba
+                  </a>
+                </div>
+              </>
             )}
             {openEditor && (
-              <div className="space-y-2 px-3 py-3 border-t border-border/40">
+              <div className={`space-y-2 px-3 py-3 ${c.imageUrl ? "border-t border-border/40" : ""}`}>
                 <div className="flex flex-wrap gap-2">
                   <input
                     id={`upload-${c.id}`}
@@ -557,6 +561,7 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
               <GenerateImageModal
                 generating={generatingImage === c.id}
                 imageCreditCosts={imageCreditCosts}
+                briefing={c.artBriefing}
                 onGenerate={handleGenerateImage}
                 onClose={() => setShowGenerateModal(false)}
               />
