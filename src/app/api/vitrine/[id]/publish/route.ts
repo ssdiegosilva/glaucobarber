@@ -1,9 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { signVitrineFoto, deleteVitrineFoto } from "@/lib/storage";
+import { signVitrineFoto, deleteVitrineFoto, uploadVitrineFoto } from "@/lib/storage";
 import { publishCarouselToInstagram, publishCampaignToInstagram, fetchInstagramPermalink } from "@/lib/campaign-publish";
 import { getKillSwitch } from "@/lib/platform-config";
+import sharp from "sharp";
+
+// Instagram accepts aspect ratios between 4:5 (0.8) and 1.91:1.
+const IG_MIN_RATIO = 0.8;
+const IG_MAX_RATIO = 1.91;
+
+/**
+ * Downloads an image and crops it to fit Instagram's aspect ratio requirements.
+ * Returns the cropped Buffer, or null if no crop is needed.
+ */
+async function cropForInstagram(imageUrl: string): Promise<Buffer | null> {
+  const res = await fetch(imageUrl);
+  if (!res.ok) return null;
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const meta   = await sharp(buffer).metadata();
+  const w = meta.width  ?? 1;
+  const h = meta.height ?? 1;
+  const ratio = w / h;
+
+  if (ratio >= IG_MIN_RATIO && ratio <= IG_MAX_RATIO) return null; // already valid
+
+  let cropW = w;
+  let cropH = h;
+
+  if (ratio < IG_MIN_RATIO) {
+    // Too tall (e.g. portrait 3:4, stories 9:16) → crop to 4:5
+    cropH = Math.round(w / IG_MIN_RATIO);
+  } else {
+    // Too wide → crop to 1.91:1
+    cropW = Math.round(h * IG_MAX_RATIO);
+  }
+
+  return sharp(buffer)
+    .extract({
+      left:   Math.floor((w - cropW) / 2),
+      top:    Math.floor((h - cropH) / 2),
+      width:  cropW,
+      height: cropH,
+    })
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -40,12 +83,32 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     );
   }
 
-  // Sign all photo URLs
+  // Sign all photo URLs, cropping to valid Instagram aspect ratio if needed
+  const tempPaths: string[] = []; // track temp uploads so we can clean them up
   const signedUrls: string[] = [];
-  for (const img of post.images) {
-    const url = await signVitrineFoto(img.path);
-    if (url) signedUrls.push(url);
+
+  for (let i = 0; i < post.images.length; i++) {
+    const img = post.images[i];
+    const signedUrl = await signVitrineFoto(img.path);
+    if (!signedUrl) continue;
+
+    const croppedBuffer = await cropForInstagram(signedUrl);
+    if (croppedBuffer) {
+      // Upload the cropped version as a temporary file
+      const { path, url } = await uploadVitrineFoto({
+        barbershopId: session.user.barbershopId,
+        postId:       post.id,
+        fotoId:       `cropped-${i}`,
+        buffer:       croppedBuffer,
+        contentType:  "image/jpeg",
+      });
+      signedUrls.push(url);
+      tempPaths.push(path);
+    } else {
+      signedUrls.push(signedUrl);
+    }
   }
+
   if (signedUrls.length === 0) {
     return NextResponse.json({ error: "Erro ao acessar as fotos" }, { status: 500 });
   }
@@ -64,6 +127,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[vitrine/publish] Instagram error:", msg);
+    // Clean up any temp cropped uploads
+    await Promise.allSettled(tempPaths.map((p) => deleteVitrineFoto(p).catch(() => null)));
     await prisma.vitrinPost.update({
       where: { id },
       data: { status: "FAILED", errorMsg: msg },
@@ -73,8 +138,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const permalink = await fetchInstagramPermalink(postId, token);
 
-  // Delete photos from storage (historical record stays in DB)
-  await Promise.allSettled(post.images.map((img) => deleteVitrineFoto(img.path).catch(() => null)));
+  // Delete original + temp photos from storage
+  await Promise.allSettled([
+    ...post.images.map((img) => deleteVitrineFoto(img.path).catch(() => null)),
+    ...tempPaths.map((p) => deleteVitrineFoto(p).catch(() => null)),
+  ]);
   await prisma.vitrineFoto.deleteMany({ where: { vitrinPostId: id } });
 
   await prisma.vitrinPost.update({
