@@ -1171,11 +1171,12 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
           <div className="space-y-1.5">
             <Button
               onClick={createCampaign}
-              disabled={!theme}
+              disabled={!theme || loadingCreate}
               className="text-xs gap-2 font-semibold bg-purple-600 hover:bg-purple-500 text-white"
             >
-              <Wand2 className="h-3.5 w-3.5" />
-              Gerar texto da campanha
+              {loadingCreate
+                ? <><Sparkles className="h-3.5 w-3.5 animate-spin" />Gerando...</>
+                : <><Wand2 className="h-3.5 w-3.5" />Gerar texto da campanha</>}
             </Button>
             {!instagramConfigured && (
               <p className="text-[11px] text-amber-400/80">Instagram não conectado — <a href="/settings?section=integrations" className="underline">configurar</a></p>
