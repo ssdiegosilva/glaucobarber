@@ -344,9 +344,15 @@ function UploadArea({ onUpload, uploading }: { onUpload: (files: File[]) => void
   const [previews, setPreviews] = useState<string[]>([]);
 
   const handleFiles = useCallback((files: FileList | null) => {
-    if (!files) return;
-    const arr = Array.from(files).slice(0, 3);
-    setPreviews(arr.map((f) => URL.createObjectURL(f)));
+    if (!files || files.length === 0) return;
+    // Filter out non-file drag items (e.g. URL strings dropped from other apps)
+    const arr = Array.from(files).filter((f) => f.size > 0).slice(0, 3);
+    if (arr.length === 0) return;
+    const previews: string[] = [];
+    for (const f of arr) {
+      try { previews.push(URL.createObjectURL(f)); } catch { /* skip preview for this file */ }
+    }
+    setPreviews(previews);
     onUpload(arr);
     setTimeout(() => setPreviews([]), 3000);
   }, [onUpload]);

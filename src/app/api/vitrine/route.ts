@@ -46,11 +46,18 @@ export async function POST(req: NextRequest) {
     const file = files[i];
     const buffer = Buffer.from(await file.arrayBuffer());
     const fotoId = `${Date.now()}-${i}`;
-    // Sanitize content type: strip parameters (e.g. "image/heic;codecs=hvc1")
-    // and normalize HEIC/HEIF to jpeg (browser on iOS may send these)
-    const rawType = (file.type || "image/jpeg").split(";")[0].trim().toLowerCase();
-    const HEIC_TYPES: Record<string, string> = { "image/heic": "image/jpeg", "image/heif": "image/jpeg" };
-    const contentType = HEIC_TYPES[rawType] ?? (rawType.startsWith("image/") ? rawType : "image/jpeg");
+    // Sanitize content type: strip parameters and map to an allowlisted MIME type.
+    // On iOS, drag-and-drop or HEIC photos may produce types like "image/heic",
+    // "image/heif", UTI strings ("public.jpeg"), or empty values — all of which
+    // Supabase Storage rejects with "The string did not match the expected pattern."
+    const rawType = (file.type || "").split(";")[0].trim().toLowerCase();
+    const MIME_MAP: Record<string, string> = {
+      "image/heic":  "image/jpeg",
+      "image/heif":  "image/jpeg",
+      "image/avif":  "image/jpeg",
+    };
+    const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/tiff"]);
+    const contentType = MIME_MAP[rawType] ?? (ALLOWED.has(rawType) ? rawType : "image/jpeg");
     const { path } = await uploadVitrineFoto({
       barbershopId: session.user.barbershopId,
       postId: post.id,
