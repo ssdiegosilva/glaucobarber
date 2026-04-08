@@ -1,12 +1,13 @@
 // Card brand fee constants — shared between client and server
 
-export const CARD_BRANDS = ["MASTERCARD", "VISA", "ELO"] as const;
+export const CARD_BRANDS = ["MASTERCARD", "VISA", "ELO", "AMEX"] as const;
 export type CardBrand = (typeof CARD_BRANDS)[number];
 
 export const CARD_BRAND_LABELS: Record<CardBrand, string> = {
   MASTERCARD: "Mastercard",
   VISA: "Visa",
   ELO: "Elo",
+  AMEX: "Amex",
 };
 
 export const PAYMENT_TYPES = [
@@ -98,6 +99,21 @@ export const DEFAULT_FEES: Record<CardBrand, Record<CardPaymentType, number>> = 
     CREDIT_10X: 22.30,
     CREDIT_11X: 23.44,
     CREDIT_12X: 24.55,
+  },
+  AMEX: {
+    DEBIT: 0,
+    CREDIT_1X: 5.79,
+    CREDIT_2X: 11.72,
+    CREDIT_3X: 13.10,
+    CREDIT_4X: 14.45,
+    CREDIT_5X: 15.77,
+    CREDIT_6X: 17.06,
+    CREDIT_7X: 18.32,
+    CREDIT_8X: 19.55,
+    CREDIT_9X: 20.75,
+    CREDIT_10X: 21.92,
+    CREDIT_11X: 23.06,
+    CREDIT_12X: 24.17,
   },
 };
 
