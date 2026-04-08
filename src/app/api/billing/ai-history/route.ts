@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
     skip,
     take:    PAGE_SIZE + 1,
-    select:  { id: true, feature: true, label: true, credits: true, createdAt: true },
+    select:  { id: true, feature: true, label: true, credits: true, source: true, createdAt: true },
   });
 
   const hasMore = rows.length > PAGE_SIZE;

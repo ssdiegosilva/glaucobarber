@@ -26,6 +26,8 @@ function formatRelativeLong(iso: string): string {
 interface CallLog {
   id:        string;
   label:     string;
+  credits:   number;
+  source:    string;
   createdAt: string;
 }
 
@@ -289,17 +291,24 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
                   </div>
                 ) : (
                   <div className="divide-y divide-border/20">
-                    {logs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between px-5 py-2.5 gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="h-1.5 w-1.5 rounded-full bg-gold-400/60 shrink-0" />
-                          <span className="text-xs text-foreground truncate">{log.label}</span>
+                    {logs.map((log) => {
+                      const isCredits = log.source === "credits";
+                      const isMixed   = log.source === "mixed";
+                      const dotColor  = isCredits ? "bg-purple-500" : isMixed ? "bg-purple-400" : "bg-red-500";
+                      const crColor   = (isCredits || isMixed) ? "text-purple-400" : "text-red-400";
+                      return (
+                        <div key={log.id} className="flex items-center justify-between px-5 py-2.5 gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`} />
+                            <span className="text-xs text-foreground truncate">{log.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`text-[10px] font-medium ${crColor}`}>{log.credits} cr.</span>
+                            <span className="text-[10px] text-muted-foreground">{formatRelativeLong(log.createdAt)}</span>
+                          </div>
                         </div>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {formatRelativeLong(log.createdAt)}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
