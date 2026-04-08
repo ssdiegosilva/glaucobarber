@@ -13,6 +13,18 @@ export interface DiscountEntry {
   paidValue:      number;
 }
 
+export interface MachineFeeEntry {
+  id:              string;
+  customerName:    string;
+  serviceName:     string;
+  date:            string;
+  paidValue:       number;
+  cardBrand:       string;
+  cardPaymentType: string;
+  feePercent:      number;
+  feeValue:        number;
+}
+
 export interface MonthlyData {
   month:                  number;
   year:                   number;
@@ -48,6 +60,11 @@ export interface MonthlyData {
     total: number;
     items: { id: string; label: string; amountCents: number; note: string | null }[];
   };
+  machineFees: {
+    total:   number;
+    byBrand: { brand: string; total: number; count: number }[];
+    list:    MachineFeeEntry[];
+  };
   netRevenue: number;
 }
 
@@ -76,6 +93,7 @@ export async function getMonthlyFinanceiroData(
     dailyScheduledRaw,
     paymentMethodRaw,
     expensesRaw,
+    machineFeePayments,
   ] = await Promise.all([
     prisma.appointment.aggregate({
       where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: thisStart, lte: thisEnd } },
@@ -130,6 +148,20 @@ export async function getMonthlyFinanceiroData(
       where:   { barbershopId, month, year },
       orderBy: { createdAt: "asc" },
       select:  { id: true, label: true, amountCents: true, note: true },
+    }),
+    prisma.payment.findMany({
+      where: {
+        barbershopId, domain: "BARBERSHOP_SERVICE",
+        machineFeeValue: { gt: 0 },
+        paidAt: { gte: thisStart, lte: thisEnd },
+      },
+      select: {
+        id: true, paidValue: true, cardBrand: true, cardPaymentType: true,
+        machineFeePercent: true, machineFeeValue: true, paidAt: true, createdAt: true,
+        customer:    { select: { name: true } },
+        appointment: { select: { scheduledAt: true, service: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -195,7 +227,31 @@ export async function getMonthlyFinanceiroData(
   const totalDiscount = discountList.reduce((s, d) => s + d.discountValue, 0);
 
   const expenseTotal = expensesRaw.reduce((s, e) => s + e.amountCents / 100, 0);
-  const netRevenue   = revenue - expenseTotal;
+
+  // Machine fees
+  const machineFeeList: MachineFeeEntry[] = machineFeePayments.map((p) => ({
+    id:              p.id,
+    customerName:    p.customer?.name ?? "—",
+    serviceName:     p.appointment?.service?.name ?? "—",
+    date:            format(p.paidAt ?? p.createdAt, "dd/MM/yyyy"),
+    paidValue:       Number(p.paidValue ?? 0),
+    cardBrand:       p.cardBrand ?? "—",
+    cardPaymentType: p.cardPaymentType ?? "—",
+    feePercent:      Number(p.machineFeePercent ?? 0),
+    feeValue:        Number(p.machineFeeValue ?? 0),
+  }));
+  const machineFeesTotal = machineFeeList.reduce((s, f) => s + f.feeValue, 0);
+  const brandMap = new Map<string, { total: number; count: number }>();
+  for (const f of machineFeeList) {
+    const e = brandMap.get(f.cardBrand);
+    if (e) { e.total += f.feeValue; e.count += 1; }
+    else brandMap.set(f.cardBrand, { total: f.feeValue, count: 1 });
+  }
+  const machineFeesByBrand = [...brandMap.entries()]
+    .map(([brand, v]) => ({ brand, ...v }))
+    .sort((a, b) => b.total - a.total);
+
+  const netRevenue = revenue - expenseTotal - machineFeesTotal;
 
   return {
     month,
@@ -235,6 +291,11 @@ export async function getMonthlyFinanceiroData(
     expenses: {
       total: expenseTotal,
       items: expensesRaw,
+    },
+    machineFees: {
+      total:   machineFeesTotal,
+      byBrand: machineFeesByBrand,
+      list:    machineFeeList,
     },
     netRevenue,
   };

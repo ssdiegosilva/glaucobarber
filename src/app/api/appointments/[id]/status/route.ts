@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { status, paymentMethod } = await req.json();
+  const { status, paymentMethod, cardBrand, cardPaymentType, cardInstallments } = await req.json();
   if (!allowed.includes(status)) return NextResponse.json({ error: "Status inválido" }, { status: 400 });
   const validMethods: PaymentMethod[] = ["CARD", "PIX", "CASH"];
   if (paymentMethod && !validMethods.includes(paymentMethod)) {
@@ -128,7 +128,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const existing = await prisma.payment.findFirst({
       where: { appointmentId: appointment.id, domain: "BARBERSHOP_SERVICE" },
     });
-    const paymentData = {
+    const paidVal = Number(appointment.price ?? 0);
+    const paymentData: any = {
       barbershopId: session.user.barbershopId,
       appointmentId: appointment.id,
       customerId: appointment.customerId,
@@ -139,6 +140,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       paymentMethod: paymentMethod as PaymentMethod,
       paidAt: now,
     };
+
+    // Card fee tracking
+    if (paymentMethod === "CARD" && cardBrand && cardPaymentType) {
+      paymentData.cardBrand = cardBrand;
+      paymentData.cardPaymentType = cardPaymentType;
+      paymentData.cardInstallments = cardInstallments ?? 1;
+
+      // Look up configured fee rate
+      const feeConfig = await prisma.cardFeeConfig.findUnique({
+        where: {
+          barbershopId_brand_paymentType: {
+            barbershopId: session.user.barbershopId,
+            brand: cardBrand,
+            paymentType: cardPaymentType,
+          },
+        },
+      });
+      if (feeConfig) {
+        const feePercent = Number(feeConfig.feePercent);
+        paymentData.machineFeePercent = feePercent;
+        paymentData.machineFeeValue = Math.round(paidVal * feePercent) / 100;
+      }
+    }
+
     if (existing) {
       await prisma.payment.update({ where: { id: existing.id }, data: paymentData });
     } else {

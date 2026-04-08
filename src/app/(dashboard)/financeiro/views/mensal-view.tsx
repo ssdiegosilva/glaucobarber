@@ -95,13 +95,15 @@ interface Props {
 export function MensalView({ data, currentMonth, currentYear, isLoading, onNavigate }: Props) {
   const [showDiscounts, setShowDiscounts] = useState(false);
   const [showExpenses,  setShowExpenses]  = useState(false);
+  const [showMachineFees, setShowMachineFees] = useState(false);
 
   // Local expenses state (syncs when data changes)
   const [expenses, setExpenses] = useState<ExpenseItem[]>(data.expenses.items);
   useEffect(() => { setExpenses(data.expenses.items); }, [data.month, data.year]);
 
   const expenseTotal = expenses.reduce((s, e) => s + e.amountCents / 100, 0);
-  const netRevenue   = data.revenue - expenseTotal;
+  const machineFeesTotal = data.machineFees?.total ?? 0;
+  const netRevenue   = data.revenue - expenseTotal - machineFeesTotal;
 
   // ── Expense form state ──
   type FormMode = { type: "add" } | { type: "edit"; id: string } | null;
@@ -473,6 +475,12 @@ export function MensalView({ data, currentMonth, currentYear, isLoading, onNavig
             <span className="text-muted-foreground">(-) Custos</span>
             <span className="tabular-nums text-red-400 font-medium">- {formatBRL(expenseTotal)}</span>
           </div>
+          {machineFeesTotal > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">(-) Taxas de maquininha</span>
+              <span className="tabular-nums text-red-400 font-medium">- {formatBRL(machineFeesTotal)}</span>
+            </div>
+          )}
           <div className="h-px bg-border my-1" />
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-foreground">(=) Receita líquida</span>
@@ -650,6 +658,82 @@ export function MensalView({ data, currentMonth, currentYear, isLoading, onNavig
           </div>
         )}
       </div>
+
+      {/* ── Taxas de maquininha (colapsável) ──────────────── */}
+      {(data.machineFees?.list?.length ?? 0) > 0 && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <button
+            onClick={() => setShowMachineFees((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-800/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Taxas de maquininha</span>
+              <span className="text-xs text-red-400 font-medium">{formatBRL(machineFeesTotal)}</span>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showMachineFees ? "rotate-180" : ""}`} />
+          </button>
+
+          {showMachineFees && (
+            <div className="border-t border-border p-4 space-y-3">
+              {/* Summary by brand */}
+              <div className="flex flex-wrap gap-3">
+                {data.machineFees.byBrand.map((b) => (
+                  <div key={b.brand} className="rounded-lg border border-border bg-surface-900 px-3 py-2">
+                    <p className="text-[10px] text-muted-foreground">{b.brand}</p>
+                    <p className="text-sm font-bold text-red-400">{formatBRL(b.total)}</p>
+                    <p className="text-[10px] text-muted-foreground">{b.count} pagamento{b.count !== 1 ? "s" : ""}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Detailed table */}
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-800/50">
+                      <th className="text-left px-3 py-2 text-muted-foreground font-medium">Data</th>
+                      <th className="text-left px-3 py-2 text-muted-foreground font-medium hidden sm:table-cell">Cliente</th>
+                      <th className="text-left px-3 py-2 text-muted-foreground font-medium">Bandeira</th>
+                      <th className="text-right px-3 py-2 text-muted-foreground font-medium">Valor</th>
+                      <th className="text-right px-3 py-2 text-muted-foreground font-medium">Taxa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {data.machineFees.list.map((f) => (
+                      <tr key={f.id} className="hover:bg-surface-800/20">
+                        <td className="px-3 py-2 text-muted-foreground tabular-nums">{f.date}</td>
+                        <td className="px-3 py-2 text-foreground hidden sm:table-cell">{f.customerName}</td>
+                        <td className="px-3 py-2 text-foreground">
+                          <span className="text-[10px]">{f.cardBrand}</span>
+                          <span className="text-muted-foreground text-[10px] ml-1">
+                            {f.cardPaymentType === "DEBIT" ? "Deb" : f.cardPaymentType.replace("CREDIT_", "").replace("X", "x")}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground">{formatBRL(f.paidValue)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-red-400 font-medium">
+                          {formatBRL(f.feeValue)}
+                          <span className="text-muted-foreground text-[10px] ml-1">({f.feePercent.toFixed(2).replace(".", ",")}%)</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {data.machineFees.list.length > 1 && (
+                    <tfoot>
+                      <tr className="border-t border-border bg-surface-800/30">
+                        <td colSpan={3} className="px-3 py-2 font-medium text-foreground hidden sm:table-cell">Total</td>
+                        <td className="px-3 py-2 sm:hidden font-medium text-foreground">Total</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-foreground font-medium hidden sm:table-cell">{formatBRL(data.machineFees.list.reduce((s, f) => s + f.paidValue, 0))}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-red-400 font-bold">{formatBRL(machineFeesTotal)}</td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Descontos (colapsável) ────────────────────────── */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">

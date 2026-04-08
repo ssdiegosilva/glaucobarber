@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatTime, formatDate, relativeTime } from "@/lib/utils";
 import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote } from "lucide-react";
+import { CardDetailsPicker } from "@/components/payment/card-details-picker";
 import type { AgendaAppointment } from "../agenda-client";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -81,6 +82,8 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   const [showPastConfirm, setShowPastConfirm] = useState(false);
   const [showPaymentMethod, setShowPaymentMethod] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [cardBrand, setCardBrand] = useState<string | null>(null);
+  const [cardPaymentType, setCardPaymentType] = useState<string | null>(null);
   const [localStatus, setLocalStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -106,9 +109,15 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
     }
     setUpdatingStatus(true);
     try {
-      const body: Record<string, string> = { status };
+      const body: Record<string, any> = { status };
       if (status === "COMPLETED" && selectedPaymentMethod) {
         body.paymentMethod = selectedPaymentMethod;
+        if (selectedPaymentMethod === "CARD" && cardBrand && cardPaymentType) {
+          body.cardBrand = cardBrand;
+          body.cardPaymentType = cardPaymentType;
+          const installments = cardPaymentType === "DEBIT" ? 1 : parseInt(cardPaymentType.replace("CREDIT_", "").replace("X", ""));
+          body.cardInstallments = installments;
+        }
       }
       await fetch(`/api/appointments/${appointment.id}/status`, {
         method:  "PATCH",
@@ -119,6 +128,8 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
       setLocalStatus(status);
       setShowPaymentMethod(false);
       setSelectedPaymentMethod(null);
+      setCardBrand(null);
+      setCardPaymentType(null);
     } finally {
       setUpdatingStatus(false);
     }
@@ -255,6 +266,18 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
                   </button>
                 ))}
               </div>
+
+              {/* Card brand + installment picker (inline) */}
+              {selectedPaymentMethod === "CARD" && (
+                <CardDetailsPicker
+                  cardBrand={cardBrand}
+                  cardPaymentType={cardPaymentType}
+                  onBrandChange={setCardBrand}
+                  onPaymentTypeChange={setCardPaymentType}
+                  paidValue={Number(appointment.price ?? 0)}
+                />
+              )}
+
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -264,7 +287,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
                 >
                   {updatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : "Concluir"}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setShowPaymentMethod(false); setSelectedPaymentMethod(null); }}>
+                <Button size="sm" variant="ghost" onClick={() => { setShowPaymentMethod(false); setSelectedPaymentMethod(null); setCardBrand(null); setCardPaymentType(null); }}>
                   Cancelar
                 </Button>
               </div>

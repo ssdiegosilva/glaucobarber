@@ -141,6 +141,7 @@ model Barbershop {
   aiCallLogs          AiCallLog[]
   systemNotifications SystemNotification[]
   expenses            Expense[]
+  cardFeeConfigs      CardFeeConfig[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -925,6 +926,13 @@ model Payment {
   paidValue     Decimal?     @db.Decimal(10, 2)
   paymentMethod PaymentMethod?
 
+  // Card details (when paymentMethod = CARD)
+  cardBrand         String?
+  cardPaymentType   String?              // "DEBIT", "CREDIT_1X", ... "CREDIT_12X"
+  cardInstallments  Int?                 // 1 for debit/credit à vista, 2-12 for installments
+  machineFeePercent Decimal? @db.Decimal(5, 2)  // snapshot of the rate at payment time
+  machineFeeValue   Decimal? @db.Decimal(10, 2) // calculated: paidValue * feePercent / 100
+
   // Stripe refs
   stripePaymentIntentId String?
   stripeChargeId        String?
@@ -1197,4 +1205,25 @@ model Expense {
 
   @@index([barbershopId, year, month])
   @@map("expenses")
+}
+
+// ============================================================
+// CARD FEE CONFIG — per-brand fee rates for card machine
+// ============================================================
+
+model CardFeeConfig {
+  id           String  @id @default(cuid())
+  barbershopId String
+  brand        String    // "VISA", "MASTERCARD", "ELO", "HIPERCARD", "AMEX"
+  paymentType  String    // "DEBIT", "CREDIT_1X", "CREDIT_2X", ... "CREDIT_12X"
+  feePercent   Decimal   @db.Decimal(5, 2)  // e.g. 4.98
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([barbershopId, brand, paymentType])
+  @@index([barbershopId])
+  @@map("card_fee_configs")
 }
