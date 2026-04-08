@@ -267,11 +267,9 @@ export async function consumeAiCredit(
     costUsdCents = TEXT_FEATURE_COST_USD_CENTS[feature] ?? 0.03;
   }
 
-  // Log this call with actual USD cost and credits consumed
-  await logAiCall(barbershopId, feature, costUsdCents, cost);
-
   // During trial: track against the 300-call safety cap under key "trialing"
   if (plan.status === "TRIALING") {
+    await logAiCall(barbershopId, feature, costUsdCents, cost, "trial");
     const updated = await prisma.aiUsageMonth.upsert({
       where:  { barbershopId_yearMonth: { barbershopId, yearMonth: "trialing" } },
       create: { barbershopId, yearMonth: "trialing", usageCount: cost },
@@ -317,8 +315,11 @@ export async function consumeAiCredit(
   const fromMonthly    = Math.min(cost, spaceInMonthly);
   const fromCredits    = cost - fromMonthly;
 
+  // Log with correct source
+  const source = fromCredits > 0 ? "credits" : "monthly";
+  await logAiCall(barbershopId, feature, costUsdCents, cost, source);
+
   // Increment monthly usage counter (only by the portion that fits within the quota)
-  // This keeps the monthly counter capped at the plan limit — overflow is shown via aiCreditBalance
   await prisma.aiUsageMonth.upsert({
     where:  { barbershopId_yearMonth: { barbershopId, yearMonth: key } },
     create: { barbershopId, yearMonth: key, usageCount: fromMonthly },
@@ -337,11 +338,11 @@ export async function consumeAiCredit(
 
 // ── logAiCall ──────────────────────────────────────────────────────────────────
 
-async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0, credits = 1): Promise<void> {
+async function logAiCall(barbershopId: string, feature: string, costUsdCents = 0, credits = 1, source: "monthly" | "credits" | "trial" = "monthly"): Promise<void> {
   const label = AI_FEATURE_LABELS[feature] ?? feature;
 
   await prisma.aiCallLog.create({
-    data: { barbershopId, feature, label, credits, costUsdCents },
+    data: { barbershopId, feature, label, credits, costUsdCents, source },
   });
 
   // Keep only the last AI_CALL_LOG_MAX entries per barbershop

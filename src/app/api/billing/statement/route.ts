@@ -28,7 +28,7 @@ export async function GET() {
     where:   { barbershopId },
     orderBy: { createdAt: "desc" },
     take:    20,
-    select:  { id: true, feature: true, label: true, createdAt: true },
+    select:  { id: true, feature: true, label: true, credits: true, source: true, createdAt: true },
   });
 
   // Monthly usage history (last 6 months)
@@ -58,6 +58,8 @@ export async function GET() {
     callLog: callLog.map((c) => ({
       id:        c.id,
       label:     c.label,
+      credits:   c.credits,
+      source:    c.source,
       createdAt: c.createdAt.toISOString(),
     })),
     history,

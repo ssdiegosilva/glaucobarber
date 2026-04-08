@@ -511,7 +511,7 @@ interface StatementData {
   subscription: { planTier: string; priceCents: number; renewsAt: string | null; cancelAtPeriodEnd: boolean };
   aiUsage:      { used: number; limit: number | null };
   credits:      { balance: number; purchased: number };
-  callLog:      { id: string; label: string; createdAt: string }[];
+  callLog:      { id: string; label: string; credits: number; source: string; createdAt: string }[];
   history:      { yearMonth: string; usageCount: number }[];
 }
 
@@ -619,16 +619,31 @@ function StatementSection({ planTier, planStatus, yearMonth }: {
           {/* Call log */}
           {data.callLog.length > 0 && (
             <div className="space-y-1 border-t border-border/40 pt-3">
-              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-2">Últimas chamadas</p>
-              {data.callLog.map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-gold-400/60 shrink-0" />
-                    <span className="text-muted-foreground truncate max-w-[180px]">{c.label}</span>
-                  </div>
-                  <span className="text-muted-foreground/60 shrink-0">{formatRelative(c.createdAt)}</span>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Últimas chamadas</p>
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block" />Mensal</span>
+                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-purple-400 inline-block" />Comprado</span>
                 </div>
-              ))}
+              </div>
+              {data.callLog.map((c) => {
+                const dotColor = c.source === "credits" ? "bg-purple-400" : "bg-red-400/70";
+                const creditsLabel = c.source === "credits"
+                  ? <span className="text-purple-400/80 shrink-0">{c.credits} cr.</span>
+                  : <span className="text-muted-foreground/50 shrink-0">{c.credits} cr.</span>;
+                return (
+                  <div key={c.id} className="flex items-center justify-between text-xs gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`} />
+                      <span className="text-muted-foreground truncate">{c.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {creditsLabel}
+                      <span className="text-muted-foreground/40">{formatRelative(c.createdAt)}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
