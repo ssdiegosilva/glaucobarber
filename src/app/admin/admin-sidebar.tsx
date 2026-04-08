@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
   DollarSign,
   Activity,
+  LifeBuoy,
 } from "lucide-react";
 
 const NAV = [
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/admin/openai-costs",     label: "Custos OpenAI",     icon: DollarSign         },
   { href: "/admin/billing",          label: "Cobrança",          icon: Receipt            },
   { href: "/admin/logs",             label: "Audit Logs",        icon: ScrollText         },
+  { href: "/admin/support",          label: "Suporte",            icon: LifeBuoy           },
 ];
 
 export function AdminSidebar() {

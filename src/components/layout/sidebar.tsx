@@ -24,6 +24,7 @@ import {
   Plus,
   Check,
   GalleryHorizontal,
+  LifeBuoy,
 } from "lucide-react";
 import { useState } from "react";
 import { AiUsageWidget } from "./ai-usage-widget";
@@ -45,8 +46,9 @@ export const NAV = [
   { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },
   { href: "/post-sale",    label: "Pós-venda",   icon: HeartHandshake },
   { href: "/settings?section=team", label: "Equipe", icon: UsersRound },
-  { href: "/settings",     label: "Configurações",icon: Settings },
-  { href: "/billing",      label: "Plano",        icon: CreditCard },
+  { href: "/settings",     label: "Configurações", icon: Settings },
+  { href: "/billing",      label: "Plano",         icon: CreditCard },
+  { href: "/support",      label: "Suporte",        icon: LifeBuoy },
 ];
 
 interface MembershipInfo {

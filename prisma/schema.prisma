@@ -28,9 +28,10 @@ model User {
 
   accounts  Account[]
   sessions  Session[]
-  memberships   Membership[]
-  auditLogs     AuditLog[]
-  appointments  Appointment[] @relation("barberAppointments")
+  memberships     Membership[]
+  auditLogs       AuditLog[]
+  appointments    Appointment[] @relation("barberAppointments")
+  supportMessages SupportMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -143,6 +144,7 @@ model Barbershop {
   expenses            Expense[]
   cardFeeConfigs      CardFeeConfig[]
   vitrinPosts         VitrinPost[]
+  supportMessages     SupportMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1152,6 +1154,13 @@ enum NotificationType {
   PLAN_CHANGED
   SYSTEM
   WHATSAPP_QUEUED
+  SUPPORT_REPLY
+}
+
+enum SupportMessageStatus {
+  OPEN
+  REPLIED
+  CLOSED
 }
 
 model SystemNotification {
@@ -1274,4 +1283,27 @@ model VitrineFoto {
 
   @@index([vitrinPostId, position])
   @@map("vitrine_fotos")
+}
+
+// ============================================================
+// SUPPORT MESSAGES — user ↔ admin messaging (ticket style)
+// ============================================================
+
+model SupportMessage {
+  id           String               @id @default(cuid())
+  barbershopId String
+  userId       String
+  body         String
+  adminReply   String?
+  status       SupportMessageStatus @default(OPEN)
+  readByAdmin  Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+  repliedAt    DateTime?
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([barbershopId, status, createdAt])
+  @@index([status, readByAdmin, createdAt])
+  @@map("support_messages")
 }
