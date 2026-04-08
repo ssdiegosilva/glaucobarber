@@ -297,12 +297,23 @@ function GenerateImageModal({
   generating: boolean;
   imageCreditCosts: { low: number; medium: number; high: number };
   briefing?: string | null;
-  onGenerate: (prompt?: string, quality?: ImageQualityTier) => void;
+  onGenerate: (prompt?: string, quality?: ImageQualityTier) => Promise<void>;
   onClose: () => void;
 }) {
-  const [quality, setQuality]         = useState<ImageQualityTier>("medium");
+  const [quality, setQuality]                 = useState<ImageQualityTier>("medium");
   const [editingBriefing, setEditingBriefing] = useState(false);
   const [briefingText, setBriefingText]       = useState(briefing ?? "");
+  const [imageError, setImageError]           = useState<{ message: string; isCredits: boolean } | null>(null);
+
+  async function handleGenerate() {
+    setImageError(null);
+    try {
+      await onGenerate(briefingText || undefined, quality);
+    } catch (e: any) {
+      const isCredits = e?.code === "insufficient_credits" || e?.code === "ai_limit";
+      setImageError({ message: e?.message ?? "Erro ao gerar imagem. Tente novamente.", isCredits });
+    }
+  }
 
   return (
     <>
@@ -372,13 +383,29 @@ function GenerateImageModal({
           </div>
         </div>
 
+        {/* Inline error */}
+        {imageError && (
+          <div className="rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2.5 space-y-2">
+            <p className="text-xs text-red-400 leading-relaxed">{imageError.message}</p>
+            {imageError.isCredits && (
+              <Link
+                href="/billing"
+                onClick={onClose}
+                className="inline-flex items-center gap-1 text-xs font-medium text-gold-400 hover:text-gold-300 underline underline-offset-2"
+              >
+                Comprar créditos extras →
+              </Link>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={generating}>
             Cancelar
           </Button>
           <Button
             className="flex-1 bg-purple-600 hover:bg-purple-500 text-white gap-1.5"
-            onClick={() => onGenerate(briefingText || undefined, quality)}
+            onClick={handleGenerate}
             disabled={generating}
           >
             {generating
@@ -430,11 +457,9 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
   }
 
   async function handleGenerateImage(prompt?: string, quality?: ImageQualityTier) {
-    try {
-      await onGenerateImage(c.id, prompt, quality);
-      setEditingImage(false);
-      setShowGenerateModal(false);
-    } catch {}
+    await onGenerateImage(c.id, prompt, quality); // throws on error — modal catches it
+    setEditingImage(false);
+    setShowGenerateModal(false);
   }
 
   return (
@@ -868,12 +893,11 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     const available = (aiAllowance.limit - aiAllowance.used) + aiAllowance.creditsRemaining;
     if (available < cost) {
       const missing = cost - available;
-      toast({
-        title: "Créditos insuficientes",
-        description: `Gerar esta imagem custa ${cost} créditos, mas você tem apenas ${Math.max(0, available)} disponíveis. Faltam ${missing} créditos. Compre mais em Plano > Créditos extras.`,
-        variant: "destructive",
-      });
-      return;
+      const err = new Error(
+        `Créditos insuficientes. Esta qualidade custa ${cost} créditos, mas você tem ${Math.max(0, available)} disponíveis (faltam ${missing}).`
+      );
+      (err as any).code = "insufficient_credits";
+      throw err;
     }
 
     setGeneratingImage(id);
@@ -884,15 +908,19 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
         body: JSON.stringify({ promptOverride: promptOverride || undefined, imageQuality: quality ?? imageQuality }),
       });
       const data = await res.json();
-      if (isAiLimitError(res.status, data)) { triggerAiLimitModal(); throw new Error("ai_limit_reached"); }
+      if (isAiLimitError(res.status, data)) {
+        triggerAiLimitModal();
+        const err = new Error("Limite de créditos de IA atingido para este período.");
+        (err as any).code = "ai_limit";
+        throw err;
+      }
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar imagem");
       window.dispatchEvent(new Event("ai-used"));
       window.dispatchEvent(new Event("notifications-changed"));
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, imageUrl: data.url } : c)));
       toast({ title: "Imagem gerada", description: "Arte criada via IA." });
     } catch (e) {
-      toast({ title: "Erro ao gerar imagem", description: String(e), variant: "destructive" });
-      throw e; // re-throw so card knows it failed
+      throw e; // modal catches and shows inline
     } finally {
       setGeneratingImage(null);
     }
