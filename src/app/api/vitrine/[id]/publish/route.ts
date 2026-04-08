@@ -55,10 +55,20 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   // Publish: carousel if ≥2 photos, single if only 1
   let postId: string;
-  if (signedUrls.length >= 2) {
-    postId = await publishCarouselToInstagram(token, businessId, signedUrls, post.caption);
-  } else {
-    postId = await publishCampaignToInstagram(token, businessId, signedUrls[0], post.caption);
+  try {
+    if (signedUrls.length >= 2) {
+      postId = await publishCarouselToInstagram(token, businessId, signedUrls, post.caption);
+    } else {
+      postId = await publishCampaignToInstagram(token, businessId, signedUrls[0], post.caption);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[vitrine/publish] Instagram error:", msg);
+    await prisma.vitrinPost.update({
+      where: { id },
+      data: { status: "FAILED", errorMsg: msg },
+    });
+    return NextResponse.json({ error: msg }, { status: 422 });
   }
 
   const permalink = await fetchInstagramPermalink(postId, token);
