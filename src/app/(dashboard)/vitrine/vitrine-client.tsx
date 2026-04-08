@@ -257,58 +257,26 @@ function PostCard({
         )}
 
         {/* Actions */}
-        {canAct && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {post.status === "DRAFT" && (
-              <Button
-                size="sm"
-                className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
-                onClick={() => onApprove(post.id)}
-                disabled={!post.caption?.trim()}
-              >
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Aprovar
-              </Button>
-            )}
-            {post.status === "APPROVED" && (
-              <>
-                <Button
-                  size="sm"
-                  className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
-                  onClick={() => onPublish(post.id)}
-                  disabled={!instagramConfigured || publishing}
-                  title={!instagramConfigured ? "Configure o Instagram em Configurações > Integrações" : undefined}
-                >
-                  {publishing ? (
-                    <>
-                      <div className="h-3 w-3 mr-1 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      Publicando...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-3 w-3 mr-1" />
-                      Publicar agora
-                    </>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs h-8"
-                  onClick={() => onSchedule(post.id)}
-                  disabled={publishing}
-                >
-                  <Calendar className="h-3 w-3 mr-1" />
-                  Agendar
-                </Button>
-              </>
-            )}
-            {post.status === "SCHEDULED" && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {post.status === "DRAFT" && (
+            <Button
+              size="sm"
+              className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
+              onClick={() => onApprove(post.id)}
+              disabled={!post.caption?.trim()}
+            >
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              Aprovar
+            </Button>
+          )}
+          {post.status === "APPROVED" && (
+            <>
               <Button
                 size="sm"
                 className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
                 onClick={() => onPublish(post.id)}
                 disabled={!instagramConfigured || publishing}
+                title={!instagramConfigured ? "Configure o Instagram em Configurações > Integrações" : undefined}
               >
                 {publishing ? (
                   <>
@@ -322,17 +290,47 @@ function PostCard({
                   </>
                 )}
               </Button>
-            )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-8"
+                onClick={() => onSchedule(post.id)}
+                disabled={publishing}
+              >
+                <Calendar className="h-3 w-3 mr-1" />
+                Agendar
+              </Button>
+            </>
+          )}
+          {post.status === "SCHEDULED" && (
             <Button
               size="sm"
-              variant="ghost"
-              className="text-xs h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 ml-auto"
-              onClick={() => onDelete(post.id)}
+              className="bg-gold-500 hover:bg-gold-400 text-black text-xs h-8"
+              onClick={() => onPublish(post.id)}
+              disabled={!instagramConfigured || publishing}
             >
-              <Trash2 className="h-3 w-3" />
+              {publishing ? (
+                <>
+                  <div className="h-3 w-3 mr-1 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  Publicando...
+                </>
+              ) : (
+                <>
+                  <Send className="h-3 w-3 mr-1" />
+                  Publicar agora
+                </>
+              )}
             </Button>
-          </div>
-        )}
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 ml-auto"
+            onClick={() => onDelete(post.id)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -540,7 +538,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
   const draftPosts     = posts.filter((p) => p.status === "DRAFT");
   const approvedPosts  = posts.filter((p) => p.status === "APPROVED");
   const scheduledPosts = posts.filter((p) => p.status === "SCHEDULED");
-  const publishedPosts = posts.filter((p) => p.status === "PUBLISHED");
+  const publishedPosts = posts.filter((p) => p.status === "PUBLISHED").slice(0, 5);
   const failedPosts    = posts.filter((p) => p.status === "FAILED");
 
   return (
