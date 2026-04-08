@@ -34,8 +34,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const barbershop = await prisma.barbershop.findUnique({
+    where:  { id: session.user.barbershopId },
+    select: { name: true },
+  });
+
   const provider = getAIProvider();
-  const context = `Barbearia: ${session.user.barbershopId}. Tema: ${theme}.${offerContext}`;
+  const context = `Barbearia: ${barbershop?.name ?? "Barbearia"}. Tema: ${theme}.${offerContext}`;
   let ai: { text: string; artBriefing: string };
   try {
     ai = await provider.generateCampaignText(theme, context);
