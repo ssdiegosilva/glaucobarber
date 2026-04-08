@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
 import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
-import { Archive, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Globe, Megaphone, Palette, Pencil, Send, Settings, Trash2, Wand2, Sparkles, X, XCircle, Tag } from "lucide-react";
+import { Archive, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Gem, Globe, Megaphone, Palette, Pencil, Send, Settings, Star, Trash2, Wand2, Sparkles, X, XCircle, Tag, Zap } from "lucide-react";
 import Link from "next/link";
 
 const STATUS_LABEL: Record<string, string> = { GENERATING: "Criando...", DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada", FAILED: "Falhou", ARCHIVED: "Arquivada" };
@@ -277,6 +277,105 @@ function GeneratingCard({ c }: { c: CampaignDto }) {
   );
 }
 
+// ── GenerateImageModal ────────────────────────────────────────
+
+type ImageQualityTier = "low" | "medium" | "high";
+
+const QUALITY_OPTIONS: { tier: ImageQualityTier; icon: React.ReactElement; label: string; desc: string }[] = [
+  { tier: "low",    icon: <Zap className="h-5 w-5" />,  label: "Rascunho", desc: "Mais rápido"    },
+  { tier: "medium", icon: <Star className="h-5 w-5" />, label: "Padrão",   desc: "Recomendado"    },
+  { tier: "high",   icon: <Gem className="h-5 w-5" />,  label: "Premium",  desc: "Mais detalhado" },
+];
+
+function GenerateImageModal({
+  generating,
+  imageCreditCosts,
+  onGenerate,
+  onClose,
+}: {
+  generating: boolean;
+  imageCreditCosts: { low: number; medium: number; high: number };
+  onGenerate: (prompt?: string, quality?: ImageQualityTier) => void;
+  onClose: () => void;
+}) {
+  const [quality, setQuality] = useState<ImageQualityTier>("medium");
+  const [prompt, setPrompt]   = useState("");
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[60] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-w-sm mx-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-purple-400" />
+            Gerar imagem com IA
+          </h3>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Quality — horizontal cards with icons */}
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-muted-foreground font-medium">Qualidade</p>
+          <div className="grid grid-cols-3 gap-2">
+            {QUALITY_OPTIONS.map(({ tier, icon, label, desc }) => {
+              const active = quality === tier;
+              return (
+                <button
+                  key={tier}
+                  onClick={() => setQuality(tier)}
+                  className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${
+                    active
+                      ? "border-purple-500/60 bg-purple-500/15"
+                      : "border-border bg-surface-800 hover:border-zinc-600"
+                  }`}
+                >
+                  <span className={active ? "text-purple-400" : "text-muted-foreground"}>{icon}</span>
+                  <span className={`text-[11px] font-semibold leading-none ${active ? "text-purple-300" : "text-foreground"}`}>{label}</span>
+                  <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{desc}</span>
+                  <span className={`text-[10px] leading-none mt-0.5 ${active ? "text-purple-400" : "text-muted-foreground/60"}`}>
+                    {imageCreditCosts[tier]} créditos
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Optional description */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-muted-foreground font-medium">
+            Descrição adicional{" "}
+            <span className="text-muted-foreground/50 font-normal">(opcional)</span>
+          </label>
+          <input
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Ex: iluminação dramática, fundo escuro..."
+            className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={generating}>
+            Cancelar
+          </Button>
+          <Button
+            className="flex-1 bg-purple-600 hover:bg-purple-500 text-white gap-1.5"
+            onClick={() => onGenerate(prompt || undefined, quality)}
+            disabled={generating}
+          >
+            {generating
+              ? <><Sparkles className="h-3.5 w-3.5 animate-spin" />Gerando...</>
+              : <><Sparkles className="h-3.5 w-3.5" />Gerar imagem</>}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── CampaignCard ──────────────────────────────────────────────
 
 interface CampaignCardProps {
@@ -297,12 +396,11 @@ interface CampaignCardProps {
 }
 
 function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, imageCreditCosts, onUploadImage, onGenerateImage, onSaveText, onRemove, onRestore, onRepublish, onApprove }: CampaignCardProps) {
-  const [imagePrompt, setImagePrompt] = useState("");
   const [editingImage, setEditingImage] = useState(false);
   const [editingText, setEditingText] = useState(false);
   const [editedText, setEditedText] = useState(c.text);
   const [savingText, setSavingText] = useState(false);
-  const [cardQuality, setCardQuality] = useState<ImageQualityTier>("medium");
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
 
   const openEditor = !c.imageUrl || editingImage;
 
@@ -316,10 +414,11 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
     }
   }
 
-  async function handleGenerateImage() {
+  async function handleGenerateImage(prompt?: string, quality?: ImageQualityTier) {
     try {
-      await onGenerateImage(c.id, imagePrompt || undefined, cardQuality);
+      await onGenerateImage(c.id, prompt, quality);
       setEditingImage(false);
+      setShowGenerateModal(false);
     } catch {}
   }
 
@@ -410,34 +509,6 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
             )}
             {openEditor && (
               <div className="space-y-2 px-3 py-3 border-t border-border/40">
-                <label className="text-[11px] text-muted-foreground">Texto para gerar a arte (opcional)</label>
-                <input
-                  value={imagePrompt}
-                  onChange={(e) => setImagePrompt(e.target.value)}
-                  placeholder="Ex: corte premium com iluminação dramática"
-                  className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-xs"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                {/* Quality selector */}
-                <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-                  {(["low", "medium", "high"] as ImageQualityTier[]).map((q) => {
-                    const m = QUALITY_META[q];
-                    const cost = imageCreditCosts[q];
-                    const active = cardQuality === q;
-                    return (
-                      <button
-                        key={q}
-                        onClick={() => setCardQuality(q)}
-                        className={`flex-1 rounded-md border px-2 py-1.5 text-[10px] text-left transition-colors
-                          ${active ? "border-purple-500/50 bg-purple-500/15" : "border-border bg-surface-800 hover:border-border/80"}`}
-                      >
-                        <span className={`font-semibold ${active ? "text-purple-300" : m.color}`}>{m.label}</span>
-                        <span className="block text-muted-foreground">{cost} créditos</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
                 <div className="flex flex-wrap gap-2">
                   <input
                     id={`upload-${c.id}`}
@@ -464,7 +535,7 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
                     size="sm"
                     className="h-8 text-[11px] gap-1.5 border border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 shadow-none"
                     disabled={generatingImage === c.id}
-                    onClick={(e) => { e.stopPropagation(); handleGenerateImage(); }}
+                    onClick={(e) => { e.stopPropagation(); setShowGenerateModal(true); }}
                   >
                     {generatingImage === c.id
                       ? <><Sparkles className="h-3 w-3 animate-spin" />Gerando...</>
@@ -481,6 +552,14 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
                   </p>
                 )}
               </div>
+            )}
+            {showGenerateModal && (
+              <GenerateImageModal
+                generating={generatingImage === c.id}
+                imageCreditCosts={imageCreditCosts}
+                onGenerate={handleGenerateImage}
+                onClose={() => setShowGenerateModal(false)}
+              />
             )}
           </div>
 
@@ -565,14 +644,6 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
 }
 
 // ── Main client ───────────────────────────────────────────────
-
-type ImageQualityTier = "low" | "medium" | "high";
-
-const QUALITY_META: Record<ImageQualityTier, { label: string; desc: string; color: string }> = {
-  low:    { label: "Rascunho",       desc: "mais rápido",       color: "text-green-400" },
-  medium: { label: "Padrão",         desc: "recomendado",       color: "text-amber-400" },
-  high:   { label: "Alta qualidade", desc: "mais detalhado",    color: "text-red-400"   },
-};
 
 export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCosts = { low: 40, medium: 70, high: 190 }, aiAllowance = { used: 0, limit: 300, creditsRemaining: 0 } }: {
   campaigns: CampaignDto[];
