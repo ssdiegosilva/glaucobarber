@@ -58,8 +58,7 @@ export function CardFeesCard({ initialConfigs }: Props) {
   }
 
   function handleChange(brand: string, pt: string, raw: string) {
-    // Allow only digits, comma and dot
-    if (/^[0-9]*[,.]?[0-9]*$/.test(raw) || raw === "") {
+    if (/^[0-9]*[,.]?[0-9]*$/.test(raw)) {
       setRawInputs((prev) => ({ ...prev, [inputKey(brand, pt)]: raw }));
       setSaved(false);
     }
