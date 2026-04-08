@@ -422,7 +422,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
   // ── Generate caption ───────────────────────────────────────
 
   async function handleGenerateCaption(id: string) {
-    setPostLoading(id, true);
+    setCaptioningId(id);
     try {
       const res = await fetch(`/api/vitrine/${id}/caption`, { method: "POST" });
       if (!res.ok) { const e = await res.json(); throw new Error(e.message ?? e.error); }
@@ -432,7 +432,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Erro ao gerar legenda", "error");
     } finally {
-      setPostLoading(id, false);
+      setCaptioningId(null);
     }
   }
 
