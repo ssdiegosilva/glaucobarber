@@ -23,6 +23,7 @@ import {
   ChevronsUpDown,
   Plus,
   Check,
+  GalleryHorizontal,
 } from "lucide-react";
 import { useState } from "react";
 import { AiUsageWidget } from "./ai-usage-widget";
@@ -39,6 +40,7 @@ export const NAV = [
   { href: "/clients",      label: "Clientes",    icon: Users },
   { href: "/services",     label: "Serviços",    icon: Scissors },
   { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
+  { href: "/vitrine",      label: "Vitrine",      icon: GalleryHorizontal },
   { href: "/criar-visual", label: "Criar Visual", icon: Wand2 },
   { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },
   { href: "/post-sale",    label: "Pós-venda",   icon: HeartHandshake },

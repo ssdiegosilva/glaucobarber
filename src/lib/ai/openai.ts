@@ -393,6 +393,32 @@ Retorne JSON com:
     const text = completion.choices[0]?.message?.content ?? "";
     return text.trim().slice(0, 300);
   }
+
+  async generateVitrinCaption(imageBase64: string, barbershopName: string, brandStyle?: string | null): Promise<{ caption: string }> {
+    const systemPrompt = getVerticalConfig().ai.vitrineCaptionSystemPrompt;
+    const userText = [
+      `Barbearia: ${barbershopName}.`,
+      brandStyle ? `Estilo de marca: ${brandStyle}.` : null,
+    ].filter(Boolean).join(" ");
+
+    const completion = await this.client.chat.completions.create({
+      model: VISION_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+            { type: "text", text: userText },
+          ],
+        },
+      ],
+      max_tokens: 400,
+    });
+
+    const caption = completion.choices[0]?.message?.content?.trim() ?? "";
+    return { caption };
+  }
 }
 
 function buildSuggestionsPrompt(ctx: AISuggestionRequest): string {

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 const ALL_FEATURES = [
   "dashboard", "agenda", "copilot", "financeiro", "meta",
-  "clients", "services", "offers", "campaigns", "criar-visual",
+  "clients", "services", "offers", "campaigns", "vitrine", "criar-visual",
   "whatsapp", "whatsapp_auto", "post-sale", "settings", "billing",
 ] as const;
 

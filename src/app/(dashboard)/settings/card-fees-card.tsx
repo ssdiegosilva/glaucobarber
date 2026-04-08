@@ -41,16 +41,34 @@ function feeMapToConfigs(map: FeeMap): CardFeeConfigRow[] {
 
 export function CardFeesCard({ initialConfigs }: Props) {
   const [feeMap, setFeeMap] = useState<FeeMap>(() => buildFeeMap(initialConfigs));
+  const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
   const [activeBrand, setActiveBrand] = useState<CardBrand>(CARD_BRANDS[0]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  function getRate(brand: string, pt: string): string {
+  function inputKey(brand: string, pt: string) {
+    return `${brand}__${pt}`;
+  }
+
+  function getDisplayValue(brand: string, pt: string): string {
+    const key = inputKey(brand, pt);
+    if (key in rawInputs) return rawInputs[key];
     const val = feeMap[brand]?.[pt];
     return val != null ? val.toString().replace(".", ",") : "";
   }
 
-  function setRate(brand: string, pt: string, raw: string) {
+  function handleChange(brand: string, pt: string, raw: string) {
+    // Allow only digits, comma and dot
+    if (/^[0-9]*[,.]?[0-9]*$/.test(raw) || raw === "") {
+      setRawInputs((prev) => ({ ...prev, [inputKey(brand, pt)]: raw }));
+      setSaved(false);
+    }
+  }
+
+  function handleBlur(brand: string, pt: string) {
+    const key = inputKey(brand, pt);
+    const raw = rawInputs[key];
+    if (raw === undefined) return;
     const normalized = raw.replace(",", ".");
     const val = parseFloat(normalized);
     setFeeMap((prev) => ({
@@ -60,7 +78,11 @@ export function CardFeesCard({ initialConfigs }: Props) {
         [pt]: isNaN(val) ? 0 : Math.round(val * 100) / 100,
       },
     }));
-    setSaved(false);
+    setRawInputs((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }
 
   function loadDefaults() {

@@ -142,6 +142,7 @@ model Barbershop {
   systemNotifications SystemNotification[]
   expenses            Expense[]
   cardFeeConfigs      CardFeeConfig[]
+  vitrinPosts         VitrinPost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1226,4 +1227,50 @@ model CardFeeConfig {
   @@unique([barbershopId, brand, paymentType])
   @@index([barbershopId])
   @@map("card_fee_configs")
+}
+
+// ============================================================
+// VITRINE — work showcase carousel posts (Instagram)
+// ============================================================
+
+enum VitrinPostStatus {
+  DRAFT
+  APPROVED
+  DISMISSED
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+model VitrinPost {
+  id                 String           @id @default(cuid())
+  barbershopId       String
+  status             VitrinPostStatus @default(DRAFT)
+  caption            String           @default("")
+  instagramPostId    String?
+  instagramPermalink String?
+  errorMsg           String?
+  scheduledAt        DateTime?
+  publishedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  barbershop Barbershop  @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  images     VitrineFoto[]
+
+  @@index([barbershopId, status])
+  @@map("vitrin_posts")
+}
+
+model VitrineFoto {
+  id           String     @id @default(cuid())
+  vitrinPostId String
+  path         String     // storage path: tenant/{barbershopId}/vitrine/{postId}/{fotoId}
+  position     Int        // order in carousel (0 = main photo for AI analysis)
+  createdAt    DateTime   @default(now())
+
+  vitrinPost VitrinPost @relation(fields: [vitrinPostId], references: [id], onDelete: Cascade)
+
+  @@index([vitrinPostId, position])
+  @@map("vitrine_fotos")
 }

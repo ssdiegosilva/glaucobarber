@@ -4,7 +4,6 @@ import { useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 
 export function ChangePasswordCard() {
@@ -45,7 +44,7 @@ export function ChangePasswordCard() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="new-password">Nova senha</Label>
+        <label htmlFor="new-password" className="text-sm font-medium text-foreground">Nova senha</label>
         <div className="relative">
           <Input
             id="new-password"
@@ -69,7 +68,7 @@ export function ChangePasswordCard() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="confirm-password">Confirmar nova senha</Label>
+        <label htmlFor="confirm-password" className="text-sm font-medium text-foreground">Confirmar nova senha</label>
         <div className="relative">
           <Input
             id="confirm-password"

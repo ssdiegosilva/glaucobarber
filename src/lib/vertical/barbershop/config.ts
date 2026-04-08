@@ -28,6 +28,7 @@ export const barbershopVertical: VerticalConfig = {
       campaign_image:        10,
       visual_style_generate: 10,
       brand_style_logo:      10,
+      vitrine_caption:       1,  // gpt-4o-mini vision
       // everything else defaults to 1
     },
     featureLabels: {
@@ -46,6 +47,7 @@ export const barbershopVertical: VerticalConfig = {
       visual_style_generate: "Criar Visual (geração)",
       whatsapp_template:     "Template de WhatsApp",
       whatsapp_personalize:  "Mensagem WhatsApp (IA)",
+      vitrine_caption:       "Legenda de Vitrine",
     },
     imageFeatures: ["campaign_image", "visual_style_generate", "brand_style_logo"],
     copilotSystemPrompt:
@@ -58,6 +60,8 @@ export const barbershopVertical: VerticalConfig = {
       "Você é um diretor de arte especializado em marcas premium masculinas. Expanda a descrição visual da barbearia em uma descrição rica e técnica de identidade visual, ideal para prompts de geração de imagem com IA (DALL-E). Máximo 300 caracteres. Seja específico: mencione paleta de cores, elementos visuais, mood, iluminação, tipografia. Retorne apenas a descrição, sem explicações.",
     serviceAnalysisSystemPrompt:
       "Você é um barbeiro especialista com 20 anos de experiência. Analisa fotos de clientes e sugere o melhor corte de cabelo masculino. Responda sempre em JSON válido.",
+    vitrineCaptionSystemPrompt:
+      "Você é especialista em marketing para barbearias. Analise a foto do trabalho (corte, barba ou estilo) e gere uma legenda profissional para Instagram em português brasileiro. Identifique a técnica e o estilo visíveis na imagem. Tom: confiante, aspiracional, autêntico — como um barbeiro orgulhoso do próprio trabalho. Inclua 8 a 12 hashtags relevantes ao final. Máximo 200 palavras. Retorne apenas a legenda, sem explicações.",
     haircutVisualPrompt:
       "Analyze the person in this image as a professional barber and stylist.\n\nFirst, identify face shape, hair type, density, and current haircut condition.\n\nThen suggest the most suitable haircut to enhance the person's appearance, considering modern barber trends and facial harmony.\n\nApply the suggested haircut directly to the image, showing a realistic transformation.\n\nKeep the person's identity, facial structure, and natural features exactly the same.\n\nHair must look natural, with realistic texture, volume, and flow — no artificial or painted look.\n\nUse professional barber styling:\n- clean fade (low, mid, or high — choose what fits best)\n- precise line-up if appropriate\n- natural blending and transitions\n- well-defined texture on top\n\nLighting should be studio-quality to highlight hair details.\n\nStyle inspired by premium barbershops and modern grooming brands.\n\nAlso ensure the result looks like a real haircut that could be executed in real life.\n\nAvoid exaggerated, unrealistic, or overly stylized hair.\n\nUltra-realistic, professional barber result.",
   },

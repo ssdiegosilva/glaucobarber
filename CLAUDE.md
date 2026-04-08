@@ -347,3 +347,59 @@ Para popular o banco staging: `npx prisma db push` (cria tabelas) + `npm run db:
 - Banco: Supabase PostgreSQL em `aws-1-us-east-1.pooler.supabase.com`
 - Imagens de campanha vão para bucket `campaign-images` no Supabase Storage
 - Copilot limita a 20 mensagens por thread (apaga as mais antigas)
+
+---
+
+## Checklist para novo produto/feature
+
+Sempre que criar um novo módulo ou funcionalidade, verificar todos os itens abaixo:
+
+### 1. Schema & dados
+- [ ] Adicionar model no `prisma/schema.prisma` + enum de status se necessário
+- [ ] Rodar `npx prisma db push`
+
+### 2. Feature gate & acesso
+- [ ] Adicionar a feature ao array `ALL_FEATURES` em `src/lib/access.ts`
+- [ ] Decidir se vai no `featureGates.FREE` do `vertical/barbershop/config.ts` (se NÃO estiver lá = disponível no FREE)
+- [ ] Adicionar seed em `src/app/api/admin/features/seed/route.ts` para todos os tiers (FREE, TRIAL, PRO)
+
+### 3. IA (se consumir créditos)
+- [ ] Adicionar custo em `featureCosts` no `vertical/barbershop/config.ts`
+- [ ] Adicionar label em `aiFeatureLabels`
+- [ ] Adicionar system prompt em `ai.prompts` (nunca hardcoded)
+- [ ] Adicionar método na interface `AIProvider` em `src/lib/ai/types.ts`
+- [ ] Implementar o método em `src/lib/ai/openai.ts`
+- [ ] Usar `checkAiAllowance` antes + `consumeAiCredit` depois na route
+
+### 4. Storage (se armazenar arquivos)
+- [ ] Adicionar wrappers domain-specific em `src/lib/storage.ts` (delegam para `core/storage.ts`)
+- [ ] Definir folder no bucket (ex: `"vitrine"`, `"campaigns"`)
+
+### 5. API routes
+- [ ] CRUD básico em `src/app/api/{feature}/`
+- [ ] Checar kill switch relevante se houver (`getKillSwitch("kill_xxx")`)
+
+### 6. Cron (se tiver publicação agendada)
+- [ ] Criar `src/app/api/cron/{feature}-publish/route.ts` (padrão: Bearer CRON_SECRET, máx 20 por run, registra em CronRun)
+- [ ] Adicionar ao monitoramento de crons no admin overview (`src/app/admin/overview/`)
+
+### 7. Admin
+- [ ] Adicionar kill switch `kill_{feature}` no painel admin (`src/app/admin/overview/overview-client.tsx`)
+- [ ] Checar o kill switch nas routes relevantes
+
+### 8. Dashboard (UI)
+- [ ] Server component busca dados → passa como props para client component
+- [ ] Wrapper: `<div className="flex flex-col h-full">`
+- [ ] Header: `<Header title="..." userName={session.user.name} />`
+- [ ] Botões de IA: `bg-purple-600 hover:bg-purple-500` — botões normais: `bg-gold-500 hover:bg-gold-400`
+
+### 9. Navegação
+- [ ] Adicionar ao array `NAV` em `src/components/layout/sidebar.tsx`
+- [ ] Verificar se `mobile-nav.tsx` usa o mesmo array (se não, adicionar lá também)
+
+### 10. Landing page — `src/app/page.tsx`
+- [ ] Adicionar card da feature na grade "Como funciona"
+- [ ] Mencionar na seção de preços (qual plano inclui)
+
+### 11. Billing page — `src/app/(dashboard)/billing/billing-client.tsx`
+- [ ] Adicionar linha na tabela "Comparar planos" com disponibilidade por tier

@@ -105,3 +105,35 @@ export async function signCampaignImage(path: string): Promise<string | null> {
 export async function deleteCampaignImage(imageUrl: string): Promise<void> {
   return deleteTenantFile(imageUrl);
 }
+
+// ── Vitrine photos ───────────────────────────────────────────
+
+export async function uploadVitrineFoto({
+  barbershopId,
+  postId,
+  fotoId,
+  buffer,
+  contentType,
+}: {
+  barbershopId: string;
+  postId: string;
+  fotoId: string;
+  buffer: Buffer;
+  contentType?: string;
+}): Promise<{ path: string; url: string }> {
+  return uploadTenantFile({
+    tenantId: barbershopId,
+    folder: "vitrine",
+    fileId: `${postId}/${fotoId}`,
+    buffer,
+    contentType,
+  });
+}
+
+export async function signVitrineFoto(path: string): Promise<string | null> {
+  return signTenantFile(path);
+}
+
+export async function deleteVitrineFoto(path: string): Promise<void> {
+  return deleteTenantFile(path);
+}
