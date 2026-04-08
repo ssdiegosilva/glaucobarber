@@ -15,24 +15,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json(campaign);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const permanent = req.nextUrl.searchParams.get("permanent") === "true";
+
   try {
     const campaign = await prisma.campaign.findFirst({
       where: { id, barbershopId: session.user.barbershopId },
     });
     if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (campaign.status === "PUBLISHED") return NextResponse.json({ error: "Não é possível arquivar publicada" }, { status: 400 });
 
+    if (permanent) {
+      if (campaign.status !== "ARCHIVED") return NextResponse.json({ error: "Só é possível excluir campanhas arquivadas" }, { status: 400 });
+      await prisma.campaign.delete({ where: { id } });
+      return NextResponse.json({ ok: true, deleted: true });
+    }
+
+    if (campaign.status === "PUBLISHED") return NextResponse.json({ error: "Não é possível arquivar publicada" }, { status: 400 });
     // Archive instead of delete — preserves generated images for future reuse
     await prisma.campaign.update({ where: { id }, data: { status: "ARCHIVED" } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Erro ao arquivar campanha", err);
-    return NextResponse.json({ error: "Erro ao arquivar campanha" }, { status: 500 });
+    console.error("Erro ao arquivar/excluir campanha", err);
+    return NextResponse.json({ error: "Erro ao processar campanha" }, { status: 500 });
   }
 }
 

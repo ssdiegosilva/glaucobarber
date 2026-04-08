@@ -432,12 +432,13 @@ interface CampaignCardProps {
   onGenerateImage: (id: string, prompt?: string, quality?: ImageQualityTier) => Promise<void>;
   onSaveText: (id: string, text: string) => Promise<void>;
   onRemove: (id: string) => void;
+  onDelete?: (id: string) => void;
   onRestore?: (id: string) => void;
   onRepublish?: (id: string) => void;
   onApprove: (id: string) => void;
 }
 
-function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, imageCreditCosts, onUploadImage, onGenerateImage, onSaveText, onRemove, onRestore, onRepublish, onApprove }: CampaignCardProps) {
+function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrandStyle, instagramConfigured, imageCreditCosts, onUploadImage, onGenerateImage, onSaveText, onRemove, onDelete, onRestore, onRepublish, onApprove }: CampaignCardProps) {
   const [editingImage, setEditingImage] = useState(false);
   const [editingText, setEditingText] = useState(false);
   const [editedText, setEditedText] = useState(c.text);
@@ -659,6 +660,11 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
                   Restaurar
                 </Button>
               )}
+              {c.status === "ARCHIVED" && onDelete && (
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10" onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} title="Excluir permanentemente">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
               {c.status !== "PUBLISHED" && c.status !== "ARCHIVED" && (
                 <Button size="sm" variant="ghost" className="h-7 text-[11px] gap-1" onClick={(e) => { e.stopPropagation(); onRemove(c.id); }} disabled={deletingId === c.id}>
                   <Archive className="h-3 w-3" />
@@ -670,6 +676,79 @@ function CampaignCard({ c, uploadingImage, generatingImage, deletingId, hasBrand
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ── DeleteCampaignModal ───────────────────────────────────────
+
+function DeleteCampaignModal({
+  campaign,
+  deleting,
+  onConfirm,
+  onClose,
+}: {
+  campaign: { id: string; title: string; imageUrl: string | null };
+  deleting: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[60] rounded-xl border border-border bg-card shadow-2xl p-5 space-y-4 max-w-sm mx-auto">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 shrink-0">
+            <Trash2 className="h-4 w-4 text-red-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Excluir campanha</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              <span className="font-medium text-foreground">&ldquo;{campaign.title}&rdquo;</span> será excluída permanentemente.
+            </p>
+          </div>
+        </div>
+
+        {campaign.imageUrl && (
+          <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-3 space-y-2">
+            <p className="text-xs text-amber-400 leading-relaxed">
+              Esta campanha tem uma imagem gerada com créditos de IA. Após excluir, você <strong>perderá o acesso à imagem</strong> para sempre.
+            </p>
+            <a
+              href={campaign.imageUrl}
+              download
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 underline underline-offset-2"
+            >
+              <Download className="h-3 w-3" />
+              Baixar imagem antes de excluir
+            </a>
+          </div>
+        )}
+
+        {!campaign.imageUrl && (
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Esta ação não pode ser desfeita.
+          </p>
+        )}
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={deleting}>
+            Cancelar
+          </Button>
+          <Button
+            className="flex-1 bg-red-600 hover:bg-red-500 text-white gap-1.5"
+            onClick={onConfirm}
+            disabled={deleting}
+          >
+            {deleting
+              ? <><Sparkles className="h-3.5 w-3.5 animate-spin" />Excluindo...</>
+              : <><Trash2 className="h-3.5 w-3.5" />Excluir definitivamente</>}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -696,6 +775,8 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string; imageUrl: string | null } | null>(null);
+  const [deletingPermanent, setDeletingPermanent] = useState(false);
   const [archivedPage, setArchivedPage] = useState(1);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const ARCHIVED_PAGE_SIZE = 3;
@@ -1003,6 +1084,25 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
     }
   }
 
+  async function deletePermanently(id: string) {
+    setDeletingPermanent(true);
+    try {
+      const res = await fetch(`/api/campaigns/${id}?permanent=true`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "Erro", description: data.error ?? "Não foi possível excluir", variant: "destructive" });
+        return;
+      }
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      setDeleteConfirm(null);
+      toast({ title: "Campanha excluída", description: "Removida permanentemente." });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setDeletingPermanent(false);
+    }
+  }
+
   async function restore(id: string) {
     try {
       const res = await fetch(`/api/campaigns/${id}`, {
@@ -1057,6 +1157,15 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
           onClose={() => setApproveModal(null)}
           onScheduled={(date) => { scheduleFor(approveModal, date); setApproveModal(null); }}
           loading={schedulingId === approveModal}
+        />
+      )}
+
+      {deleteConfirm && (
+        <DeleteCampaignModal
+          campaign={deleteConfirm}
+          deleting={deletingPermanent}
+          onConfirm={() => deletePermanently(deleteConfirm.id)}
+          onClose={() => setDeleteConfirm(null)}
         />
       )}
 
@@ -1466,6 +1575,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                         imageCreditCosts={imageCreditCosts}
                         onUploadImage={uploadImage} onGenerateImage={generateImage} onSaveText={saveText}
                         onRemove={remove} onRestore={restore} onRepublish={republish} onApprove={(id) => setApproveModal(id)}
+                        onDelete={(id) => { const c = campaigns.find((x) => x.id === id); if (c) setDeleteConfirm({ id, title: c.title, imageUrl: c.imageUrl }); }}
                       />
                     </div>
                   ))}
