@@ -114,10 +114,18 @@ async function handlePaymentFailed(inv: Stripe.Invoice) {
 }
 
 /** Stripe ≥2024-xx returns ISO strings; older versions return Unix timestamps */
-function stripeDate(value: string | number | null | undefined): Date | null {
+function stripeDate(value: unknown, fallback?: Date): Date {
+  let d: Date;
+  if (value == null)              d = new Date(NaN);
+  else if (typeof value === "number") d = new Date(value * 1000);
+  else                            d = new Date(value as string);
+  return isNaN(d.getTime()) ? (fallback ?? new Date()) : d;
+}
+
+function stripeDateOrNull(value: unknown): Date | null {
   if (value == null) return null;
-  if (typeof value === "number") return new Date(value * 1000);
-  return new Date(value);
+  const d = stripeDate(value);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 async function upsertSubscription(sub: Stripe.Subscription, barbershopId: string) {
@@ -163,20 +171,20 @@ async function upsertSubscription(sub: Stripe.Subscription, barbershopId: string
       stripePriceId: priceId,
       planTier,
       status:               STATUS_MAP[sub.status] ?? "ACTIVE",
-      currentPeriodStart:   stripeDate(sub.current_period_start) ?? new Date(),
-      currentPeriodEnd:     stripeDate(sub.current_period_end)   ?? new Date(),
+      currentPeriodStart:   stripeDate(sub.current_period_start),
+      currentPeriodEnd:     stripeDate(sub.current_period_end, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
       cancelAtPeriodEnd:    sub.cancel_at_period_end,
-      trialEndsAt:          stripeDate(sub.trial_end),
+      trialEndsAt:          stripeDateOrNull(sub.trial_end),
     },
     update: {
       stripeSubId:  sub.id,
       stripePriceId: priceId,
       planTier,
       status:               STATUS_MAP[sub.status] ?? "ACTIVE",
-      currentPeriodStart:   stripeDate(sub.current_period_start) ?? new Date(),
-      currentPeriodEnd:     stripeDate(sub.current_period_end)   ?? new Date(),
+      currentPeriodStart:   stripeDate(sub.current_period_start),
+      currentPeriodEnd:     stripeDate(sub.current_period_end, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
       cancelAtPeriodEnd:    sub.cancel_at_period_end,
-      trialEndsAt:          stripeDate(sub.trial_end),
+      trialEndsAt:          stripeDateOrNull(sub.trial_end),
     },
   });
 }
