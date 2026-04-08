@@ -113,6 +113,13 @@ async function handlePaymentFailed(inv: Stripe.Invoice) {
   }
 }
 
+/** Stripe ≥2024-xx returns ISO strings; older versions return Unix timestamps */
+function stripeDate(value: string | number | null | undefined): Date | null {
+  if (value == null) return null;
+  if (typeof value === "number") return new Date(value * 1000);
+  return new Date(value);
+}
+
 async function upsertSubscription(sub: Stripe.Subscription, barbershopId: string) {
   // Ensure stripeCustomerId is saved on Barbershop (may be missing if checkout webhook was missed)
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
@@ -156,20 +163,20 @@ async function upsertSubscription(sub: Stripe.Subscription, barbershopId: string
       stripePriceId: priceId,
       planTier,
       status:               STATUS_MAP[sub.status] ?? "ACTIVE",
-      currentPeriodStart:   new Date(sub.current_period_start * 1000),
-      currentPeriodEnd:     new Date(sub.current_period_end   * 1000),
+      currentPeriodStart:   stripeDate(sub.current_period_start) ?? new Date(),
+      currentPeriodEnd:     stripeDate(sub.current_period_end)   ?? new Date(),
       cancelAtPeriodEnd:    sub.cancel_at_period_end,
-      trialEndsAt:          sub.trial_end ? new Date(sub.trial_end * 1000) : null,
+      trialEndsAt:          stripeDate(sub.trial_end),
     },
     update: {
       stripeSubId:  sub.id,
       stripePriceId: priceId,
       planTier,
       status:               STATUS_MAP[sub.status] ?? "ACTIVE",
-      currentPeriodStart:   new Date(sub.current_period_start * 1000),
-      currentPeriodEnd:     new Date(sub.current_period_end   * 1000),
+      currentPeriodStart:   stripeDate(sub.current_period_start) ?? new Date(),
+      currentPeriodEnd:     stripeDate(sub.current_period_end)   ?? new Date(),
       cancelAtPeriodEnd:    sub.cancel_at_period_end,
-      trialEndsAt:          sub.trial_end ? new Date(sub.trial_end * 1000) : null,
+      trialEndsAt:          stripeDate(sub.trial_end),
     },
   });
 }
