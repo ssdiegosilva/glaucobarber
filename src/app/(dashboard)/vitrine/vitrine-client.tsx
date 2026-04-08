@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, Sparkles, CheckCircle2, Clock, Send, Trash2, Instagram,
   AlertCircle, GalleryHorizontal, ExternalLink, Calendar, X, ImageIcon,
@@ -118,6 +118,7 @@ function PostCard({
   onSaveCaption,
   instagramConfigured,
   aiAllowed,
+  generatingCaption,
 }: {
   post: VitrinPostDto;
   onApprove: (id: string) => void;
@@ -128,9 +129,17 @@ function PostCard({
   onSaveCaption: (id: string, caption: string) => void;
   instagramConfigured: boolean;
   aiAllowed: boolean;
+  generatingCaption: boolean;
 }) {
   const [editingCaption, setEditingCaption] = useState(post.caption);
   const [captionDirty, setCaptionDirty] = useState(false);
+
+  // Sync when AI generates a new caption
+  useEffect(() => {
+    if (post.caption && !captionDirty) {
+      setEditingCaption(post.caption);
+    }
+  }, [post.caption, captionDirty]);
   const isPublished = post.status === "PUBLISHED";
   const canAct      = ["DRAFT", "APPROVED", "SCHEDULED"].includes(post.status);
 
@@ -197,12 +206,21 @@ function PostCard({
             {!post.caption && (
               <Button
                 size="sm"
-                disabled={!aiAllowed}
+                disabled={!aiAllowed || generatingCaption}
                 onClick={() => onGenerateCaption(post.id)}
                 className="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs"
               >
-                <Sparkles className="h-3 w-3 mr-1.5" />
-                Gerar legenda com IA {!aiAllowed && "(sem créditos)"}
+                {generatingCaption ? (
+                  <>
+                    <div className="h-3 w-3 mr-1.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Gerando legenda...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3 mr-1.5" />
+                    Gerar legenda com IA {!aiAllowed && "(sem créditos)"}
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -557,7 +575,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {group.map((post) => (
-              <div key={post.id} className={cn(loading[post.id] && "opacity-60 pointer-events-none")}>
+              <div key={post.id} className={cn(loading[post.id] && !captioningId && "opacity-60 pointer-events-none")}>
                 <PostCard
                   post={post}
                   onApprove={(id) => updateStatus(id, "APPROVED")}
@@ -568,6 +586,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
                   onSaveCaption={handleSaveCaption}
                   instagramConfigured={instagramConfigured}
                   aiAllowed={aiAllowed}
+                  generatingCaption={captioningId === post.id}
                 />
               </div>
             ))}

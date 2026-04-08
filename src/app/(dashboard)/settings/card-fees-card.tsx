@@ -12,6 +12,7 @@ import {
   type CardPaymentType,
   type CardFeeConfigRow,
 } from "@/lib/card-fees";
+import { CardBrandLogo } from "@/components/payment/card-brand-logo";
 
 interface Props {
   initialConfigs: CardFeeConfigRow[];
@@ -126,13 +127,16 @@ export function CardFeesCard({ initialConfigs }: Props) {
             key={brand}
             type="button"
             onClick={() => setActiveBrand(brand)}
-            className={`flex-1 rounded-lg border px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex-1 rounded-lg border px-3 py-2.5 flex flex-col items-center gap-1.5 transition-colors ${
               activeBrand === brand
-                ? "border-gold-500 bg-gold-500/10 text-gold-400"
-                : "border-border/60 bg-surface-900 text-muted-foreground hover:border-border hover:text-foreground"
+                ? "border-gold-500 bg-gold-500/10"
+                : "border-border/60 bg-surface-900 hover:border-border"
             }`}
           >
-            {CARD_BRAND_LABELS[brand]}
+            <CardBrandLogo brand={brand} size={26} />
+            <span className={`text-[10px] font-medium ${activeBrand === brand ? "text-gold-400" : "text-muted-foreground"}`}>
+              {CARD_BRAND_LABELS[brand]}
+            </span>
           </button>
         ))}
       </div>

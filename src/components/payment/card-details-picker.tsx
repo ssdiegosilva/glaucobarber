@@ -72,13 +72,16 @@ export function CardDetailsPicker({
               // Auto-select CREDIT_1X when changing brand
               onPaymentTypeChange("CREDIT_1X");
             }}
-            className={`flex-1 rounded-md border px-2 py-1.5 text-[10px] font-medium transition-colors ${
+            className={`flex-1 rounded-md border px-2 py-2 flex flex-col items-center gap-1 transition-colors ${
               cardBrand === brand
-                ? "border-gold-500 bg-gold-500/10 text-gold-400"
-                : "border-border/60 bg-surface-900 text-muted-foreground hover:border-border hover:text-foreground"
+                ? "border-gold-500 bg-gold-500/10"
+                : "border-border/60 bg-surface-900 hover:border-border"
             }`}
           >
-            {CARD_BRAND_LABELS[brand]}
+            <CardBrandLogo brand={brand} size={22} />
+            <span className={`text-[9px] font-medium ${cardBrand === brand ? "text-gold-400" : "text-muted-foreground"}`}>
+              {CARD_BRAND_LABELS[brand]}
+            </span>
           </button>
         ))}
       </div>
