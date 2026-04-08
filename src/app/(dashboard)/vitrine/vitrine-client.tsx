@@ -388,6 +388,7 @@ export function VitrineClient({ initialPosts, instagramConfigured, instagramUser
   const [posts, setPosts]         = useState<VitrinPostDto[]>(initialPosts);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading]     = useState<Record<string, boolean>>({});
+  const [captioningId, setCaptioningId] = useState<string | null>(null);
   const [schedulePostId, setSchedulePostId] = useState<string | null>(null);
   const [toast, setToast]         = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
