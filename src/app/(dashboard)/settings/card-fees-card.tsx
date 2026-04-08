@@ -157,8 +157,9 @@ export function CardFeesCard({ initialConfigs }: Props) {
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={getRate(activeBrand, pt)}
-                    onChange={(e) => setRate(activeBrand, pt, e.target.value)}
+                    value={getDisplayValue(activeBrand, pt)}
+                    onChange={(e) => handleChange(activeBrand, pt, e.target.value)}
+                    onBlur={() => handleBlur(activeBrand, pt)}
                     placeholder="0,00"
                     className="w-full bg-surface-700 border border-border rounded px-2 py-1 text-xs text-foreground text-right tabular-nums"
                   />
