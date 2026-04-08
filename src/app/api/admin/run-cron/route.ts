@@ -6,6 +6,7 @@ const CRON_ROUTES: Record<string, string> = {
   "hourly-sync":          "/api/cron/hourly-sync",
   "whatsapp-send":        "/api/cron/whatsapp-send",
   "campaigns-publish":    "/api/cron/campaigns-publish",
+  "vitrine-publish":      "/api/cron/vitrine-publish",
   "update-image-pricing": "/api/cron/update-image-pricing",
 };
 
