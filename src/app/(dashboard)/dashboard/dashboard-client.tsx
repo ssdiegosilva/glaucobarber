@@ -850,7 +850,11 @@ function AppointmentPanel({
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [showAddService, setShowAddService] = useState(false);
-  const [paid, setPaid] = useState(detail.totals.paid ? String(detail.totals.paid) : "");
+  const [paid, setPaid] = useState(
+    detail.totals.paid
+      ? String(detail.totals.paid)
+      : detail.totals.total > 0 ? String(detail.totals.total) : ""
+  );
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [cardBrand, setCardBrand] = useState<string | null>(null);
   const [cardPaymentType, setCardPaymentType] = useState<string | null>(null);
