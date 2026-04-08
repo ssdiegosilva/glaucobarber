@@ -103,7 +103,7 @@ Retorne APENAS JSON válido, sem markdown:
         },
         {
           role: "user",
-          content: `Crie um texto de campanha e briefing de arte visual para barbearia premium.\nTema: ${objective}\nContexto: ${context}\n\nRetorne JSON:\n{\n  "text": "copy da campanha para Instagram (máx 280 chars)",\n  "artBriefing": "direção de arte específica: descreva composição, símbolos concretos (ex: navalha dourada, bigode, coroa), mood lighting, estilo tipográfico, cores predominantes (máx 200 chars). Evite generalidades."\n}\n\nO artBriefing deve conter elementos visuais concretos que um gerador de imagem possa usar diretamente.`,
+          content: `Crie um texto de campanha e briefing de arte visual.\n${context}\n\nRegras para o texto:\n- Use o nome EXATO da barbearia mencionado no contexto (nunca invente nomes genéricos como "Barbearia Premium")\n- Inclua hashtags relevantes usando o nome da barbearia (ex: #NomeDaBarbearia) e hashtags do tema da campanha\n- Máximo 280 caracteres\n\nRetorne JSON:\n{\n  "text": "copy da campanha para Instagram com hashtags (máx 280 chars)",\n  "artBriefing": "direção de arte específica: descreva composição, símbolos concretos (ex: navalha dourada, bigode, coroa), mood lighting, estilo tipográfico, cores predominantes (máx 200 chars). Evite generalidades."\n}\n\nO artBriefing deve conter elementos visuais concretos que um gerador de imagem possa usar diretamente.`,
         },
       ],
     });
