@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/utils";
 import {
   Scissors, Pencil, Check, X, Loader2, Sparkles, TrendingUp,
-  ChevronDown, ChevronUp, Plus, Lightbulb, MapPin, Navigation, Globe, Star,
+  ChevronDown, ChevronUp, Plus, Lightbulb, MapPin, Navigation, Globe, Star, Trash2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -360,6 +360,24 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   const [showAddressModal, setShowAddressModal]   = useState(false);
   const [pendingGenerate, setPendingGenerate]     = useState(false);
   const [showNewServiceModal, setShowNewServiceModal] = useState(false);
+  const [deletingId, setDeletingId]                   = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId]         = useState<string | null>(null);
+
+  async function deleteService(id: string) {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/services/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao excluir");
+      setServices((prev) => prev.filter((s) => s.id !== id));
+      toast({ title: "Serviço removido do catálogo" });
+    } catch (e) {
+      toast({ title: "Erro", description: String(e), variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  }
 
   function startEdit(svc: Service) {
     setEditingId(svc.id);
@@ -672,13 +690,24 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                     </Badge>
                     {!s.active && <Badge variant="destructive" className="text-[10px]">Inativo</Badge>}
                     {!isEditing && (
-                      <button
-                        onClick={() => startEdit(s)}
-                        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity rounded p-1 hover:bg-surface-700"
-                        title="Editar preço"
-                      >
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => startEdit(s)}
+                          className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity rounded p-1 hover:bg-surface-700"
+                          title="Editar preço"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        {!s.syncedFromTrinks && (
+                          <button
+                            onClick={() => setConfirmDeleteId(s.id)}
+                            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity rounded p-1 hover:bg-red-500/10"
+                            title="Excluir serviço"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-400" />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -839,6 +868,26 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                       );
                     })()}
                   </>
+                )}
+
+                {confirmDeleteId === s.id && (
+                  <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/5 p-3 space-y-2">
+                    <p className="text-xs text-foreground">Excluir <strong>{s.name}</strong>?</p>
+                    <p className="text-[10px] text-muted-foreground">O serviço será removido do catálogo, mas o histórico de agendamentos será preservado.</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs flex-1 bg-red-600 hover:bg-red-500 text-white"
+                        onClick={() => deleteService(s.id)}
+                        disabled={deletingId === s.id}
+                      >
+                        {deletingId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Trash2 className="h-3 w-3 mr-1" />Excluir</>}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setConfirmDeleteId(null)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {s.syncedFromTrinks && !isEditing && (

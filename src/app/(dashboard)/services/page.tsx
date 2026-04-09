@@ -10,7 +10,7 @@ export default async function ServicesPage() {
 
   const [services, integration, opportunities, barbershop] = await Promise.all([
     prisma.service.findMany({
-      where:   { barbershopId },
+      where:   { barbershopId, deletedAt: null },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),
     prisma.integration.findUnique({

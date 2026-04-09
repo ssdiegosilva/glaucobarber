@@ -19,7 +19,7 @@ export default async function OffersPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.service.findMany({
-      where:   { barbershopId, active: true },
+      where:   { barbershopId, active: true, deletedAt: null },
       select:  { id: true, name: true, category: true, price: true },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),

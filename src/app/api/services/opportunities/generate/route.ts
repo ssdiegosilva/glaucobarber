@@ -27,7 +27,7 @@ export async function POST() {
       select: { name: true, address: true, city: true, state: true },
     }),
     prisma.service.findMany({
-      where:  { barbershopId, active: true },
+      where:  { barbershopId, active: true, deletedAt: null },
       select: { name: true },
     }),
   ]);

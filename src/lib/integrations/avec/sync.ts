@@ -97,6 +97,12 @@ export async function syncAvecBarbershop(
         for (const raw of res.data) {
           try {
             const data = mapAvecService(raw, barbershopId);
+            // Skip soft-deleted services — don't resurrect them
+            const existing = await prisma.service.findUnique({
+              where: { barbershopId_avecId: { barbershopId, avecId: String(raw.id) } },
+              select: { deletedAt: true },
+            });
+            if (existing?.deletedAt) continue;
             await prisma.service.upsert({
               where:  { barbershopId_avecId: { barbershopId, avecId: String(raw.id) } },
               create: data,
