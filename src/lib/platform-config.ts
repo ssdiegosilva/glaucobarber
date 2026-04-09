@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 // ── AI Image Config ────────────────────────────────────────────────────────────
 
 export interface AiImageConfig {
-  model:        "gpt-image-1" | "dall-e-3" | "dall-e-2";
+  model:        "gpt-image-1" | "gpt-image-1.5" | "gpt-image-1-mini";
   size:         "1024x1024";
   quality:      "low" | "medium" | "high" | "standard" | "hd";
   creditCost:   number;  // legacy / fallback — base credit cost
@@ -29,16 +29,17 @@ export type ImageQualityTier = "low" | "medium" | "high";
 
 /** Maps user-facing quality tier to the actual API quality param for each model */
 export function tierToApiQuality(tier: ImageQualityTier, model: string): string {
-  if (model === "dall-e-2") return "standard";
-  if (model === "dall-e-3") return tier === "high" ? "hd" : "standard";
-  return tier; // gpt-image-1: low / medium / high
+  return tier; // gpt-image-1 / gpt-image-1.5 / gpt-image-1-mini: low / medium / high
 }
 
 /** Returns the USD cost in cents for a given tier + model (used for logging) */
 export function tierToUsdCents(tier: ImageQualityTier, model: string): number {
-  if (model === "dall-e-2") return 2;
-  if (model === "dall-e-3") return tier === "high" ? 8 : 4;
-  // gpt-image-1
+  if (model === "gpt-image-1-mini") {
+    if (tier === "low")  return 2;
+    if (tier === "high") return 10;
+    return 3; // medium
+  }
+  // gpt-image-1 / gpt-image-1.5
   if (tier === "low")    return 4;
   if (tier === "high")   return 19;
   return 7; // medium

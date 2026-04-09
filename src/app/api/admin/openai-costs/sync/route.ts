@@ -22,8 +22,8 @@ const DEFAULT_PRICES: Record<string, {
   "gpt-4o-2024-05-13":       { displayName: "GPT-4o (May 24)",      inputPer1M: 5.00, outputPer1M: 15.00 },
   // Image models
   "gpt-image-1":             { displayName: "GPT Image 1",          inputPer1M: 0, outputPer1M: 0, imageCents: 4 },
-  "dall-e-3":                { displayName: "DALL-E 3",             inputPer1M: 0, outputPer1M: 0, imageCents: 4 },
-  "dall-e-2":                { displayName: "DALL-E 2",             inputPer1M: 0, outputPer1M: 0, imageCents: 2 },
+  "gpt-image-1.5":           { displayName: "GPT Image 1.5",        inputPer1M: 0, outputPer1M: 0, imageCents: 4 },
+  "gpt-image-1-mini":        { displayName: "GPT Image 1 Mini",     inputPer1M: 0, outputPer1M: 0, imageCents: 2 },
   // Legacy
   "gpt-4-turbo":             { displayName: "GPT-4 Turbo",          inputPer1M: 10.00, outputPer1M: 30.00 },
   "gpt-4-turbo-2024-04-09":  { displayName: "GPT-4 Turbo (Apr 24)", inputPer1M: 10.00, outputPer1M: 30.00 },

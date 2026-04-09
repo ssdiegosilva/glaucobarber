@@ -120,24 +120,12 @@ Retorne APENAS JSON válido, sem markdown:
     const model   = input.model   ?? "gpt-image-1";
     const quality = input.quality ?? "standard";
 
-    // Normalize size per model — each model has different valid size options
-    const GPT_IMAGE_1_SIZES = ["1024x1024", "1024x1536", "1536x1024", "auto"];
-    const DALL_E_3_SIZES    = ["1024x1024", "1792x1024", "1024x1792"];
-    const DALL_E_2_SIZES    = ["256x256", "512x512", "1024x1024"];
+    // Normalize size per model
+    const GPT_IMAGE_SIZES = ["1024x1024", "1024x1536", "1536x1024", "auto"];
     const rawSize = input.size ?? "1024x1024";
-    let size: string;
-    if (model === "gpt-image-1") {
-      size = GPT_IMAGE_1_SIZES.includes(rawSize) ? rawSize : "1024x1024";
-    } else if (model === "dall-e-3") {
-      size = DALL_E_3_SIZES.includes(rawSize) ? rawSize : "1024x1024";
-    } else if (model === "dall-e-2") {
-      size = DALL_E_2_SIZES.includes(rawSize) ? rawSize : "1024x1024";
-    } else {
-      size = "1024x1024";
-    }
+    const size = GPT_IMAGE_SIZES.includes(rawSize) ? rawSize : "1024x1024";
 
-    // ── With reference image: always use gpt-image-1 via images.edit ─────────
-    // (images.edit only supports gpt-image-1 — model param is ignored here)
+    // ── With reference image: use images.edit (gpt-image-1 family) ──────────
     if (input.referenceImageUrl) {
       try {
         const { toFile } = await import("openai");
@@ -148,7 +136,7 @@ Retorne APENAS JSON válido, sem markdown:
         const ext         = contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
 
         const img = await this.client.images.edit({
-          model:  "gpt-image-1",
+          model:  model as any,
           image:  await toFile(refBuffer, `reference.${ext}`, { type: contentType }),
           prompt,
           size:   size as any,
@@ -156,52 +144,42 @@ Retorne APENAS JSON válido, sem markdown:
         } as Parameters<typeof this.client.images.edit>[0]);
 
         const b64 = img.data?.[0]?.b64_json;
-        if (!b64) throw new Error("gpt-image-1 não retornou imagem");
+        if (!b64) throw new Error(`${model} não retornou imagem`);
         return { b64 };
       } catch (editErr) {
-        console.warn("[AI] gpt-image-1 edit falhou, usando fallback:", editErr);
-        return this._generateWithDallE3(prompt, size);
+        console.warn(`[AI] ${model} edit falhou, usando fallback:`, editErr);
+        return this._generateWithFallback(prompt, size);
       }
     }
 
-    // ── Without reference: use configured model, fallback to dall-e-3 ───────
+    // ── Without reference: use configured model, fallback to gpt-image-1-mini
     try {
       return await this._generateWithModel(prompt, model, size, quality);
     } catch {
-      return this._generateWithDallE3(prompt, size);
+      return this._generateWithFallback(prompt, size);
     }
   }
 
   private async _generateWithModel(
     prompt: string, model: string, size: string, quality: string,
-  ): Promise<{ url: string } | { b64: string }> {
-    if (model === "gpt-image-1") {
-      const img = await this.client.images.generate({
-        model: "gpt-image-1", prompt, size: size as any, n: 1,
-      });
-      const b64 = img.data?.[0]?.b64_json;
-      if (!b64) throw new Error("gpt-image-1 não retornou imagem");
-      return { b64 };
-    }
-    // dall-e-2 has a 1000-char prompt limit
-    const finalPrompt = model === "dall-e-2" ? prompt.slice(0, 1000) : prompt;
-    const params: any = { model, prompt: finalPrompt, size, n: 1 };
-    if (model === "dall-e-3") params.quality = quality;
-    const img = await this.client.images.generate(params);
-    const url = img.data?.[0]?.url;
-    if (!url) throw new Error(`${model} não retornou imagem`);
-    return { url };
+  ): Promise<{ b64: string }> {
+    const img = await this.client.images.generate({
+      model: model as any, prompt, size: size as any, quality: quality as any, n: 1,
+    });
+    const b64 = img.data?.[0]?.b64_json;
+    if (!b64) throw new Error(`${model} não retornou imagem`);
+    return { b64 };
   }
 
-  private async _generateWithDallE3(prompt: string, size = "1024x1024"): Promise<{ url: string }> {
-    const DALL_E_3_SIZES = ["1024x1024", "1792x1024", "1024x1792"];
-    const safeSize = DALL_E_3_SIZES.includes(size) ? size : "1024x1024";
+  private async _generateWithFallback(prompt: string, size = "1024x1024"): Promise<{ b64: string }> {
+    const GPT_IMAGE_SIZES = ["1024x1024", "1024x1536", "1536x1024", "auto"];
+    const safeSize = GPT_IMAGE_SIZES.includes(size) ? size : "1024x1024";
     const img = await this.client.images.generate({
-      model: "dall-e-3", prompt, size: safeSize as any, n: 1,
+      model: "gpt-image-1-mini", prompt, size: safeSize as any, n: 1,
     });
-    const url = img.data?.[0]?.url;
-    if (!url) throw new Error("dall-e-3 não retornou imagem");
-    return { url };
+    const b64 = img.data?.[0]?.b64_json;
+    if (!b64) throw new Error("gpt-image-1-mini não retornou imagem");
+    return { b64 };
   }
 
   async generateClientMessage(
@@ -335,33 +313,24 @@ Retorne JSON com:
     const resolvedSize    = size    ?? "1024x1024";
     const resolvedQuality = quality ?? "medium";
 
-    // gpt-image-1 supports images.edit (photo of the client as reference)
-    if (resolvedModel === "gpt-image-1") {
-      try {
-        const { toFile } = await import("openai");
-        const img = await this.client.images.edit({
-          model:   "gpt-image-1",
-          image:   await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
-          prompt,
-          size:    resolvedSize as any,
-          quality: resolvedQuality as any,
-          n:       1,
-        } as Parameters<typeof this.client.images.edit>[0]);
-
-        const b64 = img.data?.[0]?.b64_json;
-        if (!b64) throw new Error("gpt-image-1 não retornou imagem");
-        return { b64 };
-      } catch (err) {
-        console.warn("[AI] gpt-image-1 haircut edit falhou, usando dall-e-3:", err);
-        return this._generateWithDallE3(prompt, resolvedSize);
-      }
-    }
-
-    // Other models: generate without reference image
+    // gpt-image-1 family supports images.edit (photo of the client as reference)
     try {
-      return await this._generateWithModel(prompt, resolvedModel, resolvedSize, resolvedQuality);
-    } catch {
-      return this._generateWithDallE3(prompt, resolvedSize);
+      const { toFile } = await import("openai");
+      const img = await this.client.images.edit({
+        model:   resolvedModel as any,
+        image:   await toFile(imageBuffer, "client.jpg", { type: "image/jpeg" }),
+        prompt,
+        size:    resolvedSize as any,
+        quality: resolvedQuality as any,
+        n:       1,
+      } as Parameters<typeof this.client.images.edit>[0]);
+
+      const b64 = img.data?.[0]?.b64_json;
+      if (!b64) throw new Error(`${resolvedModel} não retornou imagem`);
+      return { b64 };
+    } catch (err) {
+      console.warn(`[AI] ${resolvedModel} haircut edit falhou, usando fallback:`, err);
+      return this._generateWithFallback(prompt, resolvedSize);
     }
   }
 
