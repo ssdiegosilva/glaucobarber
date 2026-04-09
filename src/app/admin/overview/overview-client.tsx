@@ -503,7 +503,7 @@ export function OverviewClient({ killSwitches: initial, cronRuns: initialCronRun
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-white">Precificação de Imagens (gpt-image-1)</p>
+            <p className="text-sm font-semibold text-white">Precificação de Imagens</p>
             <p className="text-xs text-zinc-500 mt-0.5">Atualizado diariamente via cron · 35% de margem</p>
           </div>
           <button

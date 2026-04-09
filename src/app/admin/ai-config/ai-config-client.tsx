@@ -15,12 +15,12 @@ const OPENAI_COST_KEYS: Record<string, string> = {
 
 // Custo real por tier/modelo — referência somente visual na tabela
 const COST_BY_MODEL: Record<string, { low: number; medium: number; high: number }> = {
-  "gpt-image-1": { low: 4, medium: 7,  high: 19 },
-  "dall-e-3":    { low: 4, medium: 4,  high: 8  }, // standard=low/medium, hd=high
-  "dall-e-2":    { low: 2, medium: 2,  high: 2  }, // always standard
+  "gpt-image-1":      { low: 4, medium: 7,  high: 19 },
+  "gpt-image-1.5":    { low: 4, medium: 7,  high: 19 },
+  "gpt-image-1-mini": { low: 2, medium: 3,  high: 10 },
 };
 
-const MODEL_OPTIONS = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
+const MODEL_OPTIONS = ["gpt-image-1", "gpt-image-1.5", "gpt-image-1-mini"] as const;
 
 interface CostData {
   trialStats: {
@@ -159,7 +159,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
             {MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
           <p className="text-[10px] text-muted-foreground">
-            {activeModel === "gpt-image-1" ? "Suporta foto de referência (images.edit)" : "Geração sem referência"} · Tamanho fixo 1024×1024 (Instagram quadrado)
+            {activeModel === "gpt-image-1-mini" ? "Modelo econômico — menor custo por imagem" : "Suporta foto de referência (images.edit)"} · Tamanho fixo 1024×1024 (Instagram quadrado)
           </p>
         </div>
 
@@ -168,7 +168,7 @@ export function AiConfigClient({ current, killImageGeneration: initialKill }: { 
           <div className="flex items-center gap-2">
             <Cpu className="h-3.5 w-3.5 text-amber-400" />
             <p className="text-xs font-semibold text-foreground">Custo OpenAI por tier (USD)</p>
-            <span className="text-[10px] text-muted-foreground ml-auto">gpt-image-1 · 1024×1024 · atualize quando a OpenAI mudar o preço</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">{activeModel} · 1024×1024 · atualize quando a OpenAI mudar o preço</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {(["low", "medium", "high"] as const).map((tier) => {
