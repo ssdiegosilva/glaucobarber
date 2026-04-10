@@ -879,6 +879,8 @@ function MessageRow({
             {/* manual / auto tag — shown for queued and sent */}
             {localMsg.messageKind !== "template" ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-1.5 py-0.5 text-[9px] text-amber-400">👤 manual</span>
+            ) : localMsg.status === "QUEUED" && hasAutoSend && whatsappConfigured ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[9px] text-blue-400">🤖 bot envia automaticamente</span>
             ) : localMsg.status === "SENT" && !localMsg.sentManually ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-1.5 py-0.5 text-[9px] text-green-400">🤖 automático</span>
             ) : localMsg.status === "SENT" && localMsg.sentManually ? (
@@ -1153,7 +1155,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       {tab === "queue" && (
         <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">
           {botActive
-            ? "Mensagens automáticas (templates) são enviadas pelo bot a cada 15 min. Mensagens manuais (texto livre, copilot, pós-venda) precisam ser enviadas por você via WhatsApp."
+            ? "Mensagens marcadas com 🤖 serão enviadas automaticamente pelo bot — você não precisa abrir o WhatsApp. O bot processa a fila a cada 15 min. Mensagens 👤 precisam de envio manual."
             : "Todas as mensagens precisam de envio manual — clique em cada uma para abrir o WhatsApp."}
         </p>
       )}
