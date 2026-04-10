@@ -73,3 +73,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   return NextResponse.json({ appointment, payment, totals });
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const barbershopId = session.user.barbershopId;
+
+  const appointment = await prisma.appointment.findFirst({
+    where: { OR: [{ id }, { trinksId: id }], barbershopId },
+    select: { id: true, status: true, avecId: true, trinksId: true },
+  });
+
+  if (!appointment) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Only allow deleting cancelled or no-show appointments
+  if (!["CANCELLED", "NO_SHOW"].includes(appointment.status)) {
+    return NextResponse.json({ error: "Só é possível apagar agendamentos cancelados ou não compareceu" }, { status: 400 });
+  }
+
+  await prisma.appointment.delete({ where: { id: appointment.id } });
+
+  return NextResponse.json({ ok: true });
+}

@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatTime, formatDate, relativeTime } from "@/lib/utils";
-import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote, CheckCircle2, Play, XCircle, UserX, RotateCcw } from "lucide-react";
+import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote, CheckCircle2, Play, XCircle, UserX, RotateCcw, Trash2 } from "lucide-react";
 import { CardDetailsPicker } from "@/components/payment/card-details-picker";
 import type { AgendaAppointment } from "../agenda-client";
 
@@ -92,13 +92,16 @@ interface Props {
   onClose:      () => void;
   onStatusChange: (appointmentId: string, newStatus: string) => void;
   onReschedule: (appointmentId: string, scheduledAt: string) => void;
+  onDelete?:    (appointmentId: string) => void;
   isAvecActive: boolean;
 }
 
-export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, onReschedule, isAvecActive }: Props) {
+export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, onReschedule, onDelete, isAvecActive }: Props) {
   const [context, setContext]             = useState<{ customer: CustomerContext | null; recentAppointments: RecentAppt[] } | null>(null);
   const [loadingCtx, setLoadingCtx]       = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deleting, setDeleting]           = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [rescheduling, setRescheduling]   = useState(false);
   const [newDate, setNewDate]             = useState("");
   const [newTime, setNewTime]             = useState("");
@@ -162,6 +165,19 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
       }
     } finally {
       setUpdatingStatus(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!appointment) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/appointments/${appointment.id}`, { method: "DELETE" });
+      onDelete?.(appointment.id);
+      onClose();
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   }
 
@@ -284,6 +300,30 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
                       </Button>
                     ))}
                   </div>
+                )}
+
+                {/* Delete — only for cancelled / no-show */}
+                {(currentStatus === "CANCELLED" || currentStatus === "NO_SHOW") && (
+                  confirmDelete ? (
+                    <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2">
+                      <span className="text-xs text-red-400 flex-1">Apagar permanentemente?</span>
+                      <Button size="sm" variant="destructive" disabled={deleting} onClick={handleDelete} className="gap-1.5 text-xs">
+                        {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        Sim, apagar
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} className="text-xs">
+                        Não
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Apagar agendamento
+                    </button>
+                  )
                 )}
               </div>
             )}

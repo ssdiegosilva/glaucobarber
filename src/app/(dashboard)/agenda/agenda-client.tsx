@@ -322,6 +322,7 @@ export function AgendaClient({
                 onClose={() => setDrawerOpen(false)}
                 onStatusChange={handleStatusChange}
                 onReschedule={handleReschedule}
+                onDelete={(id) => setAppointments((prev) => prev.filter((a) => a.id !== id))}
                 isAvecActive={isAvecActive}
               />
 
