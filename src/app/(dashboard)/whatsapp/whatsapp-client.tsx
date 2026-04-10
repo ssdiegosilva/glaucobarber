@@ -1155,8 +1155,8 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
       {tab === "queue" && (
         <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">
           {botActive
-            ? "Mensagens marcadas com 🤖 serão enviadas automaticamente pelo bot — você não precisa abrir o WhatsApp. O bot processa a fila a cada 15 min. Mensagens 👤 precisam de envio manual."
-            : "Todas as mensagens precisam de envio manual — clique em cada uma para abrir o WhatsApp."}
+            ? "Mensagens marcadas com 🤖 serão enviadas automaticamente pelo bot — você não precisa abrir o WhatsApp. O bot processa a fila a cada 15 min. Mensagens 👤 precisam de envio manual: ao clicar em \"Enviar manual\", o WhatsApp abre e a mensagem já vai para a fila de enviadas."
+            : "Todas as mensagens precisam de envio manual. Ao clicar em \"Enviar no WhatsApp\", o app abre e a mensagem já vai automaticamente para a fila de enviadas."}
         </p>
       )}
       {tab === "failed"  && <p className="text-xs text-muted-foreground border-b border-border/40 pb-2">Mensagens que falharam no envio. Use &quot;Tentar novamente&quot; para reagendar para daqui 1 hora. Itens com mais de 1 dia são removidos automaticamente.</p>}
