@@ -73,6 +73,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           lastCompletedAppointmentAt: now,
           lastServiceSummary: serviceName,
           lastSpentAmount:    appointment.price,
+          totalVisits:        { increment: 1 },
         },
       });
 

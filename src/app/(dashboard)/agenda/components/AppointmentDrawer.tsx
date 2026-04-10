@@ -153,6 +153,13 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
       setSelectedPaymentMethod(null);
       setCardBrand(null);
       setCardPaymentType(null);
+      // Reload customer context so totalVisits and other stats reflect the change
+      if (status === "COMPLETED") {
+        fetch(`/api/appointments/${appointment.id}/customer-context`)
+          .then((r) => r.json())
+          .then((d) => setContext(d))
+          .catch(() => {});
+      }
     } finally {
       setUpdatingStatus(false);
     }
