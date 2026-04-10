@@ -279,34 +279,41 @@ export function AgendaTimeline({ appointments, barbers = [], onSelect, onSlotCli
                 >
                   <button
                     onClick={() => onSelect(appt)}
-                    className={`w-full h-full text-left rounded border px-2 py-1.5 transition-colors overflow-hidden flex flex-col justify-between
+                    title={[appt.customerName, appt.serviceName, `${appt.durationMin}min`].filter(Boolean).join(" · ")}
+                    className={`w-full h-full text-left rounded border px-2 py-1 transition-colors overflow-hidden flex flex-col
+                      ${rowSpan === 1 ? "justify-center" : "justify-between"}
                       ${STATUS_COLOR[appt.status] ?? "bg-muted/20 border-border/40"}
                       ${appt.status === "CANCELLED" ? "cursor-default" : "cursor-pointer"}`}
                   >
-                    <div className="flex items-start justify-between gap-1 min-w-0">
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-semibold text-foreground truncate leading-tight
-                          ${appt.status === "CANCELLED" ? "line-through text-muted-foreground" : ""}`}>
-                          {appt.customerName}
-                        </p>
-                        {appt.serviceName && (
-                          <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
-                            {appt.serviceName}
-                          </p>
-                        )}
-                      </div>
+                    {/* Always visible: name + status badge */}
+                    <div className="flex items-center justify-between gap-1 min-w-0">
+                      <p className={`text-xs font-semibold text-foreground truncate leading-tight flex-1 min-w-0
+                        ${appt.status === "CANCELLED" ? "line-through text-muted-foreground" : ""}`}>
+                        {appt.customerName}
+                      </p>
                       <Badge variant={STATUS_BADGE[appt.status] as any} className="text-[9px] px-1 py-0 shrink-0 leading-tight">
                         {STATUS_LABELS[appt.status] ?? appt.status}
                       </Badge>
                     </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-muted-foreground tabular-nums">
-                        {appt.durationMin}min · até {endLabel}
-                      </span>
-                      {appt.price != null && (
-                        <span className="text-[10px] font-medium text-foreground tabular-nums">{formatBRL(appt.price)}</span>
-                      )}
-                    </div>
+
+                    {/* Service name — only when there's room (rowSpan ≥ 2) */}
+                    {rowSpan >= 2 && appt.serviceName && (
+                      <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                        {appt.serviceName}
+                      </p>
+                    )}
+
+                    {/* Footer — only when there's enough room (rowSpan ≥ 3) */}
+                    {rowSpan >= 3 && (
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {appt.durationMin}min · até {endLabel}
+                        </span>
+                        {appt.price != null && (
+                          <span className="text-[10px] font-medium text-foreground tabular-nums">{formatBRL(appt.price)}</span>
+                        )}
+                      </div>
+                    )}
                   </button>
                 </div>
               );
