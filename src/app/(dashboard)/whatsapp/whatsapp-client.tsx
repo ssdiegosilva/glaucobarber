@@ -1230,15 +1230,18 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                 const botMsgs    = queue.filter((m) => m.messageKind === "template");
                 const manualMsgs = queue.filter((m) => m.messageKind !== "template");
 
-                function renderGroup(msgs: WaMessage[], label: string, icon: React.ReactNode, color: string) {
+                function renderGroup(msgs: WaMessage[], label: string, icon: React.ReactNode, color: string, hint?: string) {
                   if (msgs.length === 0) return null;
                   const today  = msgs.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) <= todayStr);
                   const future = msgs.filter((m) => (m.scheduledFor ?? m.createdAt).slice(0, 10) >  todayStr);
                   return (
                     <div className="space-y-2">
-                      <div className={`flex items-center gap-1.5 text-[11px] font-semibold pt-1 ${color}`}>
-                        {icon}
-                        {label} · {msgs.length}
+                      <div className="flex items-center gap-2 pt-1 flex-wrap">
+                        <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${color}`}>
+                          {icon}
+                          {label} · {msgs.length}
+                        </div>
+                        {hint && <span className="text-[10px] text-muted-foreground">{hint}</span>}
                       </div>
                       {today.map((m) => (
                         <MessageRow key={m.id} msg={m} showActions isToday
@@ -1264,6 +1267,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                       "Automático — bot envia",
                       <Bot className="h-3 w-3" />,
                       "text-green-400",
+                      "serão enviadas pelo bot, sem precisar abrir o WhatsApp",
                     )}
                     {botMsgs.length > 0 && manualMsgs.length > 0 && (
                       <div className="border-t border-border/40 pt-1" />
@@ -1273,6 +1277,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                       "Manual — você envia",
                       <Send className="h-3 w-3" />,
                       "text-amber-400",
+                      "ao clicar em enviar, o WhatsApp abre e a mensagem vai para enviadas",
                     )}
                   </>
                 );
