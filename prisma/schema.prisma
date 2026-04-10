@@ -446,6 +446,7 @@ model Service {
   syncedFromTrinks Boolean  @default(false)
   syncedFromAvec   Boolean  @default(false)
   lastSyncedAt     DateTime?
+  deletedAt        DateTime?
 
   barbershop   Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   appointments Appointment[]

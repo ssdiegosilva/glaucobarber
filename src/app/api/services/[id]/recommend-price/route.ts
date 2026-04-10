@@ -28,7 +28,7 @@ export async function POST(
 
   const [service, barbershop] = await Promise.all([
     prisma.service.findFirst({
-      where:  { id, barbershopId: session.user.barbershopId },
+      where:  { id, barbershopId: session.user.barbershopId, deletedAt: null },
       select: { id: true, name: true, description: true, category: true, price: true, durationMin: true },
     }),
     prisma.barbershop.findUnique({

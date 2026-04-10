@@ -15,7 +15,7 @@ export async function PATCH(
   const { price, name, description, durationMin, active } = body;
 
   const service = await prisma.service.findFirst({
-    where: { id, barbershopId: session.user.barbershopId },
+    where: { id, barbershopId: session.user.barbershopId, deletedAt: null },
   });
   if (!service) return NextResponse.json({ error: "Serviço não encontrado" }, { status: 404 });
 
@@ -47,4 +47,26 @@ export async function PATCH(
   }
 
   return NextResponse.json({ service: { ...updated, price: Number(updated.price) } });
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+
+  const service = await prisma.service.findFirst({
+    where: { id, barbershopId: session.user.barbershopId, deletedAt: null },
+  });
+  if (!service) return NextResponse.json({ error: "Serviço não encontrado" }, { status: 404 });
+
+  await prisma.service.update({
+    where: { id },
+    data: { deletedAt: new Date(), active: false },
+  });
+
+  return NextResponse.json({ ok: true });
 }

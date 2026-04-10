@@ -7,7 +7,7 @@ export async function GET() {
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const services = await prisma.service.findMany({
-    where:   { barbershopId: session.user.barbershopId, active: true },
+    where:   { barbershopId: session.user.barbershopId, active: true, deletedAt: null },
     select:  { id: true, name: true, price: true, durationMin: true },
     orderBy: { name: "asc" },
   });

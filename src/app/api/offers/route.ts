@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   // Fetch service prices
   const serviceIds = items.map((i) => i.serviceId);
   const services   = await prisma.service.findMany({
-    where:  { id: { in: serviceIds }, barbershopId },
+    where:  { id: { in: serviceIds }, barbershopId, deletedAt: null },
     select: { id: true, price: true },
   });
   const priceMap = new Map(services.map((s) => [s.id, Number(s.price)]));
