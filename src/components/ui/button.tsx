@@ -22,6 +22,10 @@ const buttonVariants = cva(
           "text-gold-400 underline-offset-4 hover:underline",
         muted:
           "bg-surface-800 text-muted-foreground hover:bg-surface-700 hover:text-foreground",
+        success:
+          "bg-green-600 text-white hover:bg-green-500 font-semibold",
+        warning:
+          "bg-amber-500 text-black hover:bg-amber-400 font-semibold",
       },
       size: {
         default: "h-10 px-4 py-2",

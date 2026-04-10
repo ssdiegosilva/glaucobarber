@@ -21,7 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
 interface ActionDef {
   label:   string;
   status:  string;
-  variant: "default" | "destructive" | "outline" | "secondary" | "success" | "warning";
+  variant: "default" | "destructive" | "outline" | "secondary" | "success" | "warning" | "muted";
   icon:    React.ReactNode;
 }
 
@@ -35,7 +35,7 @@ const STATUS_FLOW: Record<string, StatusFlow | null> = {
   SCHEDULED: {
     primary:   { label: "Confirmar presença",    status: "CONFIRMED",      variant: "success",     icon: <CheckCircle2 className="h-4 w-4" /> },
     secondary: [
-      { label: "Reagendar",  status: "__reschedule__", variant: "outline",     icon: <CalendarClock className="h-3.5 w-3.5" /> },
+      { label: "Reagendar",  status: "__reschedule__", variant: "muted",       icon: <CalendarClock className="h-3.5 w-3.5" /> },
       { label: "Cancelar",   status: "CANCELLED",      variant: "destructive", icon: <XCircle className="h-3.5 w-3.5" /> },
     ],
   },
@@ -43,7 +43,7 @@ const STATUS_FLOW: Record<string, StatusFlow | null> = {
   CONFIRMED: {
     primary:   { label: "Iniciar atendimento",   status: "IN_PROGRESS",    variant: "warning",     icon: <Play className="h-4 w-4" /> },
     secondary: [
-      { label: "Reagendar",  status: "__reschedule__", variant: "outline",     icon: <CalendarClock className="h-3.5 w-3.5" /> },
+      { label: "Reagendar",  status: "__reschedule__", variant: "muted",       icon: <CalendarClock className="h-3.5 w-3.5" /> },
       { label: "Cancelar",   status: "CANCELLED",      variant: "destructive", icon: <XCircle className="h-3.5 w-3.5" /> },
     ],
   },
@@ -51,15 +51,15 @@ const STATUS_FLOW: Record<string, StatusFlow | null> = {
   IN_PROGRESS: {
     primary:   { label: "Concluir atendimento",  status: "COMPLETED",      variant: "success",     icon: <CheckCircle2 className="h-4 w-4" /> },
     secondary: [
-      { label: "Não compareceu", status: "NO_SHOW", variant: "outline",    icon: <UserX className="h-3.5 w-3.5" /> },
+      { label: "Não compareceu", status: "NO_SHOW", variant: "muted",      icon: <UserX className="h-3.5 w-3.5" /> },
     ],
   },
   COMPLETED: null,
   CANCELLED: {
-    primary:   { label: "Reagendar",             status: "__reschedule__", variant: "outline",     icon: <RotateCcw className="h-4 w-4" /> },
+    primary:   { label: "Reagendar",             status: "__reschedule__", variant: "muted",       icon: <RotateCcw className="h-4 w-4" /> },
   },
   NO_SHOW: {
-    primary:   { label: "Reagendar",             status: "__reschedule__", variant: "outline",     icon: <RotateCcw className="h-4 w-4" /> },
+    primary:   { label: "Reagendar",             status: "__reschedule__", variant: "muted",       icon: <RotateCcw className="h-4 w-4" /> },
   },
 };
 
