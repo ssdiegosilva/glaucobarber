@@ -32,6 +32,14 @@ export async function PATCH(
     select: { id: true, name: true, phone: true, email: true, notes: true, doNotContact: true, tags: true },
   });
 
+  // Sync phone change to queued WhatsApp messages so they go to the updated number
+  if (phone !== undefined && updated.phone) {
+    await prisma.whatsappMessage.updateMany({
+      where: { customerId: id, status: "QUEUED" },
+      data:  { phone: updated.phone },
+    });
+  }
+
   return NextResponse.json({ customer: updated });
 }
 
