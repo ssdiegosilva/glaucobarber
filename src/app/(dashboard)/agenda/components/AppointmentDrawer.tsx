@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatTime, formatDate, relativeTime } from "@/lib/utils";
-import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote } from "lucide-react";
+import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote, CheckCircle2, Play, XCircle, UserX, RotateCcw } from "lucide-react";
 import { CardDetailsPicker } from "@/components/payment/card-details-picker";
 import type { AgendaAppointment } from "../agenda-client";
 
@@ -18,26 +18,49 @@ const STATUS_LABELS: Record<string, string> = {
   NO_SHOW:     "Não compareceu",
 };
 
-const STATUS_NEXT: Record<string, { label: string; status: string; variant: "default" | "destructive" | "outline" | "secondary" | "success" | "warning" }[]> = {
-  SCHEDULED:   [
-    { label: "Confirmar",       status: "CONFIRMED",       variant: "success" },
-    { label: "Concluir",        status: "COMPLETED",       variant: "warning" },
-    { label: "Reagendar",       status: "__reschedule__",  variant: "outline" },
-    { label: "Cancelar",        status: "CANCELLED",       variant: "destructive" },
-  ],
-  CONFIRMED:   [
-    { label: "Iniciar",         status: "IN_PROGRESS",     variant: "warning" },
-    { label: "Concluir",        status: "COMPLETED",       variant: "success" },
-    { label: "Reagendar",       status: "__reschedule__",  variant: "outline" },
-    { label: "Cancelar",        status: "CANCELLED",       variant: "destructive" },
-  ],
-  IN_PROGRESS: [
-    { label: "Concluir",        status: "COMPLETED",   variant: "success" },
-    { label: "Não compareceu",  status: "NO_SHOW",     variant: "outline" },
-  ],
-  COMPLETED:   [],
-  CANCELLED:   [{ label: "Reagendar", status: "__reschedule__", variant: "outline" }],
-  NO_SHOW:     [{ label: "Reagendar", status: "__reschedule__", variant: "outline" }],
+interface ActionDef {
+  label:   string;
+  status:  string;
+  variant: "default" | "destructive" | "outline" | "secondary" | "success" | "warning";
+  icon:    React.ReactNode;
+}
+
+interface StatusFlow {
+  primary:    ActionDef;
+  secondary?: ActionDef[];
+}
+
+const STATUS_FLOW: Record<string, StatusFlow | null> = {
+  // SCHEDULED → próximo passo natural: Confirmar
+  SCHEDULED: {
+    primary:   { label: "Confirmar presença",    status: "CONFIRMED",      variant: "success",     icon: <CheckCircle2 className="h-4 w-4" /> },
+    secondary: [
+      { label: "Reagendar",  status: "__reschedule__", variant: "outline",     icon: <CalendarClock className="h-3.5 w-3.5" /> },
+      { label: "Cancelar",   status: "CANCELLED",      variant: "destructive", icon: <XCircle className="h-3.5 w-3.5" /> },
+    ],
+  },
+  // CONFIRMED → próximo passo: Iniciar atendimento
+  CONFIRMED: {
+    primary:   { label: "Iniciar atendimento",   status: "IN_PROGRESS",    variant: "warning",     icon: <Play className="h-4 w-4" /> },
+    secondary: [
+      { label: "Reagendar",  status: "__reschedule__", variant: "outline",     icon: <CalendarClock className="h-3.5 w-3.5" /> },
+      { label: "Cancelar",   status: "CANCELLED",      variant: "destructive", icon: <XCircle className="h-3.5 w-3.5" /> },
+    ],
+  },
+  // IN_PROGRESS → próximo passo: Concluir
+  IN_PROGRESS: {
+    primary:   { label: "Concluir atendimento",  status: "COMPLETED",      variant: "success",     icon: <CheckCircle2 className="h-4 w-4" /> },
+    secondary: [
+      { label: "Não compareceu", status: "NO_SHOW", variant: "outline",    icon: <UserX className="h-3.5 w-3.5" /> },
+    ],
+  },
+  COMPLETED: null,
+  CANCELLED: {
+    primary:   { label: "Reagendar",             status: "__reschedule__", variant: "outline",     icon: <RotateCcw className="h-4 w-4" /> },
+  },
+  NO_SHOW: {
+    primary:   { label: "Reagendar",             status: "__reschedule__", variant: "outline",     icon: <RotateCcw className="h-4 w-4" /> },
+  },
 };
 
 interface CustomerContext {
@@ -165,7 +188,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
 
   const isReadOnly    = !!appointment.avecId && isAvecActive;
   const currentStatus = localStatus ?? appointment.status;
-  const actions       = isReadOnly ? [] : (STATUS_NEXT[currentStatus] ?? []);
+  const flow          = isReadOnly ? null : (STATUS_FLOW[currentStatus] ?? null);
 
   // Badge de origem
   const originBadge = appointment.avecId
@@ -223,20 +246,38 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
               <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-xs text-blue-400">
                 Agendamento gerenciado pela Avec — acesse o painel Avec para confirmar ou cancelar.
               </div>
-            ) : actions.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {actions.map((a, i) => (
-                  <Button
-                    key={a.status}
-                    size="sm"
-                    variant={a.variant as any}
-                    disabled={updatingStatus}
-                    onClick={() => handleStatus(a.status)}
-                    className={actions.length % 2 !== 0 && i === actions.length - 1 ? "col-span-2" : ""}
-                  >
-                    {updatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : a.label}
-                  </Button>
-                ))}
+            ) : flow && (
+              <div className="space-y-2">
+                {/* Primary action — big, full width */}
+                <Button
+                  size="default"
+                  variant={flow.primary.variant as any}
+                  disabled={updatingStatus}
+                  onClick={() => handleStatus(flow.primary.status)}
+                  className="w-full gap-2 text-sm font-semibold"
+                >
+                  {updatingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : flow.primary.icon}
+                  {!updatingStatus && flow.primary.label}
+                </Button>
+
+                {/* Secondary actions — smaller, icons + label, side by side */}
+                {flow.secondary && flow.secondary.length > 0 && (
+                  <div className="flex gap-2">
+                    {flow.secondary.map((a) => (
+                      <Button
+                        key={a.status}
+                        size="sm"
+                        variant={a.variant as any}
+                        disabled={updatingStatus}
+                        onClick={() => handleStatus(a.status)}
+                        className="flex-1 gap-1.5 text-xs"
+                      >
+                        {a.icon}
+                        {a.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
