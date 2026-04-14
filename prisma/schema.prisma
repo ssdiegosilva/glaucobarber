@@ -5,7 +5,8 @@
 // ============================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -145,6 +146,10 @@ model Barbershop {
   cardFeeConfigs      CardFeeConfig[]
   vitrinPosts         VitrinPost[]
   supportMessages     SupportMessage[]
+
+  // Segment (multi-vertical)
+  segmentId String?
+  segment   Segment? @relation(fields: [segmentId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -443,6 +448,8 @@ model Service {
   active       Boolean         @default(true)
   visible      Boolean         @default(true)
 
+  customCategory   String?   // dynamic category for non-barbershop segments; UI reads customCategory ?? category
+
   syncedFromTrinks Boolean  @default(false)
   syncedFromAvec   Boolean  @default(false)
   lastSyncedAt     DateTime?
@@ -605,6 +612,7 @@ model ServiceOpportunity {
   barbershopId      String
   name              String
   category          ServiceCategory          @default(HAIRCUT)
+  customCategory    String?                  // dynamic category for non-barbershop segments
   description       String?
   suggestedPrice    Decimal                  @db.Decimal(10, 2)
   rationale         String
@@ -1307,4 +1315,62 @@ model SupportMessage {
   @@index([barbershopId, status, createdAt])
   @@index([status, readByAdmin, createdAt])
   @@map("support_messages")
+}
+
+// ============================================================
+// SEGMENTS — multi-vertical platform configuration
+// Each segment defines a business type (barbershop, salon, etc.)
+// with its own theme, modules, service categories and AI prompts.
+// ============================================================
+
+model Segment {
+  id          String  @id @default(cuid())
+  key         String  @unique // "barbershop" | "hair_salon" | "nail_studio" | "shooting_range" | "generic"
+  displayName String           // "Barbearia", "Salão de Beleza"
+  tenantLabel String           // "barbearia", "salão" (lowercase, used in UI labels)
+  description String?          // shown in onboarding segment selection cards
+  icon        String?          // Lucide icon name: "Scissors", "Sparkles", "Star", "Target", "Store"
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  // HSL string: "43 52% 55%" — injected as CSS variable --primary in dashboard layout
+  colorPrimary String @default("43 52% 55%")
+
+  // JSON arrays stored as strings (avoids extra tables for simple config)
+  availableModules  String @default("[]") // string[] of module keys: ["agenda","campaigns",...]
+  serviceCategories String @default("[]") // {key,label}[]: [{"key":"haircut","label":"Corte"},...]
+  roles             String @default("[]") // {key,label}[]: [{"key":"BARBER","label":"Barbeiro"},...]
+
+  aiConfig    SegmentAiConfig?
+  barbershops Barbershop[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("segments")
+}
+
+model SegmentAiConfig {
+  id        String @id @default(cuid())
+  segmentId String @unique
+
+  // All prompts are editable by admin via /admin/segments/[id]
+  copilotSystemPrompt         String @db.Text
+  suggestionsSystemPrompt     String @db.Text
+  campaignTextSystemPrompt    String @db.Text
+  brandStyleSystemPrompt      String @db.Text
+  serviceAnalysisSystemPrompt String @db.Text
+  vitrineCaptionSystemPrompt  String @db.Text
+  haircutVisualPrompt         String @db.Text
+
+  // JSON: {"campaign_image":10,"visual_style_generate":10,...}
+  featureCosts  String @default("{}")
+  // JSON: ["campaign_image","visual_style_generate","brand_style_logo"]
+  imageFeatures String @default("[]")
+
+  segment   Segment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("segment_ai_configs")
 }

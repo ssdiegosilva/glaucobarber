@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido.", upgradeUrl: "/billing" }, { status: 402 });
 
   const ai = getAIProvider();
-  const brandStyle = await ai.improveBrandStyle(rawStyle.trim());
+  const brandStyle = await ai.improveBrandStyle(rawStyle.trim(), session.user.barbershopId);
 
   await consumeAiCredit(session.user.barbershopId, "brand_style_improve");
 

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   try {
     const context     = await buildAIContext(barbershopId);
     const provider    = getAIProvider();
-    const suggestions = await provider.generateSuggestions(context);
+    const suggestions = await provider.generateSuggestions(context, barbershopId);
 
     await saveAISuggestions(barbershopId, suggestions, context);
 

@@ -53,7 +53,8 @@ export async function sendWhatsAppMessage(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    console.error("[WhatsApp] send error:", JSON.stringify(error));
+    // Log only non-sensitive fields (avoid logging full Meta error which may contain tokens or phone numbers)
+    console.error("[WhatsApp] send error:", response.status, error?.error?.code, error?.error?.message);
     throw new Error(`WhatsApp API error: ${response.status}`);
   }
 
@@ -103,7 +104,7 @@ export async function sendWhatsAppTemplate(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    console.error("[WhatsApp] template send error:", JSON.stringify(error));
+    console.error("[WhatsApp] template send error:", response.status, error?.error?.code, error?.error?.message);
     throw new Error(`WhatsApp template API error: ${response.status}`);
   }
 

@@ -45,7 +45,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   });
 
   const ai = getAIProvider();
-  const { caption } = await ai.generateVitrinCaption(imageBase64, barbershop?.name ?? "Barbearia", barbershop?.brandStyle);
+  const { caption } = await ai.generateVitrinCaption(imageBase64, barbershop?.name ?? "Barbearia", barbershop?.brandStyle, session.user.barbershopId);
 
   await consumeAiCredit(session.user.barbershopId, "vitrine_caption");
 

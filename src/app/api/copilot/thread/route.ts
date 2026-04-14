@@ -37,11 +37,13 @@ export async function DELETE(req: NextRequest) {
   const threadId = req.nextUrl.searchParams.get("threadId");
   if (!threadId) return NextResponse.json({ error: "threadId is required" }, { status: 400 });
 
-  const thread = await prisma.copilotThread.findUnique({ where: { id: threadId } });
-  if (!thread || thread.barbershopId !== session.user.barbershopId) {
+  const result = await prisma.copilotThread.deleteMany({
+    where: { id: threadId, barbershopId: session.user.barbershopId },
+  });
+
+  if (result.count === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  await prisma.copilotThread.delete({ where: { id: threadId } });
   return NextResponse.json({ ok: true });
 }

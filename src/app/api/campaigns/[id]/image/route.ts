@@ -97,11 +97,14 @@ Important:
           sourceUrl:    img.url,
         });
 
-    await prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } });
-    await consumeAiCredit(session.user.barbershopId, "campaign_image", { credits, usdCents });
+    // Consume credit and update campaign in parallel (both must succeed)
+    await Promise.all([
+      prisma.campaign.update({ where: { id }, data: { imageUrl: stored.url } }),
+      consumeAiCredit(session.user.barbershopId, "campaign_image", { credits, usdCents }),
+    ]);
 
-    // Notify via bell icon
-    await prisma.systemNotification.create({
+    // Notify via bell icon (best-effort, non-blocking)
+    prisma.systemNotification.create({
       data: {
         barbershopId: session.user.barbershopId,
         type:  "SYSTEM",
@@ -109,10 +112,11 @@ Important:
         body:  `A imagem da campanha "${campaign.title}" está pronta.`,
         link:  "/campaigns",
       },
-    });
+    }).catch((err) => console.error("[campaigns/image] Failed to create notification:", err));
 
     return NextResponse.json({ url: stored.url });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error("[campaigns/image] Error:", e);
+    return NextResponse.json({ error: "Falha ao gerar a imagem. Tente novamente." }, { status: 500 });
   }
 }

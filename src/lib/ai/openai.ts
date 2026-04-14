@@ -3,7 +3,7 @@
 // ============================================================
 
 import OpenAI from "openai";
-import { getVerticalConfig } from "@/lib/core/vertical";
+import { getVerticalConfig, getVerticalConfigForBarbershop } from "@/lib/core/vertical";
 import type {
   AIProvider,
   AISuggestionRequest,
@@ -25,7 +25,17 @@ export class OpenAIProvider implements AIProvider {
     this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
 
-  async generateSuggestions(ctx: AISuggestionRequest): Promise<AISuggestion[]> {
+  /** Returns the AI config for a specific barbershop (DB + cache) or falls back to static config */
+  private async _getAiConfig(barbershopId?: string) {
+    if (barbershopId) {
+      const v = await getVerticalConfigForBarbershop(barbershopId);
+      return v.ai;
+    }
+    return getVerticalConfig().ai;
+  }
+
+  async generateSuggestions(ctx: AISuggestionRequest, barbershopId?: string): Promise<AISuggestion[]> {
+    const ai = await this._getAiConfig(barbershopId);
     const completion = await this.client.chat.completions.create({
       model: MODEL,
       max_tokens: 1024,
@@ -33,7 +43,7 @@ export class OpenAIProvider implements AIProvider {
       messages: [
         {
           role: "system",
-          content: getVerticalConfig().ai.suggestionsSystemPrompt,
+          content: ai.suggestionsSystemPrompt,
         },
         {
           role: "user",
@@ -54,7 +64,7 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
-  async generateCampaignThemes(barbershopName: string): Promise<{ themes: { title: string; description: string }[] }> {
+  async generateCampaignThemes(barbershopName: string, _barbershopId?: string): Promise<{ themes: { title: string; description: string }[] }> {
     const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
     const response = await (this.client as any).responses.create({
@@ -90,8 +100,10 @@ Retorne APENAS JSON válido, sem markdown:
 
   async generateCampaignText(
     objective: string,
-    context: string
+    context: string,
+    barbershopId?: string,
   ): Promise<{ text: string; artBriefing: string }> {
+    const ai = await this._getAiConfig(barbershopId);
     const completion = await this.client.chat.completions.create({
       model: MODEL,
       max_tokens: 512,
@@ -99,7 +111,7 @@ Retorne APENAS JSON válido, sem markdown:
       messages: [
         {
           role: "system",
-          content: getVerticalConfig().ai.campaignTextSystemPrompt,
+          content: ai.campaignTextSystemPrompt,
         },
         {
           role: "user",
@@ -201,7 +213,8 @@ Retorne APENAS JSON válido, sem markdown:
     return completion.choices[0]?.message?.content ?? "";
   }
 
-  async generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse> {
+  async generateCopilotResponse(context: CopilotContext, question: string, barbershopId?: string): Promise<CopilotResponse> {
+    const ai = await this._getAiConfig(barbershopId);
     const completion = await this.client.chat.completions.create({
       model: MODEL,
       max_tokens: 800,
@@ -209,8 +222,7 @@ Retorne APENAS JSON válido, sem markdown:
       messages: [
         {
           role: "system",
-          content:
-            getVerticalConfig().ai.copilotSystemPrompt,
+          content: ai.copilotSystemPrompt,
         },
         {
           role: "user",
@@ -233,15 +245,15 @@ Retorne APENAS JSON válido, sem markdown:
     }
   }
 
-  async improveBrandStyle(rawStyle: string): Promise<string> {
+  async improveBrandStyle(rawStyle: string, barbershopId?: string): Promise<string> {
+    const ai = await this._getAiConfig(barbershopId);
     const completion = await this.client.chat.completions.create({
       model: MODEL,
       max_tokens: 200,
       messages: [
         {
           role: "system",
-          content:
-            getVerticalConfig().ai.brandStyleSystemPrompt,
+          content: ai.brandStyleSystemPrompt,
         },
         { role: "user", content: rawStyle },
       ],
@@ -250,7 +262,8 @@ Retorne APENAS JSON válido, sem markdown:
     return (completion.choices[0]?.message?.content ?? rawStyle).trim().slice(0, 300);
   }
 
-  async analyzeAndSuggestHaircut(imageBase64: string): Promise<HaircutSuggestion> {
+  async analyzeAndSuggestHaircut(imageBase64: string, barbershopId?: string): Promise<HaircutSuggestion> {
+    const ai = await this._getAiConfig(barbershopId);
     const completion = await this.client.chat.completions.create({
       model: VISION_MODEL,
       max_tokens: 512,
@@ -258,8 +271,7 @@ Retorne APENAS JSON válido, sem markdown:
       messages: [
         {
           role: "system",
-          content:
-            getVerticalConfig().ai.serviceAnalysisSystemPrompt,
+          content: ai.serviceAnalysisSystemPrompt,
         },
         {
           role: "user",
@@ -304,8 +316,9 @@ Retorne JSON com:
     }
   }
 
-  async generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string, model?: string, size?: string): Promise<{ url: string } | { b64: string }> {
-    const base   = getVerticalConfig().ai.haircutVisualPrompt;
+  async generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string, model?: string, size?: string, barbershopId?: string): Promise<{ url: string } | { b64: string }> {
+    const ai   = await this._getAiConfig(barbershopId);
+    const base = ai.haircutVisualPrompt;
     const prompt = suggestedStyle
       ? `${base}\n\nApply specifically: ${suggestedStyle}`
       : base;
@@ -363,8 +376,9 @@ Retorne JSON com:
     return text.trim().slice(0, 300);
   }
 
-  async generateVitrinCaption(imageBase64: string, barbershopName: string, brandStyle?: string | null): Promise<{ caption: string }> {
-    const systemPrompt = getVerticalConfig().ai.vitrineCaptionSystemPrompt;
+  async generateVitrinCaption(imageBase64: string, barbershopName: string, brandStyle?: string | null, barbershopId?: string): Promise<{ caption: string }> {
+    const ai = await this._getAiConfig(barbershopId);
+    const systemPrompt = ai.vitrineCaptionSystemPrompt;
     const userText = [
       `Barbearia: ${barbershopName}.`,
       brandStyle ? `Estilo de marca: ${brandStyle}.` : null,

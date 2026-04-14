@@ -25,6 +25,9 @@ import {
   Check,
   GalleryHorizontal,
   LifeBuoy,
+  Store,
+  Star,
+  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { AiUsageWidget } from "./ai-usage-widget";
@@ -32,23 +35,32 @@ import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { InstallAppBanner } from "@/components/pwa/install-banner";
 
+// Map of Lucide icon names usable as segment icons
+const SEGMENT_ICON_MAP: Record<string, LucideIcon> = {
+  Scissors,
+  Sparkles,
+  Star,
+  Target,
+  Store,
+};
+
 export const NAV = [
-  { href: "/dashboard",    label: "Dashboard",   icon: LayoutDashboard },
-  { href: "/agenda",       label: "Agenda",      icon: CalendarDays },
-  { href: "/copilot",      label: "Copilot",     icon: Sparkles },
-  { href: "/financeiro",   label: "Financeiro",  icon: TrendingUp },
-  { href: "/meta",         label: "Metas",       icon: Target },
-  { href: "/clients",      label: "Clientes",    icon: Users },
-  { href: "/services",     label: "Serviços",    icon: Scissors },
-  { href: "/campaigns",    label: "Campanhas",   icon: Megaphone },
-  { href: "/vitrine",      label: "Vitrine",      icon: GalleryHorizontal },
-  { href: "/criar-visual", label: "Criar Visual", icon: Wand2 },
-  { href: "/whatsapp",     label: "WhatsApp",    icon: MessageCircle },
-  { href: "/post-sale",    label: "Pós-venda",   icon: HeartHandshake },
-  { href: "/settings?section=team", label: "Equipe", icon: UsersRound },
-  { href: "/settings",     label: "Configurações", icon: Settings },
-  { href: "/billing",      label: "Plano",         icon: CreditCard },
-  { href: "/support",      label: "Suporte",        icon: LifeBuoy },
+  { href: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard, key: "dashboard" },
+  { href: "/agenda",       label: "Agenda",       icon: CalendarDays,    key: "agenda" },
+  { href: "/copilot",      label: "Copilot",      icon: Sparkles,        key: "copilot" },
+  { href: "/financeiro",   label: "Financeiro",   icon: TrendingUp,      key: "financeiro" },
+  { href: "/meta",         label: "Metas",        icon: Target,          key: "meta" },
+  { href: "/clients",      label: "Clientes",     icon: Users,           key: "clients" },
+  { href: "/services",     label: "Serviços",     icon: Scissors,        key: "services" },
+  { href: "/campaigns",    label: "Campanhas",    icon: Megaphone,       key: "campaigns" },
+  { href: "/vitrine",      label: "Vitrine",      icon: GalleryHorizontal, key: "vitrine" },
+  { href: "/criar-visual", label: "Criar Visual", icon: Wand2,           key: "criar-visual" },
+  { href: "/whatsapp",     label: "WhatsApp",     icon: MessageCircle,   key: "whatsapp" },
+  { href: "/post-sale",    label: "Pós-venda",    icon: HeartHandshake,  key: "post-sale" },
+  { href: "/settings?section=team", label: "Equipe", icon: UsersRound,  key: "team" },
+  { href: "/settings",     label: "Configurações", icon: Settings,       key: "settings" },
+  { href: "/billing",      label: "Plano",         icon: CreditCard,     key: "billing" },
+  { href: "/support",      label: "Suporte",       icon: LifeBuoy,       key: "support" },
 ];
 
 interface MembershipInfo {
@@ -66,9 +78,24 @@ interface SidebarProps {
   aiLimit?:     number;
   aiCredits?:   number;
   aiTrialing?:  boolean;
+  /** Lucide icon name for the segment (e.g. "Scissors", "Sparkles") */
+  segmentIcon?: string;
+  /** Module keys to show in nav; undefined = show all */
+  availableModules?: string[];
 }
 
-export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], className, aiUsed = 0, aiLimit = 30, aiCredits = 0, aiTrialing = false }: SidebarProps) {
+export function Sidebar({
+  barbershopName,
+  activeBarbershopId,
+  memberships = [],
+  className,
+  aiUsed = 0,
+  aiLimit = 30,
+  aiCredits = 0,
+  aiTrialing = false,
+  segmentIcon,
+  availableModules,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
@@ -76,6 +103,22 @@ export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], 
   const [switching, setSwitching] = useState(false);
 
   const hasMultiple = memberships.length > 1;
+
+  // Dynamic segment icon (falls back to Scissors)
+  const BrandIcon: LucideIcon =
+    segmentIcon ? (SEGMENT_ICON_MAP[segmentIcon] ?? Scissors) : Scissors;
+
+  // Filter nav by availableModules; if undefined = show all
+  const visibleNav =
+    availableModules && availableModules.length > 0
+      ? NAV.filter(({ key, href }) => {
+          // Always show settings, billing, support, team
+          if (["settings", "billing", "support", "team"].includes(key)) return true;
+          return availableModules.some(
+            (m) => key === m || href === `/${m}` || href.startsWith(`/${m}/`)
+          );
+        })
+      : NAV;
 
   async function switchBarbershop(barbershopId: string) {
     if (barbershopId === activeBarbershopId) {
@@ -102,8 +145,8 @@ export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], 
           onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push("/dashboard")}
           className="flex w-full items-center gap-3 px-5 py-5 hover:bg-surface-800/40 transition-colors text-left"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold-500/15 border border-gold-500/30 shrink-0">
-            <Scissors className="h-4 w-4 text-gold-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 border border-primary/30 shrink-0">
+            <BrandIcon className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-foreground leading-tight truncate">
@@ -122,7 +165,7 @@ export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], 
         {switcherOpen && (
           <div className="absolute left-3 right-3 top-full mt-1 z-50 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
             <div className="px-3 py-2 border-b border-border/60">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Trocar barbearia</p>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Trocar estabelecimento</p>
             </div>
             <div className="py-1 max-h-48 overflow-y-auto">
               {memberships.map((m) => (
@@ -132,15 +175,15 @@ export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], 
                   disabled={switching}
                   className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-700 transition-colors"
                 >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gold-500/10 border border-gold-500/20 shrink-0">
-                    <Scissors className="h-3 w-3 text-gold-400" />
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 border border-primary/20 shrink-0">
+                    <BrandIcon className="h-3 w-3 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{m.barbershopName}</p>
                     <p className="text-[10px] text-muted-foreground">{m.role === "OWNER" ? "Dono" : m.role === "BARBER" ? "Barbeiro" : "Equipe"}</p>
                   </div>
                   {m.barbershopId === activeBarbershopId && (
-                    <Check className="h-4 w-4 text-gold-400 shrink-0" />
+                    <Check className="h-4 w-4 text-primary shrink-0" />
                   )}
                 </button>
               ))}
@@ -154,7 +197,7 @@ export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], 
                 <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted/60 border border-border shrink-0">
                   <Plus className="h-3 w-3 text-muted-foreground" />
                 </div>
-                <p className="text-sm text-muted-foreground">Criar nova barbearia</p>
+                <p className="text-sm text-muted-foreground">Criar novo estabelecimento</p>
               </Link>
             </div>
           </div>
@@ -164,8 +207,8 @@ export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-0.5">
-          {NAV.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
+          {visibleNav.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || (href !== "/" && pathname.startsWith(href.split("?")[0]));
             return (
               <li key={href}>
                 <Link
@@ -173,13 +216,13 @@ export function Sidebar({ barbershopName, activeBarbershopId, memberships = [], 
                   className={cn(
                     "group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all",
                     active
-                      ? "bg-gold-500/15 text-gold-400 border border-gold-500/20"
+                      ? "bg-primary/15 text-primary border border-primary/20"
                       : "text-muted-foreground hover:text-foreground hover:bg-surface-700"
                   )}
                 >
-                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-gold-400" : "")} />
+                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "")} />
                   <span className="flex-1">{label}</span>
-                  {active && <ChevronRight className="h-3 w-3 text-gold-400/50" />}
+                  {active && <ChevronRight className="h-3 w-3 text-primary/50" />}
                 </Link>
               </li>
             );

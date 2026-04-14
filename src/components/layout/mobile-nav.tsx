@@ -13,6 +13,8 @@ import { AiProfilePanel } from "./ai-profile-panel";
 interface MobileNavProps {
   barbershopName?: string | null;
   userName?:       string | null;
+  /** Module keys to show in nav; undefined = show all */
+  availableModules?: string[];
 }
 
 function getInitials(name: string) {
@@ -31,7 +33,7 @@ interface Notification {
 const R = 14;
 const CIRC = 2 * Math.PI * R; // ≈ 87.96
 
-export function MobileNav({ barbershopName, userName }: MobileNavProps) {
+export function MobileNav({ barbershopName, userName, availableModules }: MobileNavProps) {
   const [open,       setOpen]       = useState(false);
   const [bellOpen,   setBellOpen]   = useState(false);
   const [panelOpen,  setPanelOpen]  = useState(false);
@@ -229,8 +231,12 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
       {open && (
         <div className="bg-card border-b border-border shadow-xl">
           <nav className="grid grid-cols-2 gap-px bg-border">
-            {NAV.map(({ href, label, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + "/");
+            {NAV.filter(({ key }) => {
+              if (!availableModules || availableModules.length === 0) return true;
+              if (["settings", "billing", "support", "team"].includes(key)) return true;
+              return availableModules.includes(key);
+            }).map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href.split("?")[0] + "/");
               return (
                 <Link
                   key={href}
@@ -239,11 +245,11 @@ export function MobileNav({ barbershopName, userName }: MobileNavProps) {
                   className={cn(
                     "flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-colors",
                     active
-                      ? "bg-gold-500/15 text-gold-400"
+                      ? "bg-primary/15 text-primary"
                       : "bg-card text-muted-foreground hover:bg-surface-800 hover:text-foreground"
                   )}
                 >
-                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-gold-400" : "")} />
+                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "")} />
                   <span>{label}</span>
                 </Link>
               );

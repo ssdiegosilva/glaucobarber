@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   // Step 1: Analyze face and get haircut suggestion (text only — no credit charge)
   let suggestion;
   try {
-    suggestion = await ai.analyzeAndSuggestHaircut(base64);
+    suggestion = await ai.analyzeAndSuggestHaircut(base64, barbershopId);
   } catch (err) {
     console.error("[criar-visual] analyzeAndSuggestHaircut error:", err);
     return NextResponse.json({ error: "Erro ao analisar a foto. Tente novamente." }, { status: 500 });
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
                    : aiConfig.creditCostMedium;
   let imageResult;
   try {
-    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle, apiQuality, aiConfig.model, aiConfig.size);
+    imageResult = await ai.generateHaircutVisual(buffer, suggestion.suggestedStyle, apiQuality, aiConfig.model, aiConfig.size, barbershopId);
   } catch (err) {
     console.error("[criar-visual] generateHaircutVisual error:", err);
     return NextResponse.json({ error: "Erro ao gerar o visual. Tente novamente." }, { status: 500 });

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { requireBarbershop } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
-import { Building2, Palette, Plug, Users, CreditCard, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
+import { Building2, Palette, Plug, Users, CreditCard, CheckCircle2, AlertCircle, ShieldCheck, Layers } from "lucide-react";
 import { BarbershopCard } from "./barbershop-card";
 import { GoogleReviewCard } from "./google-review-card";
 import { BrandStyleCard } from "./brand-style-card";
@@ -12,6 +12,7 @@ import { CollapsibleSection } from "./collapsible-section";
 import { TeamCard } from "./team-card";
 import { CardFeesCard } from "./card-fees-card";
 import { ChangePasswordCard } from "./change-password-card";
+import { SegmentCard } from "./segment-card";
 
 export default async function SettingsPage({
   searchParams,
@@ -25,7 +26,7 @@ export default async function SettingsPage({
   const barbershopId = session.user.barbershopId;
 
   const [barbershop, integration, syncRuns, members, cardFeeConfigs] = await Promise.all([
-    prisma.barbershop.findUnique({ where: { id: barbershopId } }),
+    prisma.barbershop.findUnique({ where: { id: barbershopId }, select: { id: true, slug: true, name: true, email: true, phone: true, city: true, state: true, address: true, websiteUrl: true, description: true, logoUrl: true, instagramUrl: true, googleReviewUrl: true, brandStyle: true, campaignReferenceImageUrl: true, segmentId: true } }),
     prisma.integration.findUnique({
       where:  { barbershopId },
       select: { provider: true, status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, instagramPageAccessToken: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true, whatsappWabaId: true },
@@ -212,6 +213,17 @@ export default async function SettingsPage({
               feePercent: Number(c.feePercent),
             }))}
           />
+        </CollapsibleSection>
+
+        {/* ── Tipo de estabelecimento ────────────────────────── */}
+        <CollapsibleSection
+          id="segment"
+          icon={<Layers className="h-4 w-4" />}
+          title="Tipo de estabelecimento"
+          description="Define o tema visual, módulos e prompts de IA da plataforma"
+          defaultOpen={section === "segment"}
+        >
+          <SegmentCard currentSegmentId={barbershop?.segmentId ?? null} />
         </CollapsibleSection>
 
         {/* ── Segurança ──────────────────────────────────────── */}

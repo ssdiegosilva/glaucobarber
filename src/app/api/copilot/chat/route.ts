@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const context = await buildCopilotContext(barbershopId);
   const provider = getAIProvider();
-  const reply = await provider.generateCopilotResponse(context, message);
+  const reply = await provider.generateCopilotResponse(context, message, barbershopId);
   await consumeAiCredit(barbershopId, "copilot_chat");
 
   const assistantMsg = await prisma.copilotMessage.create({

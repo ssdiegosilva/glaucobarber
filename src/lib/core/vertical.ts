@@ -90,3 +90,15 @@ export function getVerticalConfig(): VerticalConfig {
 export function setVerticalConfig(config: VerticalConfig): void {
   _activeVertical = config;
 }
+
+/**
+ * Async version: loads the segment config from the database for a specific barbershop.
+ * Uses unstable_cache (5 min TTL) so admin prompt edits take effect without redeployment.
+ * Falls back to the static barbershopVertical when no segmentId is set or DB is unavailable.
+ */
+export async function getVerticalConfigForBarbershop(
+  barbershopId: string
+): Promise<VerticalConfig> {
+  const { getSegmentForBarbershop } = await import("./segment");
+  return getSegmentForBarbershop(barbershopId);
+}

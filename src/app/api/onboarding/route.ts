@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Novos cadastros temporariamente suspensos. Tente novamente em breve." }, { status: 503 });
   }
 
-  const { name, slug } = await req.json();
+  const { name, slug, segmentId } = await req.json();
 
   if (!name?.trim() || !slug?.trim()) {
     return NextResponse.json({ error: "Nome e slug são obrigatórios" }, { status: 400 });
@@ -43,6 +43,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Essa URL já está em uso. Escolha outra." }, { status: 409 });
   }
 
+  // Validate segmentId if provided
+  let validatedSegmentId: string | null = null;
+  if (segmentId) {
+    const segment = await prisma.segment.findUnique({
+      where: { id: segmentId, active: true },
+      select: { id: true },
+    });
+    validatedSegmentId = segment?.id ?? null;
+  }
+
   // Create barbershop + membership in a transaction
   const barbershop = await prisma.$transaction(async (tx) => {
     const shop = await tx.barbershop.create({
@@ -50,6 +60,7 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         slug,
         trinksConfigured: false,
+        ...(validatedSegmentId && { segmentId: validatedSegmentId }),
       },
     });
 

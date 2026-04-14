@@ -38,9 +38,11 @@ export interface HaircutSuggestion {
 
 export interface AIProvider {
   name: string;
-  generateSuggestions(context: AISuggestionRequest): Promise<AISuggestion[]>;
-  generateCampaignThemes(barbershopName: string): Promise<{ themes: { title: string; description: string }[] }>;
-  generateCampaignText(objective: string, context: string): Promise<{ text: string; artBriefing: string }>;
+  // barbershopId is optional in all prompt-using methods — when provided, prompts are loaded
+  // from the segment DB config (with 5-min cache) instead of the static vertical config.
+  generateSuggestions(context: AISuggestionRequest, barbershopId?: string): Promise<AISuggestion[]>;
+  generateCampaignThemes(barbershopName: string, barbershopId?: string): Promise<{ themes: { title: string; description: string }[] }>;
+  generateCampaignText(objective: string, context: string, barbershopId?: string): Promise<{ text: string; artBriefing: string }>;
   generateCampaignImage(input: {
     prompt:             string;
     styleHint?:         string;
@@ -50,12 +52,12 @@ export interface AIProvider {
     quality?:           string;
   }): Promise<{ url: string } | { b64: string }>;
   generateClientMessage(clientName: string, daysSinceVisit: number, services: string[]): Promise<string>;
-  generateCopilotResponse(context: CopilotContext, question: string): Promise<CopilotResponse>;
-  improveBrandStyle(rawStyle: string): Promise<string>;
+  generateCopilotResponse(context: CopilotContext, question: string, barbershopId?: string): Promise<CopilotResponse>;
+  improveBrandStyle(rawStyle: string, barbershopId?: string): Promise<string>;
   generateBrandStyleFromLogo(logoUrl: string, barbershopName?: string): Promise<string>;
-  analyzeAndSuggestHaircut(imageBase64: string): Promise<HaircutSuggestion>;
-  generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string, model?: string, size?: string): Promise<{ url: string } | { b64: string }>;
-  generateVitrinCaption(imageBase64: string, barbershopName: string, brandStyle?: string | null): Promise<{ caption: string }>;
+  analyzeAndSuggestHaircut(imageBase64: string, barbershopId?: string): Promise<HaircutSuggestion>;
+  generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string, model?: string, size?: string, barbershopId?: string): Promise<{ url: string } | { b64: string }>;
+  generateVitrinCaption(imageBase64: string, barbershopName: string, brandStyle?: string | null, barbershopId?: string): Promise<{ caption: string }>;
 }
 
 // ── Copilot types ─────────────────────────────────────────
