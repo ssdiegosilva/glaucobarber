@@ -36,7 +36,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { InstallAppBanner } from "@/components/pwa/install-banner";
 
 // Map of Lucide icon names usable as segment icons
-const SEGMENT_ICON_MAP: Record<string, LucideIcon> = {
+export const SEGMENT_ICON_MAP: Record<string, LucideIcon> = {
   Scissors,
   Sparkles,
   Star,
@@ -57,7 +57,6 @@ export const NAV = [
   { href: "/criar-visual", label: "Criar Visual", icon: Wand2,           key: "criar-visual" },
   { href: "/whatsapp",     label: "WhatsApp",     icon: MessageCircle,   key: "whatsapp" },
   { href: "/post-sale",    label: "Pós-venda",    icon: HeartHandshake,  key: "post-sale" },
-  { href: "/settings?section=team", label: "Equipe", icon: UsersRound,  key: "team" },
   { href: "/settings",     label: "Configurações", icon: Settings,       key: "settings" },
   { href: "/billing",      label: "Plano",         icon: CreditCard,     key: "billing" },
   { href: "/support",      label: "Suporte",       icon: LifeBuoy,       key: "support" },
@@ -112,8 +111,8 @@ export function Sidebar({
   const visibleNav =
     availableModules && availableModules.length > 0
       ? NAV.filter(({ key, href }) => {
-          // Always show settings, billing, support, team
-          if (["settings", "billing", "support", "team"].includes(key)) return true;
+          // Always show settings, billing, support
+          if (["settings", "billing", "support"].includes(key)) return true;
           return availableModules.some(
             (m) => key === m || href === `/${m}` || href.startsWith(`/${m}/`)
           );
@@ -207,8 +206,9 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-0.5">
-          {visibleNav.map(({ href, label, icon: Icon }) => {
+          {visibleNav.map(({ href, label, icon: Icon, key }) => {
             const active = pathname === href || (href !== "/" && pathname.startsWith(href.split("?")[0]));
+            const NavIcon = key === "services" ? BrandIcon : Icon;
             return (
               <li key={href}>
                 <Link
@@ -220,7 +220,7 @@ export function Sidebar({
                       : "text-muted-foreground hover:text-foreground hover:bg-surface-700"
                   )}
                 >
-                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "")} />
+                  <NavIcon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "")} />
                   <span className="flex-1">{label}</span>
                   {active && <ChevronRight className="h-3 w-3 text-primary/50" />}
                 </Link>

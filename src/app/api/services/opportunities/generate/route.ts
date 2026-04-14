@@ -24,7 +24,7 @@ export async function POST() {
   const [barbershop, existingServices] = await Promise.all([
     prisma.barbershop.findUnique({
       where:  { id: barbershopId },
-      select: { name: true, address: true, city: true, state: true },
+      select: { name: true, address: true, city: true, state: true, segment: { select: { tenantLabel: true, displayName: true } } },
     }),
     prisma.service.findMany({
       where:  { barbershopId, active: true, deletedAt: null },
@@ -38,15 +38,17 @@ export async function POST() {
   }
   const location = locationParts.join(", ");
   const existingList = existingServices.map((s) => s.name).join(", ");
+  const establishmentType = barbershop?.segment?.tenantLabel ?? "barbearia";
+  const establishmentDisplay = barbershop?.segment?.displayName ?? "Barbearia";
 
-  const prompt = `Você é especialista em mercado de barbearias no Brasil. Use busca na web para encontrar tendências e serviços populares atuais.
+  const prompt = `Você é especialista em mercado de ${establishmentType}s no Brasil. Use busca na web para encontrar tendências e serviços populares atuais.
 
-Barbearia: ${barbershop?.name ?? "sem nome"}
+${establishmentDisplay}: ${barbershop?.name ?? "sem nome"}
 Localização: ${location}
 Serviços que já oferece: ${existingList || "nenhum cadastrado"}
 
-Pesquise na internet quais serviços estão em alta em barbearias de ${location} atualmente.
-Liste 3 serviços POPULARES e com demanda real em barbearias de ${location} que esta barbearia ainda NÃO oferece.
+Pesquise na internet quais serviços estão em alta em ${establishmentType}s de ${location} atualmente.
+Liste 3 serviços POPULARES e com demanda real em ${establishmentType}s de ${location} que este ${establishmentType} ainda NÃO oferece.
 Use dados reais do mercado local para sugerir preços precisos e relevantes.
 Seja específico, realista e relevante para o mercado local. Não repita nenhum serviço já existente (nem variação do mesmo).
 

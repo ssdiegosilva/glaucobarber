@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { NAV } from "./sidebar";
-import { Scissors, Menu, X, Bell, Sparkles } from "lucide-react";
+import { NAV, SEGMENT_ICON_MAP } from "./sidebar";
+import { Scissors, Menu, X, Bell, Sparkles, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { InstallAppBanner } from "@/components/pwa/install-banner";
@@ -15,6 +15,8 @@ interface MobileNavProps {
   userName?:       string | null;
   /** Module keys to show in nav; undefined = show all */
   availableModules?: string[];
+  /** Lucide icon name for the segment (e.g. "Scissors", "Sparkles") */
+  segmentIcon?: string;
 }
 
 function getInitials(name: string) {
@@ -33,7 +35,8 @@ interface Notification {
 const R = 14;
 const CIRC = 2 * Math.PI * R; // ≈ 87.96
 
-export function MobileNav({ barbershopName, userName, availableModules }: MobileNavProps) {
+export function MobileNav({ barbershopName, userName, availableModules, segmentIcon }: MobileNavProps) {
+  const BrandIcon: LucideIcon = segmentIcon ? (SEGMENT_ICON_MAP[segmentIcon] ?? Scissors) : Scissors;
   const [open,       setOpen]       = useState(false);
   const [bellOpen,   setBellOpen]   = useState(false);
   const [panelOpen,  setPanelOpen]  = useState(false);
@@ -233,10 +236,11 @@ export function MobileNav({ barbershopName, userName, availableModules }: Mobile
           <nav className="grid grid-cols-2 gap-px bg-border">
             {NAV.filter(({ key }) => {
               if (!availableModules || availableModules.length === 0) return true;
-              if (["settings", "billing", "support", "team"].includes(key)) return true;
+              if (["settings", "billing", "support"].includes(key)) return true;
               return availableModules.includes(key);
-            }).map(({ href, label, icon: Icon }) => {
+            }).map(({ href, label, icon: Icon, key }) => {
               const active = pathname === href || pathname.startsWith(href.split("?")[0] + "/");
+              const NavIcon = key === "services" ? BrandIcon : Icon;
               return (
                 <Link
                   key={href}
@@ -249,7 +253,7 @@ export function MobileNav({ barbershopName, userName, availableModules }: Mobile
                       : "bg-card text-muted-foreground hover:bg-surface-800 hover:text-foreground"
                   )}
                 >
-                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "")} />
+                  <NavIcon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "")} />
                   <span>{label}</span>
                 </Link>
               );
