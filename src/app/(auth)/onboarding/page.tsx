@@ -4,25 +4,15 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
   Store,
   Loader2,
   ChevronLeft,
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SEGMENT_ICON_MAP } from "@/components/layout/sidebar";
 
-// Map Lucide icon names to components
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
-  Store,
-};
+const ICON_MAP = SEGMENT_ICON_MAP;
 
 interface PublicSegment {
   id:              string;

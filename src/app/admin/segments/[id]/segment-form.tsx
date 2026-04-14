@@ -5,10 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
   Store,
   Loader2,
   Plus,
@@ -16,15 +12,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SEGMENT_ICON_MAP } from "@/components/layout/sidebar";
 
-const ICON_OPTIONS = ["Scissors", "Sparkles", "Star", "Target", "Store"];
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
-  Store,
-};
+const ICON_OPTIONS = Object.keys(SEGMENT_ICON_MAP);
+const ICON_MAP = SEGMENT_ICON_MAP;
 
 interface ServiceCategory {
   key: string;

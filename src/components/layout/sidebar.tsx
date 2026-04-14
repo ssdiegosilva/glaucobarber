@@ -30,8 +30,14 @@ import {
   ShoppingBag,
   Croissant,
   Sandwich,
-  Cookie,
+  CakeSlice,
   Coffee,
+  Dog,
+  BicepsFlexed,
+  Utensils,
+  Wheat,
+  Pizza,
+  Wine,
   PawPrint,
   Dumbbell,
   UtensilsCrossed,
@@ -45,19 +51,28 @@ import { InstallAppBanner } from "@/components/pwa/install-banner";
 
 // Map of Lucide icon names usable as segment icons
 export const SEGMENT_ICON_MAP: Record<string, LucideIcon> = {
+  // Beleza & serviços agendados
   Scissors,
   Sparkles,
   Star,
   Target,
   Store,
   ShoppingBag,
-  Croissant,
-  Sandwich,
-  Cookie,
-  Coffee,
-  PawPrint,
-  Dumbbell,
+  // Alimentação
+  Wheat,       // padaria
+  Croissant,   // padaria alternativo
+  Sandwich,    // lanchonete
+  CakeSlice,   // confeitaria / boleria
+  Pizza,       // pizzaria
+  Utensils,    // restaurante
   UtensilsCrossed,
+  Coffee,      // cafeteria
+  Wine,        // adega
+  // Pet & fitness
+  Dog,         // pet shop
+  PawPrint,
+  BicepsFlexed, // academia
+  Dumbbell,
 };
 
 export const NAV = [

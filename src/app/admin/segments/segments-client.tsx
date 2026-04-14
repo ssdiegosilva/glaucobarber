@@ -4,10 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
   Store,
   Pencil,
   Loader2,
@@ -17,14 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
-  Store,
-};
+import { SEGMENT_ICON_MAP } from "@/components/layout/sidebar";
 
 interface SegmentRow {
   id: string;
@@ -97,7 +86,7 @@ export function SegmentsClient({ segments }: { segments: SegmentRow[] }) {
               </tr>
             )}
             {segments.map((seg) => {
-              const IconComponent = seg.icon ? (ICON_MAP[seg.icon] ?? Store) : Store;
+              const IconComponent = seg.icon ? (SEGMENT_ICON_MAP[seg.icon] ?? Store) : Store;
               return (
                 <tr key={seg.id} className="hover:bg-surface-800/30 transition-colors">
                   <td className="px-4 py-3">

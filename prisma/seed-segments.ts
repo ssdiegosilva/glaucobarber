@@ -249,7 +249,7 @@ const SEGMENTS = [
     displayName: "Padaria",
     tenantLabel: "padaria",
     description: "Para padarias e confeitarias — gestão de clientes, fidelização e campanhas.",
-    icon: "Croissant",
+    icon: "Wheat",
     colorPrimary:    "30 80% 55%",   // âmbar quente
     colorBackground: "30 10% 7%",   // dark com toque dourado
     colorCard:       "30 8% 11%",
@@ -327,7 +327,7 @@ const SEGMENTS = [
     displayName: "Confeitaria / Boleria",
     tenantLabel: "confeitaria",
     description: "Para confeitarias, bolerias e cake designers — clientes, pedidos e campanhas.",
-    icon: "Cookie",
+    icon: "CakeSlice",
     colorPrimary:    "340 65% 68%",  // rosa confeitaria
     colorBackground: "340 10% 7%",
     colorCard:       "340 8% 11%",
@@ -405,7 +405,7 @@ const SEGMENTS = [
     displayName: "Pet Shop",
     tenantLabel: "pet shop",
     description: "Para pet shops — produtos, banho & tosa e campanhas de fidelização.",
-    icon: "PawPrint",
+    icon: "Dog",
     colorPrimary:    "160 55% 50%",  // verde-azulado pet
     colorBackground: "160 10% 7%",
     colorCard:       "160 8% 11%",
@@ -458,7 +458,7 @@ const SEGMENTS = [
     displayName: "Academia / Crossfit",
     tenantLabel: "academia",
     description: "Para academias e estúdios fitness — check-ins, alunos e campanhas.",
-    icon: "Dumbbell",
+    icon: "BicepsFlexed",
     colorPrimary:    "210 75% 55%",  // azul energia
     colorBackground: "210 12% 7%",
     colorCard:       "210 9% 11%",
@@ -497,7 +497,7 @@ const SEGMENTS = [
     displayName: "Restaurante",
     tenantLabel: "restaurante",
     description: "Para restaurantes e bistrôs — clientes, fidelização e campanhas.",
-    icon: "UtensilsCrossed",
+    icon: "Utensils",
     colorPrimary:    "355 70% 55%",  // vermelho restaurante
     colorBackground: "355 10% 7%",
     colorCard:       "355 8% 11%",

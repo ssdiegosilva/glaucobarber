@@ -3,10 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
   Store,
   Loader2,
   CheckCircle2,
@@ -21,14 +17,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { SEGMENT_ICON_MAP } from "@/components/layout/sidebar";
 
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
-  Scissors,
-  Sparkles,
-  Star,
-  Target,
-  Store,
-};
+const ICON_MAP = SEGMENT_ICON_MAP;
 
 interface PublicSegment {
   id:              string;
