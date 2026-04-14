@@ -8,9 +8,10 @@ import { Camera, RefreshCw, Trash2, Upload } from "lucide-react";
 
 interface CampaignReferenceImageCardProps {
   initialUrl: string | null;
+  tenantLabel?: string;
 }
 
-export function CampaignReferenceImageCard({ initialUrl }: CampaignReferenceImageCardProps) {
+export function CampaignReferenceImageCard({ initialUrl, tenantLabel = "estabelecimento" }: CampaignReferenceImageCardProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [currentUrl, setCurrentUrl] = useState(initialUrl ?? "");
   const [uploading, setUploading] = useState(false);
@@ -88,7 +89,7 @@ export function CampaignReferenceImageCard({ initialUrl }: CampaignReferenceImag
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Envie uma foto da barbearia, do barbeiro ou do estilo desejado. A IA vai usar essa imagem como base junto com o estilo visual configurado.
+          Envie uma foto do {tenantLabel} ou do estilo desejado. A IA vai usar essa imagem como base junto com o estilo visual configurado.
         </p>
 
         <div className="rounded-xl border border-border/60 bg-surface-800 p-3 flex items-center gap-3">

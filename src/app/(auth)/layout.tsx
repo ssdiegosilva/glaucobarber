@@ -1,4 +1,4 @@
-import { Scissors } from "lucide-react";
+import { Zap } from "lucide-react";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,11 +11,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         <div className="relative flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 border border-gold-500/30">
-            <Scissors className="h-5 w-5 text-gold-400" />
+            <Zap className="h-5 w-5 text-gold-400" />
           </div>
           <div>
-            <p className="font-bold text-foreground">GlaucoBarber</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Copiloto IA</p>
+            <p className="font-bold text-foreground">Voltou.ai</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Fidelização inteligente</p>
           </div>
         </div>
 
@@ -34,7 +34,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="relative flex items-center gap-6 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-green-400 inline-block" />
-            Integrado com Trinks
+            WhatsApp automático
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-gold-400 inline-block" />
@@ -42,7 +42,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-400 inline-block" />
-            Pronto para Vercel
+            Campanhas inteligentes
           </span>
         </div>
       </div>

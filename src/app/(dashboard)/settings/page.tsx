@@ -122,6 +122,7 @@ export default async function SettingsPage({
           {barbershop && (
             <div className="space-y-3">
               <BarbershopCard
+                tenantLabel={tenantLabel}
                 barbershop={{
                   id:              barbershop.id,
                   name:            barbershop.name,
@@ -167,8 +168,9 @@ export default async function SettingsPage({
               initialStyle={barbershop?.brandStyle ?? null}
               barbershopName={barbershop?.name ?? null}
               logoUrl={barbershop?.logoUrl ?? null}
+              tenantLabel={tenantLabel}
             />
-            <CampaignReferenceImageCard initialUrl={barbershop?.campaignReferenceImageUrl ?? null} />
+            <CampaignReferenceImageCard initialUrl={barbershop?.campaignReferenceImageUrl ?? null} tenantLabel={tenantLabel} />
           </div>
         </CollapsibleSection>
 
@@ -185,7 +187,7 @@ export default async function SettingsPage({
             </span>
           }
         >
-          <TeamCard initialMembers={serializedMembers} isOwner={isOwner} />
+          <TeamCard initialMembers={serializedMembers} isOwner={isOwner} tenantLabel={tenantLabel} />
         </CollapsibleSection>
 
         {/* ── Taxas de maquininha ─────────────────────────────── */}

@@ -55,15 +55,18 @@ interface Props {
   initialOpportunities: Opportunity[];
   hasTrinks:            boolean;
   barbershopLocation:   BarbershopLocation;
+  tenantLabel?:         string;
 }
 
 // ── Address capture modal ─────────────────────────────────────
 function AddressModal({
   onSave,
   onClose,
+  tenantLabel = "estabelecimento",
 }: {
   onSave: (loc: BarbershopLocation) => void;
   onClose: () => void;
+  tenantLabel?: string;
 }) {
   const [address, setAddress] = useState("");
   const [city, setCity]       = useState("");
@@ -134,7 +137,7 @@ function AddressModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-purple-400" />
-            <h2 className="font-semibold text-foreground text-sm">Endereço da barbearia</h2>
+            <h2 className="font-semibold text-foreground text-sm">Endereço do {tenantLabel}</h2>
           </div>
           <button onClick={onClose} className="rounded p-1 hover:bg-surface-700 text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
@@ -143,7 +146,7 @@ function AddressModal({
 
         <div className="p-5 space-y-4">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            A IA usa o endereço da sua barbearia para sugerir serviços populares na sua região. Isso também atualiza o perfil da barbearia nas configurações.
+            A IA usa o endereço do seu {tenantLabel} para sugerir serviços populares na sua região. Isso também atualiza o perfil nas configurações.
           </p>
 
           <Button
@@ -340,7 +343,7 @@ function NewServiceModal({ onSave, onClose }: { onSave: (svc: Service) => void; 
   );
 }
 
-export function ServicesClient({ initialServices, initialOpportunities, hasTrinks, barbershopLocation }: Props) {
+export function ServicesClient({ initialServices, initialOpportunities, hasTrinks, barbershopLocation, tenantLabel = "estabelecimento" }: Props) {
   const [services, setServices]                   = useState(initialServices);
   const [opportunities, setOpportunities]         = useState(initialOpportunities);
   const [editingId, setEditingId]                 = useState<string | null>(null);
@@ -515,6 +518,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
         <AddressModal
           onSave={handleAddressSaved}
           onClose={() => { setShowAddressModal(false); setPendingGenerate(false); }}
+          tenantLabel={tenantLabel}
         />
       )}
       {showNewServiceModal && (

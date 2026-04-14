@@ -162,7 +162,7 @@ function CardView({ data, onEdit }: { data: BarbershopData; onEdit: () => void }
 }
 
 // ── Edit form ─────────────────────────────────────────────────────────────────
-export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
+export function BarbershopCard({ barbershop, tenantLabel = "estabelecimento" }: { barbershop: BarbershopData; tenantLabel?: string }) {
   const [editing, setEditing]   = useState(false);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
@@ -231,7 +231,7 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
       <div className="p-6 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <Building2 className="h-4 w-4 text-gold-400" />
-          <h3 className="text-base font-semibold">Editar dados da barbearia</h3>
+          <h3 className="text-base font-semibold">Editar dados do {tenantLabel}</h3>
         </div>
 
         {/* Logo upload */}
@@ -249,7 +249,7 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-medium text-foreground">Logo da barbearia</p>
+            <p className="text-xs font-medium text-foreground">Logo do {tenantLabel}</p>
             <p className="text-[11px] text-muted-foreground">Clique na imagem ou use uma URL. Máx 500 KB.</p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => fileRef.current?.click()}>
@@ -298,7 +298,7 @@ export function BarbershopCard({ barbershop }: { barbershop: BarbershopData }) {
             value={values.description ?? ""}
             onChange={(e) => onChange("description", e.target.value)}
             rows={3}
-            placeholder="Descreva sua barbearia..."
+            placeholder={`Descreva seu ${tenantLabel}...`}
           />
         </div>
 

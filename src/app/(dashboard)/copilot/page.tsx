@@ -45,6 +45,12 @@ export default async function CopilotPage() {
 
   const activeThread = threads[0] ?? null;
 
+  const barbershop = await prisma.barbershop.findUnique({
+    where: { id: session.user.barbershopId },
+    select: { segment: { select: { tenantLabel: true } } },
+  });
+  const tenantLabel = barbershop?.segment?.tenantLabel ?? "estabelecimento";
+
   const [messages, actions] = activeThread
     ? await Promise.all([
         prisma.copilotMessage.findMany({
@@ -86,6 +92,7 @@ export default async function CopilotPage() {
         initialMessages={messageDtos}
         initialActions={actionDtos}
         initialThreadId={activeThread?.id ?? null}
+        tenantLabel={tenantLabel}
       />
     </div>
   );

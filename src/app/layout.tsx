@@ -13,25 +13,25 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default:  "GlaucoBarber – Copiloto Inteligente da Barbearia",
-    template: "%s | GlaucoBarber",
+    default:  "Voltou.ai – Seu cliente sempre volta",
+    template: "%s | Voltou.ai",
   },
   description:
-    "Painel de inteligência para barbearias. Agenda, clientes, sugestões de IA, campanhas e crescimento — tudo integrado com a Trinks.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://glaucobarber.com"),
+    "Plataforma de fidelização inteligente. WhatsApp automático, campanhas com IA e gestão de clientes para seu negócio crescer.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://voltou.ai"),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "GlaucoBarber",
+    title: "Voltou.ai",
   },
   openGraph: {
     type:        "website",
     locale:      "pt_BR",
-    url:         "https://glaucobarber.com",
-    siteName:    "GlaucoBarber",
-    title:       "GlaucoBarber – Copiloto Inteligente da Barbearia",
-    description: "Painel de inteligência para barbearias.",
+    url:         "https://voltou.ai",
+    siteName:    "Voltou.ai",
+    title:       "Voltou.ai – Seu cliente sempre volta",
+    description: "Plataforma de fidelização inteligente com WhatsApp automático e IA.",
   },
 };
 

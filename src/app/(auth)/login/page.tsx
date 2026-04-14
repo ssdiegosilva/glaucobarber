@@ -45,7 +45,7 @@ export default function LoginPage() {
           </div>
         </div>
         <h1 className="text-2xl font-bold text-foreground">Entrar</h1>
-        <p className="text-sm text-muted-foreground">Acesse seu painel da barbearia</p>
+        <p className="text-sm text-muted-foreground">Acesse seu painel</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

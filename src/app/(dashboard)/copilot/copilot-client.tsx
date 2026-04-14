@@ -69,6 +69,7 @@ interface Props {
   initialMessages: Message[];
   initialActions:  ActionItem[];
   initialThreadId: string | null;
+  tenantLabel?:    string;
 }
 
 const QUICK_QUESTIONS = [
@@ -340,6 +341,7 @@ export default function CopilotClient({
   initialMessages,
   initialActions,
   initialThreadId,
+  tenantLabel = "estabelecimento",
 }: Props) {
   const [threads, setThreads]               = useState<Thread[]>(initialThreads);
   const [messages, setMessages]             = useState<Message[]>(initialMessages);
@@ -498,7 +500,7 @@ export default function CopilotClient({
                 <Sparkles className="h-7 w-7 text-gold-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">Copilot da Barbearia</p>
+                <p className="text-sm font-semibold text-foreground">Copilot do {tenantLabel.charAt(0).toUpperCase() + tenantLabel.slice(1)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Toque em uma sugestão ou escreva sua pergunta
                 </p>

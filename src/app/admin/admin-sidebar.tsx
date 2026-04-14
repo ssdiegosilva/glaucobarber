@@ -45,7 +45,7 @@ export function AdminSidebar() {
         </span>
         <div>
           <p className="text-sm font-semibold text-foreground leading-none">Admin</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">GlaucoBarber Platform</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Voltou.ai Platform</p>
         </div>
       </div>
 

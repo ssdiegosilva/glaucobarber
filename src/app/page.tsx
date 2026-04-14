@@ -5,7 +5,8 @@ import Image from "next/image";
 import {
   Zap, BarChart3, Users, Sparkles, Calendar,
   TrendingUp, Megaphone, ArrowRight, CheckCircle2,
-  MessageSquare, Bot, Send, Camera, X, GalleryHorizontal,
+  MessageSquare, Bot, Camera, X, GalleryHorizontal,
+  HeartHandshake, Repeat2,
 } from "lucide-react";
 import { InstallAppButton } from "@/components/pwa/install-button";
 
@@ -22,7 +23,7 @@ export default async function RootPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-500/20 border border-gold-500/30">
               <Zap className="h-4 w-4 text-gold-400" />
             </div>
-            <span className="font-display text-lg font-bold text-foreground">GlaucoBarber</span>
+            <span className="font-display text-lg font-bold text-foreground">Voltou.ai</span>
           </div>
           <div className="flex items-center gap-3">
             <a href="#precos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -68,26 +69,24 @@ export default async function RootPage() {
           <div className="animate-fade-in">
             <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/8 px-3 py-1 text-xs text-gold-400 mb-8">
               <Sparkles className="h-3 w-3" />
-              Integrado com Trinks & Avec · IA · WhatsApp automático
+              WhatsApp automático · IA · Campanhas · Fidelização
             </div>
 
             <h1 className="font-display text-5xl lg:text-6xl xl:text-7xl font-bold leading-none mb-6 tracking-tight">
-              O copiloto{" "}
+              Seu cliente{" "}
               <span className="bg-gradient-to-r from-gold-400 via-[#e8c870] to-gold-500 bg-clip-text text-transparent">
-                inteligente
+                sempre volta.
               </span>
-              <br />
-              da sua barbearia
             </h1>
 
             <p className="text-lg lg:text-xl text-muted-foreground mb-10 max-w-lg leading-relaxed">
-              Conecte o Trinks ou a Avec, veja sua agenda em tempo real,
-              e deixe o bot recuperar clientes inativos por WhatsApp enquanto você trabalha.
+              O Voltou.ai manda WhatsApp automático para clientes que sumiram,
+              cria campanhas com IA e mostra exatamente o que fazer para seu negócio crescer.
             </p>
 
             <div className="mb-10 space-y-2 text-sm text-foreground/90">
               <p className="font-semibold text-gold-400">
-                +15% a +25% de faturamento no 1º mês* com follow-up automático e ofertas guiadas pela agenda.
+                +15% a +25% de faturamento no 1º mês* com follow-up automático e campanhas guiadas por IA.
               </p>
               <p className="text-muted-foreground text-xs">
                 Teste sem risco: use, comprove resultado; se não curtir, não paga nada.
@@ -114,9 +113,9 @@ export default async function RootPage() {
             {/* trust row */}
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               {[
-                "Agenda ao vivo",
-                "+1.500 clientes gerenciados",
-                "Bot de WhatsApp incluso",
+                "Clientes fidelizados automaticamente",
+                "WhatsApp bot incluso",
+                "Campanhas com IA",
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0" />
@@ -134,7 +133,7 @@ export default async function RootPage() {
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-gold-lg">
                 <Image
                   src="/glauco.jpg"
-                  alt="Glauco — Art Shave Barbearia"
+                  alt="Negócio fidelizando clientes com Voltou.ai"
                   width={440}
                   height={560}
                   className="object-cover w-full h-[480px] lg:h-[560px]"
@@ -147,7 +146,7 @@ export default async function RootPage() {
               <div className="absolute bottom-0 inset-x-0 p-5 grid grid-cols-3 gap-3">
                 {[
                   { value: "1.581", label: "Clientes" },
-                  { value: "92%",   label: "Ocupação" },
+                  { value: "92%",   label: "Retenção" },
                   { value: "R$38k", label: "Faturamento" },
                 ].map((s) => (
                   <div
@@ -166,7 +165,7 @@ export default async function RootPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
                 </span>
-                <span className="text-xs font-medium text-green-400">Agenda ao vivo</span>
+                <span className="text-xs font-medium text-green-400">Cliente voltou agora</span>
               </div>
 
               {/* floating badge — bot */}
@@ -185,29 +184,28 @@ export default async function RootPage() {
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Como funciona</p>
             <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
-              Pare de adivinhar. Comece a decidir.
+              Pare de perder cliente. Comece a trazer de volta.
             </h2>
             <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-              Barbearias que dependem de caderninho e intuição deixam dinheiro na mesa todo dia.
-              GlaucoBarber muda isso.
+              Todo negócio perde cliente por falta de contato. O Voltou.ai resolve isso sozinho.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
               {
-                before: "Agenda no papel ou pelo celular da Trinks",
-                after: "Dashboard ao vivo com ocupação, receita e horários livres",
-                icon: <Calendar className="h-5 w-5" />,
-              },
-              {
-                before: "Clientes inativos esquecidos por meses",
-                after: "Bot manda mensagem no WhatsApp automaticamente. Você não faz nada.",
+                before: "Cliente sumiu há 30 dias e você nem sabe",
+                after: "Bot manda WhatsApp automático. Ele volta sem você fazer nada.",
                 icon: <MessageSquare className="h-5 w-5" />,
               },
               {
-                before: "Sem ideia de quanto faturou na semana",
-                after: "Relatórios de hoje, semana e mês com ticket médio e meta de faturamento",
+                before: "Sem ideia do que postar nas redes sociais",
+                after: "IA cria o texto e a arte da campanha. Você só aprova.",
+                icon: <Megaphone className="h-5 w-5" />,
+              },
+              {
+                before: "Não sabe quem são seus melhores clientes",
+                after: "Dashboard mostra quem gasta mais, quem sumiu e o que fazer.",
                 icon: <BarChart3 className="h-5 w-5" />,
               },
             ].map((item, i) => (
@@ -238,56 +236,56 @@ export default async function RootPage() {
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Funcionalidades</p>
             <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
-              Tudo que um barbeiro de alto nível precisa
+              Tudo que você precisa para fidelizar
             </h2>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               {
-                icon: <Calendar className="h-6 w-6" />,
-                title: "Agenda ao vivo",
-                desc: "Todos os agendamentos do dia direto do Trinks em tempo real. Ocupação, horários livres e receita prevista.",
+                icon: <Bot className="h-6 w-6" />,
+                title: "WhatsApp automático",
+                desc: "Bot envia mensagens de reativação, pós-atendimento e promoção automaticamente. Você configura uma vez e ele trabalha todo dia.",
               },
               {
                 icon: <Users className="h-6 w-6" />,
                 title: "Gestão de clientes",
-                desc: "Base completa com histórico, total gasto, frequência, tags e status (VIP, inativo). Mais de 1.500 clientes organizados.",
+                desc: "Base completa com histórico, quanto cada cliente gastou, frequência, quem é VIP e quem sumiu. Tudo organizado.",
               },
               {
                 icon: <Sparkles className="h-6 w-6" />,
-                title: "IA como copiloto",
-                desc: "Sugestões automáticas de ação: qual cliente reativar, que oferta criar, qual serviço destacar. Com um clique.",
-              },
-              {
-                icon: <TrendingUp className="h-6 w-6" />,
-                title: "Metas e relatórios",
-                desc: "Compare faturamento hoje, esta semana e este mês com sua meta. Ticket médio, serviços mais vendidos e tendências.",
-              },
-              {
-                icon: <Bot className="h-6 w-6" />,
-                title: "WhatsApp automático",
-                desc: "Bot envia mensagens de reativação, pós-venda e promoção automaticamente a cada 15 min. Você define, ele executa.",
-              },
-              {
-                icon: <Camera className="h-6 w-6" />,
-                title: "Campanhas no Instagram",
-                desc: "Conecte o Instagram em 1 clique. A IA gera o texto e a arte. Você aprova e publica sem sair do sistema.",
+                title: "Copiloto com IA",
+                desc: "A IA analisa seu negócio e sugere: qual cliente chamar, que oferta criar, qual serviço destacar. Com um clique.",
               },
               {
                 icon: <Megaphone className="h-6 w-6" />,
-                title: "Pós-venda inteligente",
-                desc: "Detecta clientes que acabaram de ser atendidos e sugere mensagem personalizada de avaliação ou retorno.",
+                title: "Campanhas com IA",
+                desc: "Escreva o tema e a IA gera o texto e a imagem da campanha. Aprovado, vai direto pro Instagram.",
               },
               {
-                icon: <GalleryHorizontal className="h-6 w-6" />,
-                title: "Vitrine de trabalhos",
-                desc: "Poste carrosséis dos seus melhores cortes no Instagram. A IA analisa a foto e gera a legenda. Disponível para todos os planos.",
+                icon: <HeartHandshake className="h-6 w-6" />,
+                title: "Pós-atendimento",
+                desc: "Detecta quem acabou de ser atendido e manda mensagem personalizada de avaliação ou retorno. Automático.",
               },
               {
-                icon: <Zap className="h-6 w-6" />,
-                title: "Integração Trinks / Avec",
-                desc: "Use Trinks ou Avec — conecte em segundos com sua API Key. Todos os seus dados sincronizados sem retrabalho manual.",
+                icon: <Camera className="h-6 w-6" />,
+                title: "Instagram integrado",
+                desc: "Conecte o Instagram em 1 clique. Publique posts e carrosséis direto do sistema. A IA gera a legenda.",
+              },
+              {
+                icon: <TrendingUp className="h-6 w-6" />,
+                title: "Metas e financeiro",
+                desc: "Acompanhe faturamento do dia, semana e mês. Compare com sua meta. Veja ticket médio e serviços mais vendidos.",
+              },
+              {
+                icon: <Calendar className="h-6 w-6" />,
+                title: "Agenda ao vivo",
+                desc: "Todos os agendamentos em tempo real. Integrado com Trinks e Avec. Sem copiar nada manualmente.",
+              },
+              {
+                icon: <Repeat2 className="h-6 w-6" />,
+                title: "Reativação automática",
+                desc: "O sistema identifica clientes inativos e dispara mensagens no momento certo. Você não precisa lembrar de ninguém.",
               },
             ].map((f) => (
               <div
@@ -329,10 +327,10 @@ export default async function RootPage() {
               <ul className="mt-7 space-y-3 flex-1">
                 {[
                   "Trial de 7 dias com acesso completo",
-                  "Agenda ao vivo (Trinks / Avec)",
+                  "Agenda ao vivo",
                   "Gestão de clientes",
                   "Metas de faturamento",
-                  "Vitrine de trabalhos (carrossel no Instagram)",
+                  "Vitrine no Instagram (carrossel)",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
@@ -340,8 +338,8 @@ export default async function RootPage() {
                   </li>
                 ))}
                 {[
-                  "Copilot IA",
-                  "Campanhas e marketing",
+                  "Copiloto IA",
+                  "Campanhas com IA",
                   "WhatsApp automático",
                   "Relatórios financeiros",
                 ].map((f) => (
@@ -362,7 +360,7 @@ export default async function RootPage() {
             {/* PROFISSIONAL */}
             <div className="rounded-2xl border border-gold-500/40 bg-gradient-to-b from-gold-500/8 to-transparent p-7 flex flex-col relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Plano único</span>
+                <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Mais popular</span>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-2">Profissional</p>
@@ -372,13 +370,13 @@ export default async function RootPage() {
               <ul className="mt-7 space-y-3 flex-1">
                 {[
                   "300 créditos de IA/mês",
-                  "Copilot IA (CEO advisor)",
+                  "Copiloto IA (conselheiro do negócio)",
                   "Campanhas com IA (texto + imagem)",
-                  "Vitrine de trabalhos (carrossel no Instagram)",
-                  "Criar Visual (análise de corte)",
                   "WhatsApp BOT automático",
+                  "Reativação automática de clientes",
+                  "Pós-atendimento inteligente",
+                  "Vitrine no Instagram (carrossel)",
                   "Relatórios financeiros completos",
-                  "Pós-venda inteligente",
                   "Metas de faturamento",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-foreground">
@@ -397,7 +395,7 @@ export default async function RootPage() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">
-            Cancelamento a qualquer momento. Créditos extras disponíveis por R$20 (+200 chamadas).
+            Cancelamento a qualquer momento. Créditos extras disponíveis por R$20 (+200 chamadas de IA).
           </p>
         </div>
       </section>
@@ -410,9 +408,8 @@ export default async function RootPage() {
 
             <div className="relative">
               <p className="text-xl lg:text-2xl font-medium text-foreground leading-relaxed mb-8">
-                GlaucoBarber me deu uma visão que eu nunca tive antes do meu negócio.
-                Sei quem são meus melhores clientes, o que eles gastam, quando somem —
-                e o que fazer pra trazer de volta.
+                Abri o app de manhã e a IA já tinha sugerido o post, a mensagem pro cliente que sumiu
+                e a promoção da tarde. Só precisei aprovar.
               </p>
 
               <div className="flex items-center justify-center gap-4">
@@ -450,13 +447,13 @@ export default async function RootPage() {
       <section className="py-28 border-t border-white/5">
         <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center">
           <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground mb-5">
-            Pronto para transformar<br />
+            Seu cliente sumiu?{" "}
             <span className="bg-gradient-to-r from-gold-400 to-[#e8c870] bg-clip-text text-transparent">
-              sua barbearia?
+              A gente traz ele de volta.
             </span>
           </h2>
           <p className="text-muted-foreground mb-10 text-lg">
-            Crie sua conta grátis e conecte o Trinks ou a Avec em menos de 2 minutos.
+            Crie sua conta grátis e comece a fidelizar em menos de 2 minutos.
           </p>
           <Link
             href="/signup"
@@ -480,9 +477,9 @@ export default async function RootPage() {
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gold-500/15 border border-gold-500/20">
               <Zap className="h-3 w-3 text-gold-400" />
             </div>
-            <span className="text-sm font-semibold text-muted-foreground">GlaucoBarber</span>
+            <span className="text-sm font-semibold text-muted-foreground">Voltou.ai</span>
           </div>
-          <p className="text-xs text-muted-foreground">© 2025 GlaucoBarber</p>
+          <p className="text-xs text-muted-foreground">© 2025 Voltou.ai</p>
           <div className="flex items-center gap-4">
             <a href="#precos" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Preços</a>
             <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">

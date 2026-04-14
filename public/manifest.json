@@ -1,7 +1,7 @@
 {
-  "name": "GlaucoBarber – Copiloto Inteligente da Barbearia",
-  "short_name": "GlaucoBarber",
-  "description": "Painel de inteligência para barbearias. Agenda, clientes, IA, campanhas e crescimento.",
+  "name": "Voltou.ai – Seu cliente sempre volta",
+  "short_name": "Voltou.ai",
+  "description": "Plataforma de fidelização inteligente. WhatsApp automático, campanhas com IA e gestão de clientes.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#080810",

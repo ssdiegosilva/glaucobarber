@@ -10,9 +10,10 @@ interface BrandStyleCardProps {
   initialStyle: string | null;
   barbershopName?: string | null;
   logoUrl?: string | null;
+  tenantLabel?: string;
 }
 
-export function BrandStyleCard({ initialStyle, barbershopName, logoUrl }: BrandStyleCardProps) {
+export function BrandStyleCard({ initialStyle, barbershopName, logoUrl, tenantLabel = "estabelecimento" }: BrandStyleCardProps) {
   const [mode, setMode]                 = useState<"view" | "edit">("view");
   const [value, setValue]               = useState(initialStyle ?? "");
   const [saved, setSaved]               = useState(initialStyle ?? "");
@@ -23,7 +24,7 @@ export function BrandStyleCard({ initialStyle, barbershopName, logoUrl }: BrandS
   const isDirty = value !== saved;
   const isConfigured = useMemo(() => !!saved?.trim(), [saved]);
   const hasLogo = useMemo(() => !!logoUrl, [logoUrl]);
-  const displayName = useMemo(() => barbershopName ?? "sua barbearia", [barbershopName]);
+  const displayName = useMemo(() => barbershopName ?? `seu ${tenantLabel}`, [barbershopName, tenantLabel]);
 
   async function handleImprove() {
     if (!value.trim()) {
@@ -164,7 +165,7 @@ export function BrandStyleCard({ initialStyle, barbershopName, logoUrl }: BrandS
 
         {/* Description */}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Descreva o estilo visual da sua barbearia em palavras simples. A IA vai usar isso para gerar imagens de campanha no seu estilo.
+          Descreva o estilo visual do seu {tenantLabel} em palavras simples. A IA vai usar isso para gerar imagens de campanha no seu estilo.
           Você pode escrever algo curto e usar o botão <span className="text-purple-400 font-medium">Melhorar com IA</span> para expandir automaticamente.
         </p>
         <p className="text-[11px] text-muted-foreground/80">

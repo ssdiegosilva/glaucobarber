@@ -18,6 +18,7 @@ interface Member {
 interface Props {
   initialMembers: Member[];
   isOwner:        boolean;
+  tenantLabel?:   string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -32,7 +33,7 @@ const ROLE_ICONS: Record<string, typeof Crown> = {
   STAFF:  User,
 };
 
-export function TeamCard({ initialMembers, isOwner }: Props) {
+export function TeamCard({ initialMembers, isOwner, tenantLabel = "estabelecimento" }: Props) {
   const [members, setMembers]       = useState<Member[]>(initialMembers);
   const [adding, setAdding]         = useState(false);
   const [saving, setSaving]         = useState(false);
@@ -121,7 +122,7 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
   }
 
   async function handleLeave() {
-    if (!confirm("Tem certeza que deseja sair desta barbearia? Você perderá o acesso.")) return;
+    if (!confirm(`Tem certeza que deseja sair deste ${tenantLabel}? Você perderá o acesso.`)) return;
     try {
       const res = await fetch("/api/barbershop/members", {
         method: "DELETE",
@@ -163,7 +164,7 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            O convidado vai criar uma senha e entrar direto na barbearia.
+            O convidado vai criar uma senha e entrar direto no {tenantLabel}.
           </p>
           <button
             onClick={() => { setInviteLink(null); setCopied(false); }}
@@ -306,7 +307,7 @@ export function TeamCard({ initialMembers, isOwner }: Props) {
             className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 transition-colors py-1"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Sair desta barbearia
+            Sair deste {tenantLabel}
           </button>
         </div>
       )}
