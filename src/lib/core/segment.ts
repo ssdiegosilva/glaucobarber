@@ -56,9 +56,11 @@ export const getSegmentForBarbershop = unstable_cache(
 // Used by dashboard layout — lighter query, no cache needed since
 // layout is already a server component with its own request scope.
 export async function getSegmentTheme(barbershopId: string): Promise<{
-  colorPrimary: string;
-  icon: string | null;
-  displayName: string;
+  colorPrimary:    string;
+  colorBackground: string;
+  colorCard:       string;
+  icon:            string | null;
+  displayName:     string;
   availableModules: string;
 } | null> {
   try {
@@ -67,9 +69,11 @@ export async function getSegmentTheme(barbershopId: string): Promise<{
       select: {
         segment: {
           select: {
-            colorPrimary: true,
-            icon: true,
-            displayName: true,
+            colorPrimary:    true,
+            colorBackground: true,
+            colorCard:       true,
+            icon:            true,
+            displayName:     true,
             availableModules: true,
           },
         },

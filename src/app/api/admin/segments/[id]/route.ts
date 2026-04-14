@@ -44,6 +44,8 @@ export async function PATCH(
     description,
     icon,
     colorPrimary,
+    colorBackground,
+    colorCard,
     availableModules,
     serviceCategories,
     roles,
@@ -57,7 +59,9 @@ export async function PATCH(
   if (tenantLabel !== undefined) segmentData.tenantLabel = tenantLabel;
   if (description !== undefined) segmentData.description = description;
   if (icon !== undefined) segmentData.icon = icon;
-  if (colorPrimary !== undefined) segmentData.colorPrimary = colorPrimary;
+  if (colorPrimary    !== undefined) segmentData.colorPrimary    = colorPrimary;
+  if (colorBackground !== undefined) segmentData.colorBackground = colorBackground;
+  if (colorCard       !== undefined) segmentData.colorCard       = colorCard;
   if (availableModules !== undefined)
     segmentData.availableModules = typeof availableModules === "string"
       ? availableModules

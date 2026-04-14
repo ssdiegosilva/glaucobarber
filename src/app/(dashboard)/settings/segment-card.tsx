@@ -31,13 +31,15 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?:
 };
 
 interface PublicSegment {
-  id: string;
-  key: string;
-  displayName: string;
-  tenantLabel: string;
-  description: string | null;
-  icon: string | null;
-  colorPrimary: string;
+  id:              string;
+  key:             string;
+  displayName:     string;
+  tenantLabel:     string;
+  description:     string | null;
+  icon:            string | null;
+  colorPrimary:    string;
+  colorBackground: string;
+  colorCard:       string;
 }
 
 interface SegmentCardProps {
@@ -120,6 +122,10 @@ export function SegmentCard({ currentSegmentId }: SegmentCardProps) {
           {segments.map((seg) => {
             const IconComponent = seg.icon ? (ICON_MAP[seg.icon] ?? Store) : Store;
             const isCurrent = selected?.id === seg.id;
+            const bg  = `hsl(${seg.colorBackground})`;
+            const card = `hsl(${seg.colorCard})`;
+            const accent = `hsl(${seg.colorPrimary})`;
+            const accentFaint = `hsl(${seg.colorPrimary} / 0.15)`;
 
             return (
               <button
@@ -128,48 +134,53 @@ export function SegmentCard({ currentSegmentId }: SegmentCardProps) {
                 onClick={() => handleSelect(seg)}
                 disabled={saving}
                 className={cn(
-                  "relative flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-all",
+                  "relative flex flex-col gap-0 rounded-xl border text-left transition-all overflow-hidden",
                   isCurrent
-                    ? "border-primary bg-primary/10 ring-1 ring-primary"
-                    : "border-border bg-surface-800 hover:border-primary/40 hover:bg-surface-700"
+                    ? "ring-2"
+                    : "border-border hover:border-white/20"
                 )}
-                style={
-                  isCurrent
-                    ? ({ "--primary": seg.colorPrimary } as React.CSSProperties)
-                    : undefined
-                }
+                style={isCurrent ? { borderColor: accent, boxShadow: `0 0 0 2px ${accent}` } : undefined}
               >
-                {isCurrent && (
-                  <CheckCircle2
-                    className="absolute top-2 right-2 h-3.5 w-3.5 text-primary"
-                    style={{ color: `hsl(${seg.colorPrimary})` }}
-                  />
-                )}
+                {/* Mini theme preview */}
                 <div
-                  className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  style={{
-                    backgroundColor: isCurrent
-                      ? `hsl(${seg.colorPrimary} / 0.2)`
-                      : undefined,
-                  }}
+                  className="h-14 w-full relative flex items-end p-2 gap-1"
+                  style={{ background: bg }}
                 >
-                  <IconComponent
-                    className="h-4 w-4"
-                    style={
-                      isCurrent
-                        ? { color: `hsl(${seg.colorPrimary})` }
-                        : { color: "hsl(var(--muted-foreground))" }
-                    }
-                  />
-                </div>
-                <span
-                  className={cn(
-                    "text-xs font-medium",
-                    isCurrent ? "text-foreground" : "text-muted-foreground"
+                  {/* Fake sidebar strip */}
+                  <div className="absolute left-0 top-0 bottom-0 w-5 flex flex-col items-center gap-1 pt-2" style={{ background: card }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: accent }} />
+                    <div className="w-2 h-1 rounded-sm opacity-40" style={{ background: accent }} />
+                    <div className="w-2 h-1 rounded-sm opacity-40" style={{ background: accent }} />
+                    <div className="w-2 h-1 rounded-sm opacity-40" style={{ background: accent }} />
+                  </div>
+                  {/* Fake cards */}
+                  <div className="ml-6 flex-1 flex gap-1">
+                    <div className="flex-1 h-5 rounded" style={{ background: card, borderTop: `2px solid ${accent}` }} />
+                    <div className="flex-1 h-5 rounded opacity-60" style={{ background: card }} />
+                  </div>
+                  {isCurrent && (
+                    <CheckCircle2
+                      className="absolute top-1.5 right-1.5 h-3.5 w-3.5"
+                      style={{ color: accent }}
+                    />
                   )}
+                </div>
+
+                {/* Label row */}
+                <div
+                  className="flex items-center gap-2 px-2.5 py-2"
+                  style={{ background: card }}
                 >
-                  {seg.displayName}
-                </span>
+                  <div
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                    style={{ background: accentFaint }}
+                  >
+                    <IconComponent className="h-3 w-3" style={{ color: accent }} />
+                  </div>
+                  <span className="text-xs font-medium text-foreground truncate">
+                    {seg.displayName}
+                  </span>
+                </div>
               </button>
             );
           })}

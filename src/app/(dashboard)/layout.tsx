@@ -57,9 +57,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
     }
   }
 
-  // Build CSS variable override for the segment's primary color
-  const segmentCssVars = segmentTheme?.colorPrimary
-    ? `--primary: ${segmentTheme.colorPrimary}; --ring: ${segmentTheme.colorPrimary};`
+  // Build CSS variable overrides for the segment theme
+  const segmentCssVars = segmentTheme
+    ? [
+        `--primary: ${segmentTheme.colorPrimary};`,
+        `--ring: ${segmentTheme.colorPrimary};`,
+        `--background: ${segmentTheme.colorBackground};`,
+        `--card: ${segmentTheme.colorCard};`,
+        `--popover: ${segmentTheme.colorCard};`,
+      ].join(" ")
     : null;
 
   return (

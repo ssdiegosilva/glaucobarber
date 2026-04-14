@@ -62,7 +62,9 @@ const SEGMENTS = [
     tenantLabel: "barbearia",
     description: "Gestão completa para barbearias — agenda, cortes, barba e muito mais.",
     icon: "Scissors",
-    colorPrimary: "43 52% 55%", // gold
+    colorPrimary:    "43 52% 55%",   // gold
+    colorBackground: "240 11% 7%",   // dark neutro
+    colorCard:       "240 10% 11%",
     sortOrder: 0,
     availableModules: ALL_MODULES,
     serviceCategories: JSON.stringify([
@@ -84,7 +86,9 @@ const SEGMENTS = [
     tenantLabel: "salão",
     description: "Para cabeleireiros e salões de beleza — cortes, coloração e tratamentos.",
     icon: "Sparkles",
-    colorPrimary: "320 60% 55%", // rosa/magenta
+    colorPrimary:    "320 58% 68%",  // rosa-magenta vibrante
+    colorBackground: "320 10% 7%",   // dark com leve toque rosa
+    colorCard:       "320 8% 11%",
     sortOrder: 1,
     availableModules: ALL_MODULES,
     serviceCategories: JSON.stringify([
@@ -123,7 +127,9 @@ const SEGMENTS = [
     tenantLabel: "estúdio",
     description: "Para manicures e nail designers — agendamentos, nail art e muito mais.",
     icon: "Star",
-    colorPrimary: "280 65% 60%", // lilás/roxo
+    colorPrimary:    "345 70% 76%",  // rosa bebê
+    colorBackground: "345 12% 7%",   // dark com toque rosa quente
+    colorCard:       "345 10% 11%",
     sortOrder: 2,
     availableModules: JSON.stringify([
       "dashboard",
@@ -174,7 +180,9 @@ const SEGMENTS = [
     tenantLabel: "stand",
     description: "Para estandes de tiro e clubes de tiro esportivo — agendamentos e treinamentos.",
     icon: "Target",
-    colorPrimary: "15 70% 45%", // laranja/terra
+    colorPrimary:    "20 70% 50%",   // laranja-ferrugem
+    colorBackground: "20 10% 7%",    // dark com toque terra quente
+    colorCard:       "20 7% 11%",
     sortOrder: 3,
     availableModules: JSON.stringify([
       "dashboard",
@@ -225,7 +233,9 @@ const SEGMENTS = [
     tenantLabel: "negócio",
     description: "Para qualquer outro tipo de negócio de serviços com agendamento.",
     icon: "Store",
-    colorPrimary: "220 60% 55%", // azul neutro
+    colorPrimary:    "220 58% 62%",  // azul aço
+    colorBackground: "220 10% 7%",   // dark azul noite
+    colorCard:       "220 8% 11%",
     sortOrder: 4,
     availableModules: ALL_MODULES,
     serviceCategories: JSON.stringify([
@@ -269,15 +279,17 @@ export async function seedSegments(): Promise<{ created: number; updated: number
       await prisma.segment.update({
         where: { key: seg.key },
         data: {
-          displayName: segData.displayName,
-          tenantLabel: segData.tenantLabel,
-          description: segData.description,
-          icon: segData.icon,
-          colorPrimary: segData.colorPrimary,
-          sortOrder: segData.sortOrder,
-          availableModules: segData.availableModules,
+          displayName:     segData.displayName,
+          tenantLabel:     segData.tenantLabel,
+          description:     segData.description,
+          icon:            segData.icon,
+          colorPrimary:    segData.colorPrimary,
+          colorBackground: segData.colorBackground,
+          colorCard:       segData.colorCard,
+          sortOrder:       segData.sortOrder,
+          availableModules:  segData.availableModules,
           serviceCategories: segData.serviceCategories,
-          roles: segData.roles,
+          roles:             segData.roles,
           aiConfig: {
             upsert: {
               create: prompts,

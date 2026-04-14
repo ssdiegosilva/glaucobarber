@@ -39,7 +39,9 @@ interface SegmentFormProps {
     tenantLabel: string;
     description: string | null;
     icon: string | null;
-    colorPrimary: string;
+    colorPrimary:    string;
+    colorBackground: string;
+    colorCard:       string;
     active: boolean;
     sortOrder: number;
     availableModules: string;
@@ -74,7 +76,9 @@ export function SegmentForm({ segment, allFeatures }: SegmentFormProps) {
   const [sortOrder, setSortOrder] = useState(segment.sortOrder);
 
   // ── Theme ─────────────────────────────────────────────────────
-  const [colorPrimary, setColorPrimary] = useState(segment.colorPrimary);
+  const [colorPrimary,    setColorPrimary]    = useState(segment.colorPrimary);
+  const [colorBackground, setColorBackground] = useState(segment.colorBackground);
+  const [colorCard,       setColorCard]       = useState(segment.colorCard);
 
   // ── Modules ───────────────────────────────────────────────────
   const [availableModules, setAvailableModules] = useState<string[]>(() => {
@@ -134,7 +138,7 @@ export function SegmentForm({ segment, allFeatures }: SegmentFormProps) {
   }
 
   async function saveTheme() {
-    await save({ colorPrimary });
+    await save({ colorPrimary, colorBackground, colorCard });
   }
 
   async function saveModules() {
@@ -265,47 +269,76 @@ export function SegmentForm({ segment, allFeatures }: SegmentFormProps) {
 
         {/* ── Tab: Theme ────────────────────────────────────────── */}
         <TabsContent value="theme" className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">
-              Cor primária (HSL — ex: <code className="text-[11px]">43 52% 55%</code>)
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                value={colorPrimary}
-                onChange={(e) => setColorPrimary(e.target.value)}
-                placeholder="220 60% 55%"
-                className="flex-1 rounded-md border border-border bg-surface-800 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <div
-                className="h-9 w-9 rounded-lg border border-border"
-                style={{ backgroundColor: `hsl(${colorPrimary})` }}
-              />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {/* Primary */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                Cor primária <code className="text-[10px] text-muted-foreground">--primary</code>
+              </label>
+              <div className="flex items-center gap-2">
+                <input value={colorPrimary} onChange={(e) => setColorPrimary(e.target.value)}
+                  placeholder="43 52% 55%" className="flex-1 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring" />
+                <div className="h-7 w-7 rounded border border-border shrink-0" style={{ backgroundColor: `hsl(${colorPrimary})` }} />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Esta cor é injetada como CSS variable <code className="text-[11px]">--primary</code> no dashboard.
-            </p>
+            {/* Background */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                Fundo <code className="text-[10px] text-muted-foreground">--background</code>
+              </label>
+              <div className="flex items-center gap-2">
+                <input value={colorBackground} onChange={(e) => setColorBackground(e.target.value)}
+                  placeholder="240 11% 7%" className="flex-1 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring" />
+                <div className="h-7 w-7 rounded border border-border shrink-0" style={{ backgroundColor: `hsl(${colorBackground})` }} />
+              </div>
+            </div>
+            {/* Card */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                Card <code className="text-[10px] text-muted-foreground">--card</code>
+              </label>
+              <div className="flex items-center gap-2">
+                <input value={colorCard} onChange={(e) => setColorCard(e.target.value)}
+                  placeholder="240 10% 11%" className="flex-1 rounded-md border border-border bg-surface-800 px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring" />
+                <div className="h-7 w-7 rounded border border-border shrink-0" style={{ backgroundColor: `hsl(${colorCard})` }} />
+              </div>
+            </div>
           </div>
 
-          {/* Preview card */}
-          <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: `hsl(${colorPrimary} / 0.3)`, backgroundColor: `hsl(${colorPrimary} / 0.05)` }}>
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-lg border"
-                style={{ backgroundColor: `hsl(${colorPrimary} / 0.15)`, borderColor: `hsl(${colorPrimary} / 0.3)` }}
-              >
-                <PreviewIcon className="h-5 w-5" style={{ color: `hsl(${colorPrimary})` }} />
+          {/* Preview dashboard mockup */}
+          <div className="rounded-xl overflow-hidden border border-border">
+            <p className="text-[10px] text-muted-foreground px-3 py-1.5 border-b border-border">Preview</p>
+            <div className="h-32 flex" style={{ background: `hsl(${colorBackground})` }}>
+              {/* Fake sidebar */}
+              <div className="w-14 flex flex-col items-center gap-2 pt-3 shrink-0" style={{ background: `hsl(${colorCard})` }}>
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: `hsl(${colorPrimary} / 0.2)` }}>
+                  <PreviewIcon className="h-4 w-4" style={{ color: `hsl(${colorPrimary})` }} />
+                </div>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-1.5 w-10 rounded px-1.5 py-1"
+                    style={i === 1 ? { background: `hsl(${colorPrimary} / 0.15)` } : undefined}>
+                    <div className="h-2 w-2 rounded-sm" style={{ background: i === 1 ? `hsl(${colorPrimary})` : `hsl(${colorPrimary} / 0.3)` }} />
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{displayName || "Segmento"}</p>
-                <p className="text-xs" style={{ color: `hsl(${colorPrimary})` }}>Copiloto IA</p>
+              {/* Fake content */}
+              <div className="flex-1 p-3 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex-1 rounded-lg p-2 border" style={{ background: `hsl(${colorCard})`, borderColor: `hsl(${colorPrimary} / 0.15)` }}>
+                      <div className="h-1.5 w-8 rounded" style={{ background: `hsl(${colorPrimary} / 0.4)` }} />
+                      <div className="h-3 w-6 rounded mt-1" style={{ background: `hsl(${colorPrimary})` }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-lg p-2 border flex-1" style={{ background: `hsl(${colorCard})`, borderColor: `hsl(${colorPrimary} / 0.15)` }}>
+                  <div className="flex gap-1 mb-1.5">
+                    <div className="h-1.5 w-12 rounded" style={{ background: `hsl(${colorPrimary} / 0.5)` }} />
+                  </div>
+                  <div className="h-1.5 w-full rounded mb-1 opacity-30" style={{ background: `hsl(${colorPrimary})` }} />
+                  <div className="h-1.5 w-3/4 rounded opacity-20" style={{ background: `hsl(${colorPrimary})` }} />
+                </div>
               </div>
-            </div>
-            <div
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
-              style={{ backgroundColor: `hsl(${colorPrimary} / 0.15)`, color: `hsl(${colorPrimary})`, border: `1px solid hsl(${colorPrimary} / 0.2)` }}
-            >
-              <PreviewIcon className="h-4 w-4" />
-              Item de navegação ativo
             </div>
           </div>
 

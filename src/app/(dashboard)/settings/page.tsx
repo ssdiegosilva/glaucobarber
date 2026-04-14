@@ -26,7 +26,7 @@ export default async function SettingsPage({
   const barbershopId = session.user.barbershopId;
 
   const [barbershop, integration, syncRuns, members, cardFeeConfigs] = await Promise.all([
-    prisma.barbershop.findUnique({ where: { id: barbershopId }, select: { id: true, slug: true, name: true, email: true, phone: true, city: true, state: true, address: true, websiteUrl: true, description: true, logoUrl: true, instagramUrl: true, googleReviewUrl: true, brandStyle: true, campaignReferenceImageUrl: true, segmentId: true } }),
+    prisma.barbershop.findUnique({ where: { id: barbershopId }, select: { id: true, slug: true, name: true, email: true, phone: true, city: true, state: true, address: true, websiteUrl: true, description: true, logoUrl: true, instagramUrl: true, googleReviewUrl: true, brandStyle: true, campaignReferenceImageUrl: true, segmentId: true, segment: { select: { tenantLabel: true } } } }),
     prisma.integration.findUnique({
       where:  { barbershopId },
       select: { provider: true, status: true, lastSyncAt: true, errorMsg: true, configJson: true, instagramBusinessId: true, instagramUsername: true, instagramPageAccessToken: true, whatsappAccessToken: true, whatsappPhoneNumberId: true, whatsappVerifyToken: true, whatsappWabaId: true },
@@ -55,6 +55,7 @@ export default async function SettingsPage({
 
   const callerMembership = members.find((m) => m.userId === session.user.id);
   const isOwner = callerMembership?.role === "OWNER";
+  const tenantLabel = barbershop?.segment?.tenantLabel ?? "barbearia";
 
   const serializedMembers = members.map((m) => ({
     id:        m.id,
@@ -104,7 +105,7 @@ export default async function SettingsPage({
         {/* ── Dados da barbearia ─────────────────────────────── */}
         <CollapsibleSection
           icon={<Building2 className="h-4 w-4" />}
-          title="Dados da barbearia"
+          title={`Dados do ${tenantLabel}`}
           description="Nome, contato, logo e redes sociais"
           badge={
             barbershopComplete ? (
@@ -176,7 +177,7 @@ export default async function SettingsPage({
           id="team"
           icon={<Users className="h-4 w-4" />}
           title="Equipe"
-          description="Barbeiros e membros da barbearia"
+          description={`Membros do ${tenantLabel}`}
           defaultOpen={section === "team"}
           badge={
             <span className="text-[10px] text-muted-foreground">

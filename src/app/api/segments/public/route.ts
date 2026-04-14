@@ -14,7 +14,9 @@ export async function GET() {
       tenantLabel: true,
       description: true,
       icon: true,
-      colorPrimary: true,
+      colorPrimary:    true,
+      colorBackground: true,
+      colorCard:       true,
     },
   });
 

@@ -1333,8 +1333,10 @@ model Segment {
   active      Boolean @default(true)
   sortOrder   Int     @default(0)
 
-  // HSL string: "43 52% 55%" — injected as CSS variable --primary in dashboard layout
-  colorPrimary String @default("43 52% 55%")
+  // HSL strings injected as CSS variables in dashboard layout
+  colorPrimary     String @default("43 52% 55%")     // --primary  (accent / brand color)
+  colorBackground  String @default("240 11% 7%")     // --background
+  colorCard        String @default("240 10% 11%")     // --card / --popover
 
   // JSON arrays stored as strings (avoids extra tables for simple config)
   availableModules  String @default("[]") // string[] of module keys: ["agenda","campaigns",...]
