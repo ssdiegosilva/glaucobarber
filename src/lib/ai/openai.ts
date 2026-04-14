@@ -143,14 +143,17 @@ Retorne APENAS JSON válido, sem markdown:
       try {
         const { toFile } = await import("openai");
         const refRes = await fetch(input.referenceImageUrl);
-        if (!refRes.ok) throw new Error("Não foi possível baixar a imagem de referência");
-        const refBuffer   = Buffer.from(await refRes.arrayBuffer());
-        const contentType = refRes.headers.get("content-type") || "image/png";
-        const ext         = contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
+        if (!refRes.ok) throw new Error(`Não foi possível baixar a imagem de referência (${refRes.status})`);
+        const rawBuffer = Buffer.from(await refRes.arrayBuffer());
+
+        // gpt-image-1 images.edit requires PNG with alpha channel.
+        // Convert any format (JPEG, WEBP, etc.) to RGBA PNG before sending.
+        const sharp = (await import("sharp")).default;
+        const pngBuffer = await sharp(rawBuffer).ensureAlpha().png().toBuffer();
 
         const img = await this.client.images.edit({
           model:  model as any,
-          image:  await toFile(refBuffer, `reference.${ext}`, { type: contentType }),
+          image:  await toFile(pngBuffer, "reference.png", { type: "image/png" }),
           prompt,
           size:   size as any,
           n:      1,
@@ -160,7 +163,7 @@ Retorne APENAS JSON válido, sem markdown:
         if (!b64) throw new Error(`${model} não retornou imagem`);
         return { b64 };
       } catch (editErr) {
-        console.warn(`[AI] ${model} edit falhou, usando fallback:`, editErr);
+        console.error(`[AI] ${model} edit falhou, usando fallback:`, editErr);
         return this._generateWithFallback(prompt, size);
       }
     }
