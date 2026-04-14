@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -11,7 +10,7 @@ import {
   UsersRound,
   Scissors,
   Megaphone,
-  Settings,
+
   Sparkles,
   LogOut,
   ChevronRight,
@@ -19,13 +18,13 @@ import {
   Target,
   MessageCircle,
   HeartHandshake,
-  CreditCard,
+
   Wand2,
   ChevronsUpDown,
   Plus,
   Check,
   GalleryHorizontal,
-  LifeBuoy,
+
   Store,
   Star,
   ShoppingBag,
@@ -96,9 +95,6 @@ export const NAV = [
   { href: "/criar-visual", label: "Criar Visual", icon: Wand2,           key: "criar-visual" },
   { href: "/whatsapp",     label: "WhatsApp",     icon: MessageCircle,   key: "whatsapp" },
   { href: "/post-sale",    label: "Pós-venda",    icon: HeartHandshake,  key: "post-sale" },
-  { href: "/settings",     label: "Configurações", icon: Settings,       key: "settings" },
-  { href: "/billing",      label: "Plano",         icon: CreditCard,     key: "billing" },
-  { href: "/support",      label: "Suporte",       icon: LifeBuoy,       key: "support" },
 ];
 
 interface MembershipInfo {
@@ -150,8 +146,6 @@ export function Sidebar({
   const visibleNav =
     availableModules && availableModules.length > 0
       ? NAV.filter(({ key, href }) => {
-          // Always show settings, billing, support
-          if (["settings", "billing", "support"].includes(key)) return true;
           return availableModules.some(
             (m) => key === m || href === `/${m}` || href.startsWith(`/${m}/`)
           );
@@ -183,7 +177,8 @@ export function Sidebar({
           onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push("/dashboard")}
           className="flex w-full items-center gap-3 px-5 py-5 hover:bg-surface-800/40 transition-colors text-left"
         >
-          <Image src="/logo-dark.png" alt="Voltaki" width={100} height={30} className="h-7 w-auto shrink-0" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-dark.png" alt="Voltaki" className="h-7 w-auto shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-foreground leading-tight truncate">
               {barbershopName ?? ""}

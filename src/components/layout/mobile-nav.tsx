@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { NAV, SEGMENT_ICON_MAP } from "./sidebar";
 import { Scissors, Menu, X, Bell, Sparkles, type LucideIcon } from "lucide-react";
@@ -110,7 +109,8 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
       <div className="flex items-center justify-between bg-card/90 backdrop-blur border-b border-border px-4 py-2.5 gap-3">
         {/* Logo + name */}
         <Link href="/dashboard" className="flex items-center gap-2 min-w-0" onClick={() => setOpen(false)}>
-          <Image src="/logo-dark.png" alt="Voltaki" width={90} height={28} className="h-7 w-auto shrink-0" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-dark.png" alt="Voltaki" className="h-7 w-auto shrink-0" />
           {barbershopName && (
             <p className="text-sm font-semibold text-foreground truncate">{barbershopName}</p>
           )}
@@ -234,7 +234,6 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
           <nav className="grid grid-cols-2 gap-px bg-border">
             {NAV.filter(({ key }) => {
               if (!availableModules || availableModules.length === 0) return true;
-              if (["settings", "billing", "support"].includes(key)) return true;
               return availableModules.includes(key);
             }).map(({ href, label, icon: Icon, key }) => {
               const active = pathname === href || pathname.startsWith(href.split("?")[0] + "/");
