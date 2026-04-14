@@ -28,6 +28,13 @@ import {
   Store,
   Star,
   ShoppingBag,
+  Croissant,
+  Sandwich,
+  Cookie,
+  Coffee,
+  PawPrint,
+  Dumbbell,
+  UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -43,6 +50,14 @@ export const SEGMENT_ICON_MAP: Record<string, LucideIcon> = {
   Star,
   Target,
   Store,
+  ShoppingBag,
+  Croissant,
+  Sandwich,
+  Cookie,
+  Coffee,
+  PawPrint,
+  Dumbbell,
+  UtensilsCrossed,
 };
 
 export const NAV = [

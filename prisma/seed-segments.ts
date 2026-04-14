@@ -55,6 +55,21 @@ const ALL_MODULES = JSON.stringify([
   "support",
 ]);
 
+// Módulos para estabelecimentos de fluxo (sem agenda, com visitas)
+const FLOW_MODULES = JSON.stringify([
+  "dashboard",
+  "visitas",
+  "copilot",
+  "financeiro",
+  "clients",
+  "campaigns",
+  "whatsapp",
+  "post-sale",
+  "settings",
+  "billing",
+  "support",
+]);
+
 const SEGMENTS = [
   {
     key: "barbershop",
@@ -227,6 +242,296 @@ const SEGMENTS = [
         "Analyze the shooting sports environment in this image. Identify equipment, facilities, and training context. Provide a professional and accurate description suitable for sports marketing. Ultra-realistic, professional result.",
     },
   },
+  // ── Segmentos de fluxo (walk-in, sem agendamento) ──────────
+
+  {
+    key: "bakery",
+    displayName: "Padaria",
+    tenantLabel: "padaria",
+    description: "Para padarias e confeitarias — gestão de clientes, fidelização e campanhas.",
+    icon: "Croissant",
+    colorPrimary:    "30 80% 55%",   // âmbar quente
+    colorBackground: "30 10% 7%",   // dark com toque dourado
+    colorCard:       "30 8% 11%",
+    sortOrder: 5,
+    availableModules: FLOW_MODULES,
+    serviceCategories: JSON.stringify([
+      { key: "paes", label: "Pães" },
+      { key: "doces", label: "Doces / Bolos" },
+      { key: "salgados", label: "Salgados" },
+      { key: "bebidas", label: "Bebidas" },
+      { key: "other", label: "Outro" },
+    ]),
+    roles: JSON.stringify([
+      { key: "BAKER", label: "Padeiro(a)" },
+      { key: "STAFF", label: "Atendente" },
+    ]),
+    prompts: {
+      ...BARBERSHOP_PROMPTS,
+      copilotSystemPrompt:
+        "Você é o assistente inteligente da padaria. Você tem duas funções: (1) CEO Copilot da padaria — analisa dados do negócio (visitas, receita, clientes) e sugere ações práticas com visão executiva; (2) assistente geral. Sempre responda em PT-BR, de forma direta. Responda sempre em JSON.",
+      suggestionsSystemPrompt:
+        "Você é o copiloto de inteligência de uma padaria. Analise os dados de visitas e clientes e sugira ações práticas de fidelização, campanhas e crescimento. Responda sempre em JSON válido.",
+      campaignTextSystemPrompt:
+        "Você é especialista em marketing para padarias e confeitarias. Crie textos para Instagram que despertem desejo pelo produto. Responda em JSON.",
+      brandStyleSystemPrompt:
+        "Você é um diretor de arte especializado em marcas de padaria artesanal. Expanda a descrição visual da padaria para prompts de IA. Máximo 300 caracteres. Retorne apenas a descrição.",
+      serviceAnalysisSystemPrompt:
+        "Você é um consultor de negócios para padarias. Analisa o mix de produtos e sugere oportunidades de venda. Responda sempre em JSON válido.",
+      vitrineCaptionSystemPrompt:
+        "Você é especialista em marketing para padarias. Analise a foto do produto e gere uma legenda apetitosa para Instagram em português. Tom: acolhedor, artesanal, delicioso. Inclua 8 a 12 hashtags. Máximo 200 palavras. Retorne apenas a legenda.",
+      haircutVisualPrompt: BARBERSHOP_PROMPTS.haircutVisualPrompt,
+    },
+  },
+  {
+    key: "snack_bar",
+    displayName: "Lanchonete",
+    tenantLabel: "lanchonete",
+    description: "Para lanchonetes e fast-food — gestão de clientes, fidelização e campanhas.",
+    icon: "Sandwich",
+    colorPrimary:    "16 85% 55%",   // laranja vibrante
+    colorBackground: "16 10% 7%",
+    colorCard:       "16 8% 11%",
+    sortOrder: 6,
+    availableModules: FLOW_MODULES,
+    serviceCategories: JSON.stringify([
+      { key: "lanches", label: "Lanches" },
+      { key: "porcoes", label: "Porções" },
+      { key: "bebidas", label: "Bebidas" },
+      { key: "combos", label: "Combos" },
+      { key: "other", label: "Outro" },
+    ]),
+    roles: JSON.stringify([
+      { key: "COOK", label: "Cozinheiro(a)" },
+      { key: "STAFF", label: "Atendente" },
+    ]),
+    prompts: {
+      ...BARBERSHOP_PROMPTS,
+      copilotSystemPrompt:
+        "Você é o assistente inteligente da lanchonete. Você tem duas funções: (1) CEO Copilot da lanchonete — analisa dados do negócio (visitas, receita, clientes) e sugere ações práticas; (2) assistente geral. Sempre responda em PT-BR. Responda sempre em JSON.",
+      suggestionsSystemPrompt:
+        "Você é o copiloto de inteligência de uma lanchonete. Sugira ações de fidelização, promoções e crescimento. Responda sempre em JSON válido.",
+      campaignTextSystemPrompt:
+        "Você é especialista em marketing para lanchonetes. Crie textos irresistíveis para Instagram. Responda em JSON.",
+      brandStyleSystemPrompt:
+        "Você é um diretor de arte para marcas de fast-food e lanchonetes. Expanda a identidade visual para prompts de IA. Máximo 300 caracteres. Retorne apenas a descrição.",
+      serviceAnalysisSystemPrompt:
+        "Você é um consultor para lanchonetes. Sugira oportunidades de cardápio e promoções. Responda sempre em JSON válido.",
+      vitrineCaptionSystemPrompt:
+        "Você é especialista em marketing para lanchonetes. Gere uma legenda irresistível para Instagram. Tom: animado, saboroso, convidativo. Inclua 8 a 12 hashtags. Máximo 200 palavras. Retorne apenas a legenda.",
+      haircutVisualPrompt: BARBERSHOP_PROMPTS.haircutVisualPrompt,
+    },
+  },
+  {
+    key: "patisserie",
+    displayName: "Confeitaria / Boleria",
+    tenantLabel: "confeitaria",
+    description: "Para confeitarias, bolerias e cake designers — clientes, pedidos e campanhas.",
+    icon: "Cookie",
+    colorPrimary:    "340 65% 68%",  // rosa confeitaria
+    colorBackground: "340 10% 7%",
+    colorCard:       "340 8% 11%",
+    sortOrder: 7,
+    availableModules: FLOW_MODULES,
+    serviceCategories: JSON.stringify([
+      { key: "bolos", label: "Bolos" },
+      { key: "docinhos", label: "Docinhos" },
+      { key: "tortas", label: "Tortas" },
+      { key: "encomendas", label: "Encomendas" },
+      { key: "other", label: "Outro" },
+    ]),
+    roles: JSON.stringify([
+      { key: "CONFECTIONER", label: "Confeiteiro(a)" },
+      { key: "STAFF", label: "Atendente" },
+    ]),
+    prompts: {
+      ...BARBERSHOP_PROMPTS,
+      copilotSystemPrompt:
+        "Você é o assistente inteligente da confeitaria. Você tem duas funções: (1) CEO Copilot da confeitaria — analisa dados do negócio e sugere ações práticas; (2) assistente geral. Sempre responda em PT-BR. Responda sempre em JSON.",
+      suggestionsSystemPrompt:
+        "Você é o copiloto de inteligência de uma confeitaria artesanal. Sugira ações de fidelização, datas comemorativas e crescimento. Responda sempre em JSON válido.",
+      campaignTextSystemPrompt:
+        "Você é especialista em marketing para confeitarias. Crie textos encantadores e apetitosos para Instagram. Responda em JSON.",
+      brandStyleSystemPrompt:
+        "Você é um diretor de arte para marcas de confeitaria artesanal. Expanda a identidade visual para prompts de IA. Máximo 300 caracteres. Retorne apenas a descrição.",
+      serviceAnalysisSystemPrompt:
+        "Você é um consultor para confeitarias. Sugira oportunidades de produto para datas comemorativas e promoções. Responda sempre em JSON válido.",
+      vitrineCaptionSystemPrompt:
+        "Você é especialista em marketing para confeitarias. Gere uma legenda deliciosa para Instagram. Tom: artesanal, romântico, tentador. Inclua 8 a 12 hashtags. Máximo 200 palavras. Retorne apenas a legenda.",
+      haircutVisualPrompt: BARBERSHOP_PROMPTS.haircutVisualPrompt,
+    },
+  },
+  {
+    key: "coffee_shop",
+    displayName: "Cafeteria",
+    tenantLabel: "cafeteria",
+    description: "Para cafeterias e coffee shops — clientes, fidelidade e campanhas.",
+    icon: "Coffee",
+    colorPrimary:    "25 55% 45%",   // marrom café
+    colorBackground: "25 10% 7%",
+    colorCard:       "25 8% 11%",
+    sortOrder: 8,
+    availableModules: FLOW_MODULES,
+    serviceCategories: JSON.stringify([
+      { key: "cafes", label: "Cafés" },
+      { key: "cha", label: "Chás" },
+      { key: "alimentos", label: "Alimentos" },
+      { key: "especiais", label: "Especiais" },
+      { key: "other", label: "Outro" },
+    ]),
+    roles: JSON.stringify([
+      { key: "BARISTA", label: "Barista" },
+      { key: "STAFF", label: "Atendente" },
+    ]),
+    prompts: {
+      ...BARBERSHOP_PROMPTS,
+      copilotSystemPrompt:
+        "Você é o assistente inteligente da cafeteria. Analisa dados do negócio (visitas, receita, clientes) e sugere ações práticas de fidelização e crescimento. Sempre responda em PT-BR. Responda sempre em JSON.",
+      suggestionsSystemPrompt:
+        "Você é o copiloto de inteligência de uma cafeteria. Sugira ações de fidelização, horários de pico e crescimento. Responda sempre em JSON válido.",
+      campaignTextSystemPrompt:
+        "Você é especialista em marketing para cafeterias e coffee shops. Crie textos aconchegantes e cativantes para Instagram. Responda em JSON.",
+      brandStyleSystemPrompt:
+        "Você é um diretor de arte para marcas de cafeteria artesanal. Expanda a identidade visual para prompts de IA. Máximo 300 caracteres. Retorne apenas a descrição.",
+      serviceAnalysisSystemPrompt:
+        "Você é um consultor para cafeterias. Sugira oportunidades de cardápio e promoções sazonais. Responda sempre em JSON válido.",
+      vitrineCaptionSystemPrompt:
+        "Você é especialista em marketing para cafeterias. Gere uma legenda aconchegante para Instagram. Tom: acolhedor, artesanal, especial. Inclua 8 a 12 hashtags. Máximo 200 palavras. Retorne apenas a legenda.",
+      haircutVisualPrompt: BARBERSHOP_PROMPTS.haircutVisualPrompt,
+    },
+  },
+  {
+    key: "pet_shop",
+    displayName: "Pet Shop",
+    tenantLabel: "pet shop",
+    description: "Para pet shops — produtos, banho & tosa e campanhas de fidelização.",
+    icon: "PawPrint",
+    colorPrimary:    "160 55% 50%",  // verde-azulado pet
+    colorBackground: "160 10% 7%",
+    colorCard:       "160 8% 11%",
+    sortOrder: 9,
+    availableModules: JSON.stringify([
+      "dashboard",
+      "visitas",
+      "agenda",        // tosa/banho ainda pode usar agenda
+      "copilot",
+      "financeiro",
+      "clients",
+      "services",
+      "campaigns",
+      "whatsapp",
+      "post-sale",
+      "settings",
+      "billing",
+      "support",
+    ]),
+    serviceCategories: JSON.stringify([
+      { key: "banho_tosa", label: "Banho & Tosa" },
+      { key: "veterinario", label: "Veterinário" },
+      { key: "racao", label: "Ração / Produtos" },
+      { key: "acessorios", label: "Acessórios" },
+      { key: "other", label: "Outro" },
+    ]),
+    roles: JSON.stringify([
+      { key: "GROOMER", label: "Tosador(a)" },
+      { key: "STAFF", label: "Atendente" },
+    ]),
+    prompts: {
+      ...BARBERSHOP_PROMPTS,
+      copilotSystemPrompt:
+        "Você é o assistente inteligente do pet shop. Analisa dados do negócio (visitas, serviços, receita) e sugere ações práticas de fidelização e crescimento. Sempre responda em PT-BR. Responda sempre em JSON.",
+      suggestionsSystemPrompt:
+        "Você é o copiloto de inteligência de um pet shop. Sugira ações de reativação de clientes, promoções e crescimento. Responda sempre em JSON válido.",
+      campaignTextSystemPrompt:
+        "Você é especialista em marketing para pet shops. Crie textos carinhosos e persuasivos para Instagram. Responda em JSON.",
+      brandStyleSystemPrompt:
+        "Você é um diretor de arte para marcas de pet shop. Expanda a identidade visual para prompts de IA. Máximo 300 caracteres. Retorne apenas a descrição.",
+      serviceAnalysisSystemPrompt:
+        "Você é um consultor para pet shops. Sugira oportunidades de serviço e produto baseado no perfil dos clientes. Responda sempre em JSON válido.",
+      vitrineCaptionSystemPrompt:
+        "Você é especialista em marketing para pet shops. Gere uma legenda carinhosa para Instagram. Tom: amoroso, cuidadoso, alegre. Inclua 8 a 12 hashtags. Máximo 200 palavras. Retorne apenas a legenda.",
+      haircutVisualPrompt: BARBERSHOP_PROMPTS.haircutVisualPrompt,
+    },
+  },
+  {
+    key: "gym",
+    displayName: "Academia / Crossfit",
+    tenantLabel: "academia",
+    description: "Para academias e estúdios fitness — check-ins, alunos e campanhas.",
+    icon: "Dumbbell",
+    colorPrimary:    "210 75% 55%",  // azul energia
+    colorBackground: "210 12% 7%",
+    colorCard:       "210 9% 11%",
+    sortOrder: 10,
+    availableModules: FLOW_MODULES,
+    serviceCategories: JSON.stringify([
+      { key: "mensalidade", label: "Mensalidade" },
+      { key: "personal", label: "Personal Trainer" },
+      { key: "aula", label: "Aula em Grupo" },
+      { key: "avaliacao", label: "Avaliação Física" },
+      { key: "other", label: "Outro" },
+    ]),
+    roles: JSON.stringify([
+      { key: "TRAINER", label: "Personal Trainer" },
+      { key: "STAFF", label: "Recepção" },
+    ]),
+    prompts: {
+      ...BARBERSHOP_PROMPTS,
+      copilotSystemPrompt:
+        "Você é o assistente inteligente da academia. Analisa dados (check-ins, alunos ativos, receita) e sugere ações práticas de retenção e crescimento. Sempre responda em PT-BR. Responda sempre em JSON.",
+      suggestionsSystemPrompt:
+        "Você é o copiloto de inteligência de uma academia. Sugira ações para reduzir churn, aumentar engajamento e crescer a base. Responda sempre em JSON válido.",
+      campaignTextSystemPrompt:
+        "Você é especialista em marketing para academias e estúdios fitness. Crie textos motivadores para Instagram. Responda em JSON.",
+      brandStyleSystemPrompt:
+        "Você é um diretor de arte para marcas fitness e academias. Expanda a identidade visual para prompts de IA. Máximo 300 caracteres. Retorne apenas a descrição.",
+      serviceAnalysisSystemPrompt:
+        "Você é um consultor fitness. Sugira planos e serviços com base no perfil dos alunos. Responda sempre em JSON válido.",
+      vitrineCaptionSystemPrompt:
+        "Você é especialista em marketing fitness. Gere uma legenda motivadora para Instagram. Tom: enérgico, inspirador, desafiador. Inclua 8 a 12 hashtags. Máximo 200 palavras. Retorne apenas a legenda.",
+      haircutVisualPrompt: BARBERSHOP_PROMPTS.haircutVisualPrompt,
+    },
+  },
+  {
+    key: "restaurant",
+    displayName: "Restaurante",
+    tenantLabel: "restaurante",
+    description: "Para restaurantes e bistrôs — clientes, fidelização e campanhas.",
+    icon: "UtensilsCrossed",
+    colorPrimary:    "355 70% 55%",  // vermelho restaurante
+    colorBackground: "355 10% 7%",
+    colorCard:       "355 8% 11%",
+    sortOrder: 11,
+    availableModules: FLOW_MODULES,
+    serviceCategories: JSON.stringify([
+      { key: "almoco", label: "Almoço" },
+      { key: "jantar", label: "Jantar" },
+      { key: "porcoes", label: "Porções" },
+      { key: "bebidas", label: "Bebidas" },
+      { key: "other", label: "Outro" },
+    ]),
+    roles: JSON.stringify([
+      { key: "CHEF", label: "Chef" },
+      { key: "STAFF", label: "Garçom / Atendente" },
+    ]),
+    prompts: {
+      ...BARBERSHOP_PROMPTS,
+      copilotSystemPrompt:
+        "Você é o assistente inteligente do restaurante. Analisa dados de visitas, receita e clientes e sugere ações práticas de fidelização e crescimento. Sempre responda em PT-BR. Responda sempre em JSON.",
+      suggestionsSystemPrompt:
+        "Você é o copiloto de inteligência de um restaurante. Sugira ações de reativação de clientes, promoções especiais e crescimento. Responda sempre em JSON válido.",
+      campaignTextSystemPrompt:
+        "Você é especialista em marketing para restaurantes. Crie textos apetitosos e convidativos para Instagram. Responda em JSON.",
+      brandStyleSystemPrompt:
+        "Você é um diretor de arte para marcas de restaurante. Expanda a identidade visual para prompts de IA. Máximo 300 caracteres. Retorne apenas a descrição.",
+      serviceAnalysisSystemPrompt:
+        "Você é um consultor gastronômico. Sugira oportunidades de cardápio e promoções. Responda sempre em JSON válido.",
+      vitrineCaptionSystemPrompt:
+        "Você é especialista em marketing para restaurantes. Gere uma legenda para Instagram que faça o prato parecer irresistível. Tom: sofisticado, saboroso, acolhedor. Inclua 8 a 12 hashtags. Máximo 200 palavras. Retorne apenas a legenda.",
+      haircutVisualPrompt: BARBERSHOP_PROMPTS.haircutVisualPrompt,
+    },
+  },
+
   {
     key: "generic",
     displayName: "Outro Negócio",
