@@ -9,6 +9,7 @@ export default async function AdminBarbershopsPage() {
     where: { slug: { not: "__platform_admin__" } },
     include: {
       subscription: true,
+      segment: { select: { displayName: true } },
       _count: { select: { customers: true, appointments: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -35,6 +36,7 @@ export default async function AdminBarbershopsPage() {
     trialEndsAt:  s.subscription?.trialEndsAt?.toISOString() ?? null,
     creditBalance: s.subscription?.aiCreditBalance ?? 0,
     stripeCustomerId: s.stripeCustomerId ?? null,
+    segmentName: s.segment?.displayName ?? "Barbearia",
   }));
 
   return <BarbershopsClient data={data} />;

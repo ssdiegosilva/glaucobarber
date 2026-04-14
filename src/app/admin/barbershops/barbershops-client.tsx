@@ -13,6 +13,7 @@ type Shop = {
   createdAt: string; customers: number; appointments: number; aiUsed: number;
   planTier: string; subStatus: string; trialEndsAt: string | null;
   creditBalance: number; stripeCustomerId: string | null;
+  segmentName: string;
 };
 
 const PLAN_COLOR: Record<string, string> = {
@@ -65,7 +66,7 @@ export function BarbershopsClient({ data: initialData }: { data: Shop[] }) {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Barbearias</h1>
+          <h1 className="text-xl font-bold text-foreground">Estabelecimentos</h1>
           <p className="text-sm text-muted-foreground">{data.length} total · {filtered.length} exibidas</p>
         </div>
       </div>
@@ -121,7 +122,7 @@ export function BarbershopsClient({ data: initialData }: { data: Shop[] }) {
         <table className="w-full text-sm">
           <thead className="bg-surface-800 border-b border-border">
             <tr>
-              {["Barbearia", "Plano", "Status", "IA usado", "Clientes", "Agend.", "Criada em", ""].map((h) => (
+              {["Barbearia", "Tipo", "Plano", "Status", "IA usado", "Clientes", "Agend.", "Criada em", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
               ))}
             </tr>
@@ -132,6 +133,11 @@ export function BarbershopsClient({ data: initialData }: { data: Shop[] }) {
                 <td className="px-4 py-3">
                   <p className="font-medium text-foreground">{s.name}</p>
                   <p className="text-xs text-muted-foreground">{s.email}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-400">
+                    {s.segmentName}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${PLAN_COLOR[s.planTier] ?? ""}`}>
@@ -184,7 +190,7 @@ export function BarbershopsClient({ data: initialData }: { data: Shop[] }) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">Nenhuma barbearia encontrada.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">Nenhum estabelecimento encontrado.</td></tr>
             )}
           </tbody>
         </table>
