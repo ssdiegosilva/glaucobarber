@@ -36,14 +36,15 @@ export async function POST(req: NextRequest) {
 
   const barbershop = await prisma.barbershop.findUnique({
     where:  { id: session.user.barbershopId },
-    select: { name: true },
+    select: { name: true, segment: { select: { tenantLabel: true } } },
   });
+  const tenantLabel = barbershop?.segment?.tenantLabel ?? "estabelecimento";
 
   const provider = getAIProvider();
-  const context = `Barbearia: ${barbershop?.name ?? "Barbearia"}. Tema: ${theme}.${offerContext}`;
+  const context = `${tenantLabel}: ${barbershop?.name ?? "Estabelecimento"}. Tema: ${theme}.${offerContext}`;
   let ai: { text: string; artBriefing: string };
   try {
-    ai = await provider.generateCampaignText(theme, context, session.user.barbershopId);
+    ai = await provider.generateCampaignText(theme, context, session.user.barbershopId, tenantLabel);
   } catch (err) {
     console.error("[campaign/text] Erro ao gerar texto:", err, { theme, context });
     return NextResponse.json({ error: "Falha ao gerar campanha. Tente novamente." }, { status: 500 });

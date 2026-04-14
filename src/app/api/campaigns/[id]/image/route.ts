@@ -25,21 +25,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const barbershop = await prisma.barbershop.findUnique({
     where:  { id: session.user.barbershopId },
-    select: { name: true, brandStyle: true, campaignReferenceImageUrl: true },
+    select: { name: true, brandStyle: true, campaignReferenceImageUrl: true, segment: { select: { tenantLabel: true, displayName: true } } },
   });
+
+  const tenantLabel   = barbershop?.segment?.tenantLabel   ?? "estabelecimento";
+  const displayName   = barbershop?.segment?.displayName   ?? "Estabelecimento";
+  const businessName  = barbershop?.name ?? displayName;
 
   const brandStyleBlock = barbershop?.brandStyle
     ? `Brand style: ${barbershop.brandStyle}`
-    : `Brand style: premium barbershop aesthetic — black background, gold metallic accents, elegant contrast, cinematic lighting, masculine and sophisticated`;
+    : `Brand style: premium ${tenantLabel} aesthetic — clean background, elegant contrast, cinematic lighting, sophisticated and inviting`;
 
   const referenceNote = barbershop?.campaignReferenceImageUrl
     ? "Use the provided reference photo as the base and preserve key subjects/identity."
     : "";
 
   const prompt = body.promptOverride ?? `
-Create a premium square marketing image (1080x1080) for a barbershop brand called "${barbershop?.name ?? "Barbearia"}".
+Create a premium square marketing image (1080x1080) for a ${tenantLabel} brand called "${businessName}".
 
-Goal: ${campaign.title || "Promote the barbershop services"}
+Goal: ${campaign.title || `Promote the ${tenantLabel} services`}
 
 ${brandStyleBlock}
 ${referenceNote}
@@ -49,17 +53,17 @@ Visual direction:
 - luxury badge or emblem feel
 - subtle glow effects
 - visually striking focal point
-- modern technology blended with barber identity
-- possible elements: barber razors, mustache symbol, premium frame, elegant typography
+- elements relevant to a ${tenantLabel} (NOT a barbershop — avoid razors, mustaches, barber poles)
+- premium frame, elegant typography
 
 Campaign theme: ${campaign.title}
-Art briefing: ${campaign.artBriefing || "elegant premium design, high contrast"}
+Art briefing: ${campaign.artBriefing || `elegant premium ${tenantLabel} design, high contrast`}
 
 Important:
 - do not make it cartoonish or generic
 - do not use cheap promotional aesthetics
-- keep the design premium, polished, and brandable
-- high contrast, glow, symmetry, and iconic elements
+- keep the design premium, polished, and brandable specific to a ${tenantLabel}
+- high contrast, glow, symmetry, and iconic elements relevant to the ${tenantLabel} universe
 - output must be suitable for a premium social media campaign
 `.trim();
 

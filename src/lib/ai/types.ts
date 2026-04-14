@@ -42,7 +42,7 @@ export interface AIProvider {
   // from the segment DB config (with 5-min cache) instead of the static vertical config.
   generateSuggestions(context: AISuggestionRequest, barbershopId?: string): Promise<AISuggestion[]>;
   generateCampaignThemes(barbershopName: string, barbershopId?: string, tenantLabel?: string): Promise<{ themes: { title: string; description: string }[] }>;
-  generateCampaignText(objective: string, context: string, barbershopId?: string): Promise<{ text: string; artBriefing: string }>;
+  generateCampaignText(objective: string, context: string, barbershopId?: string, tenantLabel?: string): Promise<{ text: string; artBriefing: string }>;
   generateCampaignImage(input: {
     prompt:             string;
     styleHint?:         string;

@@ -102,6 +102,7 @@ Retorne APENAS JSON válido, sem markdown:
     objective: string,
     context: string,
     barbershopId?: string,
+    tenantLabel = "estabelecimento",
   ): Promise<{ text: string; artBriefing: string }> {
     const ai = await this._getAiConfig(barbershopId);
     const completion = await this.client.chat.completions.create({
@@ -115,7 +116,7 @@ Retorne APENAS JSON válido, sem markdown:
         },
         {
           role: "user",
-          content: `Crie um texto de campanha e briefing de arte visual.\n${context}\n\nRegras para o texto:\n- Use o nome EXATO da barbearia mencionado no contexto (nunca invente nomes genéricos como "Barbearia Premium")\n- Inclua hashtags relevantes usando o nome da barbearia (ex: #NomeDaBarbearia) e hashtags do tema da campanha\n- Máximo 280 caracteres\n\nRetorne JSON:\n{\n  "text": "copy da campanha para Instagram com hashtags (máx 280 chars)",\n  "artBriefing": "direção de arte específica: descreva composição, símbolos concretos (ex: navalha dourada, bigode, coroa), mood lighting, estilo tipográfico, cores predominantes (máx 200 chars). Evite generalidades."\n}\n\nO artBriefing deve conter elementos visuais concretos que um gerador de imagem possa usar diretamente.`,
+          content: `Crie um texto de campanha e briefing de arte visual.\n${context}\n\nRegras para o texto:\n- Use o nome EXATO do ${tenantLabel} mencionado no contexto (nunca invente nomes genéricos)\n- Inclua hashtags relevantes usando o nome do ${tenantLabel} e hashtags do tema da campanha\n- Máximo 280 caracteres\n- O texto deve ser adequado para um ${tenantLabel}, não para barbearia\n\nRetorne JSON:\n{\n  "text": "copy da campanha para Instagram com hashtags (máx 280 chars)",\n  "artBriefing": "direção de arte específica para ${tenantLabel}: descreva composição, elementos visuais concretos e relevantes para o ${tenantLabel}, mood lighting, estilo tipográfico, cores predominantes (máx 200 chars). Evite generalidades e evite elementos de barbearia."\n}\n\nO artBriefing deve conter elementos visuais do universo de ${tenantLabel} que um gerador de imagem possa usar diretamente.`,
         },
       ],
     });
