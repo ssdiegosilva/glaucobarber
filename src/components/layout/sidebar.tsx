@@ -28,6 +28,7 @@ import {
   Store,
   Star,
   ShoppingBag,
+  Package,
   Croissant,
   Sandwich,
   CakeSlice,
@@ -58,6 +59,8 @@ export const SEGMENT_ICON_MAP: Record<string, LucideIcon> = {
   Target,
   Store,
   ShoppingBag,
+  // Geral
+  Package,     // produtos
   // Alimentação
   Wheat,       // padaria
   Croissant,   // padaria alternativo
@@ -79,6 +82,7 @@ export const NAV = [
   { href: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard, key: "dashboard" },
   { href: "/agenda",       label: "Agenda",       icon: CalendarDays,    key: "agenda" },
   { href: "/visitas",      label: "Visitas",      icon: ShoppingBag,     key: "visitas" },
+  { href: "/produtos",     label: "Produtos",     icon: Package,         key: "produtos" },
   { href: "/copilot",      label: "Copilot",      icon: Sparkles,        key: "copilot" },
   { href: "/financeiro",   label: "Financeiro",   icon: TrendingUp,      key: "financeiro" },
   { href: "/meta",         label: "Metas",        icon: Target,          key: "meta" },

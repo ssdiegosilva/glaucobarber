@@ -3,8 +3,14 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refreshPostSaleStatus, refreshCustomer60dStats } from "@/modules/post-sale/service";
 
+type VisitItemInput = {
+  productId?: string;
+  name: string;
+  price: number;
+  quantity?: number;
+};
+
 // ── POST /api/visits ─────────────────────────────────────────
-// Creates a visit record and updates customer post-sale stats.
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,6 +24,7 @@ export async function POST(req: NextRequest) {
     notes?: string;
     visitedAt?: string;
     source?: string;
+    items?: VisitItemInput[];
   };
 
   // Resolve customerId: use provided, or look up / create by phone
@@ -38,22 +45,53 @@ export async function POST(req: NextRequest) {
     customerId = customer?.id ?? null;
   }
 
-  const amount = body.amount != null ? Number(body.amount) : null;
   const visitedAt = body.visitedAt ? new Date(body.visitedAt) : new Date();
+  const rawItems = body.items ?? [];
+
+  // Resolve productIds for inline items (no productId = create in catalog)
+  const resolvedItems: Array<{ productId: string; name: string; price: number; quantity: number }> = [];
+  for (const item of rawItems) {
+    const qty = item.quantity ?? 1;
+    const price = Number(item.price);
+    let productId = item.productId ?? null;
+
+    if (!productId) {
+      const created = await prisma.product.create({
+        data: { barbershopId, name: item.name.trim(), price },
+        select: { id: true },
+      });
+      productId = created.id;
+    }
+    resolvedItems.push({ productId, name: item.name.trim(), price, quantity: qty });
+  }
+
+  // Compute amount: from items if any, otherwise manual
+  const amount =
+    resolvedItems.length > 0
+      ? resolvedItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+      : body.amount != null
+        ? Number(body.amount)
+        : null;
 
   const visit = await prisma.visit.create({
     data: {
       barbershopId,
       customerId,
-      amount: amount != null ? amount : undefined,
-      notes: body.notes?.trim() || null,
+      amount:    amount != null ? amount : undefined,
+      notes:     body.notes?.trim() || null,
       visitedAt,
-      source: body.source ?? "manual",
+      source:    body.source ?? "manual",
+      items: resolvedItems.length > 0
+        ? { create: resolvedItems.map((i) => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity })) }
+        : undefined,
     },
-    include: { customer: { select: { id: true, name: true, phone: true, postSaleStatus: true } } },
+    include: {
+      customer: { select: { id: true, name: true, phone: true, postSaleStatus: true } },
+      items: { select: { id: true, name: true, price: true, quantity: true, productId: true } },
+    },
   });
 
-  // Update customer post-sale fields (fire-and-forget for speed)
+  // Update customer post-sale fields (fire-and-forget)
   if (customerId) {
     prisma.customer.update({
       where: { id: customerId },
@@ -75,11 +113,16 @@ export async function POST(req: NextRequest) {
     }).catch((err) => console.error("[visits] customer update error:", err));
   }
 
-  return NextResponse.json({ visit });
+  return NextResponse.json({
+    visit: {
+      ...visit,
+      amount: visit.amount != null ? Number(visit.amount) : null,
+      items: visit.items.map((i) => ({ ...i, price: Number(i.price) })),
+    },
+  });
 }
 
 // ── GET /api/visits ──────────────────────────────────────────
-// Lists visits for the barbershop (today by default, or by date range).
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -88,7 +131,6 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from");
   const to   = searchParams.get("to");
 
-  // Default: today
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
   const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -97,19 +139,24 @@ export async function GET(req: NextRequest) {
   const lte = to   ? new Date(to)   : endOfDay;
 
   const visits = await prisma.visit.findMany({
-    where: {
-      barbershopId: session.user.barbershopId,
-      visitedAt: { gte, lte },
-    },
+    where: { barbershopId: session.user.barbershopId, visitedAt: { gte, lte } },
     include: {
       customer: { select: { id: true, name: true, phone: true, postSaleStatus: true } },
+      items: { select: { id: true, name: true, price: true, quantity: true, productId: true } },
     },
     orderBy: { visitedAt: "desc" },
     take: 200,
   });
 
-  // Summary stats for the period
   const totalAmount = visits.reduce((acc, v) => acc + Number(v.amount ?? 0), 0);
 
-  return NextResponse.json({ visits, totalAmount, count: visits.length });
+  return NextResponse.json({
+    visits: visits.map((v) => ({
+      ...v,
+      amount: v.amount != null ? Number(v.amount) : null,
+      items: v.items.map((i) => ({ ...i, price: Number(i.price) })),
+    })),
+    totalAmount,
+    count: visits.length,
+  });
 }

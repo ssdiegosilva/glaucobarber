@@ -17,7 +17,10 @@ export default async function VisitasPage() {
   const [visits, barbershop] = await Promise.all([
     prisma.visit.findMany({
       where: { barbershopId, visitedAt: { gte: startOfDay, lte: endOfDay } },
-      include: { customer: { select: { id: true, name: true, phone: true } } },
+      include: {
+        customer: { select: { id: true, name: true, phone: true } },
+        items: { select: { id: true, name: true, price: true, quantity: true, productId: true } },
+      },
       orderBy: { visitedAt: "desc" },
       take: 200,
     }),
@@ -31,12 +34,13 @@ export default async function VisitasPage() {
   const tenantLabel = barbershop?.segment?.tenantLabel ?? "estabelecimento";
 
   const serialized = visits.map((v) => ({
-    id:         v.id,
-    visitedAt:  v.visitedAt.toISOString(),
-    amount:     v.amount ? Number(v.amount) : null,
-    notes:      v.notes,
-    source:     v.source,
-    customer:   v.customer ?? null,
+    id:        v.id,
+    visitedAt: v.visitedAt.toISOString(),
+    amount:    v.amount ? Number(v.amount) : null,
+    notes:     v.notes,
+    source:    v.source,
+    customer:  v.customer ?? null,
+    items:     v.items.map((i) => ({ ...i, price: Number(i.price) })),
   }));
 
   return (

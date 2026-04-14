@@ -45,6 +45,7 @@ const ALL_MODULES = JSON.stringify([
   "meta",
   "clients",
   "services",
+  "produtos",
   "campaigns",
   "vitrine",
   "criar-visual",
@@ -59,6 +60,7 @@ const ALL_MODULES = JSON.stringify([
 const FLOW_MODULES = JSON.stringify([
   "dashboard",
   "visitas",
+  "produtos",
   "copilot",
   "financeiro",
   "clients",

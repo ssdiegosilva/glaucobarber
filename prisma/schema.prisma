@@ -147,6 +147,7 @@ model Barbershop {
   vitrinPosts         VitrinPost[]
   supportMessages     SupportMessage[]
   visits              Visit[]
+  products            Product[]
 
   // Segment (multi-vertical)
   segmentId String?
@@ -393,12 +394,47 @@ model Visit {
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id])
+  items      VisitItem[]
 
   createdAt DateTime @default(now())
 
   @@index([barbershopId, visitedAt])
   @@index([customerId])
   @@map("visits")
+}
+
+model VisitItem {
+  id        String  @id @default(cuid())
+  visitId   String
+  productId String?
+  name      String           // snapshot do nome no momento da venda
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int     @default(1)
+
+  visit   Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([visitId])
+  @@map("visit_items")
+}
+
+model Product {
+  id           String    @id @default(cuid())
+  barbershopId String
+  name         String
+  description  String?
+  price        Decimal   @db.Decimal(10, 2)
+  category     String?
+  active       Boolean   @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  barbershop Barbershop  @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  visitItems VisitItem[]
+
+  @@index([barbershopId])
+  @@map("products")
 }
 
 model PostSaleAction {
