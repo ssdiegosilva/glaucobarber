@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 export const ALL_FEATURES = [
   { key: "dashboard",    label: "Dashboard",     description: "Visão geral da barbearia" },
   { key: "agenda",       label: "Agenda",        description: "Agendamentos" },
+  { key: "visitas",      label: "Visitas",       description: "Registro de visitas para estabelecimentos de fluxo (sem agendamento)" },
   { key: "copilot",      label: "Copilot IA",    description: "Assistente com inteligência artificial" },
   { key: "financeiro",   label: "Financeiro",    description: "Relatórios e gestão financeira" },
   { key: "meta",         label: "Metas",         description: "Acompanhamento de metas diárias e mensais" },
