@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Zap, BarChart3, Users, Sparkles, Calendar,
+  BarChart3, Users, Sparkles, Calendar,
   TrendingUp, Megaphone, ArrowRight, CheckCircle2,
   MessageSquare, Bot, Camera, X, GalleryHorizontal,
   HeartHandshake, Repeat2,
@@ -19,11 +19,8 @@ export default async function RootPage() {
       {/* ── Navbar ──────────────────────────────────────────── */}
       <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#080810]/80 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-500/20 border border-gold-500/30">
-              <Zap className="h-4 w-4 text-gold-400" />
-            </div>
-            <span className="font-display text-lg font-bold text-foreground">Voltaki</span>
+          <div className="flex items-center">
+            <Image src="/logo-dark.png" alt="Voltaki" width={120} height={36} className="h-8 w-auto" priority />
           </div>
           <div className="flex items-center gap-3">
             <a href="#precos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -473,11 +470,8 @@ export default async function RootPage() {
       {/* ── Footer ───────────────────────────────────────────── */}
       <footer className="border-t border-white/5 py-8">
         <div className="mx-auto max-w-7xl px-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gold-500/15 border border-gold-500/20">
-              <Zap className="h-3 w-3 text-gold-400" />
-            </div>
-            <span className="text-sm font-semibold text-muted-foreground">Voltaki</span>
+          <div className="flex items-center">
+            <Image src="/logo-dark.png" alt="Voltaki" width={90} height={28} className="h-6 w-auto opacity-60" />
           </div>
           <p className="text-xs text-muted-foreground">© 2025 Voltaki</p>
           <div className="flex items-center gap-4">

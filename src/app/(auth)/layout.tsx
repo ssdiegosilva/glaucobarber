@@ -1,4 +1,4 @@
-import { Zap } from "lucide-react";
+import Image from "next/image";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,14 +9,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(201,168,76,0.08),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(201,168,76,0.05),transparent_60%)]" />
 
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 border border-gold-500/30">
-            <Zap className="h-5 w-5 text-gold-400" />
-          </div>
-          <div>
-            <p className="font-bold text-foreground">Voltaki</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Fidelização inteligente</p>
-          </div>
+        <div className="relative">
+          <Image src="/logo-dark.png" alt="Voltaki" width={130} height={40} className="h-9 w-auto" />
         </div>
 
         <div className="relative">

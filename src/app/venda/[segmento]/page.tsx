@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Zap, ArrowRight, CheckCircle2, MessageSquare, Bot,
+  ArrowRight, CheckCircle2, MessageSquare, Bot,
   BadgePercent, Smartphone, Star, ChevronRight,
 } from "lucide-react";
 
@@ -292,12 +292,8 @@ export default async function VendaSegmentoPage({
       {/* ── Navbar ── */}
       <header className="fixed top-0 inset-x-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg"
-              style={{ background: `${ac}20`, border: `1px solid ${ac}40` }}>
-              <Zap className="h-4 w-4" style={{ color: ac }} />
-            </div>
-            <span className="font-bold text-gray-900 text-lg">Voltaki</span>
+          <Link href="/" className="flex items-center">
+            <Image src="/logo-light.png" alt="Voltaki" width={110} height={34} className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
@@ -625,12 +621,8 @@ export default async function VendaSegmentoPage({
       {/* ── Footer ── */}
       <footer className="border-t border-gray-100 py-8">
         <div className="mx-auto max-w-7xl px-6 flex items-center justify-between flex-wrap gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md"
-              style={{ background: `${ac}15`, border: `1px solid ${ac}25` }}>
-              <Zap className="h-3 w-3" style={{ color: ac }} />
-            </div>
-            <span className="text-sm font-semibold text-gray-500">Voltaki</span>
+          <Link href="/" className="flex items-center">
+            <Image src="/logo-light.png" alt="Voltaki" width={90} height={28} className="h-6 w-auto opacity-50" />
           </Link>
           <p className="text-xs text-gray-400">© 2025 Voltaki. Para {seg.name}s que crescem.</p>
           <div className="flex items-center gap-4">
