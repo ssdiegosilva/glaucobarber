@@ -146,6 +146,7 @@ model Barbershop {
   cardFeeConfigs      CardFeeConfig[]
   vitrinPosts         VitrinPost[]
   supportMessages     SupportMessage[]
+  visits              Visit[]
 
   // Segment (multi-vertical)
   segmentId String?
@@ -368,6 +369,7 @@ model Customer {
   postSaleActions PostSaleAction[]
   customerReviews CustomerReview[]
   whatsappMessages WhatsappMessage[]
+  visits       Visit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -378,6 +380,25 @@ model Customer {
   @@index([barbershopId, lastCompletedAppointmentAt])
   @@index([barbershopId, nextAppointmentAt])
   @@map("customers")
+}
+
+model Visit {
+  id           String   @id @default(cuid())
+  barbershopId String
+  customerId   String?
+  amount       Decimal? @db.Decimal(10, 2)
+  notes        String?
+  visitedAt    DateTime @default(now())
+  source       String   @default("manual") // "manual" | "qr_code" | "link" | "pdv"
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([barbershopId, visitedAt])
+  @@index([customerId])
+  @@map("visits")
 }
 
 model PostSaleAction {
