@@ -77,14 +77,14 @@ export async function GET(req: NextRequest) {
   const rows = await prisma.$queryRaw<
     { customerId: string; lastPurchase: Date }[]
   >`
-    SELECT a."customerId", MAX(a."startsAt") as "lastPurchase"
+    SELECT a."customerId", MAX(a."scheduledAt") as "lastPurchase"
     FROM "appointments" a
     WHERE a."barbershopId" = ${barbershopId}
       AND a."serviceId" = ANY(${ids}::text[])
       AND a."customerId" IS NOT NULL
       AND a."status" = 'COMPLETED'
     GROUP BY a."customerId"
-    HAVING MAX(a."startsAt") < ${cutoff}
+    HAVING MAX(a."scheduledAt") < ${cutoff}
   `;
 
   const customerMap = new Map<string, Date>();

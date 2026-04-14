@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         AND a."customerId" IS NOT NULL
         AND a."status" = 'COMPLETED'
       GROUP BY a."customerId"
-      HAVING MAX(a."startsAt") < ${cutoff}
+      HAVING MAX(a."scheduledAt") < ${cutoff}
     `;
     const ids = rows.map((r) => r.customerId);
     if (ids.length > 0) {
