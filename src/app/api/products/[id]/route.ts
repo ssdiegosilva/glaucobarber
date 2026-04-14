@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json() as { name?: string; price?: number | string; category?: string; description?: string; active?: boolean };
+  const body = await req.json() as { name?: string; price?: number | string; category?: string; description?: string; active?: boolean; imageUrl?: string | null };
 
   const existing = await prisma.product.findFirst({
     where: { id, barbershopId: session.user.barbershopId, deletedAt: null },
@@ -21,6 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.category !== undefined)    data.category    = body.category?.trim() || null;
   if (body.description !== undefined) data.description = body.description?.trim() || null;
   if (body.active !== undefined)      data.active      = Boolean(body.active);
+  if (body.imageUrl !== undefined)    data.imageUrl    = body.imageUrl?.trim() || null;
 
   const product = await prisma.product.update({ where: { id }, data });
   return NextResponse.json({ product: { ...product, price: Number(product.price) } });

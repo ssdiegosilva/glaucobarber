@@ -58,6 +58,13 @@ export interface AIProvider {
   analyzeAndSuggestHaircut(imageBase64: string, barbershopId?: string): Promise<HaircutSuggestion>;
   generateHaircutVisual(imageBuffer: Buffer, suggestedStyle?: string, quality?: string, model?: string, size?: string, barbershopId?: string): Promise<{ url: string } | { b64: string }>;
   generateVitrinCaption(imageBase64: string, barbershopName: string, brandStyle?: string | null, barbershopId?: string): Promise<{ caption: string }>;
+  generateTargetedOfferMessage(
+    templateBody: string,
+    customerName: string,
+    discount: boolean,
+    discountPct: number | null,
+    productNames: string[]
+  ): Promise<string>;
 }
 
 // ── Copilot types ─────────────────────────────────────────

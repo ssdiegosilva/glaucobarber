@@ -15,7 +15,7 @@ export default async function ProdutosPage() {
     orderBy: { name: "asc" },
     select: {
       id: true, name: true, price: true, category: true,
-      description: true, active: true, createdAt: true,
+      description: true, active: true, imageUrl: true, createdAt: true,
     },
   });
 

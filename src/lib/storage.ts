@@ -106,6 +106,32 @@ export async function deleteCampaignImage(imageUrl: string): Promise<void> {
   return deleteTenantFile(imageUrl);
 }
 
+// ── Product images ───────────────────────────────────────────
+
+export async function uploadProductImage({
+  barbershopId,
+  productId,
+  buffer,
+  contentType,
+}: {
+  barbershopId: string;
+  productId: string;
+  buffer: Buffer;
+  contentType?: string;
+}): Promise<{ path: string; url: string }> {
+  return uploadTenantFile({
+    tenantId: barbershopId,
+    folder: "products",
+    fileId: productId,
+    buffer,
+    contentType,
+  });
+}
+
+export async function deleteProductImage(imageUrl: string): Promise<void> {
+  return deleteTenantFile(imageUrl);
+}
+
 // ── Vitrine photos ───────────────────────────────────────────
 
 export async function uploadVitrineFoto({

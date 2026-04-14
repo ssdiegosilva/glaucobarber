@@ -9,16 +9,16 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
+  const all = searchParams.get("all") === "true"; // include inactive/deleted
 
   const products = await prisma.product.findMany({
     where: {
       barbershopId: session.user.barbershopId,
-      active: true,
-      deletedAt: null,
+      ...(all ? {} : { active: true, deletedAt: null }),
       ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
     },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, price: true, category: true, description: true, active: true },
+    select: { id: true, name: true, price: true, category: true, description: true, active: true, imageUrl: true, deletedAt: true },
   });
 
   return NextResponse.json({
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json() as { name?: string; price?: number | string; category?: string; description?: string };
+  const body = await req.json() as { name?: string; price?: number | string; category?: string; description?: string; imageUrl?: string };
 
   if (!body.name?.trim()) return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 });
   const price = Number(body.price);
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       price,
       category:     body.category?.trim() || null,
       description:  body.description?.trim() || null,
+      imageUrl:     body.imageUrl?.trim() || null,
     },
   });
 

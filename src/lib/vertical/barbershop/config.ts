@@ -48,6 +48,7 @@ export const barbershopVertical: VerticalConfig = {
       whatsapp_template:     "Template de WhatsApp",
       whatsapp_personalize:  "Mensagem WhatsApp (IA)",
       vitrine_caption:       "Legenda de Vitrine",
+      targeted_offer:        "Oferta Direcionada",
     },
     imageFeatures: ["campaign_image", "visual_style_generate", "brand_style_logo"],
     copilotSystemPrompt:

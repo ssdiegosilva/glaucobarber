@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const ALL_FEATURES = [
-  "dashboard", "agenda", "copilot", "financeiro", "meta",
-  "clients", "services", "offers", "campaigns", "vitrine", "criar-visual",
+  "dashboard", "agenda", "visitas", "produtos", "copilot", "financeiro", "meta",
+  "clients", "services", "offers", "targeted-offers", "campaigns", "vitrine", "criar-visual",
   "whatsapp", "whatsapp_auto", "post-sale", "settings", "billing",
 ] as const;
 
@@ -12,7 +12,7 @@ const TIERS = ["TRIAL", "FREE", "PRO", "ENTERPRISE"] as const;
 
 const BLOCKED: Record<string, string[]> = {
   TRIAL:      [],
-  FREE:       ["financeiro", "meta", "whatsapp_auto", "campaigns", "copilot", "post-sale", "criar-visual"],
+  FREE:       ["financeiro", "meta", "whatsapp_auto", "campaigns", "copilot", "post-sale", "criar-visual", "targeted-offers"],
   PRO:        [],
   ENTERPRISE: [],
 };

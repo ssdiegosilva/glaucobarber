@@ -148,6 +148,7 @@ model Barbershop {
   supportMessages     SupportMessage[]
   visits              Visit[]
   products            Product[]
+  targetedOffers      TargetedOffer[]
 
   // Segment (multi-vertical)
   segmentId String?
@@ -371,6 +372,7 @@ model Customer {
   customerReviews CustomerReview[]
   whatsappMessages WhatsappMessage[]
   visits       Visit[]
+  targetedOfferCustomers TargetedOfferCustomer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -425,6 +427,7 @@ model Product {
   description  String?
   price        Decimal   @db.Decimal(10, 2)
   category     String?
+  imageUrl     String?   // foto do produto (Supabase Storage public URL)
   active       Boolean   @default(true)
   deletedAt    DateTime?
   createdAt    DateTime  @default(now())
@@ -435,6 +438,50 @@ model Product {
 
   @@index([barbershopId])
   @@map("products")
+}
+
+// ============================================================
+// OFERTAS DIRECIONADAS
+// ============================================================
+
+model TargetedOffer {
+  id             String   @id @default(cuid())
+  barbershopId   String
+  title          String
+  type           String                        // "product" | "service"
+  referenceIds   String[]                      // IDs dos produtos/serviços selecionados
+  referenceNames String[]                      // snapshot dos nomes no momento da criação
+  daysInactive   Int                           // clientes sem comprar há mais de X dias
+  discount       Boolean  @default(false)
+  discountPct    Int?                          // 0–100, só se discount=true
+  messageTemplate String  @db.Text            // template aprovado pelo usuário
+  mediaImageUrl  String?                      // foto do produto a enviar via WhatsApp (snapshot)
+  status         String   @default("ACTIVE")  // "ACTIVE" | "COMPLETED" | "CANCELLED"
+  customersCount Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  barbershop Barbershop              @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customers  TargetedOfferCustomer[]
+
+  @@index([barbershopId])
+  @@map("targeted_offers")
+}
+
+model TargetedOfferCustomer {
+  id              String   @id @default(cuid())
+  targetedOfferId String
+  customerId      String
+  customerName    String
+  phone           String
+  message         String   @db.Text           // mensagem personalizada por IA
+  whatsappMsgId   String?                     // ID do WhatsappMessage na fila
+  createdAt       DateTime @default(now())
+
+  offer    TargetedOffer @relation(fields: [targetedOfferId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([targetedOfferId])
+  @@map("targeted_offer_customers")
 }
 
 model PostSaleAction {

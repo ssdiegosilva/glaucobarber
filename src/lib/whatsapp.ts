@@ -112,6 +112,46 @@ export async function sendWhatsAppTemplate(
   return (data?.messages?.[0]?.id as string) ?? "";
 }
 
+/**
+ * Envia uma imagem via WhatsApp com legenda (caption) opcional.
+ * imageUrl deve ser uma URL pública acessível pela Meta API.
+ */
+export async function sendWhatsAppImage(
+  to:       string,
+  imageUrl: string,
+  caption:  string,
+  creds:    WhatsAppCredentials
+): Promise<string> {
+  const phone = normalizePhone(to);
+
+  const response = await fetch(`${WHATSAPP_API_URL}/${creds.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization:  `Bearer ${creds.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type:    "individual",
+      to:                phone,
+      type:              "image",
+      image: {
+        link:    imageUrl,
+        caption: caption,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    console.error("[WhatsApp] image send error:", response.status, error?.error?.code, error?.error?.message);
+    throw new Error(`WhatsApp API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return (data?.messages?.[0]?.id as string) ?? "";
+}
+
 // ── Tipos de webhook ──────────────────────────────────────────
 
 interface WhatsAppStatusEntry {

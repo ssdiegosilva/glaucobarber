@@ -406,6 +406,35 @@ Retorne JSON com:
     const caption = completion.choices[0]?.message?.content?.trim() ?? "";
     return { caption };
   }
+
+  async generateTargetedOfferMessage(
+    templateBody: string,
+    customerName: string,
+    discount: boolean,
+    discountPct: number | null,
+    productNames: string[]
+  ): Promise<string> {
+    const discountLine = discount && discountPct
+      ? `A oferta inclui ${discountPct}% de desconto nos itens: ${productNames.join(", ")}.`
+      : `A oferta é sobre os itens: ${productNames.join(", ")}.`;
+
+    const prompt = [
+      `Você é um assistente de marketing que personaliza mensagens de WhatsApp para clientes de um estabelecimento.`,
+      `Personalize a mensagem abaixo para o cliente chamado "${customerName}".`,
+      `Mantenha o tom amigável e o conteúdo fiel ao template. ${discountLine}`,
+      `Substitua {nome} pelo nome do cliente. A mensagem deve ter no máximo 3 parágrafos curtos.`,
+      `Retorne APENAS o texto da mensagem, sem aspas, sem formatação extra.`,
+      `\nTemplate:\n${templateBody}`,
+    ].join("\n");
+
+    const completion = await this.client.chat.completions.create({
+      model: MODEL,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 400,
+    });
+
+    return completion.choices[0]?.message?.content?.trim() ?? templateBody.replace("{nome}", customerName);
+  }
 }
 
 function buildSuggestionsPrompt(ctx: AISuggestionRequest): string {
