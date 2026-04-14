@@ -187,7 +187,7 @@ export function Sidebar({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-foreground leading-tight truncate">
-              {barbershopName ?? "Voltou.ai"}
+              {barbershopName ?? "Voltaki"}
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
               Copiloto IA

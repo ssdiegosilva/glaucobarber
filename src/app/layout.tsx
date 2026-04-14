@@ -13,24 +13,24 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default:  "Voltou.ai – Seu cliente sempre volta",
-    template: "%s | Voltou.ai",
+    default:  "Voltaki – Seu cliente sempre volta",
+    template: "%s | Voltaki",
   },
   description:
     "Plataforma de fidelização inteligente. WhatsApp automático, campanhas com IA e gestão de clientes para seu negócio crescer.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://voltou.ai"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://voltaki.com.br"),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Voltou.ai",
+    title: "Voltaki",
   },
   openGraph: {
     type:        "website",
     locale:      "pt_BR",
-    url:         "https://voltou.ai",
-    siteName:    "Voltou.ai",
-    title:       "Voltou.ai – Seu cliente sempre volta",
+    url:         "https://voltaki.com.br",
+    siteName:    "Voltaki",
+    title:       "Voltaki – Seu cliente sempre volta",
     description: "Plataforma de fidelização inteligente com WhatsApp automático e IA.",
   },
 };

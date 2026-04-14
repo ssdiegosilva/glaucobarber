@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <Zap className="h-5 w-5 text-gold-400" />
           </div>
           <div>
-            <p className="font-bold text-foreground">Voltou.ai</p>
+            <p className="font-bold text-foreground">Voltaki</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Fidelização inteligente</p>
           </div>
         </div>

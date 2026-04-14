@@ -23,7 +23,7 @@ export default async function RootPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-500/20 border border-gold-500/30">
               <Zap className="h-4 w-4 text-gold-400" />
             </div>
-            <span className="font-display text-lg font-bold text-foreground">Voltou.ai</span>
+            <span className="font-display text-lg font-bold text-foreground">Voltaki</span>
           </div>
           <div className="flex items-center gap-3">
             <a href="#precos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -80,7 +80,7 @@ export default async function RootPage() {
             </h1>
 
             <p className="text-lg lg:text-xl text-muted-foreground mb-10 max-w-lg leading-relaxed">
-              O Voltou.ai manda WhatsApp automático para clientes que sumiram,
+              O Voltaki manda WhatsApp automático para clientes que sumiram,
               cria campanhas com IA e mostra exatamente o que fazer para seu negócio crescer.
             </p>
 
@@ -133,7 +133,7 @@ export default async function RootPage() {
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-gold-lg">
                 <Image
                   src="/glauco.jpg"
-                  alt="Negócio fidelizando clientes com Voltou.ai"
+                  alt="Negócio fidelizando clientes com Voltaki"
                   width={440}
                   height={560}
                   className="object-cover w-full h-[480px] lg:h-[560px]"
@@ -187,7 +187,7 @@ export default async function RootPage() {
               Pare de perder cliente. Comece a trazer de volta.
             </h2>
             <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-              Todo negócio perde cliente por falta de contato. O Voltou.ai resolve isso sozinho.
+              Todo negócio perde cliente por falta de contato. O Voltaki resolve isso sozinho.
             </p>
           </div>
 
@@ -477,9 +477,9 @@ export default async function RootPage() {
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gold-500/15 border border-gold-500/20">
               <Zap className="h-3 w-3 text-gold-400" />
             </div>
-            <span className="text-sm font-semibold text-muted-foreground">Voltou.ai</span>
+            <span className="text-sm font-semibold text-muted-foreground">Voltaki</span>
           </div>
-          <p className="text-xs text-muted-foreground">© 2025 Voltou.ai</p>
+          <p className="text-xs text-muted-foreground">© 2025 Voltaki</p>
           <div className="flex items-center gap-4">
             <a href="#precos" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Preços</a>
             <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">

@@ -113,7 +113,7 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
             <Scissors className="h-3.5 w-3.5 text-gold-400" />
           </div>
           <div className="leading-tight min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{barbershopName ?? "Voltou.ai"}</p>
+            <p className="text-sm font-semibold text-foreground truncate">{barbershopName ?? "Voltaki"}</p>
             <p className="text-[9px] text-muted-foreground uppercase tracking-widest">Copiloto IA</p>
           </div>
         </Link>
