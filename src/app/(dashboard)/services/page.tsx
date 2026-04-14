@@ -23,7 +23,7 @@ export default async function ServicesPage() {
     }),
     prisma.barbershop.findUnique({
       where:  { id: barbershopId },
-      select: { address: true, city: true, state: true, segment: { select: { tenantLabel: true } } },
+      select: { address: true, city: true, state: true, segment: { select: { tenantLabel: true, serviceCategories: true } } },
     }),
   ]);
 
@@ -39,6 +39,7 @@ export default async function ServicesPage() {
       <div className="p-6">
         <ServicesClient
           tenantLabel={barbershop?.segment?.tenantLabel ?? "estabelecimento"}
+          segmentCategories={(() => { try { return JSON.parse(barbershop?.segment?.serviceCategories ?? "[]"); } catch { return []; } })()}
           initialServices={services.map((s) => ({
             id:               s.id,
             name:             s.name,

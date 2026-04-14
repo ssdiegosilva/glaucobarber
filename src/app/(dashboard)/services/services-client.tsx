@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-const CATEGORY_LABEL   = { HAIRCUT: "Corte", BEARD: "Barba", COMBO: "Combo", TREATMENT: "Tratamento", OTHER: "Outro" };
 const CATEGORY_VARIANT = { HAIRCUT: "default", BEARD: "info", COMBO: "success", TREATMENT: "warning", OTHER: "outline" } as const;
+const ENUM_VALUES = ["HAIRCUT", "BEARD", "COMBO", "TREATMENT", "OTHER"] as const;
 
 interface Service {
   id:               string;
@@ -50,12 +50,15 @@ interface BarbershopLocation {
   state:   string | null;
 }
 
+interface SegmentCategory { key: string; label: string; }
+
 interface Props {
   initialServices:      Service[];
   initialOpportunities: Opportunity[];
   hasTrinks:            boolean;
   barbershopLocation:   BarbershopLocation;
   tenantLabel?:         string;
+  segmentCategories?:   SegmentCategory[];
 }
 
 // ── Address capture modal ─────────────────────────────────────
@@ -220,7 +223,7 @@ function AddressModal({
   );
 }
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { value: "HAIRCUT",   label: "Corte" },
   { value: "BEARD",     label: "Barba" },
   { value: "COMBO",     label: "Combo" },
@@ -228,7 +231,15 @@ const CATEGORIES = [
   { value: "OTHER",     label: "Outro" },
 ];
 
-function NewServiceModal({ onSave, onClose }: { onSave: (svc: Service) => void; onClose: () => void }) {
+function buildCategories(segmentCategories?: SegmentCategory[]) {
+  if (!segmentCategories || segmentCategories.length === 0) return DEFAULT_CATEGORIES;
+  return segmentCategories.map((cat, i) => ({
+    value: ENUM_VALUES[Math.min(i, ENUM_VALUES.length - 1)],
+    label: cat.label,
+  }));
+}
+
+function NewServiceModal({ onSave, onClose, categories }: { onSave: (svc: Service) => void; onClose: () => void; categories: { value: string; label: string }[] }) {
   const [name, setName]           = useState("");
   const [category, setCategory]   = useState("HAIRCUT");
   const [price, setPrice]         = useState("");
@@ -289,7 +300,7 @@ function NewServiceModal({ onSave, onClose }: { onSave: (svc: Service) => void; 
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
@@ -343,7 +354,9 @@ function NewServiceModal({ onSave, onClose }: { onSave: (svc: Service) => void; 
   );
 }
 
-export function ServicesClient({ initialServices, initialOpportunities, hasTrinks, barbershopLocation, tenantLabel = "estabelecimento" }: Props) {
+export function ServicesClient({ initialServices, initialOpportunities, hasTrinks, barbershopLocation, tenantLabel = "estabelecimento", segmentCategories }: Props) {
+  const categories = buildCategories(segmentCategories);
+  const categoryLabel: Record<string, string> = Object.fromEntries(categories.map((c) => [c.value, c.label]));
   const [services, setServices]                   = useState(initialServices);
   const [opportunities, setOpportunities]         = useState(initialOpportunities);
   const [editingId, setEditingId]                 = useState<string | null>(null);
@@ -525,6 +538,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
         <NewServiceModal
           onSave={(svc) => setServices((prev) => [...prev, svc])}
           onClose={() => setShowNewServiceModal(false)}
+          categories={categories}
         />
       )}
 
@@ -596,7 +610,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                       Novo • Oportunidade
                     </span>
                     <Badge variant={CATEGORY_VARIANT[opp.category as keyof typeof CATEGORY_VARIANT] as never} className="text-[10px]">
-                      {CATEGORY_LABEL[opp.category as keyof typeof CATEGORY_LABEL] ?? opp.category}
+                      {categoryLabel[opp.category] ?? opp.category}
                     </Badge>
                   </div>
                 </div>
@@ -690,7 +704,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                   </div>
                   <div className="flex gap-1.5 items-center">
                     <Badge variant={CATEGORY_VARIANT[s.category as keyof typeof CATEGORY_VARIANT] as never} className="text-[10px]">
-                      {CATEGORY_LABEL[s.category as keyof typeof CATEGORY_LABEL]}
+                      {categoryLabel[s.category] ?? s.category}
                     </Badge>
                     {!s.active && <Badge variant="destructive" className="text-[10px]">Inativo</Badge>}
                     {!isEditing && (
