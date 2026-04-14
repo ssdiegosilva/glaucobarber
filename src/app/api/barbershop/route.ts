@@ -14,7 +14,7 @@ function normalizeSlug(input: string): string {
 
 const allowedFields = ["name", "email", "phone", "address", "city", "state", "websiteUrl", "description", "slug", "logoUrl", "instagramUrl", "brandStyle", "googleReviewUrl"] as const;
 
-type BarbershopUpdate = Partial<Record<(typeof allowedFields)[number], string>>;
+type BarbershopUpdate = Partial<Record<(typeof allowedFields)[number], string>> & { segmentId?: string };
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
@@ -32,7 +32,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Nome e slug são obrigatórios" }, { status: 400 });
   }
 
-  const data: BarbershopUpdate = {};
+  const data: BarbershopUpdate & { segmentId?: string } = {};
+
+  // Handle segmentId separately (not in allowedFields string union)
+  if (typeof body.segmentId === "string" && body.segmentId.trim()) {
+    const segExists = await prisma.segment.findUnique({ where: { id: body.segmentId.trim() }, select: { id: true } });
+    if (!segExists) return NextResponse.json({ error: "Segmento inválido" }, { status: 400 });
+    data.segmentId = body.segmentId.trim();
+  }
 
   if (updatingIdentity) {
     const slug = normalizeSlug(slugRaw!);

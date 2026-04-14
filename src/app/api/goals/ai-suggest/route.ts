@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   const [barbershop, agg, expenseHistory] = await Promise.all([
     prisma.barbershop.findUnique({
       where:  { id: session.user.barbershopId },
-      select: { state: true, city: true },
+      select: { state: true, city: true, segment: { select: { tenantLabel: true, displayName: true } } },
     }),
     prisma.appointment.aggregate({
       where:  { barbershopId: session.user.barbershopId, status: "COMPLETED" },
@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
 
   const stateCode      = barbershop?.state?.toUpperCase().trim().replace(/^([A-Z]{2}).*/, "$1") ?? null;
   const city           = barbershop?.city?.trim() ?? null;
+  const establishmentType = barbershop?.segment?.tenantLabel ?? "barbearia";
   const region         = (stateCode && STATE_TO_REGION[stateCode]) ?? "Sudeste";
   const fallback       = REGIONAL_FALLBACK[region];
   const historicalTicket = agg._avg.price && agg._count._all >= 20 ? Number(agg._avg.price) : null;
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
   const monthName = MONTH_NAMES_PT[Number(month) - 1];
 
   // ── Build prompt for web-search model ────────────────────────
-  const searchPrompt = `Você é um consultor financeiro especializado em barbearias brasileiras com acesso à internet.
+  const searchPrompt = `Você é um consultor financeiro especializado em ${establishmentType}s brasileiros com acesso à internet.
 
 TAREFA — faça as duas pesquisas abaixo em paralelo:
 
@@ -149,9 +150,9 @@ TAREFA — faça as duas pesquisas abaixo em paralelo:
    Inclua: feriados nacionais, estaduais de ${stateCode ?? "SP"}, municipais de ${city ?? "São Paulo"} e pontos facultativos.
    ${cachedHolidays.length > 0 ? `(Já temos estes feriados cacheados: ${cachedHolidays.map((h) => `dia ${h.day} - ${h.name}`).join(", ")})` : ""}
 
-2. TICKET MÉDIO: Busque o ticket médio atual de barbearias em ${locationStr}.
-   Pesquise: "ticket médio barbearia ${city ?? stateCode ?? region} 2024 2025", "preço corte de cabelo ${city ?? region}".
-   Fontes: SEBRAE, Trinks, GetNinjas, Habitissimo.
+2. TICKET MÉDIO: Busque o ticket médio atual de ${establishmentType}s em ${locationStr}.
+   Pesquise: "ticket médio ${establishmentType} ${city ?? stateCode ?? region} 2024 2025", "preço serviço ${establishmentType} ${city ?? region}".
+   Fontes: SEBRAE, GetNinjas, Habitissimo.
 
 Com base nos dados, calcule a meta de faturamento mensal:
 - Localidade: ${locationStr}
@@ -246,9 +247,9 @@ RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
 
   // ── Step 2: fallback — use standard model + regional data ─────
   try {
-    const fallbackPrompt = `Você é um consultor financeiro especializado em barbearias brasileiras.
+    const fallbackPrompt = `Você é um consultor financeiro especializado em ${establishmentType}s brasileiros.
 
-Dados regionais de referência para ${locationStr} (SEBRAE/Trinks 2023):
+Dados regionais de referência para ${locationStr} (SEBRAE 2023):
 - Ticket médio regional (${region}): R$ ${fallback.min}–${fallback.max} (média: R$ ${fallback.avg})
 ${historicalTicket ? `- Ticket histórico desta barbearia: R$ ${historicalTicket.toFixed(2)}` : ""}
 
