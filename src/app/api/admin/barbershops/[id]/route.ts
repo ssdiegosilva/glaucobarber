@@ -42,6 +42,28 @@ export async function GET(
   });
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+  const body = await req.json();
+
+  const data: Record<string, unknown> = {};
+  if (body.segmentId !== undefined) data.segmentId = body.segmentId ?? null;
+  if (body.name      !== undefined) data.name      = body.name;
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
+  const shop = await prisma.barbershop.update({ where: { id }, data, select: { id: true, segmentId: true } });
+  return NextResponse.json(shop);
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

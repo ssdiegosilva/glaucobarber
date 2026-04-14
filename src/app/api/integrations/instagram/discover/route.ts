@@ -11,13 +11,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const accounts = await fetchInstagramAccounts(accessToken);
-    if (accounts.length === 0) {
-      return NextResponse.json({
-        error: "Nenhuma conta Instagram Business encontrada vinculada às suas páginas. Certifique-se que a página está conectada ao Instagram Business nas configurações do Facebook.",
-      }, { status: 404 });
-    }
     return NextResponse.json({ accounts });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 400 });
+    return NextResponse.json({ error: String(e) }, { status: 404 });
   }
 }

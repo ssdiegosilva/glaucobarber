@@ -5,15 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Brain, CreditCard, Users, Calendar, ExternalLink, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Brain, CreditCard, Users, Calendar, ExternalLink, AlertTriangle, LogIn, Layers } from "lucide-react";
+
 
 type Shop = {
   id: string; name: string; slug: string; email: string; city: string; state: string;
   createdAt: string; customers: number; appointments: number; stripeCustomerId: string | null;
+  segmentId: string | null; segmentName: string | null;
   memberships: { id: string; role: string; active: boolean; user: { id: string; name: string | null; email: string } }[];
 };
 type Sub = { planTier: string; status: string; currentPeriodEnd: string; trialEndsAt: string | null; cancelAtPeriodEnd: boolean; aiCreditBalance: number } | null;
+type Segment = { id: string; displayName: string; key: string };
 
 const PLAN_COLOR: Record<string, string> = {
   FREE: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
@@ -38,19 +40,24 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 export function BarbershopDetailClient({
-  shop, subscription, aiUsages, billingThisMonth,
+  shop, segments, subscription, aiUsages, billingThisMonth,
 }: {
   shop: Shop;
+  segments: Segment[];
   subscription: Sub;
   aiUsages: { yearMonth: string; usageCount: number }[];
   billingThisMonth: { amountCents: number; count: number };
 }) {
   const router = useRouter();
-  const [planTier, setPlanTier]   = useState(subscription?.planTier ?? "FREE");
-  const [subStatus, setSubStatus] = useState(subscription?.status   ?? "ACTIVE");
-  const [credits,   setCredits]   = useState("");
-  const [saving,    setSaving]    = useState(false);
-  const [msg,       setMsg]       = useState("");
+  const [planTier,    setPlanTier]   = useState(subscription?.planTier ?? "FREE");
+  const [subStatus,   setSubStatus]  = useState(subscription?.status   ?? "ACTIVE");
+  const [credits,     setCredits]    = useState("");
+  const [saving,      setSaving]     = useState(false);
+  const [msg,         setMsg]        = useState("");
+  const [segmentId,   setSegmentId]  = useState(shop.segmentId ?? "");
+  const [segSaving,   setSegSaving]  = useState(false);
+  const [segMsg,      setSegMsg]     = useState("");
+  const [impersonating, setImpersonating] = useState(false);
 
   async function overridePlan() {
     setSaving(true); setMsg("");
@@ -61,6 +68,31 @@ export function BarbershopDetailClient({
     setSaving(false);
     setMsg(res.ok ? "✅ Plano atualizado!" : "❌ Erro ao salvar");
     if (res.ok) router.refresh();
+  }
+
+  async function saveSegment() {
+    setSegSaving(true); setSegMsg("");
+    const res = await fetch(`/api/admin/barbershops/${shop.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ segmentId: segmentId || null }),
+    });
+    setSegSaving(false);
+    setSegMsg(res.ok ? "✅ Segmento atualizado!" : "❌ Erro ao salvar");
+    if (res.ok) router.refresh();
+  }
+
+  async function impersonate() {
+    setImpersonating(true);
+    const res = await fetch("/api/admin/impersonate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barbershopId: shop.id }),
+    });
+    if (res.ok) {
+      router.push("/dashboard");
+    } else {
+      setImpersonating(false);
+      alert("Erro ao acessar como estabelecimento");
+    }
   }
 
   async function addCredits() {
@@ -78,16 +110,27 @@ export function BarbershopDetailClient({
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
-      <div className="flex items-center gap-3">
-        <Link href="/admin/barbershops">
-          <Button size="sm" variant="ghost" className="h-8 px-2">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">{shop.name}</h1>
-          <p className="text-sm text-muted-foreground">{shop.email} · {shop.city}, {shop.state}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/admin/barbershops">
+            <Button size="sm" variant="ghost" className="h-8 px-2">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">{shop.name}</h1>
+            <p className="text-sm text-muted-foreground">{shop.email} · {shop.city}, {shop.state}</p>
+          </div>
         </div>
+        <Button
+          onClick={impersonate}
+          disabled={impersonating}
+          size="sm"
+          className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white"
+        >
+          <LogIn className="h-4 w-4" />
+          {impersonating ? "Acessando…" : "Acessar como estabelecimento"}
+        </Button>
       </div>
 
       {/* Stats row */}
@@ -175,6 +218,33 @@ export function BarbershopDetailClient({
           )}
         </Card>
       </div>
+
+      {/* Segment */}
+      <Card title="Tipo / Segmento">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Layers className="h-3.5 w-3.5" />
+            <span>Segmento atual: <span className="text-foreground">{shop.segmentName ?? "Nenhum (padrão barbearia)"}</span></span>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Segmento</label>
+            <select
+              value={segmentId}
+              onChange={(e) => setSegmentId(e.target.value)}
+              className="w-full rounded-md border border-border bg-surface-700 px-3 py-2 text-sm text-foreground"
+            >
+              <option value="">— Padrão (barbearia) —</option>
+              {segments.map((s) => (
+                <option key={s.id} value={s.id}>{s.displayName} ({s.key})</option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={saveSegment} disabled={segSaving} size="sm" className="w-full">
+            {segSaving ? "Salvando…" : "Salvar segmento"}
+          </Button>
+          {segMsg && <p className="text-xs text-center">{segMsg}</p>}
+        </div>
+      </Card>
 
       {/* Members */}
       <Card title="Membros">

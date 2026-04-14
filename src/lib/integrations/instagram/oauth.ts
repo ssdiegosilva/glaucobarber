@@ -86,5 +86,14 @@ export async function fetchInstagramAccounts(userToken: string): Promise<IgAccou
     })
   );
 
+  if (accounts.length === 0) {
+    const pageNames = pages.map((p) => `"${p.name}"`).join(", ");
+    throw new Error(
+      `Nenhuma conta Instagram Business encontrada. ` +
+      `${pages.length} página(s) do Facebook verificada(s): ${pageNames}. ` +
+      `Acesse as configurações da página no Facebook → Instagram → "Conectar conta" e certifique-se de que sua conta Instagram é do tipo Business ou Creator.`
+    );
+  }
+
   return accounts;
 }

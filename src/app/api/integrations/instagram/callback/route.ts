@@ -85,13 +85,6 @@ export async function GET(req: NextRequest) {
     return redirectSettings({ ig: "error", msg: String(e) });
   }
 
-  if (accounts.length === 0) {
-    return redirectSettings({
-      ig:  "error",
-      msg: "Nenhuma conta Instagram Business encontrada vinculada às suas páginas",
-    });
-  }
-
   // Single account → auto-save and done
   if (accounts.length === 1) {
     const acc = accounts[0];

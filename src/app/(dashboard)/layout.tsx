@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { AiLimitModal } from "@/components/ui/ai-limit-modal";
+import { ImpersonateBanner } from "@/components/layout/impersonate-banner";
 import { prisma } from "@/lib/prisma";
 import { checkAiAllowance } from "@/lib/billing";
 import { getSegmentTheme } from "@/lib/core/segment";
@@ -80,6 +81,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           availableModules={availableModules.length > 0 ? availableModules : undefined}
         />
         <main className="flex-1 overflow-y-auto">
+          {session.user.impersonating && (
+            <ImpersonateBanner barbershopName={barbershopName} />
+          )}
           <MobileNav
             barbershopName={barbershopName}
             userName={session.user.name ?? null}

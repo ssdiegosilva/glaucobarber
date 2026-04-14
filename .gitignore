@@ -80,3 +80,4 @@ skills-lock.json
 # Only commit: capacitor.config.ts, mobile-shell/, src/lib/mobile/
 /android/
 /ios/
+.env*.local

@@ -8,7 +8,6 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
 const SCOPES = [
   "pages_show_list",
-  "pages_read_engagement",
   "instagram_basic",
   "instagram_content_publish",
 ].join(",");

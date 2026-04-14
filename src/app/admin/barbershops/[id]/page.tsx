@@ -5,14 +5,22 @@ import { BarbershopDetailClient } from "./barbershop-detail-client";
 export default async function AdminBarbershopDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const shop = await prisma.barbershop.findUnique({
-    where: { id },
-    include: {
-      subscription: true,
-      memberships: { include: { user: { select: { id: true, name: true, email: true } } } },
-      _count: { select: { customers: true, appointments: true } },
-    },
-  });
+  const [shop, segments] = await Promise.all([
+    prisma.barbershop.findUnique({
+      where: { id },
+      include: {
+        subscription: true,
+        memberships: { include: { user: { select: { id: true, name: true, email: true } } } },
+        segment:     { select: { id: true, displayName: true, key: true } },
+        _count:      { select: { customers: true, appointments: true } },
+      },
+    }),
+    prisma.segment.findMany({
+      where:   { active: true },
+      orderBy: { sortOrder: "asc" },
+      select:  { id: true, displayName: true, key: true },
+    }),
+  ]);
 
   if (!shop || shop.slug === "__platform_admin__") notFound();
 
@@ -27,21 +35,24 @@ export default async function AdminBarbershopDetailPage({ params }: { params: Pr
   return (
     <BarbershopDetailClient
       shop={{
-        id:          shop.id,
-        name:        shop.name,
-        slug:        shop.slug,
-        email:       shop.email ?? "",
-        city:        shop.city  ?? "",
-        state:       shop.state ?? "",
-        createdAt:   shop.createdAt.toISOString(),
-        customers:   shop._count.customers,
-        appointments: shop._count.appointments,
+        id:               shop.id,
+        name:             shop.name,
+        slug:             shop.slug,
+        email:            shop.email ?? "",
+        city:             shop.city  ?? "",
+        state:            shop.state ?? "",
+        createdAt:        shop.createdAt.toISOString(),
+        customers:        shop._count.customers,
+        appointments:     shop._count.appointments,
         stripeCustomerId: shop.stripeCustomerId ?? null,
-        memberships: shop.memberships.map((m) => ({
+        segmentId:        shop.segmentId ?? null,
+        segmentName:      shop.segment?.displayName ?? null,
+        memberships:      shop.memberships.map((m) => ({
           id: m.id, role: m.role, active: m.active,
           user: m.user,
         })),
       }}
+      segments={segments}
       subscription={shop.subscription ? {
         planTier:          shop.subscription.planTier,
         status:            shop.subscription.status,
