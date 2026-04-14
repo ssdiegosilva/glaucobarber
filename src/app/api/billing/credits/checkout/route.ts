@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://glaucobarber.com";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://voltaki.com";
 
 export async function POST(req: NextRequest) {
   const session = await auth();

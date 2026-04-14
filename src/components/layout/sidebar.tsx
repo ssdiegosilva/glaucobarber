@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -182,12 +183,10 @@ export function Sidebar({
           onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push("/dashboard")}
           className="flex w-full items-center gap-3 px-5 py-5 hover:bg-surface-800/40 transition-colors text-left"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 border border-primary/30 shrink-0">
-            <BrandIcon className="h-4 w-4 text-primary" />
-          </div>
+          <Image src="/logo-dark.png" alt="Voltaki" width={100} height={30} className="h-7 w-auto shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-foreground leading-tight truncate">
-              {barbershopName ?? "Voltaki"}
+              {barbershopName ?? ""}
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
               Copiloto IA
@@ -212,8 +211,8 @@ export function Sidebar({
                   disabled={switching}
                   className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-700 transition-colors"
                 >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 border border-primary/20 shrink-0">
-                    <BrandIcon className="h-3 w-3 text-primary" />
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 border border-primary/20 shrink-0 text-xs font-bold text-primary">
+                    {m.barbershopName.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{m.barbershopName}</p>

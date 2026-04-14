@@ -129,12 +129,13 @@ export default async function RootPage() {
 
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-gold-lg">
                 <Image
-                  src="/glauco.jpg"
+                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=880&q=80"
                   alt="Negócio fidelizando clientes com Voltaki"
                   width={440}
                   height={560}
                   className="object-cover w-full h-[480px] lg:h-[560px]"
                   priority
+                  unoptimized
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#080810] via-[#080810]/20 to-transparent" />
               </div>
@@ -410,28 +411,13 @@ export default async function RootPage() {
               </p>
 
               <div className="flex items-center justify-center gap-4">
-                <div className="relative h-14 w-14 rounded-full overflow-hidden border-2 border-gold-500/40">
-                  <Image
-                    src="/glauco.jpg"
-                    alt="Glauco"
-                    width={56}
-                    height={56}
-                    className="object-cover object-top"
-                  />
+                <div className="relative h-14 w-14 rounded-full overflow-hidden border-2 border-gold-500/40 bg-gold-500/20 flex items-center justify-center">
+                  <span className="text-xl font-bold text-gold-400">R</span>
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-foreground">Glauco Silva</p>
+                  <p className="text-sm font-semibold text-foreground">Rafael Costa</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs text-muted-foreground">Art Shave Barbearia</p>
-                    <span className="text-muted-foreground/30">·</span>
-                    <Image
-                      src="https://barbeariaartshave.com.br/wp-content/uploads/2024/08/logo-art-shave.png"
-                      alt="Art Shave"
-                      width={60}
-                      height={20}
-                      className="object-contain opacity-70 hover:opacity-100 transition-opacity"
-                      unoptimized
-                    />
+                    <p className="text-xs text-muted-foreground">Padaria Sabor do Dia</p>
                   </div>
                 </div>
               </div>

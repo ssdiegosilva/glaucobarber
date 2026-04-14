@@ -20,7 +20,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               Só precisei aprovar.&quot;
             </p>
             <footer className="text-sm text-muted-foreground">
-              — Glauco Silva, <cite className="not-italic text-gold-400">Art Shave Barbearia</cite>
+              — Rafael Costa, <cite className="not-italic text-gold-400">Padaria Sabor do Dia</cite>
             </footer>
           </blockquote>
         </div>

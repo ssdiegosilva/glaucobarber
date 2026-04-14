@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { NAV, SEGMENT_ICON_MAP } from "./sidebar";
 import { Scissors, Menu, X, Bell, Sparkles, type LucideIcon } from "lucide-react";
@@ -109,13 +110,10 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
       <div className="flex items-center justify-between bg-card/90 backdrop-blur border-b border-border px-4 py-2.5 gap-3">
         {/* Logo + name */}
         <Link href="/dashboard" className="flex items-center gap-2 min-w-0" onClick={() => setOpen(false)}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-500/15 border border-gold-500/30">
-            <Scissors className="h-3.5 w-3.5 text-gold-400" />
-          </div>
-          <div className="leading-tight min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{barbershopName ?? "Voltaki"}</p>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-widest">Copiloto IA</p>
-          </div>
+          <Image src="/logo-dark.png" alt="Voltaki" width={90} height={28} className="h-7 w-auto shrink-0" />
+          {barbershopName && (
+            <p className="text-sm font-semibold text-foreground truncate">{barbershopName}</p>
+          )}
         </Link>
 
         <div className="flex items-center gap-2 shrink-0">

@@ -47,7 +47,7 @@ export function AdminMobileNav() {
           </span>
           <div className="leading-tight">
             <p className="text-sm font-semibold text-foreground">Admin</p>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-widest">GlaucoBarber</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-widest">Voltaki</p>
           </div>
         </Link>
 

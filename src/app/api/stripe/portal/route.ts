@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sem assinatura Stripe" }, { status: 400 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://glaucobarber.com";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://voltaki.com";
 
   try {
     const portal = await createPortalSession({

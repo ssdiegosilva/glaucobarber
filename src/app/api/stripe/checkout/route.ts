@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     select: { stripeCustomerId: true, id: true },
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://glaucobarber.com";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://voltaki.com";
 
   const barbershopId = barbershop!.id;
   let stripeCustomerId = barbershop?.stripeCustomerId ?? null;

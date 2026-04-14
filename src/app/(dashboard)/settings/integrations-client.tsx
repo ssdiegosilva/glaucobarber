@@ -1101,7 +1101,7 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
             <div>
               <p className="text-xs font-semibold text-green-300 mb-1">Para que serve?</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Com o WhatsApp Business conectado, o GlaucoBarber envia mensagens automaticamente para seus clientes —
+                Com o WhatsApp Business conectado, o Voltaki envia mensagens automaticamente para seus clientes —
                 pedidos de avaliação no Google, acompanhamento pós-atendimento, reativação de clientes inativos e promoções.
                 Tudo sem você precisar digitar nada.
               </p>
@@ -1114,8 +1114,8 @@ export function IntegrationsClient({ integration, syncRuns, barbershopId }: {
                 Esta etapa exige acesso ao <span className="text-foreground/80 font-medium">Meta Business Manager</span> e
                 criação de uma conta WhatsApp Business API. É uma configuração técnica — se precisar de ajuda, entre em
                 contato:{" "}
-                <a href="mailto:contato@glaucobarber.com" className="text-green-400 hover:text-green-300 underline font-medium">
-                  contato@glaucobarber.com
+                <a href="mailto:contato@voltaki.com" className="text-green-400 hover:text-green-300 underline font-medium">
+                  contato@voltaki.com
                 </a>
               </p>
             </div>
