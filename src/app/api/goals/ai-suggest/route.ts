@@ -160,9 +160,9 @@ Com base nos dados, calcule a meta de faturamento mensal:
 - Dias de folga/semana: ${offDayNames}
 - Dias úteis (excluindo folgas e feriados que caem em dias úteis): ${workingDaysCount}
 - Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade: ${totalCapacity}
-${historicalTicket ? `- Ticket histórico da barbearia: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} atend.)` : "- Sem histórico de atendimentos"}
+${historicalTicket ? `- Ticket histórico do ${establishmentType}: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} atend.)` : "- Sem histórico de atendimentos"}
 ${avgMonthlyExpenses ? `- Custos mensais médios: R$ ${avgMonthlyExpenses.toFixed(0)} (${topExpenses.join(" | ")})` : "- Sem custos cadastrados"}
-${wizardContext ? `- Contexto do barbeiro: "${wizardContext}"` : ""}
+${wizardContext ? `- Contexto do profissional: "${wizardContext}"` : ""}
 
 Regras:
 - Ocupação esperada: 70% da capacidade
@@ -179,7 +179,7 @@ RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
   "ticketMaxFound": <ou null>,
   "ticketSource": "<fonte>",
   "referenceTicket": <ticket usado no cálculo>,
-  "explanation": "<2 frases motivadoras mencionando dias úteis reais, feriados do mês e meta diária>"
+  "explanation": "<2 frases motivadoras sobre o ${establishmentType}, mencionando dias úteis reais, feriados do mês e meta diária. Use a palavra '${establishmentType}' — nunca 'barbearia'.>"
 }
 \`\`\``;
 
@@ -251,9 +251,9 @@ RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
 
 Dados regionais de referência para ${locationStr} (SEBRAE 2023):
 - Ticket médio regional (${region}): R$ ${fallback.min}–${fallback.max} (média: R$ ${fallback.avg})
-${historicalTicket ? `- Ticket histórico desta barbearia: R$ ${historicalTicket.toFixed(2)}` : ""}
+${historicalTicket ? `- Ticket histórico deste ${establishmentType}: R$ ${historicalTicket.toFixed(2)}` : ""}
 
-Parâmetros da barbearia:
+Parâmetros do ${establishmentType}:
 - Mês: ${month}/${year} | Dias úteis: ${workingDaysCount} | Folgas: ${offDayNames}
 - Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade total: ${totalCapacity}
 ${avgMonthlyExpenses ? `- Custos mensais médios: R$ ${avgMonthlyExpenses.toFixed(0)} (${topExpenses.join(" | ")})` : "- Sem custos cadastrados"}
@@ -261,15 +261,15 @@ ${wizardContext ? `- Contexto: "${wizardContext}"` : ""}
 
 Calcule a meta considerando 70% de ocupação e o ticket médio regional como base.
 ${avgMonthlyExpenses ? `A meta deve cobrir os custos mensais (R$ ${avgMonthlyExpenses.toFixed(0)}) com pelo menos 30% de margem de lucro.` : ""}
-Responda APENAS em JSON:
-{"suggestedRevenueTarget":<inteiro>,"referenceTicket":<inteiro>,"explanation":"<2 frases>"}`;
+Responda APENAS em JSON. Na explicação, use a palavra "${establishmentType}" — nunca "barbearia":
+{"suggestedRevenueTarget":<inteiro>,"referenceTicket":<inteiro>,"explanation":"<2 frases sobre o ${establishmentType}>"}`;
 
     const completion = await client.chat.completions.create({
       model:           MODEL,
       max_tokens:      256,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "Consultor financeiro de barbearias. Responda em JSON." },
+        { role: "system", content: `Consultor financeiro de ${establishmentType}s. Responda em JSON.` },
         { role: "user",   content: fallbackPrompt },
       ],
     });
@@ -286,9 +286,9 @@ Responda APENAS em JSON:
       referenceTicket:   parsed.referenceTicket ?? fallback.avg,
       historicalTicket:    historicalTicket ? Math.round(historicalTicket) : null,
       avgMonthlyExpenses:  avgMonthlyExpenses ? Math.round(avgMonthlyExpenses) : null,
-      ticketSource:        "SEBRAE / Trinks 2023 (dados regionais)",
+      ticketSource:        "SEBRAE 2023 (dados regionais)",
       webSearched:         false,
-      explanation: parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket regional de R$ ${fallback.avg} (${region}), a meta de 70% de ocupação resulta neste valor.`,
+      explanation: parsed.explanation ?? `Com ${workingDaysCount} dias úteis e ticket regional de R$ ${fallback.avg} (${region}), o ${establishmentType} pode atingir esta meta com 70% de ocupação.`,
     });
   } catch {
     const suggested = Math.round(totalCapacity * 0.70 * fallback.avg);
@@ -301,9 +301,9 @@ Responda APENAS em JSON:
       referenceTicket:   fallback.avg,
       historicalTicket:    historicalTicket ? Math.round(historicalTicket) : null,
       avgMonthlyExpenses:  avgMonthlyExpenses ? Math.round(avgMonthlyExpenses) : null,
-      ticketSource:        "SEBRAE / Trinks 2023 (dados regionais)",
+      ticketSource:        "SEBRAE 2023 (dados regionais)",
       webSearched:         false,
-      explanation: `Com ${workingDaysCount} dias úteis, ticket médio de R$ ${fallback.avg} (${region}) e 70% de ocupação, a meta estimada é R$ ${suggested.toLocaleString("pt-BR")}.`,
+      explanation: `Com ${workingDaysCount} dias úteis, ticket médio de R$ ${fallback.avg} (${region}) e 70% de ocupação, o ${establishmentType} pode faturar R$ ${suggested.toLocaleString("pt-BR")}.`,
     });
   }
 }

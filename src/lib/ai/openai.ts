@@ -64,17 +64,17 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
-  async generateCampaignThemes(barbershopName: string, _barbershopId?: string): Promise<{ themes: { title: string; description: string }[] }> {
+  async generateCampaignThemes(barbershopName: string, _barbershopId?: string, tenantLabel = "barbearia"): Promise<{ themes: { title: string; description: string }[] }> {
     const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
     const response = await (this.client as any).responses.create({
       model: MODEL,
       tools: [{ type: "web_search_preview" }],
-      input: `Hoje é ${today}. Você é um estrategista de marketing para a barbearia "${barbershopName}".
+      input: `Hoje é ${today}. Você é um estrategista de marketing para o ${tenantLabel} "${barbershopName}".
 
-Pesquise na internet as últimas notícias, tendências e eventos relevantes da semana no Brasil e no mundo. Com base nisso, sugira exatamente 3 temas criativos e oportunos para campanhas de marketing de barbearia no Instagram.
+Pesquise na internet as últimas notícias, tendências e eventos relevantes da semana no Brasil e no mundo. Com base nisso, sugira exatamente 3 temas criativos e oportunos para campanhas de marketing de ${tenantLabel} no Instagram.
 
-Cada tema deve conectar uma notícia/tendência atual com o universo da barbearia de forma inteligente e engajante.
+Cada tema deve conectar uma notícia/tendência atual com o universo do ${tenantLabel} de forma inteligente e engajante.
 
 Retorne APENAS JSON válido, sem markdown:
 {

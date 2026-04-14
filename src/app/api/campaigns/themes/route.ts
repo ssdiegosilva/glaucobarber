@@ -15,11 +15,12 @@ export async function POST() {
 
   const barbershop = await prisma.barbershop.findUnique({
     where: { id: session.user.barbershopId },
-    select: { name: true },
+    select: { name: true, segment: { select: { tenantLabel: true } } },
   });
 
+  const tenantLabel = barbershop?.segment?.tenantLabel ?? "barbearia";
   const provider = getAIProvider();
-  const result = await provider.generateCampaignThemes(barbershop?.name ?? "Barbearia");
+  const result = await provider.generateCampaignThemes(barbershop?.name ?? "Estabelecimento", undefined, tenantLabel);
   await consumeAiCredit(session.user.barbershopId, "campaign_themes");
 
   return NextResponse.json(result);
