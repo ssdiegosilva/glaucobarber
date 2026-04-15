@@ -114,6 +114,7 @@ function ProductModal({
   const [imageUrl, setImageUrl]       = useState<string | null>(product?.imageUrl ?? null);
   const [saving, setSaving]           = useState(false);
   const [createdId, setCreatedId]     = useState<string | null>(product?.id ?? null);
+  const [justCreated, setJustCreated] = useState(false);
   const isEdit = !!product;
 
   async function handleSave() {
@@ -138,10 +139,16 @@ function ProductModal({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar");
-      setCreatedId(data.product.id);
-      toast({ title: isEdit ? "Produto atualizado!" : "Produto criado!" });
-      onSaved({ ...data.product, imageUrl: imageUrl ?? data.product.imageUrl ?? null });
-      onClose();
+      const savedProduct = { ...data.product, imageUrl: imageUrl ?? data.product.imageUrl ?? null };
+      onSaved(savedProduct);
+      if (isEdit) {
+        toast({ title: "Produto atualizado!" });
+        onClose();
+      } else {
+        setCreatedId(data.product.id);
+        setJustCreated(true);
+        toast({ title: "Produto criado! Adicione uma foto se quiser." });
+      }
     } catch (err) {
       toast({ title: "Erro", description: String(err), variant: "destructive" });
     } finally {
@@ -187,25 +194,29 @@ function ProductModal({
             <Input value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Detalhes do produto..." />
           </div>
 
-          {/* Image upload — only available after product is saved (needs an ID) */}
-          {isEdit && createdId ? (
+          {/* Image upload */}
+          {createdId ? (
             <ProductImageUpload
               productId={createdId}
               currentUrl={imageUrl}
               onUploaded={(url) => setImageUrl(url)}
             />
-          ) : !isEdit && (
-            <p className="text-[11px] text-muted-foreground bg-surface-800 rounded-lg px-3 py-2 border border-border">
-              💡 Após criar o produto você poderá adicionar uma foto a ele.
-            </p>
-          )}
+          ) : null}
         </div>
 
         <div className="flex gap-3 pt-1">
-          <Button variant="ghost" onClick={onClose} className="flex-1" disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} className="flex-1 bg-gold-500 hover:bg-gold-400 text-black" disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : (isEdit ? "Salvar" : "Criar")}
-          </Button>
+          {justCreated ? (
+            <Button onClick={onClose} className="flex-1 bg-gold-500 hover:bg-gold-400 text-black">
+              Concluir
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={onClose} className="flex-1" disabled={saving}>Cancelar</Button>
+              <Button onClick={handleSave} className="flex-1 bg-gold-500 hover:bg-gold-400 text-black" disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : (isEdit ? "Salvar" : "Criar")}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

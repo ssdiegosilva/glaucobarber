@@ -8,6 +8,7 @@ import {
   Loader2,
   ChevronLeft,
 } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { SEGMENT_ICON_MAP } from "@/components/layout/sidebar";
 
@@ -120,11 +121,14 @@ function OnboardingContent() {
   if (step === 0) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-bold text-foreground">Bem-vindo!</h1>
-          <p className="text-sm text-muted-foreground">
-            Qual é o tipo do seu negócio?
-          </p>
+        <div className="space-y-3 text-center">
+          <Image src="/logo-dark.png" alt="Voltaki" width={120} height={36} className="h-8 w-auto mx-auto" priority />
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-foreground">Bem-vindo!</h1>
+            <p className="text-sm text-muted-foreground">
+              Qual é o tipo do seu negócio?
+            </p>
+          </div>
         </div>
 
         {loadingSegments ? (
