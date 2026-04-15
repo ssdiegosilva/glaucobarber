@@ -7,7 +7,6 @@ import {
   Store,
   Loader2,
   ChevronLeft,
-  CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SEGMENT_ICON_MAP } from "@/components/layout/sidebar";
@@ -133,13 +132,15 @@ function OnboardingContent() {
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div
+            className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory"
+            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          >
             {segments.map((seg) => {
               const IconComponent = seg.icon ? (ICON_MAP[seg.icon] ?? Store) : Store;
               const isSelected = selectedSegment?.id === seg.id;
-              const bg     = `hsl(${seg.colorBackground})`;
-              const card   = `hsl(${seg.colorCard})`;
               const accent = `hsl(${seg.colorPrimary})`;
+              const card   = `hsl(${seg.colorCard})`;
 
               return (
                 <button
@@ -147,37 +148,24 @@ function OnboardingContent() {
                   type="button"
                   onClick={() => setSelectedSegment(seg)}
                   className={cn(
-                    "flex flex-col gap-0 rounded-xl border text-left transition-all overflow-hidden",
-                    isSelected ? "ring-2" : "border-border hover:border-white/20"
+                    "flex flex-col items-center justify-center gap-3 rounded-xl border transition-all shrink-0 snap-start",
+                    "w-28 h-28"
                   )}
-                  style={isSelected ? { borderColor: accent, boxShadow: `0 0 0 2px ${accent}` } : undefined}
+                  style={{
+                    background: card,
+                    borderColor: isSelected ? accent : "hsl(var(--border))",
+                    boxShadow: isSelected ? `0 0 0 2px ${accent}` : undefined,
+                  }}
                 >
-                  {/* Mini theme preview */}
-                  <div className="h-16 w-full relative flex items-end p-2 gap-1" style={{ background: bg }}>
-                    {/* Fake sidebar */}
-                    <div className="absolute left-0 top-0 bottom-0 w-6 flex flex-col items-center gap-1.5 pt-2" style={{ background: card }}>
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: accent }} />
-                      <div className="w-2.5 h-1 rounded-sm opacity-40" style={{ background: accent }} />
-                      <div className="w-2.5 h-1 rounded-sm opacity-40" style={{ background: accent }} />
-                      <div className="w-2.5 h-1 rounded-sm opacity-40" style={{ background: accent }} />
-                    </div>
-                    {/* Fake cards */}
-                    <div className="ml-8 flex-1 flex gap-1">
-                      <div className="flex-1 h-6 rounded" style={{ background: card, borderTop: `2px solid ${accent}` }} />
-                      <div className="flex-1 h-6 rounded opacity-60" style={{ background: card }} />
-                    </div>
-                    {isSelected && (
-                      <CheckCircle2 className="absolute top-1.5 right-1.5 h-4 w-4" style={{ color: accent }} />
-                    )}
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-xl"
+                    style={{ background: `hsl(${seg.colorPrimary} / 0.15)` }}
+                  >
+                    <IconComponent className="h-5 w-5" style={{ color: accent }} />
                   </div>
-
-                  {/* Label */}
-                  <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: card }}>
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded" style={{ background: `hsl(${seg.colorPrimary} / 0.15)` }}>
-                      <IconComponent className="h-3.5 w-3.5" style={{ color: accent }} />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">{seg.displayName}</p>
-                  </div>
+                  <p className="text-xs font-medium text-foreground text-center leading-tight px-1">
+                    {seg.displayName}
+                  </p>
                 </button>
               );
             })}
