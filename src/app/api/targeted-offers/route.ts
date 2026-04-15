@@ -164,6 +164,8 @@ export async function POST(req: NextRequest) {
           phone:        customer.phone,
           message,
           type:         "targeted_offer",
+          messageKind:  body.mediaImageUrl ? "image" : "text",
+          mediaImageUrl: body.mediaImageUrl ?? null,
           status:       "QUEUED",
         },
       });

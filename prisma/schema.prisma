@@ -920,6 +920,7 @@ model WhatsappMessage {
   type          String                // reactivation | post_sale_review | post_sale_followup | agenda_conflict | general
   // "text" = free text via Business API; "template" = Meta-approved template (HSM)
   messageKind   String                @default("text")
+  mediaImageUrl String?               // image URL to send as WhatsApp image message (messageKind="image")
   templateName  String?               // metaName of the WhatsappTemplate used (if messageKind=="template")
   templateVars  String?               // JSON array of resolved variable values e.g. ["João","https://g.page/..."]
   status        WhatsappMessageStatus @default(QUEUED)

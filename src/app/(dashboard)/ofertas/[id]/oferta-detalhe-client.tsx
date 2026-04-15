@@ -140,6 +140,14 @@ export function OfertaDetalheClient({
           </span>
         </div>
 
+        {/* Product image */}
+        {offer.mediaImageUrl && (
+          <div className="rounded-lg border border-border/60 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={offer.mediaImageUrl} alt="Foto do produto" className="w-full h-40 object-cover" />
+          </div>
+        )}
+
         {/* Template preview */}
         <div className="rounded-lg bg-surface-800 border border-border/60 p-3">
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Template</p>

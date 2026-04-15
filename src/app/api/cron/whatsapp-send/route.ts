@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, sendWhatsAppTemplate, sendWhatsAppImage } from "@/lib/whatsapp";
 import { getKillSwitch } from "@/lib/platform-config";
 
 export async function GET(req: NextRequest) {
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const pending = await prisma.whatsappMessage.findMany({
     where: {
       status:      "QUEUED",
-      messageKind: "template",   // bot só envia templates; texto livre é sempre manual
+      messageKind: { in: ["template", "image"] },  // templates + image messages from targeted offers
       scheduledFor: { lte: now },
     },
     include: {
@@ -65,7 +65,9 @@ export async function GET(req: NextRequest) {
 
     try {
       let metaMessageId: string;
-      if (msg.messageKind === "template" && msg.templateName) {
+      if (msg.messageKind === "image" && msg.mediaImageUrl) {
+        metaMessageId = await sendWhatsAppImage(msg.phone, msg.mediaImageUrl, msg.message, creds);
+      } else if (msg.messageKind === "template" && msg.templateName) {
         const vars: string[] = msg.templateVars ? JSON.parse(msg.templateVars) : [];
         metaMessageId = await sendWhatsAppTemplate(msg.phone, msg.templateName, vars, creds);
       } else {

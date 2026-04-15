@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
   // ── "never bought" mode: return customers who never used these items
   const neverMode = searchParams.get("never") === "true";
   const searchQuery = searchParams.get("q")?.trim() ?? "";
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+  const pageSize = 30;
+  const browse = searchParams.get("browse") === "true"; // paginated browsing mode
 
   if (neverMode) {
     // Find customer IDs who HAVE bought/used these items (to exclude them)
@@ -63,19 +66,24 @@ export async function GET(req: NextRequest) {
       ...(searchQuery ? { name: { contains: searchQuery, mode: "insensitive" } } : {}),
     };
 
+    const shouldReturn = searchQuery || browse;
     const [count, customers] = await Promise.all([
       prisma.customer.count({ where }),
       prisma.customer.findMany({
         where,
-        select: { id: true, name: true, phone: true },
-        orderBy: { name: "asc" },
-        take: searchQuery ? 20 : 0, // only return rows when searching
+        select: { id: true, name: true, phone: true, totalVisits: true },
+        orderBy: [{ totalVisits: "desc" }, { name: "asc" }],
+        take: shouldReturn ? pageSize : 0,
+        skip: shouldReturn ? (page - 1) * pageSize : 0,
       }),
     ]);
 
     return NextResponse.json({
       count,
-      customers: customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone, lastPurchase: null })),
+      page,
+      pageSize,
+      hasMore: page * pageSize < count,
+      customers: customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone, totalVisits: c.totalVisits ?? 0, lastPurchase: null })),
     });
   }
 
