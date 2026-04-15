@@ -1,0 +1,66 @@
+project_id = "lanntggtuaqgrxnokwfm"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+site_url = "https://voltaki.com"
+additional_redirect_urls = ["https://voltaki.com", "https://voltaki.com/dashboard"]
+jwt_expiry = 3600
+enable_signup = true
+minimum_password_length = 6
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+
+[auth.email.template.confirmation]
+subject = "Confirme seu email — Voltaki"
+content_path = "./supabase/emails/confirm.html"
+
+[auth.email.template.invite]
+subject = "Você foi convidado — Voltaki"
+content_path = "./supabase/emails/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Seu link de acesso — Voltaki"
+content_path = "./supabase/emails/magic_link.html"
+
+[auth.email.template.recovery]
+subject = "Redefinir sua senha — Voltaki"
+content_path = "./supabase/emails/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirmar novo email — Voltaki"
+content_path = "./supabase/emails/change_email.html"
+
+[auth.email.template.reauthentication]
+subject = "Codigo de verificacao — Voltaki"
+content_path = "./supabase/emails/reauthentication.html"
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"

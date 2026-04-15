@@ -98,10 +98,10 @@ export function OfertasClient({ initialOffers }: { initialOffers: Offer[] }) {
           <div className="rounded-xl border border-border overflow-hidden">
             <div className="divide-y divide-border">
               {paginated.map((o) => (
-                <div key={o.id} className="relative group">
+                <div key={o.id} className="group flex items-center hover:bg-surface-800/40 transition-colors">
                   <Link
                     href={`/ofertas/${o.id}`}
-                    className="flex items-center gap-4 px-4 py-4 hover:bg-surface-800/40 transition-colors pr-20"
+                    className="flex flex-1 items-center gap-4 px-4 py-4 min-w-0"
                   >
                     <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                       <BadgePercent className="h-5 w-5 text-primary" />
@@ -140,17 +140,17 @@ export function OfertasClient({ initialOffers }: { initialOffers: Offer[] }) {
                       </p>
                     </div>
 
-                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0 ml-2" />
                   </Link>
 
-                  {/* Delete button — top-right of the row */}
-                  <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                  {/* Delete action — outside Link, in the flex row */}
+                  <div className="pr-3 shrink-0">
                     {confirmId === o.id ? (
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => deleteOffer(o.id)}
                           disabled={deleting === o.id}
-                          className="text-[10px] font-medium text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 transition-colors"
+                          className="text-[10px] font-medium text-red-400 hover:text-red-300 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 transition-colors whitespace-nowrap"
                         >
                           {deleting === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirmar"}
                         </button>

@@ -189,11 +189,11 @@ export default async function RootPage() {
 
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-gold-lg">
                 <Image
-                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=880&q=80"
-                  alt="Negócio fidelizando clientes com Voltaki"
+                  src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=880&q=80"
+                  alt="Cliente voltando ao estabelecimento"
                   width={440}
                   height={560}
-                  className="object-cover w-full h-[480px] lg:h-[560px]"
+                  className="object-cover w-full h-[480px] lg:h-[560px] object-top"
                   priority
                   unoptimized
                 />
@@ -229,6 +229,200 @@ export default async function RootPage() {
                 <span className="text-xs font-medium text-gold-400">Bot enviou 12 msgs hoje</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Números — o que você vai ganhar ─────────────────── */}
+      <section className="py-20 border-t border-white/5 bg-gradient-to-b from-gold-500/5 to-transparent">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">O que você vai ganhar</p>
+            <h2 className="font-display text-3xl lg:text-5xl font-bold text-foreground leading-tight">
+              Negócios que usam Voltaki<br className="hidden sm:block" />
+              <span className="bg-gradient-to-r from-gold-400 via-[#e8c870] to-gold-500 bg-clip-text text-transparent"> faturam mais no primeiro mês.</span>
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
+              Não é promessa. É o que acontece quando seus clientes param de sumir sem você perceber.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border/40 rounded-2xl overflow-hidden border border-border">
+            {[
+              {
+                value: "+23%",
+                label: "Faturamento no 1º mês",
+                desc: "Negócios que ativam o follow-up automático faturam em média 23% a mais já no primeiro mês.",
+                highlight: true,
+              },
+              {
+                value: "3×",
+                label: "Mais retorno que anúncio pago",
+                desc: "Reativar um cliente que já te conhece custa 5× menos do que conquistar um novo do zero.",
+                highlight: false,
+              },
+              {
+                value: "68%",
+                label: "Taxa de resposta no WhatsApp",
+                desc: "Enquanto e-mail tem menos de 2%, WhatsApp com mensagem certa tem 68% de resposta.",
+                highlight: false,
+              },
+              {
+                value: "< 5min",
+                label: "Para ativar e ver resultado",
+                desc: "Sem técnico, sem integração complicada. Você configura hoje e o bot já começa a trabalhar.",
+                highlight: false,
+              },
+            ].map((s) => (
+              <div key={s.label} className={`p-7 text-center flex flex-col items-center gap-3 ${s.highlight ? "bg-gold-500/8" : "bg-[#080810]"}`}>
+                <p className={`text-5xl lg:text-6xl font-black tabular-nums ${s.highlight ? "text-gold-400" : "text-foreground"}`}>{s.value}</p>
+                <p className="text-sm font-bold text-foreground">{s.label}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 text-center">
+            <Link
+              href="/signup"
+              className="group inline-flex items-center gap-2 rounded-lg bg-gold-500 px-7 py-3.5 text-sm font-bold text-[#080810] hover:bg-gold-400 transition-all shadow-gold-md"
+            >
+              Quero esses resultados
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+            <p className="text-xs text-muted-foreground mt-3">Teste grátis · Sem cartão de crédito</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── O que o Voltaki faz ───────────────────────────────── */}
+      <section className="py-28 border-t border-white/5">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">O que o Voltaki faz</p>
+            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
+              Tudo que você precisaria de um<br className="hidden sm:block" /> assistente — sem contratar ninguém.
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
+              Enquanto você atende, o Voltaki trabalha nos bastidores trazendo cliente de volta e gerando receita.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              {
+                icon: <Bot className="h-6 w-6" />,
+                title: "WhatsApp automático",
+                desc: "Bot envia mensagens de reativação, pós-atendimento e promoção. Configura uma vez, trabalha todo dia.",
+              },
+              {
+                icon: <Users className="h-6 w-6" />,
+                title: "Gestão de clientes",
+                desc: "Base completa com histórico, quanto cada um gastou, quem é VIP e quem sumiu há quanto tempo.",
+              },
+              {
+                icon: <Sparkles className="h-6 w-6" />,
+                title: "Copiloto com IA",
+                desc: "A IA analisa seu negócio e sugere: qual cliente chamar hoje, que oferta criar, o que está perdendo.",
+              },
+              {
+                icon: <Megaphone className="h-6 w-6" />,
+                title: "Campanhas com IA",
+                desc: "Fale o tema, a IA escreve o texto e cria a arte. Aprovado, vai direto pro Instagram e WhatsApp.",
+              },
+              {
+                icon: <HeartHandshake className="h-6 w-6" />,
+                title: "Pós-atendimento",
+                desc: "Detecta quem foi atendido e manda mensagem personalizada pedindo avaliação ou agendando retorno.",
+              },
+              {
+                icon: <Camera className="h-6 w-6" />,
+                title: "Instagram integrado",
+                desc: "Publique posts e carrosséis direto do sistema em 1 clique. A IA gera legenda e hashtags.",
+              },
+              {
+                icon: <TrendingUp className="h-6 w-6" />,
+                title: "Metas e financeiro",
+                desc: "Faturamento do dia, semana e mês. Compare com sua meta. Veja ticket médio e mais vendidos.",
+              },
+              {
+                icon: <Repeat2 className="h-6 w-6" />,
+                title: "Reativação automática",
+                desc: "Identifica clientes inativos e dispara mensagens no momento certo — sem você lembrar de ninguém.",
+              },
+            ].map((f) => (
+              <div
+                key={f.title}
+                className="group rounded-2xl border border-border bg-card p-5 hover:border-gold-500/30 hover:bg-card/80 transition-all"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-500/10 border border-gold-500/15 text-gold-400 mb-4 group-hover:bg-gold-500/15 transition-colors">
+                  {f.icon}
+                </div>
+                <h3 className="text-sm font-semibold text-foreground mb-1.5">{f.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Como funciona — 3 passos para os resultados ─────── */}
+      <section id="como-funciona" className="py-28 border-t border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Como funciona</p>
+            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
+              3 passos para chegar<br className="hidden sm:block" /> nos +23% de faturamento
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
+              Sem técnico. Sem curso. Sem ficar grudado no celular.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[
+              {
+                step: "01",
+                title: "Conecte seus clientes",
+                desc: "Importe sua base ou sincronize com seu sistema. Em menos de 5 minutos o Voltaki já sabe quem são seus clientes, quando visitaram e quanto gastaram.",
+                icon: <Users className="h-6 w-6" />,
+                after: "Sua base organizada. Inativos identificados.",
+              },
+              {
+                step: "02",
+                title: "O bot trabalha por você",
+                desc: "O sistema detecta automaticamente quem sumiu, qual oferta faz sentido e manda a mensagem certa na hora certa — sem você fazer nada.",
+                icon: <Bot className="h-6 w-6" />,
+                after: "Clientes recebendo mensagens personalizadas enquanto você atende.",
+              },
+              {
+                step: "03",
+                title: "Você vê o dinheiro entrar",
+                desc: "Acompanhe no dashboard quantos clientes voltaram, quanto você faturou a mais e quais ações geraram mais resultado. Ajuste o que quiser.",
+                icon: <TrendingUp className="h-6 w-6" />,
+                after: "+23% de faturamento no 1º mês em média.",
+              },
+            ].map((item, i) => (
+              <div key={i} className="relative flex flex-col gap-5">
+                {/* Step connector line */}
+                {i < 2 && (
+                  <div className="hidden md:block absolute top-8 left-[calc(100%+8px)] w-8 border-t border-dashed border-gold-500/30 z-10" />
+                )}
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-500/10 border border-gold-500/20 text-gold-400">
+                    {item.icon}
+                  </div>
+                  <div className="pt-1">
+                    <span className="text-xs font-bold text-gold-500/60 uppercase tracking-widest">Passo {item.step}</span>
+                    <h3 className="text-base font-bold text-foreground mt-0.5">{item.title}</h3>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+                <div className="rounded-lg border border-gold-500/20 bg-gold-500/6 px-4 py-2.5 text-xs font-medium text-gold-300">
+                  ✓ {item.after}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -277,152 +471,6 @@ export default async function RootPage() {
                 Testar grátis →
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Como funciona ────────────────────────────────────── */}
-      <section id="como-funciona" className="py-28 border-t border-white/5">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Como funciona</p>
-            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
-              Você foca no negócio.<br className="hidden sm:block" /> A gente garante que o cliente volta.
-            </h2>
-            <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-              O Voltaki trabalha nos bastidores enquanto você atende. Sem ficar no celular, sem contratar ninguém.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                before: "Cliente sumiu há 30 dias e você nem sabe",
-                after: "Bot manda WhatsApp automático com a oferta certa. Ele volta sem você fazer nada.",
-                icon: <MessageSquare className="h-5 w-5" />,
-              },
-              {
-                before: "Sem ideia do que postar ou para quem mandar oferta",
-                after: "IA escreve a mensagem, cria a arte da campanha e personaliza por cliente. Você só aprova.",
-                icon: <Megaphone className="h-5 w-5" />,
-              },
-              {
-                before: "Não sabe quem são seus melhores clientes nem o que está perdendo",
-                after: "Dashboard mostra quem gasta mais, quem sumiu e o próximo passo certeiro.",
-                icon: <BarChart3 className="h-5 w-5" />,
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="rounded-2xl border border-border bg-card p-6 hover:border-gold-500/25 transition-colors"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/12 border border-gold-500/20 text-gold-400 mb-5">
-                  {item.icon}
-                </div>
-                <div className="space-y-3">
-                  <div className="rounded-lg bg-surface-800 px-3 py-2 text-xs text-muted-foreground line-through opacity-70">
-                    {item.before}
-                  </div>
-                  <div className="rounded-lg border border-gold-500/20 bg-gold-500/6 px-3 py-2 text-xs text-gold-300">
-                    ✓ {item.after}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Receita — números que convencem ─────────────────── */}
-      <section className="py-20 border-t border-white/5 bg-gradient-to-b from-gold-500/4 to-transparent">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Resultado real</p>
-            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
-              Cada cliente que volta é dinheiro<br className="hidden sm:block" /> que você não precisou gastar para conquistar
-            </h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto">
-            {[
-              { value: "+23%", label: "Faturamento médio no 1º mês", desc: "Resultado de negócios que ativaram o follow-up automático" },
-              { value: "3x",   label: "Mais retorno que anúncio pago", desc: "Reativar cliente antigo custa 5x menos que conquistar um novo" },
-              { value: "68%",  label: "Taxa de resposta no WhatsApp", desc: "Contra menos de 2% em e-mail marketing tradicional" },
-              { value: "< 5min", label: "Para configurar e ativar", desc: "Sem técnico, sem integração complicada, sem treinamento" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-2xl border border-gold-500/20 bg-gold-500/5 p-5 text-center">
-                <p className="text-3xl font-bold text-gold-400 mb-1">{s.value}</p>
-                <p className="text-xs font-semibold text-foreground mb-2">{s.label}</p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features ─────────────────────────────────────────── */}
-      <section className="py-28 border-t border-white/5">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Funcionalidades</p>
-            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
-              Tudo que você precisa. Nada que você não precise.
-            </h2>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              {
-                icon: <Bot className="h-6 w-6" />,
-                title: "WhatsApp automático",
-                desc: "Bot envia mensagens de reativação, pós-atendimento e promoção. Você configura uma vez e ele trabalha todo dia.",
-              },
-              {
-                icon: <Users className="h-6 w-6" />,
-                title: "Gestão de clientes",
-                desc: "Base completa com histórico, quanto cada cliente gastou, frequência, quem é VIP e quem sumiu.",
-              },
-              {
-                icon: <Sparkles className="h-6 w-6" />,
-                title: "Copiloto com IA",
-                desc: "A IA analisa seu negócio e sugere: qual cliente chamar, que oferta criar, qual serviço destacar.",
-              },
-              {
-                icon: <Megaphone className="h-6 w-6" />,
-                title: "Campanhas com IA",
-                desc: "Escreva o tema e a IA gera o texto e a imagem. Aprovado, vai direto pro Instagram e WhatsApp.",
-              },
-              {
-                icon: <HeartHandshake className="h-6 w-6" />,
-                title: "Pós-atendimento",
-                desc: "Detecta quem acabou de ser atendido e manda mensagem personalizada de avaliação ou retorno.",
-              },
-              {
-                icon: <Camera className="h-6 w-6" />,
-                title: "Instagram integrado",
-                desc: "Conecte em 1 clique. Publique posts e carrosséis direto do sistema. A IA gera a legenda.",
-              },
-              {
-                icon: <TrendingUp className="h-6 w-6" />,
-                title: "Metas e financeiro",
-                desc: "Faturamento do dia, semana e mês. Compare com sua meta. Veja ticket médio e mais vendidos.",
-              },
-              {
-                icon: <Repeat2 className="h-6 w-6" />,
-                title: "Reativação automática",
-                desc: "O sistema identifica clientes inativos e dispara mensagens no momento certo, sem você lembrar de ninguém.",
-              },
-            ].map((f) => (
-              <div
-                key={f.title}
-                className="group rounded-2xl border border-border bg-card p-5 hover:border-gold-500/30 hover:bg-card/80 transition-all"
-              >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-500/10 border border-gold-500/15 text-gold-400 mb-4 group-hover:bg-gold-500/15 transition-colors">
-                  {f.icon}
-                </div>
-                <h3 className="text-sm font-semibold text-foreground mb-1.5">{f.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
