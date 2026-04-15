@@ -3,7 +3,7 @@
 // Run: npm run db:seed
 // ============================================================
 
-import { PrismaClient, MembershipRole, ServiceCategory, AppointmentStatus, OfferType, OfferStatus, SuggestionType, SuggestionStatus, CampaignStatus, IntegrationStatus } from "@prisma/client";
+import { PrismaClient, MembershipRole, ServiceCategory, AppointmentStatus, SuggestionType, SuggestionStatus, CampaignStatus, IntegrationStatus } from "@prisma/client";
 import { addDays, addHours, subDays, startOfDay } from "date-fns";
 
 const prisma = new PrismaClient();
@@ -16,7 +16,6 @@ async function main() {
   await prisma.campaign.deleteMany();
   await prisma.suggestion.deleteMany();
   await prisma.payment.deleteMany();
-  await prisma.offer.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.service.deleteMany();
   await prisma.customer.deleteMany();
@@ -89,8 +88,6 @@ async function main() {
     data: [
       { barbershopId: barbershop.id, flag: "ai_suggestions",     enabled: true },
       { barbershopId: barbershop.id, flag: "campaigns",          enabled: true },
-      { barbershopId: barbershop.id, flag: "offers",             enabled: true },
-      { barbershopId: barbershop.id, flag: "stripe_shop_offers", enabled: false },
     ],
   });
 
@@ -170,44 +167,6 @@ async function main() {
   });
 
   console.log("✅ Appointments created");
-
-  // ── Offers ────────────────────────────────────────────────
-  await prisma.offer.createMany({
-    data: [
-      {
-        barbershopId: barbershop.id,
-        type: OfferType.PACKAGE,
-        status: OfferStatus.ACTIVE,
-        title: "Pacote 5 Cortes",
-        description: "Pague 4 cortes e leve 5. Válido por 90 dias.",
-        originalPrice: 225.00,
-        salePrice: 180.00,
-        credits: 5,
-        validUntil: addDays(new Date(), 90),
-      },
-      {
-        barbershopId: barbershop.id,
-        type: OfferType.COMBO,
-        status: OfferStatus.ACTIVE,
-        title: "Combo VIP: Corte + Barba",
-        description: "Corte degradê americano + barba completa com desconto.",
-        originalPrice: 95.00,
-        salePrice: 75.00,
-      },
-      {
-        barbershopId: barbershop.id,
-        type: OfferType.SUBSCRIPTION,
-        status: OfferStatus.DRAFT,
-        title: "Assinatura VIP Mensal",
-        description: "2 cortes por mês + 10% desconto em todos serviços.",
-        originalPrice: 130.00,
-        salePrice: 99.00,
-        credits: 2,
-      },
-    ],
-  });
-
-  console.log("✅ Offers created");
 
   // ── AI Suggestions ────────────────────────────────────────
   await prisma.suggestion.createMany({

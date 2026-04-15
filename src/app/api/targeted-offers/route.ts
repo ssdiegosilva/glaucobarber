@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     discountPct?: number | null;
     messageTemplate: string;
     mediaImageUrl?: string | null;
+    manualCustomerIds?: string[];
   };
 
   if (!body.title?.trim())           return NextResponse.json({ error: "Título é obrigatório" }, { status: 400 });
@@ -85,6 +86,19 @@ export async function POST(req: NextRequest) {
         take: 200,
       });
       customerList = customers.filter((c): c is typeof c & { phone: string } => Boolean(c.phone));
+    }
+  }
+
+  // Add manually selected customers (dedup with filter results)
+  if (body.manualCustomerIds?.length) {
+    const existingIds = new Set(customerList.map((c) => c.id));
+    const manualIds = body.manualCustomerIds.filter((id) => !existingIds.has(id));
+    if (manualIds.length > 0) {
+      const manualCustomers = await prisma.customer.findMany({
+        where: { id: { in: manualIds }, barbershopId, deletedAt: null, phone: { not: null } },
+        select: { id: true, name: true, phone: true },
+      });
+      customerList.push(...manualCustomers.filter((c): c is typeof c & { phone: string } => Boolean(c.phone)));
     }
   }
 

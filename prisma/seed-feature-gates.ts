@@ -19,7 +19,6 @@ const ALL_FEATURES = [
   "meta",
   "clients",
   "services",
-  "offers",
   "campaigns",
   "criar-visual",
   "whatsapp",

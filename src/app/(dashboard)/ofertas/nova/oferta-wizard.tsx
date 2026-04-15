@@ -57,6 +57,12 @@ export function OfertaWizard() {
   const [previewCount, setPreviewCount]       = useState<number | null>(null);
   const [previewCustomers, setPreviewCustomers] = useState<PreviewCustomer[]>([]);
   const [previewDone, setPreviewDone]         = useState(false);
+  // Manual customer selection
+  const [manualCustomers, setManualCustomers] = useState<PreviewCustomer[]>([]);
+  const [customerSearch, setCustomerSearch]   = useState("");
+  const [customerResults, setCustomerResults] = useState<PreviewCustomer[]>([]);
+  const [customerSearching, setCustomerSearching] = useState(false);
+  const customerSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Step 3 state
   const [hasDiscount, setHasDiscount]   = useState(false);
@@ -112,6 +118,42 @@ export function OfertaWizard() {
 
   function removeItem(id: string) {
     setSelectedItems((prev) => prev.filter((i) => i.id !== id));
+  }
+
+  // ── Customer search (manual) ──────────────────────────────────
+
+  const searchCustomers = useCallback(async (q: string) => {
+    if (!q.trim()) { setCustomerResults([]); return; }
+    setCustomerSearching(true);
+    try {
+      const res = await fetch(`/api/customers/search?q=${encodeURIComponent(q)}&limit=10`);
+      const data = await res.json();
+      const all: PreviewCustomer[] = (data.customers ?? []).map((c: { id: string; name: string; phone: string | null }) => ({
+        id: c.id, name: c.name, phone: c.phone, lastPurchase: null,
+      }));
+      // Filter out already added (manual or preview)
+      const existingIds = new Set([...manualCustomers.map((c) => c.id), ...previewCustomers.map((c) => c.id)]);
+      setCustomerResults(all.filter((c) => !existingIds.has(c.id)));
+    } finally { setCustomerSearching(false); }
+  }, [manualCustomers, previewCustomers]);
+
+  useEffect(() => {
+    if (customerSearchTimeout.current) clearTimeout(customerSearchTimeout.current);
+    if (customerSearch.trim()) {
+      customerSearchTimeout.current = setTimeout(() => searchCustomers(customerSearch), 300);
+    } else {
+      setCustomerResults([]);
+    }
+  }, [customerSearch, searchCustomers]);
+
+  function addManualCustomer(c: PreviewCustomer) {
+    setManualCustomers((prev) => prev.some((p) => p.id === c.id) ? prev : [...prev, c]);
+    setCustomerSearch("");
+    setCustomerResults([]);
+  }
+
+  function removeManualCustomer(id: string) {
+    setManualCustomers((prev) => prev.filter((c) => c.id !== id));
   }
 
   // ── Preview ──────────────────────────────────────────────────
@@ -191,6 +233,7 @@ export function OfertaWizard() {
           discountPct:    hasDiscount ? parseInt(discountPct, 10) : null,
           messageTemplate: template,
           mediaImageUrl,
+          manualCustomerIds: manualCustomers.map((c) => c.id),
         }),
       });
       const data = await res.json();
@@ -205,7 +248,8 @@ export function OfertaWizard() {
   // ── Renders ──────────────────────────────────────────────────
 
   const canNext1 = selectedItems.length > 0;
-  const canNext2 = previewDone && (previewCount ?? 0) > 0;
+  const totalCustomers = (previewCount ?? 0) + manualCustomers.filter((mc) => !previewCustomers.some((pc) => pc.id === mc.id)).length;
+  const canNext2 = previewDone && totalCustomers > 0 || manualCustomers.length > 0;
   const canNext3 = true;
   const canSubmit = title.trim().length > 0 && template.trim().length > 0;
 
@@ -348,14 +392,69 @@ export function OfertaWizard() {
                         {(previewCount ?? 0) > 5 && ` +${(previewCount ?? 0) - 5} mais`}
                       </div>
                     )}
-                    {(previewCount ?? 0) === 0 && (
+                    {(previewCount ?? 0) === 0 && manualCustomers.length === 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Nenhum cliente elegível. Tente aumentar o número de dias ou selecionar outros itens.
+                        Nenhum cliente elegível. Tente aumentar o número de dias, selecionar outros itens ou adicionar manualmente abaixo.
                       </p>
                     )}
                   </>
                 ) : null}
               </div>
+
+              {/* Manual customer add */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Adicionar clientes manualmente</p>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    placeholder="Buscar por nome..."
+                    className="w-full rounded-md border border-border bg-surface-800 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  {customerSearching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                {customerResults.length > 0 && (
+                  <div className="rounded-md border border-border bg-surface-800 divide-y divide-border max-h-40 overflow-y-auto">
+                    {customerResults.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => addManualCustomer(c)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-sm text-foreground hover:bg-surface-700 transition-colors"
+                      >
+                        <span>{c.name}</span>
+                        {c.phone ? (
+                          <span className="text-[10px] text-muted-foreground">{c.phone}</span>
+                        ) : (
+                          <span className="text-[10px] text-red-400">sem tel</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {manualCustomers.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {manualCustomers.map((c) => (
+                      <span key={c.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs text-foreground">
+                        {c.name}
+                        <button onClick={() => removeManualCustomer(c.id)} className="hover:text-red-400">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Total count */}
+              {(manualCustomers.length > 0 || (previewCount ?? 0) > 0) && (
+                <p className="text-xs text-muted-foreground">
+                  Total: <strong className="text-foreground">{totalCustomers}</strong> cliente(s) receberão a oferta
+                </p>
+              )}
             </>
           )}
 

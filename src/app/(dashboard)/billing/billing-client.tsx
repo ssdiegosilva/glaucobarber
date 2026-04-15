@@ -78,7 +78,6 @@ const FEATURE_DETAIL: Record<string, string> = {
   meta:          "Defina metas de faturamento e número de atendimentos para o dia e para o mês. Acompanhe o progresso com barra de status em tempo real e alertas quando você está perto de bater — ou em risco de não bater.",
   clients:       "Histórico completo de cada cliente: visitas, serviços realizados, ticket médio, última visita e status pós-venda. Filtre por inativos, em risco ou recém-atendidos para saber quem precisa de atenção.",
   services:      "Catálogo de serviços com nome, preço e duração. Veja quais serviços geram mais receita e quais têm melhor ticket médio. Sincronizado automaticamente com a Trinks.",
-  offers:        "Crie promoções com validade, desconto e público-alvo. Use o Copilot para gerar o texto da oferta e acompanhe quantas vezes foi aplicada.",
   campaigns:     "Crie campanhas de marketing completas: texto gerado por IA com base no seu objetivo, imagem criada automaticamente e publicação direta no Instagram. Programe a data de lançamento e acompanhe o status.",
   vitrine:       "Poste carrosséis dos seus melhores cortes no Instagram. Envie até 3 fotos por post, gere a legenda com IA (1 crédito) e publique direto pelo app. Disponível em todos os planos.",
   whatsapp:      "Envie mensagens de WhatsApp para clientes individualmente usando templates ou texto livre. Gerencie a fila de mensagens agendadas, veja o histórico de enviadas e acompanhe falhas de entrega.",

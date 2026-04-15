@@ -10,7 +10,6 @@ export const ALL_FEATURES = [
   { key: "meta",         label: "Metas",         description: "Acompanhamento de metas diárias e mensais" },
   { key: "clients",      label: "Clientes",      description: "Gestão de clientes" },
   { key: "services",     label: "Serviços",      description: "Catálogo de serviços" },
-  { key: "offers",           label: "Ofertas",              description: "Promoções e descontos" },
   { key: "targeted-offers", label: "Ofertas Direcionadas", description: "Ofertas personalizadas para clientes inativos via WhatsApp" },
   { key: "campaigns",       label: "Campanhas",            description: "Marketing e comunicação" },
   { key: "vitrine",       label: "Vitrine",        description: "Posts de trabalhos em carrossel no Instagram" },

@@ -163,7 +163,6 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     goalWeek,
     monthAgg,
     topInactiveRaw,
-    activeOffersRaw,
     pendingOpportunitiesRaw,
   ] = await Promise.all([
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
@@ -225,14 +224,6 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
       where: { barbershopId, postSaleStatus: { in: ["INATIVO", "EM_RISCO"] }, doNotContact: false },
       select: { name: true, phone: true, lastCompletedAppointmentAt: true, lastServiceSummary: true },
       orderBy: { lastCompletedAppointmentAt: "asc" },
-      take: 5,
-    }),
-
-    // Active offers
-    prisma.offer.findMany({
-      where:   { barbershopId, status: "ACTIVE" },
-      select:  { title: true, salePrice: true, type: true },
-      orderBy: { createdAt: "desc" },
       take: 5,
     }),
 
@@ -399,7 +390,7 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     topInactiveForPromo,
     overlaps,
     // Offers & opportunities
-    activeOffers:         activeOffersRaw.map((o) => ({ title: o.title, salePrice: Number(o.salePrice), type: o.type })),
+    activeOffers:         [],
     pendingOpportunities: pendingOpportunitiesRaw.map((o) => ({ name: o.name, category: o.category, suggestedPrice: Number(o.suggestedPrice) })),
   };
 }

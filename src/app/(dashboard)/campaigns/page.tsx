@@ -49,18 +49,13 @@ export default async function CampaignsPage() {
     }
   }
 
-  const [campaigns, integration, activeOffers, barbershop, aiConfig, allowance] = await Promise.all([
+  const [campaigns, integration, barbershop, aiConfig, allowance] = await Promise.all([
     prisma.campaign.findMany({
       where:   { barbershopId: session.user.barbershopId },
       orderBy: { createdAt: "desc" },
       include: { suggestion: { select: { type: true } } },
     }),
     prisma.integration.findUnique({ where: { barbershopId: session.user.barbershopId } }),
-    prisma.offer.findMany({
-      where:   { barbershopId: session.user.barbershopId, status: "ACTIVE" },
-      select:  { id: true, title: true, salePrice: true, type: true },
-      orderBy: { createdAt: "desc" },
-    }),
     prisma.barbershop.findUnique({ where: { id: session.user.barbershopId }, select: { brandStyle: true } }),
     getAiImageConfig(),
     checkAiAllowance(session.user.barbershopId),
@@ -85,7 +80,6 @@ export default async function CampaignsPage() {
           }))}
           instagramConfigured={!!(integration?.instagramPageAccessToken && integration.instagramBusinessId)}
           hasBrandStyle={!!barbershop?.brandStyle?.trim()}
-          availableOffers={activeOffers.map((o) => ({ id: o.id, title: o.title, salePrice: Number(o.salePrice), type: o.type }))}
           imageCreditCosts={{ low: aiConfig.creditCostLow, medium: aiConfig.creditCostMedium, high: aiConfig.creditCostHigh }}
           aiAllowance={{ used: allowance.used, limit: allowance.limit, creditsRemaining: allowance.creditsRemaining }}
         />

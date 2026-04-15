@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { relativeTime } from "@/lib/utils";
 import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
-import { Archive, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Gem, Globe, Megaphone, Palette, Pencil, Send, Settings, Star, Trash2, Wand2, Sparkles, X, XCircle, Tag, Zap } from "lucide-react";
+import { Archive, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Copy, Download, ExternalLink, Gem, Globe, Megaphone, Palette, Pencil, Send, Settings, Star, Trash2, Wand2, Sparkles, X, XCircle, Zap } from "lucide-react";
 import Link from "next/link";
 
 const STATUS_LABEL: Record<string, string> = { GENERATING: "Criando...", DRAFT: "Rascunho", APPROVED: "Aprovada", DISMISSED: "Dispensada", SCHEDULED: "Agendada", PUBLISHED: "Publicada", FAILED: "Falhou", ARCHIVED: "Arquivada" };
@@ -24,7 +24,7 @@ const STATUS_ICON: Record<string, React.ReactElement> = {
   ARCHIVED: <Archive className="h-3 w-3" />,
 };
 
-export interface OfferOption {
+interface OfferOption {
   id:        string;
   title:     string;
   salePrice: number;
@@ -754,11 +754,10 @@ function DeleteCampaignModal({
 
 // ── Main client ───────────────────────────────────────────────
 
-export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, availableOffers = [], imageCreditCosts = { low: 40, medium: 70, high: 190 }, aiAllowance = { used: 0, limit: 300, creditsRemaining: 0 } }: {
+export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBrandStyle = false, imageCreditCosts = { low: 40, medium: 70, high: 190 }, aiAllowance = { used: 0, limit: 300, creditsRemaining: 0 } }: {
   campaigns: CampaignDto[];
   instagramConfigured: boolean;
   hasBrandStyle?: boolean;
-  availableOffers?: OfferOption[];
   imageCreditCosts?: { low: number; medium: number; high: number };
   aiAllowance?: { used: number; limit: number; creditsRemaining: number };
 }) {
@@ -766,7 +765,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
   const [expandedPublished, setExpandedPublished] = useState<string | null>(null);
 
   const [theme, setTheme] = useState("");
-  const [selectedOfferId, setSelectedOfferId] = useState<string>("");
   const [imageQuality, setImageQuality] = useState<ImageQualityTier>("medium");
   const [loadingThemes, setLoadingThemes] = useState(false);
   const [suggestedThemes, setSuggestedThemes] = useState<{ title: string; description: string }[]>([]);
@@ -793,7 +791,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
 
     // Snapshot values and clear the form immediately so user can start another
     const currentTheme   = theme;
-    const currentOfferId = selectedOfferId;
     const tempId         = `generating-${Date.now()}`;
 
     const placeholder: CampaignDto = {
@@ -813,7 +810,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
 
     setCampaigns((prev) => [placeholder, ...prev]);
     setTheme("");
-    setSelectedOfferId("");
     setSuggestedThemes([]);
 
     toast({
@@ -829,7 +825,7 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
       const res = await fetch("/api/campaigns", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ theme: currentTheme, channel: "instagram", offerId: currentOfferId || undefined, imageQuality }),
+        body:    JSON.stringify({ theme: currentTheme, channel: "instagram", imageQuality }),
         signal:  controller.signal,
       });
       clearTimeout(timeoutId);
@@ -1255,26 +1251,6 @@ export function CampaignsClient({ campaigns: initial, instagramConfigured, hasBr
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-          {availableOffers.length > 0 && (
-            <div className="space-y-1">
-              <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                <Tag className="h-3 w-3 text-amber-400" /> Vincular oferta (opcional)
-              </label>
-              <select
-                value={selectedOfferId}
-                onChange={(e) => setSelectedOfferId(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface-800/80 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Sem oferta vinculada</option>
-                {availableOffers.map((o) => (
-                  <option key={o.id} value={o.id}>{o.title} — R$ {o.salePrice.toFixed(2)}</option>
-                ))}
-              </select>
-              {selectedOfferId && (
-                <p className="text-[10px] text-amber-400/70">A IA vai mencionar esta oferta no texto da campanha.</p>
-              )}
             </div>
           )}
           <div className="space-y-1.5">

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ALL_FEATURES } from "@/lib/access";
 
 // Keys that don't correspond to NAV items — they are feature gates, not menu modules
-const NON_NAV_KEYS = new Set(["offers", "whatsapp_auto", "settings", "billing"]);
+const NON_NAV_KEYS = new Set(["whatsapp_auto", "settings", "billing"]);
 import { SegmentForm } from "./segment-form";
 
 export const dynamic = "force-dynamic";

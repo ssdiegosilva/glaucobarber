@@ -13,25 +13,11 @@ export async function POST(req: NextRequest) {
   const theme     = sanitize(body.theme)     as string | undefined;
   const objective = sanitize(body.objective) as string | undefined;
   const channel   = sanitize(body.channel)   as string | undefined;
-  const offerId   = body.offerId             as string | undefined;
   if (!theme) return NextResponse.json({ error: "Tema é obrigatório" }, { status: 400 });
 
   const allowance = await checkAiAllowance(session.user.barbershopId);
   if (!allowance.allowed) {
     return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
-  }
-
-  // Build offer context for AI if offer is linked
-  let offerContext = "";
-  if (offerId) {
-    const offer = await prisma.offer.findFirst({
-      where:   { id: offerId, barbershopId: session.user.barbershopId },
-      include: { items: { include: { service: { select: { name: true } } } } },
-    });
-    if (offer) {
-      const serviceNames = offer.items.map((i) => i.service.name).join(", ") || offer.title;
-      offerContext = ` Esta campanha promove a oferta especial "${offer.title}" — ${serviceNames} por R$ ${Number(offer.salePrice).toFixed(2)} (de R$ ${Number(offer.originalPrice).toFixed(2)}). Mencione o valor especial e os serviços incluídos no texto.`;
-    }
   }
 
   const barbershop = await prisma.barbershop.findUnique({
@@ -41,7 +27,7 @@ export async function POST(req: NextRequest) {
   const tenantLabel = barbershop?.segment?.tenantLabel ?? "estabelecimento";
 
   const provider = getAIProvider();
-  const context = `${tenantLabel}: ${barbershop?.name ?? "Estabelecimento"}. Tema: ${theme}.${offerContext}`;
+  const context = `${tenantLabel}: ${barbershop?.name ?? "Estabelecimento"}. Tema: ${theme}.`;
   let ai: { text: string; artBriefing: string };
   try {
     ai = await provider.generateCampaignText(theme, context, session.user.barbershopId, tenantLabel);
@@ -61,7 +47,7 @@ export async function POST(req: NextRequest) {
       text:        ai.text || "",
       artBriefing: ai.artBriefing || "",
       channel:     channel ?? "instagram",
-      offerId:     offerId ?? null,
+      offerId:     null,
     },
   });
 

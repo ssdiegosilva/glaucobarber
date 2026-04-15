@@ -22,7 +22,7 @@ export default async function DashboardPage({
   const view = viewParam === "week" || viewParam === "month" ? viewParam : "today";
 
   // Fetch in parallel: live Trinks data + local DB data
-  const [liveDay, barbershop, goal, inactiveCount, offerAppointments] =
+  const [liveDay, barbershop, goal, inactiveCount] =
     await Promise.all([
       getLiveDayStats(barbershopId),
 
@@ -41,16 +41,6 @@ export default async function DashboardPage({
           barbershopId,
           postSaleStatus: "INATIVO",
         },
-      }),
-
-      // Local appointments with offers today
-      prisma.appointment.findMany({
-        where: {
-          barbershopId,
-          scheduledAt: { gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 0, 0, 0)), lte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 2, 59, 59, 999)) },
-          offerId:     { not: null },
-        },
-        select: { trinksId: true, offerId: true, offer: { select: { title: true } } },
       }),
     ]);
 
@@ -158,12 +148,7 @@ export default async function DashboardPage({
       })()
     : null;
 
-  // Map trinksId → offer title for badge display
-  const offerByTrinksId = new Map(
-    offerAppointments
-      .filter((a) => a.trinksId && a.offer?.title)
-      .map((a) => [a.trinksId!, a.offer!.title])
-  );
+  const offerByTrinksId = new Map<string, string>();
 
   return (
     <div className="flex flex-col h-full">
