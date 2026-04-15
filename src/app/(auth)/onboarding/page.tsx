@@ -172,16 +172,11 @@ function OnboardingContent() {
                   </div>
 
                   {/* Label */}
-                  <div className="flex items-start gap-2 px-3 py-2.5" style={{ background: card }}>
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded mt-0.5" style={{ background: `hsl(${seg.colorPrimary} / 0.15)` }}>
+                  <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: card }}>
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded" style={{ background: `hsl(${seg.colorPrimary} / 0.15)` }}>
                       <IconComponent className="h-3.5 w-3.5" style={{ color: accent }} />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{seg.displayName}</p>
-                      {seg.description && (
-                        <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-2">{seg.description}</p>
-                      )}
-                    </div>
+                    <p className="text-sm font-medium text-foreground">{seg.displayName}</p>
                   </div>
                 </button>
               );
