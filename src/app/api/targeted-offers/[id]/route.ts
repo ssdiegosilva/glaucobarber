@@ -53,3 +53,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     pages: Math.ceil(total / limit),
   });
 }
+
+// DELETE /api/targeted-offers/[id]
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const offer = await prisma.targetedOffer.findFirst({
+    where: { id, barbershopId: session.user.barbershopId },
+  });
+  if (!offer) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await prisma.targetedOffer.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}
