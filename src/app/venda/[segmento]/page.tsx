@@ -339,7 +339,7 @@ export default async function VendaSegmentoPage({
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors"
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
               style={{ background: ac }}
             >
               Começar grátis
@@ -367,10 +367,10 @@ export default async function VendaSegmentoPage({
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/signup"
-                className="inline-flex items-center gap-2 rounded-lg px-6 py-3.5 text-sm font-semibold text-white transition-colors shadow-md"
+                className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-colors shadow-md hover:opacity-90"
                 style={{ background: ac }}
               >
-                Começar grátis — sem cartão
+                Começar grátis
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
