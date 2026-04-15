@@ -10,7 +10,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(201,168,76,0.05),transparent_60%)]" />
 
         <div className="relative">
-          <Image src="/logo-dark.png" alt="Voltaki" width={130} height={40} className="h-9 w-auto" />
+          <Image src="/logo-dark.png" alt="Voltaki" width={160} height={48} className="h-11 w-auto" />
         </div>
 
         <div className="relative">

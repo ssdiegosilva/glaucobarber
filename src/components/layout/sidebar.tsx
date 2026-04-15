@@ -178,7 +178,7 @@ export function Sidebar({
           className="flex w-full items-center gap-3 px-5 py-5 hover:bg-surface-800/40 transition-colors text-left"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-dark.png" alt="Voltaki" className="h-7 w-auto shrink-0" />
+          <img src="/logo-dark.png" alt="Voltaki" className="h-10 w-auto shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-foreground leading-tight truncate">
               {barbershopName ?? ""}

@@ -20,7 +20,7 @@ export default async function RootPage() {
       <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#080810]/80 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            <Image src="/logo-dark.png" alt="Voltaki" width={120} height={36} className="h-8 w-auto" priority />
+            <Image src="/logo-dark.png" alt="Voltaki" width={160} height={48} className="h-10 w-auto" priority />
           </div>
           <div className="flex items-center gap-3">
             <a href="#precos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">

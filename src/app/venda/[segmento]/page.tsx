@@ -293,7 +293,7 @@ export default async function VendaSegmentoPage({
       <header className="fixed top-0 inset-x-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center">
-            <Image src="/logo-light.png" alt="Voltaki" width={110} height={34} className="h-8 w-auto" />
+            <Image src="/logo-light.png" alt="Voltaki" width={150} height={46} className="h-10 w-auto" />
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">

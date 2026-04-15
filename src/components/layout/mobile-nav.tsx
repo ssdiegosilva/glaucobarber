@@ -110,7 +110,7 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
         {/* Logo + name */}
         <Link href="/dashboard" className="flex items-center gap-2 min-w-0" onClick={() => setOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-dark.png" alt="Voltaki" className="h-7 w-auto shrink-0" />
+          <img src="/logo-dark.png" alt="Voltaki" className="h-9 w-auto shrink-0" />
           {barbershopName && (
             <p className="text-sm font-semibold text-foreground truncate">{barbershopName}</p>
           )}
