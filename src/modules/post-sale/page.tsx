@@ -73,10 +73,11 @@ export default async function PostSalePage() {
             serviceId:   true,
             service:     { select: { id: true, name: true } },
             barberId:    true,
+            items:       { select: { serviceId: true, name: true }, take: 3 },
           },
           where:   { status: "COMPLETED" },
-          orderBy: { completedAt: "desc" },
-          take: 5,
+          orderBy: { scheduledAt: "desc" },
+          take: 10,
         },
       },
       orderBy: { lastCompletedAppointmentAt: "asc" },
@@ -161,11 +162,19 @@ export default async function PostSalePage() {
       lastAppointmentId:          lastAppt?.id ?? null,
       reviewStatus,
       sentTypes,
-      recentAppointments: c.appointments.map((a) => ({
-        serviceId:   a.serviceId ?? a.service?.id ?? null,
-        serviceName: a.service?.name ?? null,
-        completedAt: a.completedAt?.toISOString() ?? "",
-      })),
+      recentAppointments: c.appointments.flatMap((a): { serviceId: string | null; serviceName: string | null; completedAt: string }[] => {
+        const date = (a.completedAt ?? a.scheduledAt)?.toISOString() ?? "";
+        const mainServiceId = a.serviceId ?? a.service?.id ?? null;
+        if (mainServiceId) {
+          return [{ serviceId: mainServiceId, serviceName: a.service?.name ?? null, completedAt: date }];
+        }
+        if (a.items && a.items.length > 0) {
+          return a.items
+            .filter((item) => item.serviceId)
+            .map((item) => ({ serviceId: item.serviceId, serviceName: item.name, completedAt: date }));
+        }
+        return [{ serviceId: null, serviceName: null, completedAt: date }];
+      }),
     };
   });
 

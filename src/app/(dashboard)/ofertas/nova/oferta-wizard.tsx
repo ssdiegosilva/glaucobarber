@@ -57,6 +57,13 @@ export function OfertaWizard() {
   const [previewCount, setPreviewCount]       = useState<number | null>(null);
   const [previewCustomers, setPreviewCustomers] = useState<PreviewCustomer[]>([]);
   const [previewDone, setPreviewDone]         = useState(false);
+  // Never-bought pool
+  const [neverBoughtCount, setNeverBoughtCount] = useState(0);
+  const [neverBoughtOpen, setNeverBoughtOpen]   = useState(false);
+  const [neverSearch, setNeverSearch]           = useState("");
+  const [neverResults, setNeverResults]         = useState<PreviewCustomer[]>([]);
+  const [neverSearching, setNeverSearching]     = useState(false);
+  const neverSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Manual customer selection
   const [manualCustomers, setManualCustomers] = useState<PreviewCustomer[]>([]);
   const [customerSearch, setCustomerSearch]   = useState("");
@@ -120,6 +127,29 @@ export function OfertaWizard() {
     setSelectedItems((prev) => prev.filter((i) => i.id !== id));
   }
 
+  // ── Never-bought search ───────────────────────────────────────
+
+  const searchNeverBought = useCallback(async (q: string) => {
+    if (!q.trim()) { setNeverResults([]); return; }
+    setNeverSearching(true);
+    try {
+      const ids = selectedItems.map((i) => i.id).join(",");
+      const res = await fetch(`/api/targeted-offers/preview?type=${type}&ids=${encodeURIComponent(ids)}&never=true&q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      const existing = new Set([...manualCustomers.map((c) => c.id), ...previewCustomers.map((c) => c.id)]);
+      setNeverResults((data.customers ?? []).filter((c: PreviewCustomer) => !existing.has(c.id)));
+    } finally { setNeverSearching(false); }
+  }, [type, selectedItems, manualCustomers, previewCustomers]);
+
+  useEffect(() => {
+    if (neverSearchTimeout.current) clearTimeout(neverSearchTimeout.current);
+    if (neverSearch.trim()) {
+      neverSearchTimeout.current = setTimeout(() => searchNeverBought(neverSearch), 300);
+    } else {
+      setNeverResults([]);
+    }
+  }, [neverSearch, searchNeverBought]);
+
   // ── Customer search (manual) ──────────────────────────────────
 
   const searchCustomers = useCallback(async (q: string) => {
@@ -168,6 +198,7 @@ export function OfertaWizard() {
       const data = await res.json();
       setPreviewCount(data.count ?? 0);
       setPreviewCustomers(data.customers ?? []);
+      setNeverBoughtCount(data.neverBoughtCount ?? 0);
       setPreviewDone(true);
     } catch {
       toast({ title: "Erro ao carregar prévia", variant: "destructive" });
@@ -178,11 +209,18 @@ export function OfertaWizard() {
     if (step === 2) loadPreview();
   }, [step, days, loadPreview]);
 
-  // ── Auto-generate template on step 4 entry ───────────────────
+  // ── Auto-fill title + generate template on step 4 entry ──────
 
   useEffect(() => {
-    if (step === 4 && !template) {
-      generateTemplate();
+    if (step === 4) {
+      if (!title) {
+        const names = selectedItems.map((i) => i.name).join(" + ");
+        const suffix = hasDiscount && discountPct ? ` — ${discountPct}% OFF` : "";
+        setTitle(`${names}${suffix}`);
+      }
+      if (!template) {
+        generateTemplate();
+      }
     }
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -340,8 +378,7 @@ export function OfertaWizard() {
               <div>
                 <p className="text-base font-semibold text-foreground">Quem vai receber?</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Clientes que compraram <strong>{selectedItems.map((i) => i.name).join(", ")}</strong>{" "}
-                  há mais de X dias
+                  Selecione clientes por inatividade, que nunca compraram, ou manualmente.
                 </p>
               </div>
 
@@ -400,6 +437,63 @@ export function OfertaWizard() {
                   </>
                 ) : null}
               </div>
+
+              {/* Never bought section */}
+              {previewDone && neverBoughtCount > 0 && (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => { setNeverBoughtOpen((v) => !v); setNeverSearch(""); setNeverResults([]); }}
+                    className="w-full flex items-center justify-between rounded-xl bg-surface-800 border border-border p-3 hover:bg-surface-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                        <Users className="h-4 w-4 text-purple-400" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-foreground">{neverBoughtCount} nunca compraram</p>
+                        <p className="text-[10px] text-muted-foreground">Clientes que nunca usaram {selectedItems.map((i) => i.name).join(", ")}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${neverBoughtOpen ? "rotate-90" : ""}`} />
+                  </button>
+
+                  {neverBoughtOpen && (
+                    <div className="rounded-xl border border-purple-500/20 bg-surface-800/50 p-3 space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <input
+                          type="text"
+                          value={neverSearch}
+                          onChange={(e) => setNeverSearch(e.target.value)}
+                          placeholder="Buscar por nome..."
+                          autoFocus
+                          className="w-full rounded-md border border-border bg-surface-800 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500/30"
+                        />
+                        {neverSearching && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
+                      {!neverSearch.trim() && (
+                        <p className="text-[10px] text-muted-foreground">Digite o nome para buscar e adicionar clientes.</p>
+                      )}
+                      {neverResults.length > 0 && (
+                        <div className="rounded-md border border-border bg-surface-800 divide-y divide-border max-h-40 overflow-y-auto">
+                          {neverResults.map((c) => (
+                            <button
+                              key={c.id}
+                              onClick={() => { addManualCustomer(c); setNeverResults((prev) => prev.filter((r) => r.id !== c.id)); }}
+                              className="w-full flex items-center justify-between px-3 py-2 text-sm text-foreground hover:bg-surface-700 transition-colors"
+                            >
+                              <span>{c.name}</span>
+                              <span className="text-[10px] text-purple-400">+ adicionar</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Manual customer add */}
               <div className="space-y-2">
@@ -528,7 +622,7 @@ export function OfertaWizard() {
               <div>
                 <p className="text-base font-semibold text-foreground">Mensagem e envio</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Template enviado para {previewCount} cliente{previewCount !== 1 ? "s" : ""}. Use {"{nome}"} para personalizar.
+                  Template enviado para {totalCustomers} cliente{totalCustomers !== 1 ? "s" : ""}. Use {"{nome}"} para personalizar.
                 </p>
               </div>
 
@@ -591,14 +685,17 @@ export function OfertaWizard() {
               )}
 
               {/* Preview of first customer */}
-              {previewCustomers.length > 0 && template && !generating && (
-                <div className="rounded-xl bg-surface-800 border border-border p-3 space-y-1">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Prévia para {previewCustomers[0].name}</p>
-                  <p className="text-xs text-foreground whitespace-pre-wrap">
-                    {template.replace(/\{nome\}/gi, previewCustomers[0].name)}
-                  </p>
-                </div>
-              )}
+              {(() => {
+                const firstCustomer = previewCustomers[0] ?? manualCustomers[0];
+                return firstCustomer && template && !generating ? (
+                  <div className="rounded-xl bg-surface-800 border border-border p-3 space-y-1">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Prévia para {firstCustomer.name}</p>
+                    <p className="text-xs text-foreground whitespace-pre-wrap">
+                      {template.replace(/\{nome\}/gi, firstCustomer.name)}
+                    </p>
+                  </div>
+                ) : null;
+              })()}
             </>
           )}
         </div>
@@ -635,7 +732,7 @@ export function OfertaWizard() {
               className="gap-2 bg-gold-500 hover:bg-gold-400 text-black"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Enviar para {previewCount} cliente{previewCount !== 1 ? "s" : ""}
+              Enviar para {totalCustomers} cliente{totalCustomers !== 1 ? "s" : ""}
             </Button>
           )}
         </div>
