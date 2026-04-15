@@ -189,13 +189,12 @@ export default async function RootPage() {
 
               <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-gold-lg">
                 <Image
-                  src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=880&q=80"
+                  src="/hero-cliente.jpg"
                   alt="Cliente voltando ao estabelecimento"
                   width={440}
                   height={560}
                   className="object-cover w-full h-[480px] lg:h-[560px] object-top"
                   priority
-                  unoptimized
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#080810] via-[#080810]/20 to-transparent" />
               </div>
