@@ -1,6 +1,6 @@
 {
-  "name": "Voltou.ai – Seu cliente sempre volta",
-  "short_name": "Voltou.ai",
+  "name": "Voltaki – Seu cliente sempre volta",
+  "short_name": "Voltaki",
   "description": "Plataforma de fidelização inteligente. WhatsApp automático, campanhas com IA e gestão de clientes.",
   "start_url": "/dashboard",
   "display": "standalone",
