@@ -146,27 +146,27 @@ export function OfertaWizard() {
 
   async function generateTemplate() {
     setGenerating(true);
-    const names = selectedItems.map((i) => i.name).join(", ");
-    const discountLine = hasDiscount && discountPct
-      ? `Você tem ${discountPct}% de desconto exclusivo em ${names}!`
-      : `Temos uma oferta especial para você: ${names}!`;
-
     try {
-      const prompt = `Crie uma mensagem de WhatsApp curta e amigável (máx 3 parágrafos) para reengajar um cliente que não compra faz mais de ${days} dias. A mensagem deve mencionar os itens: ${names}. ${discountLine} Use {nome} para personalizar. Responda APENAS com o texto da mensagem.`;
-      const res = await fetch("/api/copilot", {
+      const res = await fetch("/api/targeted-offers/generate-template", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt, context: {} }),
+        body: JSON.stringify({
+          itemNames:   selectedItems.map((i) => i.name),
+          days,
+          hasDiscount,
+          discountPct: hasDiscount ? parseInt(discountPct || "0", 10) : null,
+        }),
       });
       const data = await res.json();
-      if (data.answer) {
-        setTemplate(data.answer);
+      if (data.template) {
+        setTemplate(data.template);
       } else {
-        // Fallback template
-        setTemplate(`Olá {nome}! 👋\n\nSentimos sua falta! Temos uma oferta especial esperando por você: ${names}${hasDiscount && discountPct ? ` com ${discountPct}% de desconto` : ""}.\n\nVenha nos visitar, será um prazer atendê-lo novamente! 😊`);
+        throw new Error(data.message ?? "Erro");
       }
-    } catch {
-      setTemplate(`Olá {nome}! 👋\n\nSentimos sua falta! Temos uma oferta especial esperando por você: ${names}.\n\nVenha nos visitar! 😊`);
+    } catch (err) {
+      const names = selectedItems.map((i) => i.name).join(", ");
+      setTemplate(`Olá {nome}! 👋\n\nSentimos sua falta! Temos uma oferta especial esperando por você: ${names}${hasDiscount && discountPct ? ` com ${discountPct}% de desconto` : ""}.\n\nVenha nos visitar, será um prazer atendê-lo novamente! 😊`);
+      toast({ title: "IA indisponível, usando template padrão", variant: "destructive" });
     } finally { setGenerating(false); }
   }
 
