@@ -227,6 +227,44 @@ const SEGMENTS: Record<string, Segment> = {
     testimonial: "Recuperei 8 alunos que eu achava que tinham cancelado. O bot mandou no momento certo e eles voltaram.",
   },
 
+  barbearia: {
+    slug: "barbearia",
+    name: "Barbearia",
+    emoji: "✂️",
+    tagline: "Encha a cadeira todo dia. Sem precisar ligar para ninguém.",
+    subtitle: "Barbearias que usam Voltaki recuperam clientes inativos automaticamente e aumentam o faturamento mensal entre 15% e 25%.",
+    heroImage: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&q=80",
+    accentColor: "#b8973a",
+    accentLight: "#fdf8ec",
+    accentText: "#6b4e10",
+    businessName: "Barbearia Arte & Navalha",
+    owner: "Lucas Ferreira",
+    product: "Corte degradê + barba",
+    productPrice: "R$ 65,00",
+    discountPct: 20,
+    discountedPrice: "R$ 52,00",
+    daysInactive: 21,
+    productImage: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&q=80",
+    scenarios: [
+      {
+        title: "Cliente que sumiu faz 3 semanas",
+        before: "Lucas nao sabe quem parou de vir so percebe quando a agenda fica vazia",
+        after: "Voltaki detecta quem nao cortou em 21 dias e manda: 'Cadeira liberada! Corte + barba com 20% off essa semana'",
+      },
+      {
+        title: "Campanha de novo servico",
+        before: "Lancou pigmentacao na barba mas so postou um story que ninguem viu",
+        after: "IA cria campanha com foto e texto profissional. Em 1 clique vai pro WhatsApp de todos os clientes da base",
+      },
+      {
+        title: "Fidelidade automatica",
+        before: "Cliente fiel nao recebe nenhum reconhecimento e vai experimentar a concorrencia",
+        after: "Apos o 5 corte: 'Voce e cliente VIP! Proximo corte com 15% de desconto. So pra voce.'",
+      },
+    ],
+    testimonial: "Recuperei 11 clientes que eu achava que tinham ido embora. O bot mandou a mensagem certa na hora certa.",
+  },
+
   restaurante: {
     slug: "restaurante",
     name: "Restaurante",

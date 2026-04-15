@@ -6,9 +6,69 @@ import {
   BarChart3, Users, Sparkles, Calendar,
   TrendingUp, Megaphone, ArrowRight, CheckCircle2,
   MessageSquare, Bot, Camera, X, GalleryHorizontal,
-  HeartHandshake, Repeat2,
+  HeartHandshake, Repeat2, Scissors, Croissant,
+  Coffee, CakeSlice, PawPrint, Dumbbell, Utensils,
 } from "lucide-react";
 import { InstallAppButton } from "@/components/pwa/install-button";
+
+const SEGMENTS = [
+  {
+    slug: "barbearia",
+    name: "Barbearia",
+    icon: Scissors,
+    color: "#b8973a",
+    bg: "#fdf8ec",
+    example: "Cliente sumiu ha 3 semanas? O bot avisa e traz de volta.",
+  },
+  {
+    slug: "padaria",
+    name: "Padaria",
+    icon: Croissant,
+    color: "#c2843a",
+    bg: "#fdf6ec",
+    example: "Foto do bolo quentinho no WhatsApp. Clientes que voltam todo dia.",
+  },
+  {
+    slug: "cafeteria",
+    name: "Cafeteria",
+    icon: Coffee,
+    color: "#6f4e37",
+    bg: "#fdf3eb",
+    example: "Combo cafe + croissant com desconto pra quem nao aparece ha 10 dias.",
+  },
+  {
+    slug: "boleria",
+    name: "Boleria / Confeitaria",
+    icon: CakeSlice,
+    color: "#c2548a",
+    bg: "#fdf0f5",
+    example: "Lancou sabor novo? IA manda campanha pro WhatsApp de toda a base.",
+  },
+  {
+    slug: "petshop",
+    name: "Pet Shop",
+    icon: PawPrint,
+    color: "#3a7dc2",
+    bg: "#edf5fd",
+    example: "Bolinha nao tomou banho ha 30 dias. Bot avisa o dono automaticamente.",
+  },
+  {
+    slug: "academia",
+    name: "Academia",
+    icon: Dumbbell,
+    color: "#2a8a3a",
+    bg: "#edf8ef",
+    example: "Aluno parou de aparecer? Mensagem de reativacao com desconto no dia certo.",
+  },
+  {
+    slug: "restaurante",
+    name: "Restaurante",
+    icon: Utensils,
+    color: "#c23a3a",
+    bg: "#fdf0f0",
+    example: "Cardapio da semana toda segunda-feira no WhatsApp. Automatico.",
+  },
+];
 
 export default async function RootPage() {
   const session = await auth();
@@ -20,22 +80,21 @@ export default async function RootPage() {
       <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#080810]/80 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
           <div className="flex items-center">
-            {/* Icon only on mobile, full wordmark on desktop */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/icon-192.png" alt="Voltaki" className="h-9 w-9 sm:hidden rounded-xl" />
             <Image src="/logo-dark.png" alt="Voltaki" width={160} height={48} className="hidden sm:block h-10 w-auto" priority />
           </div>
           <div className="flex items-center gap-3">
+            <a href="#segmentos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Para o seu negócio
+            </a>
             <a href="#precos" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">
               Preços
             </a>
             <div className="hidden sm:block">
               <InstallAppButton />
             </div>
-            <Link
-              href="/login"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Entrar
             </Link>
             <Link
@@ -50,7 +109,6 @@ export default async function RootPage() {
 
       {/* ── Hero ────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex items-center overflow-hidden pt-16">
-        {/* background glow */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-1/4 left-1/4 w-[700px] h-[700px] rounded-full bg-gold-500/6 blur-[160px]" />
           <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-gold-600/4 blur-[120px]" />
@@ -79,17 +137,17 @@ export default async function RootPage() {
               </span>
             </h1>
 
-            <p className="text-lg lg:text-xl text-muted-foreground mb-10 max-w-lg leading-relaxed">
-              O Voltaki manda WhatsApp automático para clientes que sumiram,
-              cria campanhas com IA e mostra exatamente o que fazer para seu negócio crescer.
+            <p className="text-lg lg:text-xl text-muted-foreground mb-6 max-w-lg leading-relaxed">
+              Enquanto você foca no seu negócio, o Voltaki cuida de trazer o cliente de volta.
+              WhatsApp automático, campanhas com IA e follow-up que parece humano — tudo no piloto automático.
             </p>
 
-            <div className="mb-10 space-y-2 text-sm text-foreground/90">
-              <p className="font-semibold text-gold-400">
-                +15% a +25% de faturamento no 1º mês* com follow-up automático e campanhas guiadas por IA.
+            <div className="mb-10 rounded-xl border border-gold-500/20 bg-gold-500/6 px-4 py-3 max-w-lg">
+              <p className="font-semibold text-gold-400 text-sm">
+                Negócios que usam Voltaki faturam 15% a 25% a mais no 1º mês.*
               </p>
-              <p className="text-muted-foreground text-xs">
-                Teste sem risco: use, comprove resultado; se não curtir, não paga nada.
+              <p className="text-muted-foreground text-xs mt-1">
+                Sem precisar contratar ninguém. Sem ficar no celular. Teste grátis — se não funcionar, não paga.
               </p>
             </div>
 
@@ -110,12 +168,11 @@ export default async function RootPage() {
               <InstallAppButton />
             </div>
 
-            {/* trust row */}
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               {[
-                "Clientes fidelizados automaticamente",
+                "Clientes reativados automaticamente",
                 "WhatsApp bot incluso",
-                "Campanhas com IA",
+                "IA que escreve igual gente",
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0" />
@@ -125,7 +182,7 @@ export default async function RootPage() {
             </div>
           </div>
 
-          {/* Right — photo + stats overlay */}
+          {/* Right */}
           <div className="relative flex justify-center lg:justify-end animate-slide-in-left">
             <div className="relative w-[360px] lg:w-[440px]">
               <div className="absolute -inset-4 rounded-3xl bg-gold-500/10 blur-2xl" />
@@ -143,7 +200,6 @@ export default async function RootPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#080810] via-[#080810]/20 to-transparent" />
               </div>
 
-              {/* stats overlay */}
               <div className="absolute bottom-0 inset-x-0 p-5 grid grid-cols-3 gap-3">
                 {[
                   { value: "1.581", label: "Clientes" },
@@ -160,7 +216,6 @@ export default async function RootPage() {
                 ))}
               </div>
 
-              {/* floating badge — live */}
               <div className="absolute -top-4 -right-4 flex items-center gap-2 rounded-xl border border-green-500/30 bg-[#080810]/90 backdrop-blur-sm px-3 py-2 shadow-lg">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -169,11 +224,58 @@ export default async function RootPage() {
                 <span className="text-xs font-medium text-green-400">Cliente voltou agora</span>
               </div>
 
-              {/* floating badge — bot */}
               <div className="absolute -bottom-4 -left-4 flex items-center gap-2 rounded-xl border border-gold-500/30 bg-[#080810]/90 backdrop-blur-sm px-3 py-2 shadow-lg">
                 <Bot className="h-3.5 w-3.5 text-gold-400" />
                 <span className="text-xs font-medium text-gold-400">Bot enviou 12 msgs hoje</span>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Para o seu negócio ───────────────────────────────── */}
+      <section id="segmentos" className="py-24 border-t border-white/5">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Para o seu negócio</p>
+            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
+              Funciona para qualquer negócio<br className="hidden sm:block" /> que depende de clientes que voltam
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
+              Clique no seu segmento e veja exemplos reais de como o Voltaki aumenta o faturamento.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {SEGMENTS.map((seg) => (
+              <Link
+                key={seg.slug}
+                href={`/venda/${seg.slug}`}
+                className="group relative rounded-2xl border border-border bg-card p-5 hover:border-gold-500/40 hover:bg-card/70 transition-all"
+              >
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl mb-4 transition-transform group-hover:scale-105"
+                  style={{ background: `${seg.color}18`, border: `1px solid ${seg.color}35` }}
+                >
+                  <seg.icon className="h-5 w-5" style={{ color: seg.color }} />
+                </div>
+                <p className="text-sm font-semibold text-foreground mb-1.5">{seg.name}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{seg.example}</p>
+                <div className="mt-4 flex items-center gap-1 text-[11px] font-medium" style={{ color: seg.color }}>
+                  Ver como funciona <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </Link>
+            ))}
+            {/* Extra CTA card */}
+            <div className="rounded-2xl border border-dashed border-border bg-transparent p-5 flex flex-col items-center justify-center text-center gap-3">
+              <p className="text-sm font-medium text-muted-foreground">Outro segmento?</p>
+              <p className="text-xs text-muted-foreground">O Voltaki funciona para qualquer negócio com base de clientes.</p>
+              <Link
+                href="/signup"
+                className="text-xs font-semibold text-gold-400 hover:text-gold-300 transition-colors"
+              >
+                Testar grátis →
+              </Link>
             </div>
           </div>
         </div>
@@ -185,10 +287,10 @@ export default async function RootPage() {
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Como funciona</p>
             <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
-              Pare de perder cliente. Comece a trazer de volta.
+              Você foca no negócio.<br className="hidden sm:block" /> A gente garante que o cliente volta.
             </h2>
             <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-              Todo negócio perde cliente por falta de contato. O Voltaki resolve isso sozinho.
+              O Voltaki trabalha nos bastidores enquanto você atende. Sem ficar no celular, sem contratar ninguém.
             </p>
           </div>
 
@@ -196,17 +298,17 @@ export default async function RootPage() {
             {[
               {
                 before: "Cliente sumiu há 30 dias e você nem sabe",
-                after: "Bot manda WhatsApp automático. Ele volta sem você fazer nada.",
+                after: "Bot manda WhatsApp automático com a oferta certa. Ele volta sem você fazer nada.",
                 icon: <MessageSquare className="h-5 w-5" />,
               },
               {
-                before: "Sem ideia do que postar nas redes sociais",
-                after: "IA cria o texto e a arte da campanha. Você só aprova.",
+                before: "Sem ideia do que postar ou para quem mandar oferta",
+                after: "IA escreve a mensagem, cria a arte da campanha e personaliza por cliente. Você só aprova.",
                 icon: <Megaphone className="h-5 w-5" />,
               },
               {
-                before: "Não sabe quem são seus melhores clientes",
-                after: "Dashboard mostra quem gasta mais, quem sumiu e o que fazer.",
+                before: "Não sabe quem são seus melhores clientes nem o que está perdendo",
+                after: "Dashboard mostra quem gasta mais, quem sumiu e o próximo passo certeiro.",
                 icon: <BarChart3 className="h-5 w-5" />,
               },
             ].map((item, i) => (
@@ -231,13 +333,39 @@ export default async function RootPage() {
         </div>
       </section>
 
+      {/* ── Receita — números que convencem ─────────────────── */}
+      <section className="py-20 border-t border-white/5 bg-gradient-to-b from-gold-500/4 to-transparent">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Resultado real</p>
+            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
+              Cada cliente que volta é dinheiro<br className="hidden sm:block" /> que você não precisou gastar para conquistar
+            </h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto">
+            {[
+              { value: "+23%", label: "Faturamento médio no 1º mês", desc: "Resultado de negócios que ativaram o follow-up automático" },
+              { value: "3x",   label: "Mais retorno que anúncio pago", desc: "Reativar cliente antigo custa 5x menos que conquistar um novo" },
+              { value: "68%",  label: "Taxa de resposta no WhatsApp", desc: "Contra menos de 2% em e-mail marketing tradicional" },
+              { value: "< 5min", label: "Para configurar e ativar", desc: "Sem técnico, sem integração complicada, sem treinamento" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-2xl border border-gold-500/20 bg-gold-500/5 p-5 text-center">
+                <p className="text-3xl font-bold text-gold-400 mb-1">{s.value}</p>
+                <p className="text-xs font-semibold text-foreground mb-2">{s.label}</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Features ─────────────────────────────────────────── */}
-      <section className="py-28 border-t border-white/5 bg-gradient-to-b from-transparent to-surface-950/30">
+      <section className="py-28 border-t border-white/5">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-3">Funcionalidades</p>
             <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground">
-              Tudo que você precisa para fidelizar
+              Tudo que você precisa. Nada que você não precise.
             </h2>
           </div>
 
@@ -246,47 +374,42 @@ export default async function RootPage() {
               {
                 icon: <Bot className="h-6 w-6" />,
                 title: "WhatsApp automático",
-                desc: "Bot envia mensagens de reativação, pós-atendimento e promoção automaticamente. Você configura uma vez e ele trabalha todo dia.",
+                desc: "Bot envia mensagens de reativação, pós-atendimento e promoção. Você configura uma vez e ele trabalha todo dia.",
               },
               {
                 icon: <Users className="h-6 w-6" />,
                 title: "Gestão de clientes",
-                desc: "Base completa com histórico, quanto cada cliente gastou, frequência, quem é VIP e quem sumiu. Tudo organizado.",
+                desc: "Base completa com histórico, quanto cada cliente gastou, frequência, quem é VIP e quem sumiu.",
               },
               {
                 icon: <Sparkles className="h-6 w-6" />,
                 title: "Copiloto com IA",
-                desc: "A IA analisa seu negócio e sugere: qual cliente chamar, que oferta criar, qual serviço destacar. Com um clique.",
+                desc: "A IA analisa seu negócio e sugere: qual cliente chamar, que oferta criar, qual serviço destacar.",
               },
               {
                 icon: <Megaphone className="h-6 w-6" />,
                 title: "Campanhas com IA",
-                desc: "Escreva o tema e a IA gera o texto e a imagem da campanha. Aprovado, vai direto pro Instagram.",
+                desc: "Escreva o tema e a IA gera o texto e a imagem. Aprovado, vai direto pro Instagram e WhatsApp.",
               },
               {
                 icon: <HeartHandshake className="h-6 w-6" />,
                 title: "Pós-atendimento",
-                desc: "Detecta quem acabou de ser atendido e manda mensagem personalizada de avaliação ou retorno. Automático.",
+                desc: "Detecta quem acabou de ser atendido e manda mensagem personalizada de avaliação ou retorno.",
               },
               {
                 icon: <Camera className="h-6 w-6" />,
                 title: "Instagram integrado",
-                desc: "Conecte o Instagram em 1 clique. Publique posts e carrosséis direto do sistema. A IA gera a legenda.",
+                desc: "Conecte em 1 clique. Publique posts e carrosséis direto do sistema. A IA gera a legenda.",
               },
               {
                 icon: <TrendingUp className="h-6 w-6" />,
                 title: "Metas e financeiro",
-                desc: "Acompanhe faturamento do dia, semana e mês. Compare com sua meta. Veja ticket médio e serviços mais vendidos.",
-              },
-              {
-                icon: <Calendar className="h-6 w-6" />,
-                title: "Agenda ao vivo",
-                desc: "Todos os agendamentos em tempo real. Integrado com Trinks e Avec. Sem copiar nada manualmente.",
+                desc: "Faturamento do dia, semana e mês. Compare com sua meta. Veja ticket médio e mais vendidos.",
               },
               {
                 icon: <Repeat2 className="h-6 w-6" />,
                 title: "Reativação automática",
-                desc: "O sistema identifica clientes inativos e dispara mensagens no momento certo. Você não precisa lembrar de ninguém.",
+                desc: "O sistema identifica clientes inativos e dispara mensagens no momento certo, sem você lembrar de ninguém.",
               },
             ].map((f) => (
               <div
@@ -313,12 +436,11 @@ export default async function RootPage() {
               Simples e sem surpresas
             </h2>
             <p className="mt-4 text-muted-foreground max-w-md mx-auto">
-              Comece grátis. Evolua quando precisar.
+              Comece grátis. Pague só quando ver resultado.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* FREE */}
             <div className="rounded-2xl border border-border bg-card p-7 flex flex-col">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Trial gratuito</p>
@@ -327,11 +449,11 @@ export default async function RootPage() {
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
-                  "Trial de 7 dias com acesso completo",
+                  "Trial de 14 dias com acesso completo",
                   "Agenda ao vivo",
                   "Gestão de clientes",
                   "Metas de faturamento",
-                  "Vitrine no Instagram (carrossel)",
+                  "Vitrine no Instagram",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
@@ -358,7 +480,6 @@ export default async function RootPage() {
               </Link>
             </div>
 
-            {/* PROFISSIONAL */}
             <div className="rounded-2xl border border-gold-500/40 bg-gradient-to-b from-gold-500/8 to-transparent p-7 flex flex-col relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Mais popular</span>
@@ -366,7 +487,7 @@ export default async function RootPage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-2">Profissional</p>
                 <p className="font-display text-4xl font-bold text-foreground">R$49<span className="text-lg font-normal text-muted-foreground">,90/mês</span></p>
-                <p className="text-xs text-muted-foreground mt-1">Tudo desbloqueado, sem taxas extras</p>
+                <p className="text-xs text-muted-foreground mt-1">Tudo desbloqueado. Menos de R$1,70 por dia.</p>
               </div>
               <ul className="mt-7 space-y-3 flex-1">
                 {[
@@ -401,7 +522,7 @@ export default async function RootPage() {
         </div>
       </section>
 
-      {/* ── Social Proof ─────────────────────────────────────── */}
+      {/* ── Depoimento ───────────────────────────────────────── */}
       <section className="py-28 border-t border-white/5">
         <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
           <div className="relative rounded-3xl border border-gold-500/20 bg-gradient-to-b from-gold-500/6 to-transparent p-10 lg:p-16">
@@ -410,18 +531,16 @@ export default async function RootPage() {
             <div className="relative">
               <p className="text-xl lg:text-2xl font-medium text-foreground leading-relaxed mb-8">
                 Abri o app de manhã e a IA já tinha sugerido o post, a mensagem pro cliente que sumiu
-                e a promoção da tarde. Só precisei aprovar.
+                e a promoção da tarde. Só precisei aprovar. Parece ter um assistente trabalhando enquanto durmo.
               </p>
 
               <div className="flex items-center justify-center gap-4">
-                <div className="relative h-14 w-14 rounded-full overflow-hidden border-2 border-gold-500/40 bg-gold-500/20 flex items-center justify-center">
+                <div className="h-14 w-14 rounded-full border-2 border-gold-500/40 bg-gold-500/20 flex items-center justify-center">
                   <span className="text-xl font-bold text-gold-400">R</span>
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-semibold text-foreground">Rafael Costa</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs text-muted-foreground">Padaria Sabor do Dia</p>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">Padaria Sabor do Dia</p>
                 </div>
               </div>
             </div>
@@ -429,7 +548,7 @@ export default async function RootPage() {
         </div>
       </section>
 
-      {/* ── CTA Banner ───────────────────────────────────────── */}
+      {/* ── CTA Final ────────────────────────────────────────── */}
       <section className="py-28 border-t border-white/5">
         <div className="mx-auto max-w-3xl px-6 lg:px-8 text-center">
           <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground mb-5">
@@ -438,8 +557,11 @@ export default async function RootPage() {
               A gente traz ele de volta.
             </span>
           </h2>
-          <p className="text-muted-foreground mb-10 text-lg">
-            Crie sua conta grátis e comece a fidelizar em menos de 2 minutos.
+          <p className="text-muted-foreground mb-4 text-lg">
+            Configure em menos de 5 minutos. Veja o resultado no primeiro mês.
+          </p>
+          <p className="text-sm text-gold-400/80 mb-10">
+            Teste grátis — se não gostar, não paga. Simples assim.
           </p>
           <Link
             href="/signup"
@@ -458,12 +580,13 @@ export default async function RootPage() {
 
       {/* ── Footer ───────────────────────────────────────────── */}
       <footer className="border-t border-white/5 py-8">
-        <div className="mx-auto max-w-7xl px-6 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center">
             <Image src="/logo-dark.png" alt="Voltaki" width={90} height={28} className="h-6 w-auto opacity-60" />
           </div>
-          <p className="text-xs text-muted-foreground">© 2025 Voltaki</p>
+          <p className="text-xs text-muted-foreground">© 2025 Voltaki · Seu cliente sempre volta.</p>
           <div className="flex items-center gap-4">
+            <a href="#segmentos" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Segmentos</a>
             <a href="#precos" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Preços</a>
             <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Entrar
