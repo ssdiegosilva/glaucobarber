@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Zap, Loader2, Clock, PencilLine, CreditCard, LogOut, Lightbulb, ChevronDown, ChevronUp, Lock } from "lucide-react";
+import { Sparkles, Zap, Loader2, Clock, Settings, CreditCard, LogOut, Lightbulb, ChevronDown, ChevronUp, Lock } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -339,8 +339,8 @@ export function AiProfilePanel({ userName, open, onOpenChange }: Props) {
             onClick={() => onOpenChange(false)}
             className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-surface-800 text-sm text-foreground transition-colors"
           >
-            <PencilLine className="h-4 w-4 text-muted-foreground" />
-            Editar perfil
+            <Settings className="h-4 w-4 text-muted-foreground" />
+            Configurações
           </Link>
           <Link
             href="/billing"

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -40,9 +40,8 @@ export default function LoginPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="space-y-1 text-center">
         <div className="flex items-center justify-center mb-4 lg:hidden">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/15 border border-gold-500/30">
-            <Scissors className="h-5 w-5 text-gold-400" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="Voltaki" className="h-14 w-14 rounded-2xl" />
         </div>
         <h1 className="text-2xl font-bold text-foreground">Entrar</h1>
         <p className="text-sm text-muted-foreground">Acesse seu painel</p>
