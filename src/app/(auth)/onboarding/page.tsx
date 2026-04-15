@@ -75,7 +75,13 @@ function OnboardingContent() {
     fetch("/api/segments/public")
       .then((r) => r.json())
       .then((data: PublicSegment[]) => {
-        setSegments(data);
+        // "Outro" / "other" always last
+        const sorted = data.sort((a, b) => {
+          const aOther = a.key === "other" ? 1 : 0;
+          const bOther = b.key === "other" ? 1 : 0;
+          return aOther - bOther;
+        });
+        setSegments(sorted);
         setLoadingSegments(false);
       })
       .catch(() => setLoadingSegments(false));

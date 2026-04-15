@@ -108,7 +108,7 @@ export default async function RootPage() {
       </header>
 
       {/* ── Hero ────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden pt-16">
+      <section className="relative min-h-screen flex items-center overflow-hidden pt-8">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-1/4 left-1/4 w-[700px] h-[700px] rounded-full bg-gold-500/6 blur-[160px]" />
           <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-gold-600/4 blur-[120px]" />
@@ -127,7 +127,7 @@ export default async function RootPage() {
           <div className="animate-fade-in">
             <div className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/8 px-3 py-1 text-xs text-gold-400 mb-8">
               <Sparkles className="h-3 w-3" />
-              WhatsApp automático · IA · Campanhas · Fidelização
+              WhatsApp automático* · IA · Campanhas · Fidelização
             </div>
 
             <h1 className="font-display text-5xl lg:text-6xl xl:text-7xl font-bold leading-none mb-6 tracking-tight">
@@ -147,7 +147,7 @@ export default async function RootPage() {
                 Negócios que usam Voltaki faturam 15% a 25% a mais no 1º mês.*
               </p>
               <p className="text-muted-foreground text-xs mt-1">
-                Sem precisar contratar ninguém. Sem ficar no celular. Teste grátis — se não funcionar, não paga.
+                Sem precisar contratar ninguém. Sem ficar no celular. Apenas R$59,90/mês — teste grátis por até 7 dias.
               </p>
             </div>
 
@@ -180,6 +180,11 @@ export default async function RootPage() {
                 </span>
               ))}
             </div>
+
+            <p className="text-[10px] text-muted-foreground/60 mt-4 max-w-lg leading-relaxed">
+              *O envio 100% automático via bot requer WhatsApp Business API com templates aprovados pela Meta.
+              Com WhatsApp pessoal, o Voltaki gera os textos e imagens — você envia com um toque.
+            </p>
           </div>
 
           {/* Right */}
@@ -483,59 +488,28 @@ export default async function RootPage() {
               Simples e sem surpresas
             </h2>
             <p className="mt-4 text-muted-foreground max-w-md mx-auto">
-              Comece grátis. Pague só quando ver resultado.
+              Um único plano com tudo incluso. Teste antes de pagar.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            <div className="rounded-2xl border border-border bg-card p-7 flex flex-col">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Trial gratuito</p>
-                <p className="font-display text-4xl font-bold text-foreground">R$0</p>
-                <p className="text-xs text-muted-foreground mt-1">Sem cartão de crédito</p>
-              </div>
-              <ul className="mt-7 space-y-3 flex-1">
-                {[
-                  "Trial de 14 dias com acesso completo",
-                  "Agenda ao vivo",
-                  "Gestão de clientes",
-                  "Metas de faturamento",
-                  "Vitrine no Instagram",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-gold-400 shrink-0 mt-0.5" />
-                    {f}
-                  </li>
-                ))}
-                {[
-                  "Copiloto IA",
-                  "Campanhas com IA",
-                  "WhatsApp automático",
-                  "Relatórios financeiros",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-xs text-muted-foreground/40">
-                    <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/signup"
-                className="mt-8 block text-center rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-800 transition-colors"
-              >
-                Começar grátis
-              </Link>
-            </div>
-
+          <div className="max-w-md mx-auto">
             <div className="rounded-2xl border border-gold-500/40 bg-gradient-to-b from-gold-500/8 to-transparent p-7 flex flex-col relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Mais popular</span>
+                <span className="rounded-full bg-gold-500 px-3 py-0.5 text-[11px] font-bold text-[#080810]">Plano único</span>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-2">Profissional</p>
-                <p className="font-display text-4xl font-bold text-foreground">R$49<span className="text-lg font-normal text-muted-foreground">,90/mês</span></p>
-                <p className="text-xs text-muted-foreground mt-1">Tudo desbloqueado. Menos de R$1,70 por dia.</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-gold-400 mb-2">Voltaki Profissional</p>
+                <p className="font-display text-4xl font-bold text-foreground">R$59<span className="text-lg font-normal text-muted-foreground">,90/mês</span></p>
+                <p className="text-xs text-muted-foreground mt-1">Menos de R$2 por dia. Tudo desbloqueado.</p>
               </div>
+
+              <div className="mt-5 rounded-lg border border-gold-500/20 bg-gold-500/6 px-4 py-2.5">
+                <p className="text-xs font-semibold text-gold-400">Teste grátis por até 7 dias</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Acesso completo até acabar o período ou os créditos promocionais. Sem cartão de crédito.
+                </p>
+              </div>
+
               <ul className="mt-7 space-y-3 flex-1">
                 {[
                   "300 créditos de IA/mês",
@@ -546,6 +520,7 @@ export default async function RootPage() {
                   "Pós-atendimento inteligente",
                   "Vitrine no Instagram (carrossel)",
                   "Relatórios financeiros completos",
+                  "Agenda ao vivo + gestão de clientes",
                   "Metas de faturamento",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-xs text-foreground">
@@ -558,7 +533,7 @@ export default async function RootPage() {
                 href="/signup"
                 className="mt-8 block text-center rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-bold text-[#080810] hover:bg-gold-400 transition-colors"
               >
-                Assinar Profissional
+                Começar teste grátis
               </Link>
             </div>
           </div>
@@ -608,7 +583,7 @@ export default async function RootPage() {
             Configure em menos de 5 minutos. Veja o resultado no primeiro mês.
           </p>
           <p className="text-sm text-gold-400/80 mb-10">
-            Teste grátis — se não gostar, não paga. Simples assim.
+            Teste grátis por até 7 dias — se não gostar, não paga. Simples assim.
           </p>
           <Link
             href="/signup"
@@ -617,7 +592,7 @@ export default async function RootPage() {
             Começar grátis agora
             <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>
-          <p className="text-xs text-muted-foreground mt-4">Sem cartão de crédito · Configuração em minutos</p>
+          <p className="text-xs text-muted-foreground mt-4">Sem cartão de crédito · 7 dias grátis · Configuração em minutos</p>
 
           <div className="mt-6 flex justify-center">
             <InstallAppButton />

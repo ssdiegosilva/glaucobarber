@@ -219,18 +219,6 @@ export function Sidebar({
                 </button>
               ))}
             </div>
-            <div className="border-t border-border/60 py-1">
-              <Link
-                href="/onboarding?new=true"
-                onClick={() => setSwitcherOpen(false)}
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-700 transition-colors"
-              >
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted/60 border border-border shrink-0">
-                  <Plus className="h-3 w-3 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground">Criar novo estabelecimento</p>
-              </Link>
-            </div>
           </div>
         )}
       </div>

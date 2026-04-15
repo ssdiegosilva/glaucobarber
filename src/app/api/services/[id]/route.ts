@@ -12,7 +12,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { price, name, description, durationMin, active } = body;
+  const { price, name, description, durationMin, active, followUpDays } = body;
 
   const service = await prisma.service.findFirst({
     where: { id, barbershopId: session.user.barbershopId, deletedAt: null },
@@ -27,6 +27,7 @@ export async function PATCH(
       ...(description  != null ? { description }                        : {}),
       ...(durationMin  != null ? { durationMin: Number(durationMin) }   : {}),
       ...(active       != null ? { active: Boolean(active) }            : {}),
+      ...(followUpDays !== undefined ? { followUpDays: followUpDays != null ? Number(followUpDays) : null } : {}),
     },
   });
 

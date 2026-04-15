@@ -8,7 +8,7 @@ export async function GET() {
 
   const services = await prisma.service.findMany({
     where:   { barbershopId: session.user.barbershopId, active: true, deletedAt: null },
-    select:  { id: true, name: true, price: true, durationMin: true },
+    select:  { id: true, name: true, price: true, durationMin: true, followUpDays: true },
     orderBy: { name: "asc" },
   });
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, category, price, durationMin, description } = body;
+  const { name, category, price, durationMin, description, followUpDays } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 });
   if (price == null || isNaN(Number(price))) return NextResponse.json({ error: "Preço inválido" }, { status: 400 });
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       price:           Number(price),
       durationMin:     durationMin ? Number(durationMin) : 30,
       description:     description?.trim() || null,
+      followUpDays:    followUpDays != null ? Number(followUpDays) : null,
       syncedFromTrinks: false,
     },
   });

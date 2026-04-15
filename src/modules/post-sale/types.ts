@@ -38,6 +38,20 @@ export interface CustomerSummary {
   lastAppointmentId?: string | null;
   reviewStatus?: string | null;   // null = not requested, 'enviado'/'respondeu'/'avaliou' = done
   sentTypes?: string[];            // WhatsApp message types sent since last appointment
+  // Recent completed appointments for custom filter matching
+  recentAppointments?: { serviceId: string | null; serviceName: string | null; completedAt: string }[];
+}
+
+export interface PostSaleFilterConfig {
+  defaults: Record<"emRisco" | "recentes" | "inativos" | "reativados", boolean>;
+  custom: Array<{
+    id: string;
+    serviceId: string;
+    serviceName: string;
+    followUpDays: number;
+    enabled: boolean;
+  }>;
+  visible: string[];
 }
 
 export interface PostSaleActionDto {

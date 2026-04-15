@@ -5,12 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
-import type { CustomerSummary, PostSaleStatus } from "../types";
+import type { CustomerSummary, PostSaleStatus, PostSaleFilterConfig } from "../types";
+import { FilterConfigModal } from "./FilterConfigModal";
 import {
   MessageCircle, Clock, Scissors,
   ChevronDown, ChevronUp, Loader2, Lightbulb, CheckCircle2, AlertTriangle,
   UserMinus, RefreshCcw, Star, Phone, Send, ExternalLink, Sparkles, X, Save,
-  Search,
+  Search, Settings2, Filter,
 } from "lucide-react";
 
 // ── Status actions ────────────────────────────────────────────
@@ -147,63 +148,154 @@ interface Props {
   summary:         SummaryData;
   customers:       CustomerSummary[];
   googleReviewUrl: string | null;
+  filterConfig:    PostSaleFilterConfig;
 }
+
+// ── Custom filter matching ────────────────────────────────────
+
+function matchesCustomFilter(customer: CustomerSummary, serviceId: string, followUpDays: number): boolean {
+  const now = Date.now();
+  const cutoffMs = followUpDays * 86_400_000;
+  const matching = (customer.recentAppointments ?? []).find((a) => a.serviceId === serviceId);
+  if (!matching || !matching.completedAt) return false;
+  return (now - new Date(matching.completedAt).getTime()) > cutoffMs;
+}
+
+// ── Color presets for custom filters ─────────────────────────
+
+const CUSTOM_COLORS = [
+  { cardBorder: "border-teal-500/40",   cardBg: "bg-teal-500/5",   numColor: "text-teal-400",   iconClass: "text-teal-400" },
+  { cardBorder: "border-purple-500/40", cardBg: "bg-purple-500/5", numColor: "text-purple-400", iconClass: "text-purple-400" },
+  { cardBorder: "border-pink-500/40",   cardBg: "bg-pink-500/5",   numColor: "text-pink-400",   iconClass: "text-pink-400" },
+  { cardBorder: "border-cyan-500/40",   cardBg: "bg-cyan-500/5",   numColor: "text-cyan-400",   iconClass: "text-cyan-400" },
+  { cardBorder: "border-amber-500/40",  cardBg: "bg-amber-500/5",  numColor: "text-amber-400",  iconClass: "text-amber-400" },
+];
 
 // ── Root component ────────────────────────────────────────────
 
-const VALID_FILTERS = new Set<FilterKey>(["emRisco", "recentes", "inativos", "reativados"]);
+const VALID_DEFAULT_FILTERS = new Set<string>(["emRisco", "recentes", "inativos", "reativados"]);
 
-export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
+export function PostSaleClient({ summary, customers, googleReviewUrl, filterConfig: initialFilterConfig }: Props) {
   const searchParams = useSearchParams();
+  const [filterConfig, setFilterConfig] = useState(initialFilterConfig);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+
   const initialFilter = useMemo(() => {
-    const param = searchParams.get("filter") as FilterKey | null;
-    return param && VALID_FILTERS.has(param) ? param : null;
-  }, [searchParams]);
-  const [active, setActive] = useState<FilterKey | null>(initialFilter);
+    const param = searchParams.get("filter");
+    return param && filterConfig.visible.includes(param) ? param : null;
+  }, [searchParams, filterConfig.visible]);
+  const [active, setActive] = useState<string | null>(initialFilter);
   const [nameSearch, setNameSearch] = useState("");
 
-  const filteredCustomers = (active
-    ? customers.filter((c) => c.postSaleStatus === FILTER_STATUS[active])
-    : customers
-  ).filter((c) => !nameSearch || c.name.toLowerCase().includes(nameSearch.toLowerCase()));
+  // Build visible filters from config
+  const visibleFilters = useMemo(() => {
+    return filterConfig.visible.map((key, idx) => {
+      // Default filter
+      const defaultDef = FILTER_CONFIG.find((d) => d.key === key);
+      if (defaultDef) {
+        return { ...defaultDef, type: "default" as const, serviceId: null, followUpDays: 0 };
+      }
+      // Custom filter
+      const customDef = filterConfig.custom.find((c) => c.id === key);
+      if (!customDef) return null;
+      const colors = CUSTOM_COLORS[idx % CUSTOM_COLORS.length];
+      return {
+        key: customDef.id,
+        label: customDef.serviceName,
+        tooltip: `Clientes cujo último "${customDef.serviceName}" foi há mais de ${customDef.followUpDays} dias`,
+        icon: <Filter className={`h-4 w-4 ${colors.iconClass}`} />,
+        ...colors,
+        type: "custom" as const,
+        serviceId: customDef.serviceId,
+        followUpDays: customDef.followUpDays,
+      };
+    }).filter(Boolean) as Array<{
+      key: string; label: string; tooltip: string; icon: React.ReactNode;
+      cardBorder: string; cardBg: string; numColor: string;
+      type: "default" | "custom"; serviceId: string | null; followUpDays: number;
+    }>;
+  }, [filterConfig]);
+
+  // Compute counts for custom filters client-side
+  const customCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const vf of visibleFilters) {
+      if (vf.type === "custom" && vf.serviceId) {
+        counts[vf.key] = customers.filter((c) => matchesCustomFilter(c, vf.serviceId!, vf.followUpDays)).length;
+      }
+    }
+    return counts;
+  }, [customers, visibleFilters]);
+
+  // Filter customers based on active filter
+  const filteredCustomers = useMemo(() => {
+    let result = customers;
+    if (active) {
+      const activeDef = visibleFilters.find((f) => f.key === active);
+      if (activeDef) {
+        if (activeDef.type === "default" && VALID_DEFAULT_FILTERS.has(active)) {
+          result = customers.filter((c) => c.postSaleStatus === FILTER_STATUS[active as FilterKey]);
+        } else if (activeDef.type === "custom" && activeDef.serviceId) {
+          result = customers.filter((c) => matchesCustomFilter(c, activeDef.serviceId!, activeDef.followUpDays));
+        }
+      }
+    }
+    if (nameSearch) {
+      result = result.filter((c) => c.name.toLowerCase().includes(nameSearch.toLowerCase()));
+    }
+    return result;
+  }, [active, customers, nameSearch, visibleFilters]);
+
+  const activeLabel = visibleFilters.find((f) => f.key === active)?.label;
 
   return (
     <div className="space-y-5">
       {/* Filter cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {FILTER_CONFIG.map((cfg) => {
-          const isActive = active === cfg.key;
-          const count    = summary[cfg.key];
-          return (
-            <button
-              key={cfg.key}
-              onClick={() => { setActive((prev) => prev === cfg.key ? null : cfg.key); setNameSearch(""); }}
-              className={`rounded-lg border text-left p-3 sm:p-4 transition-all focus:outline-none focus:ring-2 focus:ring-ring ${
-                isActive
-                  ? `${cfg.cardBorder} ${cfg.cardBg}`
-                  : "border-border/60 bg-surface-900 hover:border-border"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
-                  <span className={`inline-flex items-center justify-center rounded-md border p-1 ${isActive ? cfg.cardBg : "bg-surface-800 border-border"}`}>
-                    {cfg.icon}
-                  </span>
-                  <p className={`text-xs leading-tight ${isActive ? cfg.numColor : "text-muted-foreground"}`}>
-                    {cfg.label}
-                  </p>
+      <div className="flex items-start gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+          {visibleFilters.map((cfg) => {
+            const isActive = active === cfg.key;
+            const count = cfg.type === "default"
+              ? summary[cfg.key as keyof SummaryData] ?? 0
+              : customCounts[cfg.key] ?? 0;
+            return (
+              <button
+                key={cfg.key}
+                onClick={() => { setActive((prev) => prev === cfg.key ? null : cfg.key); setNameSearch(""); }}
+                className={`rounded-lg border text-left p-3 sm:p-4 transition-all focus:outline-none focus:ring-2 focus:ring-ring ${
+                  isActive
+                    ? `${cfg.cardBorder} ${cfg.cardBg}`
+                    : "border-border/60 bg-surface-900 hover:border-border"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-flex items-center justify-center rounded-md border p-1 ${isActive ? cfg.cardBg : "bg-surface-800 border-border"}`}>
+                      {cfg.icon}
+                    </span>
+                    <p className={`text-xs leading-tight ${isActive ? cfg.numColor : "text-muted-foreground"}`}>
+                      {cfg.label}
+                    </p>
+                  </div>
+                  <CriteriaTooltip text={cfg.tooltip} />
                 </div>
-                <CriteriaTooltip text={cfg.tooltip} />
-              </div>
-              <p className={`text-2xl font-semibold tabular-nums ${isActive ? cfg.numColor : "text-foreground"}`}>
-                {count}
-              </p>
-              {isActive && (
-                <p className={`text-[10px] mt-1 ${cfg.numColor} opacity-70`}>filtro ativo · clique para limpar</p>
-              )}
-            </button>
-          );
-        })}
+                <p className={`text-2xl font-semibold tabular-nums ${isActive ? cfg.numColor : "text-foreground"}`}>
+                  {count}
+                </p>
+                {isActive && (
+                  <p className={`text-[10px] mt-1 ${cfg.numColor} opacity-70`}>filtro ativo · clique para limpar</p>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={() => setShowConfigModal(true)}
+          className="shrink-0 mt-1 rounded-lg border border-border p-2.5 hover:bg-surface-800 transition-colors text-muted-foreground hover:text-foreground"
+          title="Configurar filtros"
+        >
+          <Settings2 className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Name search */}
@@ -220,13 +312,29 @@ export function PostSaleClient({ summary, customers, googleReviewUrl }: Props) {
         </div>
       )}
 
+      {/* Subtitle */}
+      <p className="text-sm text-muted-foreground">
+        {active
+          ? `Mostrando ${filteredCustomers.length} cliente(s) com filtro "${activeLabel}".`
+          : "Mostrando todos os clientes com status pós-venda. Clique em um filtro acima para ver por categoria."}
+      </p>
+
       {/* Customer list — expandable inline */}
       <CustomerList
         rows={filteredCustomers}
-        emptyMessage={active ? `Nenhum cliente em "${FILTER_CONFIG.find(c => c.key === active)?.label}".` : "Selecione um filtro acima para ver os clientes."}
+        emptyMessage={active ? `Nenhum cliente em "${activeLabel}".` : "Selecione um filtro acima para ver os clientes."}
         showAll={!active}
         googleReviewUrl={googleReviewUrl}
       />
+
+      {/* Config modal */}
+      {showConfigModal && (
+        <FilterConfigModal
+          config={filterConfig}
+          onSaved={(cfg) => { setFilterConfig(cfg); setActive(null); }}
+          onClose={() => setShowConfigModal(false)}
+        />
+      )}
     </div>
   );
 }

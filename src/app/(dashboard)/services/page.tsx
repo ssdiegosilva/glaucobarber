@@ -47,6 +47,7 @@ export default async function ServicesPage() {
             category:         s.category,
             price:            Number(s.price),
             durationMin:      s.durationMin,
+            followUpDays:     s.followUpDays,
             active:           s.active,
             syncedFromTrinks: s.syncedFromTrinks,
           }))}

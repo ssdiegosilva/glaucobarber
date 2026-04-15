@@ -107,6 +107,8 @@ model Barbershop {
 
   // Dashboard widget preferences: JSON array of up to 3 widget keys
   dashboardWidgets String    @default("[]")
+  // Post-sale filter config: JSON with defaults, custom filters, and visible selection
+  postSaleFilters  String    @default("[]")
 
   // Agenda display settings
   agendaStartHour Int @default(6)   // 0–23
@@ -549,6 +551,7 @@ model Service {
   category     ServiceCategory @default(HAIRCUT)
   price        Decimal         @db.Decimal(10, 2)
   durationMin  Int             @default(30)
+  followUpDays Int?
   active       Boolean         @default(true)
   visible      Boolean         @default(true)
 

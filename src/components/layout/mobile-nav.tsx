@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { NAV, SEGMENT_ICON_MAP } from "./sidebar";
-import { Scissors, Menu, X, Bell, Sparkles, type LucideIcon } from "lucide-react";
+import { Scissors, Menu, X, Bell, Sparkles, Check, Plus, ChevronsUpDown, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { InstallAppBanner } from "@/components/pwa/install-banner";
@@ -17,6 +17,8 @@ interface MobileNavProps {
   availableModules?: string[];
   /** Lucide icon name for the segment (e.g. "Scissors", "Sparkles") */
   segmentIcon?: string;
+  activeBarbershopId?: string;
+  memberships?: { barbershopId: string; barbershopName: string; role: string }[];
 }
 
 function getInitials(name: string) {
@@ -35,15 +37,18 @@ interface Notification {
 const R = 14;
 const CIRC = 2 * Math.PI * R; // ≈ 87.96
 
-export function MobileNav({ barbershopName, userName, availableModules, segmentIcon }: MobileNavProps) {
+export function MobileNav({ barbershopName, userName, availableModules, segmentIcon, activeBarbershopId, memberships = [] }: MobileNavProps) {
   const BrandIcon: LucideIcon = segmentIcon ? (SEGMENT_ICON_MAP[segmentIcon] ?? Scissors) : Scissors;
   const [open,       setOpen]       = useState(false);
   const [bellOpen,   setBellOpen]   = useState(false);
   const [panelOpen,  setPanelOpen]  = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [switching,  setSwitching]  = useState(false);
   const [notifs,     setNotifs]     = useState<Notification[]>([]);
   const [aiUsed,     setAiUsed]     = useState(0);
   const [aiTotal,    setAiTotal]    = useState(30);
   const [trialing,   setTrialing]   = useState(false);
+  const hasMultiple = memberships.length > 1;
   const pathname = usePathname();
   const router   = useRouter();
   const bellRef  = useRef<HTMLDivElement | null>(null);
@@ -96,6 +101,23 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
     router.refresh();
   }
 
+  async function switchBarbershop(barbershopId: string) {
+    if (barbershopId === activeBarbershopId) {
+      setSwitcherOpen(false);
+      return;
+    }
+    setSwitching(true);
+    await fetch("/api/barbershop/switch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barbershopId }),
+    });
+    setSwitcherOpen(false);
+    setSwitching(false);
+    router.push("/dashboard");
+    router.refresh();
+  }
+
   const pct       = Math.min(1, aiUsed / Math.max(1, aiTotal));
   const isLow     = pct >= 0.8;
   const isOut     = pct >= 1;
@@ -107,14 +129,20 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
     <div className="md:hidden sticky top-0 z-30">
       {/* Single top bar */}
       <div className="flex items-center justify-between bg-card/90 backdrop-blur border-b border-border px-4 py-2.5 gap-3">
-        {/* Logo + name */}
-        <Link href="/dashboard" className="flex items-center gap-2 min-w-0" onClick={() => setOpen(false)}>
+        {/* Icon + name + switcher */}
+        <button
+          onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push("/dashboard")}
+          className="flex items-center gap-2 min-w-0"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-dark.png" alt="Voltaki" className="h-9 w-auto shrink-0" />
+          <img src="/icon-192.png" alt="Voltaki" className="h-8 w-8 shrink-0 rounded-lg" />
           {barbershopName && (
             <p className="text-sm font-semibold text-foreground truncate">{barbershopName}</p>
           )}
-        </Link>
+          {hasMultiple && (
+            <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          )}
+        </button>
 
         <div className="flex items-center gap-2 shrink-0">
           {/* Bell */}
@@ -227,6 +255,47 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
           </button>
         </div>
       </div>
+
+      {/* Switcher panel — horizontal scroll like onboarding */}
+      {switcherOpen && (
+        <div className="bg-card border-b border-border shadow-lg px-4 py-3 space-y-2">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+            Trocar estabelecimento
+          </p>
+          <div
+            className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory"
+            style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          >
+            {memberships.map((m) => {
+              const isActive = m.barbershopId === activeBarbershopId;
+              return (
+                <button
+                  key={m.barbershopId}
+                  onClick={() => switchBarbershop(m.barbershopId)}
+                  disabled={switching}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 rounded-xl border transition-all shrink-0 snap-start w-24 h-24",
+                    isActive ? "border-primary ring-2 ring-primary" : "border-border"
+                  )}
+                >
+                  <div className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold",
+                    isActive ? "bg-primary/15 text-primary" : "bg-surface-800 text-muted-foreground"
+                  )}>
+                    {m.barbershopName.charAt(0).toUpperCase()}
+                  </div>
+                  <p className="text-[11px] font-medium text-foreground text-center leading-tight px-1 truncate w-full">
+                    {m.barbershopName}
+                  </p>
+                  {isActive && (
+                    <Check className="h-3 w-3 text-primary absolute" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Nav drawer */}
       {open && (

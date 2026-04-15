@@ -21,6 +21,7 @@ interface Service {
   category:         string;
   price:            number;
   durationMin:      number;
+  followUpDays:     number | null;
   active:           boolean;
   syncedFromTrinks: boolean;
 }
@@ -245,6 +246,7 @@ function NewServiceModal({ onSave, onClose, categories }: { onSave: (svc: Servic
   const [price, setPrice]         = useState("");
   const [duration, setDuration]   = useState("30");
   const [description, setDescription] = useState("");
+  const [followUpDays, setFollowUpDays] = useState("");
   const [saving, setSaving]       = useState(false);
 
   async function handleSave() {
@@ -254,7 +256,7 @@ function NewServiceModal({ onSave, onClose, categories }: { onSave: (svc: Servic
       const res  = await fetch("/api/services", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ name, category, price: Number(price), durationMin: Number(duration), description }),
+        body:    JSON.stringify({ name, category, price: Number(price), durationMin: Number(duration), description, followUpDays: followUpDays ? Number(followUpDays) : null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao criar serviço");
@@ -335,6 +337,17 @@ function NewServiceModal({ onSave, onClose, categories }: { onSave: (svc: Servic
               className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             />
           </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Retorno (dias) — opcional</label>
+            <input
+              type="number" min="1" value={followUpDays}
+              onChange={(e) => setFollowUpDays(e.target.value)}
+              placeholder="Ex: 15"
+              className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <p className="text-[10px] text-muted-foreground">Se preenchido, permite criar filtro de acompanhamento no pós-venda.</p>
+          </div>
         </div>
 
         <div className="border-t border-border px-5 py-3 flex gap-2 justify-end">
@@ -362,6 +375,7 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
   const [editingId, setEditingId]                 = useState<string | null>(null);
   const [editPrice, setEditPrice]                 = useState("");
   const [editDuration, setEditDuration]           = useState("");
+  const [editFollowUp, setEditFollowUp]           = useState("");
   const [saving, setSaving]                       = useState(false);
   const [loadingAI, setLoadingAI]                 = useState<string | null>(null);
   const [recommendations, setRecommendations]     = useState<Record<string, PriceRecommendation>>({});
@@ -399,19 +413,20 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
     setEditingId(svc.id);
     setEditPrice(String(svc.price));
     setEditDuration(String(svc.durationMin));
+    setEditFollowUp(svc.followUpDays != null ? String(svc.followUpDays) : "");
   }
-  function cancelEdit() { setEditingId(null); setEditPrice(""); setEditDuration(""); }
+  function cancelEdit() { setEditingId(null); setEditPrice(""); setEditDuration(""); setEditFollowUp(""); }
 
   async function saveEdit(id: string) {
     setSaving(true);
     try {
       const res  = await fetch(`/api/services/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body:   JSON.stringify({ price: Number(editPrice), durationMin: Number(editDuration) }),
+        body:   JSON.stringify({ price: Number(editPrice), durationMin: Number(editDuration), followUpDays: editFollowUp ? Number(editFollowUp) : null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao salvar");
-      setServices((prev) => prev.map((s) => s.id === id ? { ...s, price: Number(editPrice), durationMin: Number(editDuration) } : s));
+      setServices((prev) => prev.map((s) => s.id === id ? { ...s, price: Number(editPrice), durationMin: Number(editDuration), followUpDays: editFollowUp ? Number(editFollowUp) : null } : s));
       toast({ title: "Serviço atualizado" + (hasTrinks ? " (Trinks atualizado na próxima sincronização)" : "") });
       cancelEdit();
     } catch (e) {
@@ -771,6 +786,15 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                           className="w-full rounded border border-border bg-surface-800 px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                         />
                       </div>
+                      <div className="w-20 space-y-1">
+                        <label className="text-[10px] text-muted-foreground">Retorno</label>
+                        <input
+                          type="number" min="1" value={editFollowUp}
+                          onChange={(e) => setEditFollowUp(e.target.value)}
+                          placeholder="dias"
+                          className="w-full rounded border border-border bg-surface-800 px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" className="h-7 text-xs flex-1" onClick={() => saveEdit(s.id)} disabled={saving}>
@@ -785,7 +809,14 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
                   <>
                     <div className="flex items-center justify-between mt-4">
                       <p className="text-lg font-bold text-gold-400">{formatBRL(s.price)}</p>
-                      <p className="text-xs text-muted-foreground">{s.durationMin} min</p>
+                      <div className="flex items-center gap-2">
+                        {s.followUpDays && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-500/10 border border-teal-500/20 text-teal-400">
+                            Retorno: {s.followUpDays}d
+                          </span>
+                        )}
+                        <p className="text-xs text-muted-foreground">{s.durationMin} min</p>
+                      </div>
                     </div>
 
                     <button

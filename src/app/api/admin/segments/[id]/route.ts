@@ -125,6 +125,11 @@ export async function PATCH(
     include: { aiConfig: true },
   });
 
+  // Invalidate cache for any segment update (modules, theme, etc.)
+  if (!aiConfig) {
+    await invalidateSegmentCache();
+  }
+
   return NextResponse.json(segment);
 }
 

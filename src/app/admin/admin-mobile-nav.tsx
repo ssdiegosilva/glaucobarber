@@ -17,11 +17,13 @@ import {
   DollarSign,
   Activity,
   LifeBuoy,
+  Layers,
 } from "lucide-react";
 
 const NAV = [
   { href: "/admin/overview",      label: "Overview",        icon: LayoutDashboard },
-  { href: "/admin/barbershops",   label: "Barbearias",      icon: Store },
+  { href: "/admin/barbershops",   label: "Estabelecimentos", icon: Store },
+  { href: "/admin/segments",      label: "Segmentos",       icon: Layers },
   { href: "/admin/users",         label: "Usuários",        icon: Users },
   { href: "/admin/features",      label: "Funcionalidades", icon: ToggleLeft },
   { href: "/admin/observability", label: "Observabilidade", icon: Activity },
@@ -30,7 +32,7 @@ const NAV = [
   { href: "/admin/openai-costs",  label: "Custos OpenAI",   icon: DollarSign },
   { href: "/admin/billing",       label: "Cobrança",        icon: Receipt },
   { href: "/admin/logs",          label: "Audit Logs",      icon: ScrollText },
-  { href: "/admin/support",       label: "Suporte",          icon: LifeBuoy },
+  { href: "/admin/support",       label: "Suporte",         icon: LifeBuoy },
 ];
 
 export function AdminMobileNav() {

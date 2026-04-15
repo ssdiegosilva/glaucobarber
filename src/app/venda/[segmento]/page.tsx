@@ -642,7 +642,7 @@ export default async function VendaSegmentoPage({
             Sua {seg.name} merece clientes que voltam.
           </h2>
           <p className="text-gray-500 mb-8 text-lg">
-            Comece grátis e veja seu primeiro cliente reagir em menos de 24h.
+            Teste grátis por 7 dias e veja seu primeiro cliente reagir em menos de 24h. Apenas R$59,90/mês.
           </p>
           <Link
             href="/signup"
@@ -652,7 +652,7 @@ export default async function VendaSegmentoPage({
             Criar conta grátis agora
             <ArrowRight className="h-5 w-5" />
           </Link>
-          <p className="text-xs text-gray-400 mt-4">Sem cartão de crédito · Configuração em 2 minutos</p>
+          <p className="text-xs text-gray-400 mt-4">Sem cartão de crédito · 7 dias grátis · Configuração em 2 minutos</p>
         </div>
       </section>
 

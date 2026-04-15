@@ -95,6 +95,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             userName={session.user.name ?? null}
             availableModules={availableModules.length > 0 ? availableModules : undefined}
             segmentIcon={segmentTheme?.icon ?? undefined}
+            activeBarbershopId={session.user.barbershopId ?? undefined}
+            memberships={memberships}
           />
           {children}
         </main>

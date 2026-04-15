@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { prisma } from "@/lib/prisma";
 import { PostSaleClient } from "./components/PostSaleClient";
-import type { CustomerSummary } from "./types";
+import type { CustomerSummary, PostSaleFilterConfig } from "./types";
 import { subDays } from "date-fns";
 import { canAccess } from "@/lib/access";
 import { getPlan } from "@/lib/billing";
@@ -70,12 +70,13 @@ export default async function PostSalePage() {
             scheduledAt: true,
             status:      true,
             price:       true,
-            service:     { select: { name: true } },
+            serviceId:   true,
+            service:     { select: { id: true, name: true } },
             barberId:    true,
           },
           where:   { status: "COMPLETED" },
           orderBy: { completedAt: "desc" },
-          take: 1,
+          take: 5,
         },
       },
       orderBy: { lastCompletedAppointmentAt: "asc" },
@@ -102,9 +103,23 @@ export default async function PostSalePage() {
     // Barbershop config for Google review URL
     prisma.barbershop.findUnique({
       where:  { id: barbershopId },
-      select: { googleReviewUrl: true },
+      select: { googleReviewUrl: true, postSaleFilters: true },
     }),
   ]);
+
+  // Parse post-sale filter config
+  const DEFAULT_FILTER_CONFIG: PostSaleFilterConfig = {
+    defaults: { emRisco: true, recentes: true, inativos: true, reativados: true },
+    custom: [],
+    visible: ["emRisco", "recentes", "inativos", "reativados"],
+  };
+  let filterConfig: PostSaleFilterConfig = DEFAULT_FILTER_CONFIG;
+  try {
+    const raw = JSON.parse(barbershop?.postSaleFilters ?? "[]");
+    if (raw && typeof raw === "object" && !Array.isArray(raw) && raw.defaults) {
+      filterConfig = raw;
+    }
+  } catch { /* keep default */ }
 
   // Build lookup maps
   const reviewByAppt = new Map(recentReviews.map((r) => [r.appointmentId, r.requestStatus]));
@@ -146,6 +161,11 @@ export default async function PostSalePage() {
       lastAppointmentId:          lastAppt?.id ?? null,
       reviewStatus,
       sentTypes,
+      recentAppointments: c.appointments.map((a) => ({
+        serviceId:   a.serviceId ?? a.service?.id ?? null,
+        serviceName: a.service?.name ?? null,
+        completedAt: a.completedAt?.toISOString() ?? "",
+      })),
     };
   });
 
@@ -161,6 +181,7 @@ export default async function PostSalePage() {
           summary={{ emRisco, recentes, inativos, reativados }}
           customers={serializedCustomers}
           googleReviewUrl={barbershop?.googleReviewUrl ?? null}
+          filterConfig={filterConfig}
         />
       </div>
     </div>
