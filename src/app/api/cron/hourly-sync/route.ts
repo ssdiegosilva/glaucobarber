@@ -4,6 +4,11 @@ import { syncBarbershop } from "@/lib/integrations/trinks/sync";
 import { syncAvecBarbershop } from "@/lib/integrations/avec/sync";
 import { getKillSwitch } from "@/lib/platform-config";
 
+export const maxDuration = 60; // seconds (Vercel Pro limit)
+
+const MAX_SYNCS_PER_RUN = 5;
+const SYNC_TIMEOUT_MS = 45_000; // 45s safety margin
+
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("authorization")?.replace("Bearer ", "");
   if (secret !== process.env.CRON_SECRET) {
@@ -26,12 +31,20 @@ export async function GET(req: NextRequest) {
 
     const barbershops = await prisma.barbershop.findMany({
       where:  { integration: { status: "ACTIVE" } },
-      select: { id: true, integration: { select: { provider: true } } },
+      select: { id: true, integration: { select: { provider: true, lastSyncAt: true } } },
+      orderBy: { integration: { lastSyncAt: "asc" } }, // oldest sync first
+      take: MAX_SYNCS_PER_RUN,
     });
 
     const results: Array<{ barbershopId: string; provider: string; ok: boolean; error?: string }> = [];
 
     for (const shop of barbershops) {
+      // Safety: stop if approaching timeout
+      if (Date.now() - start > SYNC_TIMEOUT_MS) {
+        results.push({ barbershopId: shop.id, provider: shop.integration?.provider ?? "?", ok: false, error: "skipped — approaching timeout" });
+        continue;
+      }
+
       const provider = shop.integration?.provider ?? "trinks";
       try {
         if (provider === "avec") {

@@ -186,6 +186,7 @@ model Membership {
 
   @@unique([userId, barbershopId])
   @@unique([barbershopId, trinksId])
+  @@index([barbershopId, role, active])        // Barber/staff list in agenda
   @@map("memberships")
 }
 
@@ -572,6 +573,7 @@ model Service {
 
   @@unique([barbershopId, trinksId])
   @@unique([barbershopId, avecId])
+  @@index([barbershopId, active, deletedAt])   // Service listing
   @@map("services")
 }
 
@@ -623,6 +625,10 @@ model Appointment {
 
   @@unique([barbershopId, trinksId])
   @@unique([barbershopId, avecId])
+  @@index([barbershopId, scheduledAt])         // Agenda day view
+  @@index([barbershopId, status, scheduledAt]) // Monthly stats, dashboard aggregations
+  @@index([customerId, scheduledAt, status])   // Customer history lookups
+  @@index([barbershopId, completedAt])         // Post-sale, financeiro queries
   @@map("appointments")
 }
 
