@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import type { CustomerSummary, PostSaleStatus, PostSaleFilterConfig } from "../types";
 import { FilterConfigModal } from "./FilterConfigModal";
 import {
@@ -22,26 +24,33 @@ interface ActionConfig {
   type:       string;
   icon:       React.ComponentType<{ className?: string }>;
   isReview?:  boolean;
+  isCustom?:  boolean;
 }
 
-const STATUS_ACTIONS: Record<PostSaleStatus, ActionConfig[]> = {
-  RECENTE: [
-    { id: "review", label: "Pedir avaliação Google", type: "post_sale_review", icon: Star, isReview: true },
-  ],
-  EM_RISCO: [
-    { id: "reactivation", label: "Mensagem de reativação", type: "reactivation",       icon: MessageCircle },
-    { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: Star },
-  ],
-  INATIVO: [
-    { id: "reactivation", label: "Mensagem de reativação", type: "reactivation",       icon: MessageCircle },
-    { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: Star },
-  ],
-  REATIVADO: [
-    { id: "followup", label: "Mensagem de acompanhamento", type: "post_sale_followup", icon: MessageCircle },
-    { id: "review",   label: "Pedir avaliação Google",     type: "post_sale_review",   icon: Star, isReview: true },
-  ],
+// All available actions
+const ALL_ACTIONS: ActionConfig[] = [
+  { id: "reactivation", label: "Mensagem de reativação", type: "reactivation",       icon: MessageCircle },
+  { id: "promo",        label: "Oferta especial",         type: "reactivation_promo", icon: Star },
+  { id: "review",       label: "Avaliação Google",        type: "post_sale_review",   icon: Star, isReview: true },
+  { id: "followup",     label: "Acompanhamento",          type: "post_sale_followup", icon: MessageCircle },
+  { id: "custom",       label: "Mensagem personalizada",  type: "custom",             icon: Send, isCustom: true },
+];
+
+// Suggested (shown by default) per status; others available via "Outros"
+const SUGGESTED_IDS: Record<PostSaleStatus, string[]> = {
+  RECENTE:      ["review", "followup"],
+  EM_RISCO:     ["reactivation", "promo"],
+  INATIVO:      ["reactivation", "promo"],
+  REATIVADO:    ["followup", "review"],
   NAO_CONTATAR: [],
 };
+
+function getActions(status: PostSaleStatus) {
+  const suggestedIds = SUGGESTED_IDS[status] ?? [];
+  const suggested = suggestedIds.map((id) => ALL_ACTIONS.find((a) => a.id === id)!).filter(Boolean);
+  const others = ALL_ACTIONS.filter((a) => !suggestedIds.includes(a.id));
+  return { suggested, others };
+}
 
 function isActionDone(action: ActionConfig, customer: CustomerSummary): boolean {
   const sentTypes    = customer.sentTypes   ?? [];
@@ -407,9 +416,11 @@ function CustomerRow({ customer, isExpanded, onToggle, googleReviewUrl, onSent }
 }) {
   const rowRef                = useRef<HTMLDivElement>(null);
   const [composing, setComposing] = useState<ActionConfig | null>(null);
-  const actions               = STATUS_ACTIONS[customer.postSaleStatus] ?? [];
-  const doneCount             = actions.filter((a) => isActionDone(a, customer)).length;
-  const allDone               = actions.length > 0 && doneCount === actions.length;
+  const [showOthers, setShowOthers] = useState(false);
+  const { suggested, others } = getActions(customer.postSaleStatus);
+  const actions               = [...suggested, ...others];
+  const doneCount             = suggested.filter((a) => isActionDone(a, customer)).length;
+  const allDone               = suggested.length > 0 && doneCount === suggested.length;
 
   // Scroll into view when expanded
   useEffect(() => {
@@ -447,7 +458,7 @@ function CustomerRow({ customer, isExpanded, onToggle, googleReviewUrl, onSent }
           {customer.lastVisitAt && (
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
               <Clock className="h-3 w-3 shrink-0" />
-              {relativeTime(customer.lastVisitAt)}
+              {format(new Date(customer.lastVisitAt), "dd/MM/yyyy", { locale: ptBR })} ({relativeTime(customer.lastVisitAt)})
               {customer.serviceName && ` · ${customer.serviceName}`}
             </p>
           )}
@@ -513,34 +524,28 @@ function CustomerRow({ customer, isExpanded, onToggle, googleReviewUrl, onSent }
           </div>
 
           {/* FUP actions */}
-          {actions.length > 0 && (
-            <div className="space-y-2">
-              {/* Done actions */}
-              {actions.filter((a) => isActionDone(a, customer)).map((a) => (
-                <div key={a.id} className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
-                  <span className="text-xs text-green-400">{a.label}</span>
-                </div>
-              ))}
+          <div className="space-y-2">
+            {/* Done actions */}
+            {actions.filter((a) => isActionDone(a, customer)).map((a) => (
+              <div key={a.id} className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                <span className="text-xs text-green-400">{a.label}</span>
+              </div>
+            ))}
 
-              {allDone ? (
-                <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 text-center">
-                  <p className="text-sm font-medium text-green-400">FUP completo</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Todas as ações foram realizadas.</p>
-                </div>
-              ) : composing ? (
-                /* Inline message composer */
-                <MessageComposer
-                  customer={customer}
-                  action={composing}
-                  googleReviewUrl={googleReviewUrl}
-                  onCancel={() => setComposing(null)}
-                  onSent={() => { onSent(composing); setComposing(null); }}
-                />
-              ) : (
-                /* Pending action buttons */
+            {composing ? (
+              <MessageComposer
+                customer={customer}
+                action={composing}
+                googleReviewUrl={googleReviewUrl}
+                onCancel={() => setComposing(null)}
+                onSent={() => { onSent(composing); setComposing(null); }}
+              />
+            ) : (
+              <>
+                {/* Suggested actions */}
                 <div className="space-y-1.5">
-                  {actions.filter((a) => !isActionDone(a, customer)).map((action) => {
+                  {suggested.filter((a) => !isActionDone(a, customer)).map((action) => {
                     const Icon = action.icon;
                     return (
                       <button
@@ -555,9 +560,43 @@ function CustomerRow({ customer, isExpanded, onToggle, googleReviewUrl, onSent }
                     );
                   })}
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* "Outros" toggle */}
+                {others.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowOthers((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                    >
+                      <ChevronDown className={`h-3 w-3 transition-transform ${showOthers ? "rotate-180" : ""}`} />
+                      {showOthers ? "Menos opções" : "Outras opções"}
+                    </button>
+
+                    {showOthers && (
+                      <div className="space-y-1.5">
+                        {others.filter((a) => !isActionDone(a, customer)).map((action) => {
+                          const Icon = action.icon;
+                          return (
+                            <button
+                              key={action.id}
+                              onClick={() => setComposing(action)}
+                              className="w-full flex items-center gap-3 rounded-lg border border-border hover:border-purple-500/30 hover:bg-purple-500/5 px-4 py-2.5 text-sm text-left transition-colors"
+                            >
+                              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="flex-1 text-foreground">{action.label}</span>
+                              {action.isCustom
+                                ? <Send className="h-3.5 w-3.5 text-muted-foreground" />
+                                : <Sparkles className="h-3.5 w-3.5 text-purple-400/40" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -619,6 +658,7 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
   }
 
   useEffect(() => {
+    if (action.isCustom) { setLoading(false); return; }
     if (missingReviewUrl) { setLoading(false); return; }
     generate(localReviewUrl);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -705,7 +745,9 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+          {action.isCustom
+            ? <Send className="h-3.5 w-3.5 text-gold-400" />
+            : <Sparkles className="h-3.5 w-3.5 text-purple-400" />}
           <span className="text-xs font-medium text-foreground">{action.label}</span>
         </div>
         <button onClick={onCancel} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -762,10 +804,14 @@ function MessageComposer({ customer, action, googleReviewUrl, onCancel, onSent }
         <>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">Mensagem gerada pela IA — edite se quiser</span>
-              <span className="text-[10px] text-purple-400/70 flex items-center gap-1">
-                <Sparkles className="h-2.5 w-2.5" /> IA
+              <span className="text-[10px] text-muted-foreground">
+                {action.isCustom ? "Escreva sua mensagem" : "Mensagem gerada pela IA — edite se quiser"}
               </span>
+              {!action.isCustom && (
+                <span className="text-[10px] text-purple-400/70 flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5" /> IA
+                </span>
+              )}
             </div>
             <textarea
               value={message}
