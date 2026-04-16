@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({ ok: true, slug: shop.slug });
   res.cookies.set(IMPERSONATE_COOKIE, shop.id, {
     httpOnly: true,
+    secure: true,
     sameSite: "lax",
     path:     "/",
     // No maxAge = session cookie — clears when browser closes

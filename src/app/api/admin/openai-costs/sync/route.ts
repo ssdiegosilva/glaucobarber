@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
-
 // ── Default OpenAI prices (USD, as of 2025) ──────────────────────────────────
 // Updated manually when OpenAI changes pricing.
 const DEFAULT_PRICES: Record<string, {
@@ -100,8 +98,8 @@ function monthToRange(yearMonth: string): { start: number; end: number } {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user || session.user.email !== ADMIN_EMAIL) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));

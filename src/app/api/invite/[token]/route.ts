@@ -11,7 +11,7 @@ export async function GET(
   const membership = await prisma.membership.findUnique({
     where: { inviteToken: token },
     include: {
-      user:       { select: { name: true, email: true, passwordHash: true } },
+      user:       { select: { name: true, email: true } },
       barbershop: { select: { name: true } },
     },
   });
@@ -23,15 +23,11 @@ export async function GET(
     );
   }
 
-  // Check if user already has a Supabase account by looking for auth metadata
-  // Simple heuristic: if user has passwordHash or was created via OAuth, they have an account
-  const hasAccount = !!membership.user.passwordHash;
-
   return NextResponse.json({
     email:          membership.user.email,
     name:           membership.user.name ?? "Membro",
     barbershopName: membership.barbershop.name,
     role:           membership.role,
-    hasAccount,
+    hasAccount:     true, // simplified — signup flow handles account creation
   });
 }

@@ -29,10 +29,11 @@ export default function LoginPage() {
       return;
     }
 
-    // Respect redirectTo param, fallback to /dashboard
+    // Respect redirectTo param, fallback to /dashboard (same-origin only)
     const params = new URLSearchParams(window.location.search);
     const redirectTo = params.get("redirectTo") ?? "/dashboard";
-    router.push(redirectTo);
+    const safeRedirect = redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : "/dashboard";
+    router.push(safeRedirect);
     router.refresh();
   }
 

@@ -41,6 +41,15 @@ export async function POST(req: NextRequest) {
   if (!body.referenceIds?.length)    return NextResponse.json({ error: "Selecione ao menos 1 item" }, { status: 400 });
   if (!body.messageTemplate?.trim()) return NextResponse.json({ error: "Template de mensagem é obrigatório" }, { status: 400 });
 
+  // Validate IDs format (prevent SQL injection via $queryRaw)
+  const idRegex = /^[a-zA-Z0-9_-]+$/;
+  if (body.referenceIds.some((id: string) => !idRegex.test(id))) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  }
+  if (body.manualCustomerIds?.some((id: string) => !idRegex.test(id))) {
+    return NextResponse.json({ error: "ID de cliente inválido" }, { status: 400 });
+  }
+
   // Re-fetch qualifying customers
   const days = Math.max(1, body.daysInactive ?? 30);
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);

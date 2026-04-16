@@ -94,7 +94,8 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({ barbershopId: barbershop.id });
   res.cookies.set(ACTIVE_BARBERSHOP_COOKIE, barbershop.id, {
     path: "/",
-    httpOnly: false,
+    httpOnly: true,
+    secure: true,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 365,
   });

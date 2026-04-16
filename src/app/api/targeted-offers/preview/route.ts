@@ -23,6 +23,12 @@ export async function GET(req: NextRequest) {
   const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
   if (ids.length === 0) return NextResponse.json({ count: 0, customers: [] });
 
+  // Validate ID format to prevent SQL injection via $queryRaw
+  const idRegex = /^[a-zA-Z0-9_-]+$/;
+  if (ids.some((id) => !idRegex.test(id))) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  }
+
   const days = Math.max(1, parseInt(daysRaw, 10) || 30);
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
