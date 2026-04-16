@@ -558,6 +558,23 @@ export function ServicesClient({ initialServices, initialOpportunities, hasTrink
       )}
 
     <div className="space-y-6">
+      {/* Guidance tip */}
+      {services.length <= 3 && (
+        <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 flex items-start gap-3">
+          <Scissors className="h-5 w-5 text-green-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Serviços que você realiza</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Cadastre aqui os serviços que você <strong>presta</strong> aos clientes (corte, barba, coloração, etc.).
+              Eles aparecem na <strong>agenda</strong> e nos <strong>relatórios de faturamento</strong>.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Para itens que você <strong>vende</strong> (shampoo, creme, acessórios), use a seção <strong>Produtos</strong>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Opportunity section ────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">

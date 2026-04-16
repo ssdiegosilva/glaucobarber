@@ -279,8 +279,36 @@ export function ProdutosClient({ initialProducts, shopSlug }: { initialProducts:
     }
   }
 
+  const [tipDismissed, setTipDismissed] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("voltaki_products_tip") === "1";
+    return false;
+  });
+
   return (
     <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
+      {/* Guidance tip */}
+      {!tipDismissed && (
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3 flex items-start gap-3">
+          <Package className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Produtos para venda</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Cadastre aqui itens que você <strong>vende</strong> para seus clientes (shampoo, cremes, acessórios, etc.).
+              Você pode registrar uma venda junto com um serviço prestado ou em uma visita avulsa.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Para serviços que você <strong>realiza</strong> (corte, barba, coloração, etc.), use a seção <strong>Serviços</strong> — é lá que aparecem na agenda.
+            </p>
+          </div>
+          <button
+            onClick={() => { setTipDismissed(true); localStorage.setItem("voltaki_products_tip", "1"); }}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Public catalog link */}
       {shopSlug && (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-900 px-3 py-2">
