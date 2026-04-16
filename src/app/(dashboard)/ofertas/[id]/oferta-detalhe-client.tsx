@@ -29,6 +29,7 @@ type OfferDetail = {
 
 type CustomerRow = {
   id: string;
+  customerId: string;
   customerName: string;
   phone: string;
   message: string;
@@ -49,8 +50,8 @@ function StatusBadge({ status }: { status: string | null }) {
     </span>
   );
   return (
-    <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-      <Clock className="h-3 w-3" /> Aguardando
+    <span className="flex items-center gap-1 text-[10px] text-gold-400 font-medium">
+      <Clock className="h-3 w-3" /> Enviar
     </span>
   );
 }
@@ -85,10 +86,31 @@ export function OfertaDetalheClient({
     } finally { setLoading(false); }
   }
 
-  function openWhatsApp(phone: string, message: string) {
+  async function openWhatsApp(rowId: string, customerId: string, phone: string, message: string) {
     const clean = phone.replace(/\D/g, "");
     const full  = clean.startsWith("55") ? clean : `55${clean}`;
     window.open(`https://wa.me/${full}?text=${encodeURIComponent(message)}`, "_blank");
+    // Mark as sent
+    try {
+      const res = await fetch(`/api/whatsapp/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId,
+          customerName: customers.find((c) => c.id === rowId)?.customerName ?? "",
+          phone,
+          message,
+          type: "targeted_offer",
+          messageKind: "text",
+          sentManually: true,
+        }),
+      });
+      if (res.ok) {
+        setCustomers((prev) => prev.map((c) =>
+          c.id === rowId ? { ...c, whatsappStatus: "SENT", sentAt: new Date().toISOString() } : c
+        ));
+      }
+    } catch { /* non-fatal */ }
   }
 
   return (
@@ -182,7 +204,7 @@ export function OfertaDetalheClient({
                   </div>
                   <StatusBadge status={c.whatsappStatus} />
                   <button
-                    onClick={(e) => { e.stopPropagation(); openWhatsApp(c.phone, c.message); }}
+                    onClick={(e) => { e.stopPropagation(); openWhatsApp(c.id, c.customerId, c.phone, c.message); }}
                     className="h-8 w-8 rounded-lg border border-green-500/30 bg-green-500/10 flex items-center justify-center hover:bg-green-500/20 transition-colors shrink-0"
                     title="Abrir WhatsApp"
                   >

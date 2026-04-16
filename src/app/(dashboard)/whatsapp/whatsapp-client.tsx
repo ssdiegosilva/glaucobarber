@@ -7,7 +7,7 @@ import {
   MessageCircle, Clock, CheckCircle2, XCircle, Send,
   Trash2, RotateCcw, Users, CalendarDays, Star, RefreshCcw,
   Loader2, Pencil, X, PenLine, Search, FileText,
-  ExternalLink, AlertCircle, Sparkles, LayoutTemplate, Bot,
+  ExternalLink, AlertCircle, Sparkles, LayoutTemplate, Bot, BadgePercent,
 } from "lucide-react";
 import { TemplatesTab } from "./templates-tab";
 
@@ -49,6 +49,7 @@ const TYPE_LABEL: Record<string, string> = {
   reactivation_promo: "Promoção",
   post_sale_followup: "Pós-venda",
   post_sale_review:   "Avaliação",
+  targeted_offer:     "Oferta Direcionada",
   agenda_conflict:    "Reagendamento",
   general:            "Geral",
 };
@@ -58,6 +59,7 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   reactivation_promo: <RefreshCcw   className="h-3 w-3" />,
   post_sale_followup: <Users        className="h-3 w-3" />,
   post_sale_review:   <Star         className="h-3 w-3" />,
+  targeted_offer:     <BadgePercent className="h-3 w-3" />,
   agenda_conflict:    <CalendarDays className="h-3 w-3" />,
   general:            <MessageCircle className="h-3 w-3" />,
 };

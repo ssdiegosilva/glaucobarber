@@ -153,28 +153,7 @@ export async function POST(req: NextRequest) {
       message = body.messageTemplate.replace(/\{nome\}/gi, customer.name);
     }
 
-    // Queue WhatsApp message
-    let whatsappMsgId: string | null = null;
-    try {
-      const msg = await prisma.whatsappMessage.create({
-        data: {
-          barbershopId,
-          customerId:   customer.id,
-          customerName: customer.name,
-          phone:        customer.phone,
-          message,
-          type:         "targeted_offer",
-          messageKind:  body.mediaImageUrl ? "image" : "text",
-          mediaImageUrl: body.mediaImageUrl ?? null,
-          status:       "QUEUED",
-        },
-      });
-      whatsappMsgId = msg.id;
-    } catch {
-      // non-fatal
-    }
-
-    offerCustomers.push({ customerId: customer.id, customerName: customer.name, phone: customer.phone, message, whatsappMsgId });
+    offerCustomers.push({ customerId: customer.id, customerName: customer.name, phone: customer.phone, message, whatsappMsgId: null });
   }
 
   // Batch create TargetedOfferCustomer records

@@ -39,6 +39,7 @@ export default async function OfertaDetalhePage({ params }: { params: Promise<{ 
 
   const enriched = customers.map((c: typeof customers[number]) => ({
     id: c.id,
+    customerId: c.customerId,
     customerName: c.customerName,
     phone: c.phone,
     message: c.message,
