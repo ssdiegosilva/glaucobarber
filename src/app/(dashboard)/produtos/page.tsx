@@ -10,6 +10,11 @@ export default async function ProdutosPage() {
 
   const barbershopId = session.user.barbershopId;
 
+  const shop = await prisma.barbershop.findUnique({
+    where: { id: barbershopId },
+    select: { slug: true },
+  });
+
   const products = await prisma.product.findMany({
     where: { barbershopId, deletedAt: null },
     orderBy: { name: "asc" },
@@ -32,7 +37,7 @@ export default async function ProdutosPage() {
         subtitle={`${products.length} produto${products.length !== 1 ? "s" : ""} cadastrado${products.length !== 1 ? "s" : ""}`}
         userName={session.user.name ?? ""}
       />
-      <ProdutosClient initialProducts={serialized} />
+      <ProdutosClient initialProducts={serialized} shopSlug={shop?.slug ?? null} />
     </div>
   );
 }

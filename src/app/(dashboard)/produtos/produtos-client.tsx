@@ -225,7 +225,7 @@ function ProductModal({
 
 // ── Main Component ────────────────────────────────────────────
 
-export function ProdutosClient({ initialProducts }: { initialProducts: Product[] }) {
+export function ProdutosClient({ initialProducts, shopSlug }: { initialProducts: Product[]; shopSlug?: string | null }) {
   const [products, setProducts]   = useState<Product[]>(initialProducts);
   const [search, setSearch]       = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -281,6 +281,27 @@ export function ProdutosClient({ initialProducts }: { initialProducts: Product[]
 
   return (
     <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
+      {/* Public catalog link */}
+      {shopSlug && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-900 px-3 py-2">
+          <span className="text-xs text-muted-foreground shrink-0">Catálogo público:</span>
+          <a
+            href={`/loja/${shopSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline truncate"
+          >
+            voltaki.com/loja/{shopSlug}
+          </a>
+          <button
+            onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/loja/${shopSlug}`); }}
+            className="text-[10px] text-muted-foreground hover:text-foreground shrink-0 px-1.5 py-0.5 rounded border border-border hover:bg-surface-800 transition-colors"
+          >
+            Copiar
+          </button>
+        </div>
+      )}
+
       {/* Header row */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
