@@ -172,9 +172,9 @@ export async function POST(req: NextRequest) {
   await prisma.systemNotification.create({
     data: {
       barbershopId,
-      type:  "WHATSAPP_QUEUED",
+      type:  "SYSTEM",
       title: "Oferta Direcionada criada",
-      body:  `"${offer.title}" — ${customerList.length} mensagem(ns) na fila do WhatsApp.`,
+      body:  `"${offer.title}" — ${customerList.length} cliente(s) prontos para envio.`,
       link:  `/ofertas/${offer.id}`,
     },
   });

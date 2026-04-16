@@ -179,6 +179,7 @@ export function Header({ title, subtitle, userName, actions }: HeaderProps) {
                             className="mt-1 inline-flex items-center gap-1 text-[10px] text-gold-400/70 hover:text-gold-400 transition-colors"
                           >
                             {
+                              n.link.startsWith("/ofertas")   ? "Ver oferta →" :
                               n.link.startsWith("/campaigns") ? "Ver campanha →" :
                               n.link.startsWith("/whatsapp")  ? "Ver fila de WhatsApp →" :
                               n.link.startsWith("/support")   ? "Ver mensagem →" :

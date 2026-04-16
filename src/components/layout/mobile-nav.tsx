@@ -195,7 +195,10 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
                               onClick={() => { setBellOpen(false); dismiss(n.id); }}
                               className="mt-1 inline-flex items-center gap-1 text-[10px] text-gold-400/70 hover:text-gold-400 transition-colors"
                             >
-                              Ver campanha →
+                              {n.link.startsWith("/ofertas")   ? "Ver oferta →" :
+                               n.link.startsWith("/campaigns") ? "Ver campanha →" :
+                               n.link.startsWith("/whatsapp")  ? "Ver WhatsApp →" :
+                               "Ver detalhes →"}
                             </Link>
                           )}
                         </div>
