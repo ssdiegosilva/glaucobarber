@@ -39,7 +39,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
 
 // ── Main Wizard ────────────────────────────────────────────────
 
-export function OfertaWizard() {
+export function OfertaWizard({ shopSlug }: { shopSlug: string | null }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
 
@@ -264,6 +264,9 @@ export function OfertaWizard() {
           days,
           hasDiscount,
           discountPct: hasDiscount ? parseInt(discountPct || "0", 10) : null,
+          productUrl:  type === "product" && selectedItems.length === 1 && shopSlug
+            ? `${window.location.origin}/loja/${shopSlug}/p/${selectedItems[0].id}`
+            : null,
         }),
       });
       const data = await res.json();

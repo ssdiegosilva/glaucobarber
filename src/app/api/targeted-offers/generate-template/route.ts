@@ -20,20 +20,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { itemNames, days, hasDiscount, discountPct } = await req.json();
+  const { itemNames, days, hasDiscount, discountPct, productUrl } = await req.json();
   const names: string = Array.isArray(itemNames) ? itemNames.join(", ") : String(itemNames ?? "");
+  const link: string | null = typeof productUrl === "string" ? productUrl : null;
 
   const discountLine = hasDiscount && discountPct
     ? `A oferta inclui ${discountPct}% de desconto exclusivo nos itens: ${names}.`
     : `Não há desconto — é um convite amigável para o cliente voltar.`;
 
+  const linkLine = link
+    ? `Inclua este link do produto no final da mensagem para o cliente ver os detalhes: ${link}`
+    : "";
+
   const prompt = [
     `Crie um template de mensagem de WhatsApp curto e amigável (máx 3 parágrafos) para reengajar clientes que não compram há mais de ${days} dias.`,
     `Os itens da oferta são: ${names}.`,
     discountLine,
+    linkLine,
     `Use {nome} como placeholder para o nome do cliente.`,
     `Seja direto, acolhedor e convincente. Responda APENAS com o texto da mensagem, sem aspas, sem formatação extra.`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
   try {
     const completion = await openai.chat.completions.create({
@@ -50,7 +56,8 @@ export async function POST(req: NextRequest) {
     throw new Error("Resposta vazia");
   } catch (err) {
     console.error("[generate-template]", err);
-    const fallback = `Olá {nome}! 👋\n\nSentimos sua falta! Temos uma oferta especial esperando por você: ${names}${hasDiscount && discountPct ? ` com ${discountPct}% de desconto` : ""}.\n\nVenha nos visitar, será um prazer atendê-lo novamente! 😊`;
+    const linkSuffix = link ? `\n\nVeja mais: ${link}` : "";
+    const fallback = `Olá {nome}! 👋\n\nSentimos sua falta! Temos uma oferta especial esperando por você: ${names}${hasDiscount && discountPct ? ` com ${discountPct}% de desconto` : ""}.${linkSuffix}\n\nVenha nos visitar, será um prazer atendê-lo novamente! 😊`;
     return NextResponse.json({ template: fallback });
   }
 }
