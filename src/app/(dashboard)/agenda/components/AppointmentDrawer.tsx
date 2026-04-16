@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatTime, formatDate, relativeTime } from "@/lib/utils";
-import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote, CheckCircle2, Play, XCircle, UserX, RotateCcw, Trash2 } from "lucide-react";
+import { Loader2, Phone, Clock, User, Scissors, CalendarClock, AlertTriangle, CreditCard, QrCode, Banknote, CheckCircle2, Play, XCircle, UserX, RotateCcw, Trash2, ShoppingBag, Plus, X, Search } from "lucide-react";
 import { CardDetailsPicker } from "@/components/payment/card-details-picker";
 import type { AgendaAppointment } from "../agenda-client";
 
@@ -86,6 +86,20 @@ interface RecentAppt {
   serviceName?: string | null;
 }
 
+interface ProductOption {
+  id:    string;
+  name:  string;
+  price: number;
+}
+
+interface AddedItem {
+  id:        string;
+  name:      string;
+  quantity:  number;
+  unitPrice: number;
+  productId: string;
+}
+
 interface Props {
   appointment:  AgendaAppointment | null;
   open:         boolean;
@@ -111,9 +125,20 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
   const [cardBrand, setCardBrand] = useState<string | null>(null);
   const [cardPaymentType, setCardPaymentType] = useState<string | null>(null);
   const [localStatus, setLocalStatus] = useState<string | null>(null);
+  // Product picker state
+  const [addedItems, setAddedItems] = useState<AddedItem[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [productResults, setProductResults] = useState<ProductOption[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [addingProduct, setAddingProduct] = useState(false);
 
   useEffect(() => {
-    setLocalStatus(null); // reset when appointment changes
+    setLocalStatus(null);
+    setAddedItems([]);
+    setShowProductPicker(false);
+    setProductSearch("");
+    setProductResults([]);
   }, [appointment?.id]);
 
   useEffect(() => {
@@ -125,6 +150,62 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
       .catch(() => setContext(null))
       .finally(() => setLoadingCtx(false));
   }, [appointment?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load existing product items when drawer opens
+  useEffect(() => {
+    if (!appointment || !open) return;
+    fetch(`/api/appointments/${appointment.id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const items = (d.items ?? [])
+          .filter((i: any) => i.productId)
+          .map((i: any) => ({ id: i.id, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice), productId: i.productId }));
+        setAddedItems(items);
+      })
+      .catch(() => {});
+  }, [appointment?.id, open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Search products with debounce
+  useEffect(() => {
+    if (!productSearch.trim()) { setProductResults([]); return; }
+    const timer = setTimeout(async () => {
+      setSearchingProducts(true);
+      try {
+        const res = await fetch(`/api/products?q=${encodeURIComponent(productSearch.trim())}`);
+        const data = await res.json();
+        setProductResults(data.products ?? []);
+      } catch { setProductResults([]); }
+      finally { setSearchingProducts(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [productSearch]);
+
+  async function handleAddProduct(product: ProductOption) {
+    if (!appointment) return;
+    setAddingProduct(true);
+    try {
+      const res = await fetch(`/api/appointments/${appointment.id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: product.name, quantity: 1, unitPrice: product.price, productId: product.id }),
+      });
+      const data = await res.json();
+      if (data.item) {
+        setAddedItems((prev) => [...prev, { id: data.item.id, name: product.name, quantity: 1, unitPrice: product.price, productId: product.id }]);
+      }
+      setProductSearch("");
+      setProductResults([]);
+    } finally { setAddingProduct(false); }
+  }
+
+  async function handleRemoveItem(itemId: string) {
+    if (!appointment) return;
+    await fetch(`/api/appointments/${appointment.id}/items/${itemId}`, { method: "DELETE" });
+    setAddedItems((prev) => prev.filter((i) => i.id !== itemId));
+  }
+
+  const productsTotal = addedItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+  const grandTotal = Number(appointment?.price ?? 0) + productsTotal;
 
   async function handleStatus(status: string) {
     if (!appointment) return;
@@ -260,8 +341,8 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
               <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded border font-medium ${originBadge.className}`}>
                 {originBadge.label}
               </span>
-              {appointment.price && (
-                <span className="ml-auto text-sm font-semibold text-foreground">{formatBRL(appointment.price)}</span>
+              {appointment.price != null && (
+                <span className="ml-auto text-sm font-semibold text-foreground">{formatBRL(grandTotal)}</span>
               )}
             </div>
 
@@ -329,6 +410,98 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
             )}
           </div>
 
+          {/* Product picker — visible when IN_PROGRESS or during completion */}
+          {!isReadOnly && (currentStatus === "IN_PROGRESS" || showPaymentMethod) && (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                  <ShoppingBag className="h-3 w-3" /> Produtos
+                </h3>
+                {!showProductPicker && (
+                  <button
+                    onClick={() => setShowProductPicker(true)}
+                    className="flex items-center gap-1 text-[11px] text-gold-400 hover:text-gold-300 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Adicionar produto
+                  </button>
+                )}
+              </div>
+
+              {showProductPicker && (
+                <div className="rounded-lg border border-border/60 bg-surface-800 p-2.5 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Buscar produto..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="w-full rounded border border-border bg-surface-900 pl-7 pr-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground"
+                      autoFocus
+                    />
+                  </div>
+                  {searchingProducts && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Buscando...
+                    </div>
+                  )}
+                  {productResults.length > 0 && (
+                    <div className="max-h-36 overflow-y-auto divide-y divide-border/40 rounded border border-border/40 bg-surface-900">
+                      {productResults.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => handleAddProduct(p)}
+                          disabled={addingProduct}
+                          className="w-full flex items-center justify-between px-2.5 py-2 text-left hover:bg-surface-800 transition-colors disabled:opacity-50"
+                        >
+                          <span className="text-xs text-foreground">{p.name}</span>
+                          <span className="text-xs text-gold-400 font-medium">{formatBRL(p.price)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {productSearch.trim() && !searchingProducts && productResults.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground px-1">Nenhum produto encontrado.</p>
+                  )}
+                  <button
+                    onClick={() => { setShowProductPicker(false); setProductSearch(""); setProductResults([]); }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Fechar busca
+                  </button>
+                </div>
+              )}
+
+              {addedItems.length > 0 && (
+                <div className="rounded-lg border border-border/60 bg-surface-800 divide-y divide-border/40">
+                  {addedItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="h-3 w-3 text-gold-400" />
+                        <span className="text-xs text-foreground">{item.name}</span>
+                        {item.quantity > 1 && <span className="text-[10px] text-muted-foreground">x{item.quantity}</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-foreground">{formatBRL(item.unitPrice * item.quantity)}</span>
+                        <button onClick={() => handleRemoveItem(item.id)} className="text-muted-foreground hover:text-red-400 transition-colors">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between px-3 py-2 bg-surface-900/50">
+                    <span className="text-[11px] text-muted-foreground">Serviço</span>
+                    <span className="text-xs text-foreground">{formatBRL(Number(appointment.price ?? 0))}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 bg-gold-500/5">
+                    <span className="text-xs font-semibold text-gold-400">Total</span>
+                    <span className="text-sm font-bold text-gold-400">{formatBRL(grandTotal)}</span>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Payment method picker */}
           {showPaymentMethod && (
             <div className="rounded-lg border border-border/60 bg-surface-800 p-3 space-y-3">
@@ -362,7 +535,7 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
                   cardPaymentType={cardPaymentType}
                   onBrandChange={setCardBrand}
                   onPaymentTypeChange={setCardPaymentType}
-                  paidValue={Number(appointment.price ?? 0)}
+                  paidValue={grandTotal}
                 />
               )}
 

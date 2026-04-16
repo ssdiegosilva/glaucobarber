@@ -61,18 +61,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // Busca serviço do agendamento para preencher lastServiceSummary
       const apptWithService = await prisma.appointment.findUnique({
         where:   { id: appointment.id },
-        include: { service: { select: { name: true } }, items: { select: { name: true } } },
+        include: { service: { select: { name: true } }, items: { select: { name: true, totalPrice: true } } },
       });
       const serviceName = apptWithService?.service?.name
         ?? apptWithService?.items.map((i) => i.name).join(", ")
         ?? null;
+
+      // Total including product items
+      const completionItemsTotal = (apptWithService?.items ?? []).reduce((sum, i) => sum + Number(i.totalPrice), 0);
+      const totalSpent = completionItemsTotal > 0 ? Number(appointment.price ?? 0) + completionItemsTotal : Number(appointment.price ?? 0);
 
       await prisma.customer.update({
         where: { id: appointment.customerId },
         data: {
           lastCompletedAppointmentAt: now,
           lastServiceSummary: serviceName,
-          lastSpentAmount:    appointment.price,
+          lastSpentAmount:    totalSpent,
           totalVisits:        { increment: 1 },
         },
       });
@@ -129,7 +133,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const existing = await prisma.payment.findFirst({
       where: { appointmentId: appointment.id, domain: "BARBERSHOP_SERVICE" },
     });
-    const paidVal = Number(appointment.price ?? 0);
+    // Recalculate total including product items
+    const allItems = await prisma.appointmentItem.findMany({
+      where: { appointmentId: appointment.id },
+      select: { totalPrice: true },
+    });
+    const itemsTotal = allItems.reduce((sum, i) => sum + Number(i.totalPrice), 0);
+    const paidVal = itemsTotal > 0 ? Number(appointment.price ?? 0) + itemsTotal : Number(appointment.price ?? 0);
     const paymentData: any = {
       barbershopId: session.user.barbershopId,
       appointmentId: appointment.id,

@@ -7,7 +7,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.barbershopId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { name, quantity = 1, unitPrice, serviceId } = await req.json();
+  const { name, quantity = 1, unitPrice, serviceId, productId } = await req.json();
   if (!name || unitPrice === undefined) return NextResponse.json({ error: "Nome e preço são obrigatórios" }, { status: 400 });
 
   const appointment = await prisma.appointment.findFirst({
@@ -20,7 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const item = await prisma.appointmentItem.create({
     data: {
       appointmentId: appointment.id,
-      serviceId,
+      serviceId: serviceId ?? null,
+      productId: productId ?? null,
       name,
       quantity: Number(quantity ?? 1),
       unitPrice: Number(unitPrice),
