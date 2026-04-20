@@ -61,6 +61,7 @@ export async function getSegmentTheme(barbershopId: string): Promise<{
   colorCard:       string;
   icon:            string | null;
   displayName:     string;
+  tenantLabel:     string;
   availableModules: string;
 } | null> {
   try {
@@ -74,6 +75,7 @@ export async function getSegmentTheme(barbershopId: string): Promise<{
             colorCard:       true,
             icon:            true,
             displayName:     true,
+            tenantLabel:     true,
             availableModules: true,
           },
         },
