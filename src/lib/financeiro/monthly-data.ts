@@ -183,8 +183,8 @@ export async function getMonthlyFinanceiroData(
 
   const revenue          = Number(thisAgg._sum.price ?? 0) + Number(visitThisAgg._sum.amount ?? 0);
   const revenuePrevMonth = Number(prevAgg._sum.price ?? 0) + Number(visitPrevAgg._sum.amount ?? 0);
-  const completedCount   = thisAgg._count._all;
-  const completedPrev    = prevAgg._count._all;
+  const completedCount   = thisAgg._count._all + visitThisAgg._count._all;
+  const completedPrev    = prevAgg._count._all + visitPrevAgg._count._all;
   const avgTicket        = completedCount > 0 ? revenue / completedCount : 0;
   const avgTicketPrev    = completedPrev  > 0 ? revenuePrevMonth / completedPrev : 0;
 
@@ -197,10 +197,11 @@ export async function getMonthlyFinanceiroData(
     if (entry) { entry.revenue += rev; entry.count += 1; }
     else svcMap.set(key, { name: a.service?.name ?? "Sem serviço", category: a.service?.category ?? "OTHER", revenue: rev, count: 1 });
   }
-  const byService = [...svcMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+  const allServices = [...svcMap.values()].sort((a, b) => b.revenue - a.revenue);
+  const byService = allServices.slice(0, 10);
 
   const catMap = new Map<string, { revenue: number; count: number }>();
-  for (const s of byService) {
+  for (const s of allServices) {
     const e = catMap.get(s.category);
     if (e) { e.revenue += s.revenue; e.count += s.count; }
     else catMap.set(s.category, { revenue: s.revenue, count: s.count });

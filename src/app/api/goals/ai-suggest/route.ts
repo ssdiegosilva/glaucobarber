@@ -151,8 +151,9 @@ export async function POST(req: NextRequest) {
   const establishmentType = barbershop?.segment?.tenantLabel ?? "barbearia";
   const region         = (stateCode && STATE_TO_REGION[stateCode]) ?? "Sudeste";
   const fallback       = isProduct ? (PRODUCT_REGIONAL_FALLBACK[region] ?? PRODUCT_REGIONAL_FALLBACK["Sudeste"]) : REGIONAL_FALLBACK[region];
-  const aggAvg = isProduct ? (agg as any)._avg?.amount : (agg as any)._avg?.price;
-  const historicalTicket = aggAvg && agg._count._all >= 20 ? Number(aggAvg) : null;
+  const aggAvg   = isProduct ? (agg as any)._avg?.amount : (agg as any)._avg?.price;
+  const aggCount = (agg as any)._count?._all ?? 0;
+  const historicalTicket = aggAvg && aggCount >= 20 ? Number(aggAvg) : null;
 
   const DAY_NAMES   = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   const offDayNames = offDays.map((d) => DAY_NAMES[d]).join(", ") || "nenhum";
@@ -182,7 +183,7 @@ Com base nos dados, calcule a meta de faturamento mensal:
 ${isProduct
   ? `- Vendas esperadas/dia: ${perDay} | Capacidade mensal: ${totalCapacity} vendas`
   : `- Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade: ${totalCapacity}`}
-${historicalTicket ? `- Ticket histórico do ${establishmentType}: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} ${isProduct ? "vendas" : "atend."})` : `- Sem histórico de ${isProduct ? "vendas" : "atendimentos"}`}
+${historicalTicket ? `- Ticket histórico do ${establishmentType}: R$ ${historicalTicket.toFixed(2)} (${aggCount} ${isProduct ? "vendas" : "atend."})` : `- Sem histórico de ${isProduct ? "vendas" : "atendimentos"}`}
 ${avgMonthlyExpenses ? `- Custos mensais médios: R$ ${avgMonthlyExpenses.toFixed(0)} (${topExpenses.join(" | ")})` : "- Sem custos cadastrados"}
 ${wizardContext ? `- Contexto do profissional: "${wizardContext}"` : ""}
 

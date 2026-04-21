@@ -200,8 +200,10 @@ export function AppointmentDrawer({ appointment, open, onClose, onStatusChange, 
 
   async function handleRemoveItem(itemId: string) {
     if (!appointment) return;
-    await fetch(`/api/appointments/${appointment.id}/items/${itemId}`, { method: "DELETE" });
-    setAddedItems((prev) => prev.filter((i) => i.id !== itemId));
+    const res = await fetch(`/api/appointments/${appointment.id}/items/${itemId}`, { method: "DELETE" });
+    if (res.ok) {
+      setAddedItems((prev) => prev.filter((i) => i.id !== itemId));
+    }
   }
 
   const productsTotal = addedItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);

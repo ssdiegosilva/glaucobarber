@@ -146,8 +146,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       customerId: appointment.customerId,
       domain: "BARBERSHOP_SERVICE" as const,
       status: PaymentStatus.PAID,
-      amount: appointment.price ?? 0,
-      paidValue: appointment.price ?? null,
+      amount: paidVal,
+      paidValue: paidVal,
       paymentMethod: paymentMethod as PaymentMethod,
       paidAt: now,
     };

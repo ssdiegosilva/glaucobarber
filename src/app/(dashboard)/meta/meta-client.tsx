@@ -418,7 +418,7 @@ function AiWizard({
             <p className="text-xs text-muted-foreground">{suggestion.explanation}</p>
             <p className="text-[11px] text-muted-foreground">
               <Calendar className="h-3 w-3 inline mr-1" />
-              {suggestion.workingDaysCount} dias úteis · Meta diária: {formatBRL(suggestion.suggestedRevenueTarget / suggestion.workingDaysCount)}
+              {suggestion.workingDaysCount} dias úteis · Meta diária: {suggestion.workingDaysCount > 0 ? formatBRL(suggestion.suggestedRevenueTarget / suggestion.workingDaysCount) : "N/A"}
             </p>
           </div>
           <div className="flex gap-2">
