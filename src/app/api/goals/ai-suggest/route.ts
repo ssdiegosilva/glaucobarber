@@ -27,6 +27,15 @@ const REGIONAL_FALLBACK: Record<string, { min: number; avg: number; max: number 
   Sul:            { min: 35, avg: 60,  max: 120 },
 };
 
+// Ticket médio para negócios de venda de produtos (padarias, cafeterias, etc.)
+const PRODUCT_REGIONAL_FALLBACK: Record<string, { min: number; avg: number; max: number }> = {
+  Norte:          { min: 10, avg: 25, max: 60  },
+  Nordeste:       { min: 8,  avg: 22, max: 55  },
+  "Centro-Oeste": { min: 12, avg: 30, max: 70  },
+  Sudeste:        { min: 15, avg: 35, max: 90  },
+  Sul:            { min: 12, avg: 30, max: 75  },
+};
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function calcWorkingDays(month: number, year: number, offDaysOfWeek: number[], holidayDays: number[] = []): number {
@@ -61,9 +70,10 @@ export async function POST(req: NextRequest) {
   const { allowed } = await checkAiAllowance(session.user.barbershopId);
   if (!allowed) return NextResponse.json({ error: "ai_limit_reached", message: "Limite de IA atingido. Adicione créditos para continuar.", upgradeUrl: "/billing" }, { status: 402 });
 
-  const { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour, wizardContext } = await req.json();
+  const { month, year, offDaysOfWeek, hoursPerDay, appointmentsPerHour, salesPerDay: salesPerDayParam, businessType, wizardContext } = await req.json();
   if (!month || !year) return NextResponse.json({ error: "month e year obrigatórios" }, { status: 400 });
 
+  const isProduct = businessType === "product";
   const offDays: number[] = Array.isArray(offDaysOfWeek) ? offDaysOfWeek.map(Number) : [];
 
   // ── Load cached holidays (if any) ────────────────────────────
@@ -76,7 +86,10 @@ export async function POST(req: NextRequest) {
   const workingDaysCount = calcWorkingDays(Number(month), Number(year), offDays, cachedHolidayDays);
   const hours             = Number(hoursPerDay || 8);
   const apptsPerHour      = Number(appointmentsPerHour || 2);
-  const totalCapacity     = workingDaysCount * hours * apptsPerHour;
+  const perDay            = Number(salesPerDayParam || 20);
+  const totalCapacity     = isProduct
+    ? workingDaysCount * perDay
+    : workingDaysCount * hours * apptsPerHour;
 
   // ── Barbershop context ────────────────────────────────────────
   // Last 3 months for expense history
@@ -92,11 +105,17 @@ export async function POST(req: NextRequest) {
       where:  { id: session.user.barbershopId },
       select: { state: true, city: true, segment: { select: { tenantLabel: true, displayName: true } } },
     }),
-    prisma.appointment.aggregate({
-      where:  { barbershopId: session.user.barbershopId, status: "COMPLETED" },
-      _avg:   { price: true },
-      _count: { _all: true },
-    }),
+    isProduct
+      ? prisma.visit.aggregate({
+          where:  { barbershopId: session.user.barbershopId },
+          _avg:   { amount: true },
+          _count: { _all: true },
+        })
+      : prisma.appointment.aggregate({
+          where:  { barbershopId: session.user.barbershopId, status: "COMPLETED" },
+          _avg:   { price: true },
+          _count: { _all: true },
+        }),
     prisma.expense.findMany({
       where: {
         barbershopId: session.user.barbershopId,
@@ -131,8 +150,9 @@ export async function POST(req: NextRequest) {
   const city           = barbershop?.city?.trim() ?? null;
   const establishmentType = barbershop?.segment?.tenantLabel ?? "barbearia";
   const region         = (stateCode && STATE_TO_REGION[stateCode]) ?? "Sudeste";
-  const fallback       = REGIONAL_FALLBACK[region];
-  const historicalTicket = agg._avg.price && agg._count._all >= 20 ? Number(agg._avg.price) : null;
+  const fallback       = isProduct ? (PRODUCT_REGIONAL_FALLBACK[region] ?? PRODUCT_REGIONAL_FALLBACK["Sudeste"]) : REGIONAL_FALLBACK[region];
+  const aggAvg = isProduct ? (agg as any)._avg?.amount : (agg as any)._avg?.price;
+  const historicalTicket = aggAvg && agg._count._all >= 20 ? Number(aggAvg) : null;
 
   const DAY_NAMES   = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   const offDayNames = offDays.map((d) => DAY_NAMES[d]).join(", ") || "nenhum";
@@ -151,7 +171,7 @@ TAREFA — faça as duas pesquisas abaixo em paralelo:
    ${cachedHolidays.length > 0 ? `(Já temos estes feriados cacheados: ${cachedHolidays.map((h) => `dia ${h.day} - ${h.name}`).join(", ")})` : ""}
 
 2. TICKET MÉDIO: Busque o ticket médio atual de ${establishmentType}s em ${locationStr}.
-   Pesquise: "ticket médio ${establishmentType} ${city ?? stateCode ?? region} 2024 2025", "preço serviço ${establishmentType} ${city ?? region}".
+   Pesquise: "ticket médio ${isProduct ? "venda" : "serviço"} ${establishmentType} ${city ?? stateCode ?? region} 2024 2025".
    Fontes: SEBRAE, GetNinjas, Habitissimo.
 
 Com base nos dados, calcule a meta de faturamento mensal:
@@ -159,13 +179,15 @@ Com base nos dados, calcule a meta de faturamento mensal:
 - Mês: ${monthName}/${year}
 - Dias de folga/semana: ${offDayNames}
 - Dias úteis (excluindo folgas e feriados que caem em dias úteis): ${workingDaysCount}
-- Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade: ${totalCapacity}
-${historicalTicket ? `- Ticket histórico do ${establishmentType}: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} atend.)` : "- Sem histórico de atendimentos"}
+${isProduct
+  ? `- Vendas esperadas/dia: ${perDay} | Capacidade mensal: ${totalCapacity} vendas`
+  : `- Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade: ${totalCapacity}`}
+${historicalTicket ? `- Ticket histórico do ${establishmentType}: R$ ${historicalTicket.toFixed(2)} (${agg._count._all} ${isProduct ? "vendas" : "atend."})` : `- Sem histórico de ${isProduct ? "vendas" : "atendimentos"}`}
 ${avgMonthlyExpenses ? `- Custos mensais médios: R$ ${avgMonthlyExpenses.toFixed(0)} (${topExpenses.join(" | ")})` : "- Sem custos cadastrados"}
 ${wizardContext ? `- Contexto do profissional: "${wizardContext}"` : ""}
 
 Regras:
-- Ocupação esperada: 70% da capacidade
+- ${isProduct ? "Considere que dias de semana vendem ~80% e fins de semana ~120% da média" : "Ocupação esperada: 70% da capacidade"}
 - Se há custos cadastrados: meta mínima = custos × 1,30 (30% de margem)
 
 RESPONDA OBRIGATORIAMENTE no formato JSON abaixo (sem texto antes ou depois):
@@ -255,7 +277,9 @@ ${historicalTicket ? `- Ticket histórico deste ${establishmentType}: R$ ${histo
 
 Parâmetros do ${establishmentType}:
 - Mês: ${month}/${year} | Dias úteis: ${workingDaysCount} | Folgas: ${offDayNames}
-- Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade total: ${totalCapacity}
+${isProduct
+  ? `- Vendas esperadas/dia: ${perDay} | Capacidade mensal: ${totalCapacity} vendas`
+  : `- Horas/dia: ${hours}h | Atendimentos/hora: ${apptsPerHour} | Capacidade total: ${totalCapacity}`}
 ${avgMonthlyExpenses ? `- Custos mensais médios: R$ ${avgMonthlyExpenses.toFixed(0)} (${topExpenses.join(" | ")})` : "- Sem custos cadastrados"}
 ${wizardContext ? `- Contexto: "${wizardContext}"` : ""}
 

@@ -6,6 +6,7 @@ import { MetaClient } from "./meta-client";
 import { getPlan } from "@/lib/billing";
 import { canAccess } from "@/lib/access";
 import { UpgradeWall } from "@/components/billing/UpgradeWall";
+import { getSegmentTheme } from "@/lib/core/segment";
 import {
   startOfMonth, endOfMonth, startOfDay, endOfDay,
   startOfYear, endOfYear, format,
@@ -17,6 +18,17 @@ export default async function MetaPage() {
   if (!session?.user?.barbershopId) redirect("/login");
 
   const barbershopId = session.user.barbershopId;
+
+  // Detect business type from segment
+  const segmentTheme = await getSegmentTheme(barbershopId);
+  let businessType: "service" | "product" | "mixed" = "service";
+  try {
+    const modules: string[] = JSON.parse(segmentTheme?.availableModules ?? "[]");
+    const hasAgenda  = modules.includes("agenda");
+    const hasVisitas = modules.includes("visitas");
+    if (hasVisitas && !hasAgenda) businessType = "product";
+    else if (hasVisitas && hasAgenda) businessType = "mixed";
+  } catch {}
 
   const { effectiveTier } = await getPlan(barbershopId);
   const allowed = await canAccess(barbershopId, effectiveTier, "meta");
@@ -201,6 +213,7 @@ export default async function MetaPage() {
           scheduledByDay={scheduledByDay}
           allGoals={allGoalsSerialized}
           annualMonths={annualMonths}
+          businessType={businessType}
         />
       </div>
     </div>

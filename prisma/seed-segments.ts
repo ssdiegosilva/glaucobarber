@@ -66,6 +66,7 @@ const FLOW_MODULES = JSON.stringify([
   "targeted-offers",
   "copilot",
   "financeiro",
+  "meta",
   "clients",
   "campaigns",
   "whatsapp",

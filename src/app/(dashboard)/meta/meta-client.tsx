@@ -52,6 +52,7 @@ interface Props {
   scheduledByDay: Record<number, number>;
   allGoals: GoalRow[];
   annualMonths: AnnualMonth[];
+  businessType: "service" | "product" | "mixed";
 }
 
 // ── Constants ─────────────────────────────────────────────────
@@ -214,15 +215,19 @@ type AiResult = {
 function AiWizard({
   targetMonth, targetYear,
   onAccept, onClose,
+  businessType,
 }: {
   targetMonth: number; targetYear: number;
   onAccept: (result: AiResult, offDays: number[]) => void;
   onClose: () => void;
+  businessType: "service" | "product" | "mixed";
 }) {
+  const isProduct = businessType === "product";
   const [step,          setStep]          = useState<WizardStep>("days");
   const [wizardOffDays, setWizardOffDays] = useState<number[]>([]);
   const [hours,         setHours]         = useState("8");
   const [apptsPerHour,  setApptsPerHour]  = useState("2");
+  const [salesPerDay,   setSalesPerDay]   = useState("20");
   const [context,       setContext]       = useState("");
   const [suggestion,    setSuggestion]    = useState<AiResult | null>(null);
 
@@ -234,8 +239,11 @@ function AiWizard({
         body: JSON.stringify({
           month: targetMonth, year: targetYear,
           offDaysOfWeek:       wizardOffDays,
-          hoursPerDay:         Number(hours),
-          appointmentsPerHour: Number(apptsPerHour),
+          ...(isProduct
+            ? { salesPerDay: Number(salesPerDay) }
+            : { hoursPerDay: Number(hours), appointmentsPerHour: Number(apptsPerHour) }
+          ),
+          businessType,
           wizardContext:       context.trim() || undefined,
         }),
       });
@@ -278,26 +286,44 @@ function AiWizard({
 
       {step === "hours" && (
         <>
-          <p className="text-sm text-foreground">Quantas horas você pretende trabalhar por dia?</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Horas por dia</label>
-              <input type="number" min="1" max="16" step="0.5" value={hours} onChange={(e) => setHours(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Atendimentos/hora</label>
-              <input type="number" min="1" max="10" value={apptsPerHour} onChange={(e) => setApptsPerHour(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-            </div>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Capacidade estimada: <span className="text-foreground font-medium">{Math.round(Number(hours || 8) * Number(apptsPerHour || 2))} atendimentos/dia</span>
-            {" "}· Corte simples ~30 min → 2/h; combo barba ~45–60 min → 1–1,5/h
+          <p className="text-sm text-foreground">
+            {isProduct ? "Quantas vendas você espera por dia?" : "Quantas horas você pretende trabalhar por dia?"}
           </p>
+          {isProduct ? (
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Vendas esperadas por dia</label>
+              <input type="number" min="1" max="500" value={salesPerDay} onChange={(e) => setSalesPerDay(e.target.value)}
+                className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <p className="text-[11px] text-muted-foreground">
+                Média de estabelecimentos similares: <span className="text-foreground font-medium">15–30 transações/dia</span>
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Horas por dia</label>
+                  <input type="number" min="1" max="16" step="0.5" value={hours} onChange={(e) => setHours(e.target.value)}
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Atendimentos/hora</label>
+                  <input type="number" min="1" max="10" value={apptsPerHour} onChange={(e) => setApptsPerHour(e.target.value)}
+                    className="w-full rounded-md border border-border bg-surface-800 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Capacidade estimada: <span className="text-foreground font-medium">{Math.round(Number(hours || 8) * Number(apptsPerHour || 2))} atendimentos/dia</span>
+                {" "}· Corte simples ~30 min → 2/h; combo barba ~45–60 min → 1–1,5/h
+              </p>
+              {businessType === "mixed" && (
+                <p className="text-[11px] text-gold-400/70">Vendas de produtos também serão contabilizadas no faturamento.</p>
+              )}
+            </>
+          )}
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => setStep("days")}>← Voltar</Button>
-            <Button size="sm" onClick={() => setStep("context")} disabled={!hours || !apptsPerHour}>Próximo →</Button>
+            <Button size="sm" onClick={() => setStep("context")} disabled={isProduct ? !salesPerDay : (!hours || !apptsPerHour)}>Próximo →</Button>
           </div>
         </>
       )}
@@ -416,6 +442,7 @@ function GoalForm({
   onSave,
   onCancel,
   showAiWizard,
+  businessType,
 }: {
   month: number; year: number;
   initial: { revenueTarget: string; offDaysOfWeek: number[]; extraOffDays: number[]; extraWorkDays: number[] };
@@ -426,6 +453,7 @@ function GoalForm({
   onSave: (result: { revenueTarget: string; offDaysOfWeek: number[]; extraOffDays: number[]; extraWorkDays: number[] }) => Promise<void>;
   onCancel: () => void;
   showAiWizard?: boolean;
+  businessType: "service" | "product" | "mixed";
 }) {
   const [revenueTarget, setRevenueTarget] = useState(initial.revenueTarget);
   const [offDaysOfWeek, setOffDaysOfWeek] = useState(initial.offDaysOfWeek);
@@ -485,6 +513,7 @@ function GoalForm({
           targetMonth={month} targetYear={year}
           onAccept={acceptAi}
           onClose={() => setShowWizard(false)}
+          businessType={businessType}
         />
       )}
 
@@ -590,6 +619,7 @@ export function MetaClient({
   scheduledByDay,
   allGoals: initialAllGoals,
   annualMonths: initialAnnualMonths,
+  businessType,
 }: Props) {
   const [goal,    setGoal]    = useState<Goal | null>(initialGoal);
   const [offDay,  setOffDay]  = useState(initialIsOffDay);
@@ -831,6 +861,7 @@ export function MetaClient({
               onSave={handleCreateSave}
               onCancel={() => { setCreating(false); setCreateMonthYear(null); }}
               showAiWizard
+              businessType={businessType}
             />
           )}
         </div>
@@ -937,6 +968,7 @@ export function MetaClient({
                     onSave={(form) => handleEditSave(g, form)}
                     onCancel={() => setEditingGoalId(null)}
                     showAiWizard={false}
+                    businessType={businessType}
                   />
                 )}
               </div>
@@ -1034,7 +1066,7 @@ export function MetaClient({
                       </div>
                     )}
                     <div className="space-y-0.5">
-                      <p className="text-[10px] text-muted-foreground">Atendimentos</p>
+                      <p className="text-[10px] text-muted-foreground">{businessType === "product" ? "Transações" : "Atendimentos"}</p>
                       <p className="text-sm font-bold text-foreground">{m.count}</p>
                     </div>
                     {avgTicket !== null && (
