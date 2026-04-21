@@ -307,7 +307,7 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
             {NAV.filter(({ key }) => {
               if (!availableModules || availableModules.length === 0) return true;
               return availableModules.includes(key);
-            }).map(({ href, label, icon: Icon, key }) => {
+            }).map(({ href, label, icon: Icon, key, desc }) => {
               const active = pathname === href || pathname.startsWith(href.split("?")[0] + "/");
               const NavIcon = key === "services" ? BrandIcon : Icon;
               return (
@@ -316,14 +316,17 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
                   href={href}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors",
                     active
                       ? "bg-primary/15 text-primary"
                       : "bg-card text-muted-foreground hover:bg-surface-800 hover:text-foreground"
                   )}
                 >
-                  <NavIcon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "")} />
-                  <span>{label}</span>
+                  <NavIcon className={cn("h-4 w-4 shrink-0 mt-0.5", active ? "text-primary" : "")} />
+                  <div className="min-w-0">
+                    <span>{label}</span>
+                    {desc && <p className={cn("text-[10px] leading-tight mt-0.5", active ? "text-primary/60" : "text-muted-foreground/60")}>{desc}</p>}
+                  </div>
                 </Link>
               );
             })}

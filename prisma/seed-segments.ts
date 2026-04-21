@@ -60,6 +60,7 @@ const ALL_MODULES = JSON.stringify([
 // Módulos para estabelecimentos de fluxo (sem agenda, com visitas)
 const FLOW_MODULES = JSON.stringify([
   "dashboard",
+  "dashboard-vendas",
   "visitas",
   "produtos",
   "targeted-offers",
@@ -416,6 +417,7 @@ const SEGMENTS = [
     sortOrder: 9,
     availableModules: JSON.stringify([
       "dashboard",
+      "dashboard-vendas",
       "visitas",
       "agenda",        // tosa/banho ainda pode usar agenda
       "copilot",

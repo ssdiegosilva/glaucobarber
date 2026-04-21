@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
 export const ALL_FEATURES = [
-  { key: "dashboard",    label: "Dashboard",     description: "Visão geral da barbearia" },
-  { key: "agenda",       label: "Agenda",        description: "Agendamentos" },
-  { key: "visitas",      label: "Visitas",       description: "Registro de visitas para estabelecimentos de fluxo (sem agendamento)" },
+  { key: "dashboard",        label: "Dashboard",        description: "Visão geral da barbearia" },
+  { key: "dashboard-vendas", label: "Dashboard Vendas", description: "Dashboard de vendas com KPIs, ranking de produtos e clientes" },
+  { key: "agenda",           label: "Agenda",           description: "Agendamentos" },
+  { key: "visitas",          label: "Visitas",          description: "Registro de visitas para estabelecimentos de fluxo (sem agendamento)" },
   { key: "produtos",     label: "Produtos",      description: "Catálogo de produtos para venda" },
   { key: "copilot",      label: "Copilot IA",    description: "Assistente com inteligência artificial" },
   { key: "financeiro",   label: "Financeiro",    description: "Relatórios e gestão financeira" },
