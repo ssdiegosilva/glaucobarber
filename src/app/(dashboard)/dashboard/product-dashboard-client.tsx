@@ -96,7 +96,7 @@ export function ProductDashboardClient({ kpis, chartData, topProducts, topCustom
   }
 
   return (
-    <div className="px-4 md:px-6 pb-8 space-y-6">
+    <div className="px-4 md:px-6 pt-4 pb-8 space-y-6">
 
         {/* ── KPI Cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
