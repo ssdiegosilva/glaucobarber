@@ -54,6 +54,11 @@ function OnboardingContent() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(!isNewShop);
   const [loadingSegments, setLoadingSegments] = useState(true);
+  const [host, setHost] = useState("");
+
+  useEffect(() => {
+    setHost(window.location.host);
+  }, []);
 
   // Check if user already has a membership — unless ?new=true
   useEffect(() => {
@@ -258,7 +263,7 @@ function OnboardingContent() {
             URL do {tenantLabel}
           </label>
           <div className="flex items-center rounded-md border border-border bg-surface-800 px-3 py-2.5 text-sm">
-            <span className="text-muted-foreground shrink-0">glaucobarber.com/</span>
+            <span className="text-muted-foreground shrink-0">{host}/</span>
             <input
               type="text"
               required
