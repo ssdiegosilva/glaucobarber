@@ -9,8 +9,11 @@ interface PostSaleFilterConfig {
   defaults: Record<string, boolean>;
   custom: Array<{
     id: string;
-    serviceId: string;
-    serviceName: string;
+    type?: "service" | "product";
+    serviceId?: string;
+    serviceName?: string;
+    productId?: string;
+    productName?: string;
     followUpDays: number;
     enabled: boolean;
   }>;
@@ -21,7 +24,13 @@ function parseConfig(raw: string): PostSaleFilterConfig {
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed.defaults) {
-      return parsed as PostSaleFilterConfig;
+      return {
+        ...parsed,
+        custom: (parsed.custom ?? []).map((c: Record<string, unknown>) => ({
+          ...c,
+          type: c.type ?? "service",
+        })),
+      };
     }
   } catch { /* fallback */ }
   return {
@@ -69,8 +78,15 @@ export async function PATCH(req: NextRequest) {
 
   // Validate custom filters have required fields
   for (const f of body.custom) {
-    if (!f.id || !f.serviceId || !f.serviceName || !f.followUpDays) {
+    if (!f.id || !f.followUpDays) {
       return NextResponse.json({ error: "Filtro customizado incompleto" }, { status: 400 });
+    }
+    const fType = f.type ?? "service";
+    if (fType === "service" && (!f.serviceId || !f.serviceName)) {
+      return NextResponse.json({ error: "Filtro de serviço incompleto" }, { status: 400 });
+    }
+    if (fType === "product" && (!f.productId || !f.productName)) {
+      return NextResponse.json({ error: "Filtro de produto incompleto" }, { status: 400 });
     }
   }
 

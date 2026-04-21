@@ -135,6 +135,20 @@ export interface CopilotContext {
   activeOffers: { title: string; salePrice: number; type: string }[];
   /** Service opportunities suggested by AI that are pending approval */
   pendingOpportunities: { name: string; category: string; suggestedPrice: number }[];
+
+  // ── Business type detection ────────────────────────────
+  /** Whether this barbershop has active products (retail) */
+  hasProducts: boolean;
+  /** Whether this barbershop has active services (appointments) */
+  hasServices: boolean;
+
+  // ── Product data (populated when hasProducts = true) ───
+  /** Top selling products in the last 30 days */
+  topProducts: { name: string; quantitySold: number; revenue: number }[];
+  /** Today's revenue from product sales (Visit model) */
+  productRevenueToday: number;
+  /** MTD revenue from product sales (Visit model) */
+  productRevenueMonth: number;
 }
 
 export interface CopilotActionSuggestion {

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { prisma } from "@/lib/prisma";
 import { PostSaleClient } from "./components/PostSaleClient";
-import type { CustomerSummary, PostSaleFilterConfig } from "./types";
+import type { CustomerSummary, PostSaleFilterConfig, CustomFilter } from "./types";
 import { subDays } from "date-fns";
 import { canAccess } from "@/lib/access";
 import { getPlan } from "@/lib/billing";
@@ -73,10 +73,21 @@ export default async function PostSalePage() {
             serviceId:   true,
             service:     { select: { id: true, name: true } },
             barberId:    true,
-            items:       { select: { serviceId: true, name: true }, take: 3 },
+            items:       { select: { serviceId: true, productId: true, name: true }, take: 5 },
           },
           where:   { status: "COMPLETED" },
           orderBy: { scheduledAt: "desc" },
+          take: 10,
+        },
+        visits: {
+          select: {
+            visitedAt: true,
+            items: {
+              select: { productId: true, name: true },
+              where: { productId: { not: null } },
+            },
+          },
+          orderBy: { visitedAt: "desc" },
           take: 10,
         },
       },
@@ -118,7 +129,13 @@ export default async function PostSalePage() {
   try {
     const raw = JSON.parse(barbershop?.postSaleFilters ?? "[]");
     if (raw && typeof raw === "object" && !Array.isArray(raw) && raw.defaults) {
-      filterConfig = raw;
+      filterConfig = {
+        ...raw,
+        custom: (raw.custom ?? []).map((c: CustomFilter & { type?: string }) => ({
+          ...c,
+          type: c.type ?? "service",
+        })),
+      };
     }
   } catch { /* keep default */ }
 
@@ -175,6 +192,28 @@ export default async function PostSalePage() {
         }
         return [{ serviceId: null, serviceName: null, completedAt: date }];
       }),
+      recentProductPurchases: [
+        // Produtos vendidos em visitas (balcão)
+        ...(c.visits ?? []).flatMap((v) =>
+          v.items
+            .filter((item) => item.productId)
+            .map((item) => ({
+              productId: item.productId,
+              productName: item.name,
+              purchasedAt: v.visitedAt.toISOString(),
+            }))
+        ),
+        // Produtos vendidos durante atendimentos
+        ...c.appointments.flatMap((a) =>
+          (a.items ?? [])
+            .filter((item) => item.productId)
+            .map((item) => ({
+              productId: item.productId,
+              productName: item.name,
+              purchasedAt: (a.completedAt ?? a.scheduledAt)?.toISOString() ?? "",
+            }))
+        ),
+      ],
     };
   });
 

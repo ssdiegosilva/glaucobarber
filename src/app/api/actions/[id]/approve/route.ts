@@ -9,6 +9,7 @@ const WHATSAPP_TYPES = new Set([
   "post_sale_followup",
   "post_sale_review",
   "agenda_conflict",
+  "product_promo",
 ]);
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

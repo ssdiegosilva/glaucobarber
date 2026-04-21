@@ -154,6 +154,9 @@ export function Sidebar({
         })
       : NAV;
 
+  // Default home path: first visible nav item (respects module filtering)
+  const homePath = visibleNav[0]?.href ?? "/dashboard";
+
   async function switchBarbershop(barbershopId: string) {
     if (barbershopId === activeBarbershopId) {
       setSwitcherOpen(false);
@@ -167,7 +170,7 @@ export function Sidebar({
     });
     setSwitcherOpen(false);
     setSwitching(false);
-    router.push("/dashboard");
+    router.push(homePath);
     router.refresh();
   }
 
@@ -176,7 +179,7 @@ export function Sidebar({
       {/* Logo / Brand + Switcher */}
       <div className="relative border-b border-border">
         <button
-          onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push("/dashboard")}
+          onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push(homePath)}
           className="flex w-full items-center gap-3 px-5 py-5 hover:bg-surface-800/40 transition-colors text-left"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}

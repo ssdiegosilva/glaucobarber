@@ -8,7 +8,7 @@ import {
   Loader2, Send, CheckCircle2, Sparkles,
   Trash2, ChevronDown, ChevronUp, Plus,
   MessageCircle, Megaphone, Target, Calendar, Users,
-  DollarSign, Trophy, Zap, ExternalLink, X,
+  DollarSign, Trophy, Zap, ExternalLink, X, Package,
 } from "lucide-react";
 import { isAiLimitError, triggerAiLimitModal } from "@/lib/ai-error";
 
@@ -41,7 +41,7 @@ type ActionItem = {
 type ActionStatus = "pending" | "approved" | "dismissed";
 
 const WHATSAPP_ACTION_TYPES = new Set([
-  "reactivation_promo", "agenda_conflict",
+  "reactivation_promo", "agenda_conflict", "product_promo",
 ]);
 
 // Types that just navigate somewhere — no "Aprovar" needed
@@ -52,6 +52,7 @@ const LINK_ONLY_ACTIONS: Record<string, { label: string; href: string }> = {
   block_agenda:       { label: "Abrir Agenda",      href: "/agenda" },
   crm:                { label: "Ver Clientes",       href: "/clients" },
   pricing:            { label: "Ver Serviços",       href: "/services" },
+  product_pricing:    { label: "Ver Produtos",       href: "/produtos" },
   post_sale_followup: { label: "Ver Pós-venda",     href: "/post-sale" },
   post_sale_review:   { label: "Ver Pós-venda",     href: "/post-sale" },
 };
@@ -102,7 +103,10 @@ function getActionIcon(type: string) {
     case "crm":
       return Users;
     case "pricing":
+    case "product_pricing":
       return DollarSign;
+    case "product_promo":
+      return Package;
     case "motivational":
       return Trophy;
     default:
@@ -114,7 +118,7 @@ function getActionLinks(
   type: string,
   payload?: Record<string, unknown> | null
 ): { label: string; href: string }[] {
-  if (type === "reactivation_promo" || type === "agenda_conflict") {
+  if (type === "reactivation_promo" || type === "agenda_conflict" || type === "product_promo") {
     const phones      = payload?.phones      as string[] | undefined;
     const clientNames = payload?.clientNames as string[] | undefined;
     const singlePhone = payload?.phone       as string   | undefined;
@@ -160,6 +164,16 @@ function getPayloadPreview(
       parts.push(
         names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "")
       );
+    }
+    if (discount) parts.push(`${discount}% de desconto`);
+    return parts.length ? parts.join(" · ") : null;
+  }
+  if (type === "product_promo") {
+    const productNames = payload.productNames as string[] | undefined;
+    const discount     = payload.suggestedDiscount as number | undefined;
+    const parts: string[] = [];
+    if (productNames?.length) {
+      parts.push(productNames.slice(0, 3).join(", ") + (productNames.length > 3 ? ` +${productNames.length - 3}` : ""));
     }
     if (discount) parts.push(`${discount}% de desconto`);
     return parts.length ? parts.join(" · ") : null;

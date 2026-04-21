@@ -535,19 +535,87 @@ function buildCopilotPrompt(ctx: CopilotContext, question: string): string {
     return "Meta muito abaixo — seja honesto mas construtivo. Sugira ações urgentes e revisão da meta se necessário.";
   })();
 
-  return `## Contexto atual da ${ctx.barbershopName}
-Data: ${ctx.dayOfWeek}, ${ctx.date} | ${ctx.daysLeftInMonth} dias restantes no mês
+  // ── Products block (conditional) ────────────────────────
+  const productsBlock = ctx.hasProducts
+    ? ctx.topProducts.map((p) => `  • ${p.name} — ${p.quantitySold} un vendidas, R$ ${p.revenue.toFixed(2)}`).join("\n") || "  • Sem vendas nos últimos 30 dias"
+    : "";
 
+  // ── Agenda section (only when hasServices) ────────────
+  const agendaSection = ctx.hasServices ? `
 ### Agenda do dia
 - Ocupação: ${Math.round(ctx.occupancyRate * 100)}% (${ctx.bookedSlots}/${ctx.totalSlots} horários)
 - Horários livres hoje: ${ctx.freeSlots} slots${ctx.freeWindows.length ? ` — próximos: ${ctx.freeWindows.join(", ")}` : ""}
-- Receita do dia prevista: R$ ${ctx.projectedRevenue.toFixed(2)} | Realizada: R$ ${ctx.completedRevenue.toFixed(2)}
+- Receita de serviços hoje prevista: R$ ${ctx.projectedRevenue.toFixed(2)} | Realizada: R$ ${ctx.completedRevenue.toFixed(2)}
 - Serviços mais vendidos: ${ctx.topServices.join(", ") || "—"}
 
 ### Sobreposições de agenda hoje
-${overlapsBlock}
+${overlapsBlock}` : "";
 
-### Meta financeira do mês
+  // ── Products section (only when hasProducts) ──────────
+  const productsSection = ctx.hasProducts ? `
+### Vendas de produtos
+- Receita de produtos hoje: R$ ${ctx.productRevenueToday.toFixed(2)} | No mês: R$ ${ctx.productRevenueMonth.toFixed(2)}
+- Produtos mais vendidos (30d):
+${productsBlock}` : "";
+
+  // ── Revenue source note ───────────────────────────────
+  const revenueNote = ctx.hasProducts && ctx.hasServices ? " (receita combinada: serviços + produtos)" : "";
+
+  // ── Service-specific opportunities (only when hasServices)
+  const serviceOpportunitiesSection = ctx.hasServices ? `
+### Oportunidades de serviço pendentes de aprovação
+${opportunitiesBlock}` : "";
+
+  // ── Build action types list dynamically ───────────────
+  const serviceActionTypes = ctx.hasServices ? `
+- campaign: criar campanha Instagram/WhatsApp para preencher agenda ou acelerar meta
+- agenda: ação para preencher horários livres de hoje ou desta semana
+- agenda_conflict: reagendar cliente para resolver sobreposição (payload: clientName, phone, suggestedDay, suggestedHour)
+- block_agenda: fechar/bloquear agenda por período de ausência (viagem, férias, folga) — inclua no payload: startDate (dd/MM/yyyy), endDate (dd/MM/yyyy), reason (ex: "viagem", "férias")
+- pricing: sugestão de preço ou pacote de serviço para aumentar ticket médio` : "";
+
+  const productActionTypes = ctx.hasProducts ? `
+- product_promo: promoção de produto específico — inclua no payload: productNames, suggestedDiscount, message
+- product_pricing: sugestão de ajuste de preço de produto — payload: { productName, currentPrice, suggestedPrice }` : "";
+
+  const allActionTypes = [
+    serviceActionTypes,
+    productActionTypes,
+    `- reactivation_promo: oferta especial para cliente(s) inativo(s) específico(s) — inclua no payload: clientNames, phones, suggestedDiscount, message`,
+    `- post_sale_followup: mensagem de reativação genérica para lista de inativos`,
+    `- post_sale_review: solicitar avaliação Google (clientes recém-atendidos)`,
+    `- define_goal: recomendar ao usuário que defina a meta do mês em /financeiro > Metas`,
+    `- crm: segmentação, atualização de dados de clientes`,
+    ctx.hasProducts && !ctx.hasServices ? `- campaign: criar campanha Instagram/WhatsApp para divulgar produtos ou acelerar meta` : "",
+    `- motivational: mensagem de reconhecimento / celebração de resultado`,
+  ].filter(Boolean).join("\n");
+
+  // ── Build action type enum for JSON schema ────────────
+  const actionTypeEnum = [
+    ctx.hasServices ? "campaign|agenda|agenda_conflict|block_agenda|pricing" : "",
+    ctx.hasProducts ? "product_promo|product_pricing" : "",
+    ctx.hasProducts && !ctx.hasServices ? "campaign" : "",
+    "reactivation_promo|post_sale_followup|post_sale_review|define_goal|crm|motivational",
+  ].filter(Boolean).join("|");
+
+  // ── Service-specific rules ────────────────────────────
+  const serviceRules = ctx.hasServices ? `
+- Se faltam horários livres + meta abaixo de 60%, sugira campaign urgente
+- Se sobreposição detectada, inclua agenda_conflict
+- Se o usuário mencionar viagem, férias, ausência ou qualquer período fora, SEMPRE inclua block_agenda com startDate e endDate extraídos da mensagem` : "";
+
+  // ── Product-specific rules ────────────────────────────
+  const productRules = ctx.hasProducts ? `
+- Se hasProducts e topProducts disponíveis, use dados concretos de vendas nas respostas
+- Se hasProducts e receita de produtos está baixa, sugira product_promo para impulsionar vendas
+- Se o usuário perguntar sobre produtos/vendas, inclua dados concretos de topProducts` : "";
+
+  return `## Contexto atual da ${ctx.barbershopName}
+Data: ${ctx.dayOfWeek}, ${ctx.date} | ${ctx.daysLeftInMonth} dias restantes no mês
+Tipo de negócio: ${ctx.hasServices && ctx.hasProducts ? "serviços + produtos" : ctx.hasServices ? "somente serviços" : "somente produtos"}
+${agendaSection}${productsSection}
+
+### Meta financeira do mês${revenueNote}
 ${goalBlock}
 
 ### Oportunidades de reativação (clientes inativos / em risco)
@@ -561,9 +629,7 @@ ${reactivationBlock}
 ### Ofertas ativas
 ${offersBlock}
 ⚠️ Regra: ao sugerir promos/descontos, NÃO ofereça para clientes RECENTE. Priorize EM_RISCO e INATIVO. Use ofertas existentes antes de criar novas.
-
-### Oportunidades de serviço pendentes de aprovação
-${opportunitiesBlock}
+${serviceOpportunitiesSection}
 
 ### Campanhas
 - Ativas/aprovadas: ${ctx.activeCampaigns.join(", ") || "nenhuma"}
@@ -582,7 +648,7 @@ Responda em JSON:
     {
       "title": "título da ação (curto)",
       "description": "o que fazer exatamente — seja específico",
-      "type": "campaign|reactivation_promo|post_sale_followup|post_sale_review|agenda|agenda_conflict|block_agenda|define_goal|crm|pricing|motivational",
+      "type": "${actionTypeEnum}",
       "reason": "por que agir agora — 1 frase com dado concreto do contexto",
       "payload": {}
     }
@@ -591,30 +657,17 @@ Responda em JSON:
 }
 
 Tipos de ação disponíveis:
-- campaign: criar campanha Instagram/WhatsApp para preencher agenda ou acelerar meta
-- reactivation_promo: oferta especial para cliente(s) inativo(s) específico(s) — inclua no payload: clientNames, phones, suggestedDiscount, message
-- post_sale_followup: mensagem de reativação genérica para lista de inativos
-- post_sale_review: solicitar avaliação Google (clientes recém-atendidos)
-- agenda: ação para preencher horários livres de hoje ou desta semana
-- agenda_conflict: reagendar cliente para resolver sobreposição (payload: clientName, phone, suggestedDay, suggestedHour)
-- block_agenda: fechar/bloquear agenda por período de ausência (viagem, férias, folga) — inclua no payload: startDate (dd/MM/yyyy), endDate (dd/MM/yyyy), reason (ex: "viagem", "férias")
-- define_goal: recomendar ao usuário que defina a meta do mês em /financeiro > Metas
-- crm: segmentação, atualização de dados de clientes
-- pricing: sugestão de preço ou pacote para aumentar ticket médio
-- motivational: mensagem de reconhecimento / celebração de resultado
+${allActionTypes}
 
 Regras importantes:
 - Se não há meta definida, SEMPRE inclua uma ação do tipo define_goal
-- Se faltam horários livres + meta abaixo de 60%, sugira campaign urgente
 - Se clientes inativos > 5, SEMPRE inclua reactivation_promo com os top candidatos do payload
-- Se pendingGoogleReviews > 0, inclua post_sale_review
-- Se sobreposição detectada, inclua agenda_conflict
-- Se o usuário mencionar viagem, férias, ausência ou qualquer período fora, SEMPRE inclua block_agenda com startDate e endDate extraídos da mensagem
+- Se pendingGoogleReviews > 0, inclua post_sale_review${serviceRules}${productRules}
 - Nunca confirme execução. requireApproval sempre true.
 
-## Perguntas fora do contexto da barbearia
+## Perguntas fora do contexto do negócio
 Se o usuário perguntar algo que não tem relação com o negócio (ex: curiosidades, tecnologia, receitas, idiomas, programação, história, etc.), responda normalmente como um assistente de IA útil. Nesse caso:
 - Retorne "actions": [] e "requireApproval": false
-- Não force sugestões de barbearia na resposta
+- Não force sugestões do negócio na resposta
 - Seja útil, claro e objetivo`;
 }

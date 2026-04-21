@@ -39,6 +39,14 @@ const CIRC = 2 * Math.PI * R; // ≈ 87.96
 
 export function MobileNav({ barbershopName, userName, availableModules, segmentIcon, activeBarbershopId, memberships = [] }: MobileNavProps) {
   const BrandIcon: LucideIcon = segmentIcon ? (SEGMENT_ICON_MAP[segmentIcon] ?? Scissors) : Scissors;
+
+  // Default home path: first visible nav item (respects module filtering)
+  const visibleNav =
+    availableModules && availableModules.length > 0
+      ? NAV.filter(({ key }) => availableModules.includes(key))
+      : NAV;
+  const homePath = visibleNav[0]?.href ?? "/dashboard";
+
   const [open,       setOpen]       = useState(false);
   const [bellOpen,   setBellOpen]   = useState(false);
   const [panelOpen,  setPanelOpen]  = useState(false);
@@ -114,7 +122,7 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
     });
     setSwitcherOpen(false);
     setSwitching(false);
-    router.push("/dashboard");
+    router.push(homePath);
     router.refresh();
   }
 
@@ -131,7 +139,7 @@ export function MobileNav({ barbershopName, userName, availableModules, segmentI
       <div className="flex items-center justify-between bg-card/90 backdrop-blur border-b border-border px-4 py-2.5 gap-3">
         {/* Icon + name + switcher */}
         <button
-          onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push("/dashboard")}
+          onClick={() => hasMultiple ? setSwitcherOpen((v) => !v) : router.push(homePath)}
           className="flex items-center gap-2 min-w-0"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}

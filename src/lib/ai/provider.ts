@@ -150,6 +150,8 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
   const start = startOfDay(now);
   const end   = endOfDay(now);
 
+  const thirtyDaysAgo = subDays(now, 30);
+
   const [
     barbershop,
     appointmentsToday,
@@ -164,6 +166,11 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     monthAgg,
     topInactiveRaw,
     pendingOpportunitiesRaw,
+    activeProductCount,
+    activeServiceCount,
+    visitTodayAgg,
+    visitMonthAgg,
+    topProductsRaw,
   ] = await Promise.all([
     prisma.barbershop.findUnique({ where: { id: barbershopId } }),
 
@@ -234,6 +241,34 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
       orderBy: { createdAt: "desc" },
       take: 3,
     }),
+
+    // ── Product & Visit queries ──────────────────────────
+    prisma.product.count({ where: { barbershopId, active: true, deletedAt: null } }),
+    prisma.service.count({ where: { barbershopId, active: true, deletedAt: null } }),
+
+    // Today's product revenue (Visit model)
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: start, lte: end } },
+      _sum: { amount: true },
+    }),
+
+    // MTD product revenue (Visit model)
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: startOfMonth(now), lte: endOfMonth(now) } },
+      _sum: { amount: true },
+    }),
+
+    // Top 5 products sold in last 30 days
+    prisma.$queryRaw<{ name: string; total_qty: bigint; total_revenue: any }[]>`
+      SELECT vi.name, SUM(vi.quantity)::bigint AS total_qty, SUM(vi.price * vi.quantity) AS total_revenue
+      FROM visit_items vi
+      JOIN visits v ON vi."visitId" = v.id
+      WHERE v."barbershopId" = ${barbershopId}
+        AND v."visitedAt" >= ${thirtyDaysAgo}
+      GROUP BY vi.name
+      ORDER BY total_qty DESC
+      LIMIT 5
+    `,
   ]);
 
   const TOTAL_SLOTS = 20;
@@ -263,19 +298,36 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     .slice(0, 3)
     .map(([name]) => name);
 
+  // ── Product detection ───────────────────────────────────
+  const hasProducts = activeProductCount > 0;
+  const hasServices = activeServiceCount > 0;
+  const productRevenueToday = Number(visitTodayAgg._sum.amount ?? 0);
+  const productRevenueMonth = Number(visitMonthAgg._sum.amount ?? 0);
+  const topProducts = topProductsRaw.map((p) => ({
+    name:         p.name,
+    quantitySold: Number(p.total_qty),
+    revenue:      Number(p.total_revenue),
+  }));
+
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd   = endOfWeek(now, { weekStartsOn: 1 });
-  const weekAggregate = await prisma.appointment.aggregate({
-    where: { barbershopId, scheduledAt: { gte: weekStart, lte: weekEnd }, status: "COMPLETED" },
-    _sum: { price: true },
-  });
+  const [weekApptAgg, weekVisitAgg] = await Promise.all([
+    prisma.appointment.aggregate({
+      where: { barbershopId, scheduledAt: { gte: weekStart, lte: weekEnd }, status: "COMPLETED" },
+      _sum: { price: true },
+    }),
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: weekStart, lte: weekEnd } },
+      _sum: { amount: true },
+    }),
+  ]);
 
-  const weekRevenue  = Number(weekAggregate._sum.price ?? 0);
+  const weekRevenue  = Number(weekApptAgg._sum.price ?? 0) + (hasProducts ? Number(weekVisitAgg._sum.amount ?? 0) : 0);
   const weekGoalValue = goalWeek?.revenueTarget ?? goalMonth?.revenueTarget ?? null;
   const weekProgress  = weekGoalValue ? Math.min(weekRevenue / Number(weekGoalValue), 1) : null;
 
-  // ── Monthly goal metrics ───────────────────────────────
-  const monthRevenueActual  = Number(monthAgg._sum.price ?? 0);
+  // ── Monthly goal metrics (combined: services + products) ─
+  const monthRevenueActual  = Number(monthAgg._sum.price ?? 0) + (hasProducts ? productRevenueMonth : 0);
   const monthApptActual     = monthAgg._count._all;
   const monthRevenueTarget  = goalMonth?.revenueTarget ? Number(goalMonth.revenueTarget) : null;
   const monthApptTarget     = goalMonth?.appointmentTarget ?? null;
@@ -392,6 +444,12 @@ export async function buildCopilotContext(barbershopId: string): Promise<Copilot
     // Offers & opportunities
     activeOffers:         [],
     pendingOpportunities: pendingOpportunitiesRaw.map((o) => ({ name: o.name, category: o.category, suggestedPrice: Number(o.suggestedPrice) })),
+    // Product support
+    hasProducts,
+    hasServices,
+    topProducts,
+    productRevenueToday,
+    productRevenueMonth,
   };
 }
 

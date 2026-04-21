@@ -40,17 +40,33 @@ export interface CustomerSummary {
   sentTypes?: string[];            // WhatsApp message types sent since last appointment
   // Recent completed appointments for custom filter matching
   recentAppointments?: { serviceId: string | null; serviceName: string | null; completedAt: string }[];
+  // Recent product purchases for product-based filter matching
+  recentProductPurchases?: { productId: string | null; productName: string | null; purchasedAt: string }[];
 }
+
+export type CustomServiceFilter = {
+  id: string;
+  type: "service";
+  serviceId: string;
+  serviceName: string;
+  followUpDays: number;
+  enabled: boolean;
+};
+
+export type CustomProductFilter = {
+  id: string;
+  type: "product";
+  productId: string;
+  productName: string;
+  followUpDays: number;
+  enabled: boolean;
+};
+
+export type CustomFilter = CustomServiceFilter | CustomProductFilter;
 
 export interface PostSaleFilterConfig {
   defaults: Record<"emRisco" | "recentes" | "inativos" | "reativados", boolean>;
-  custom: Array<{
-    id: string;
-    serviceId: string;
-    serviceName: string;
-    followUpDays: number;
-    enabled: boolean;
-  }>;
+  custom: CustomFilter[];
   visible: string[];
 }
 

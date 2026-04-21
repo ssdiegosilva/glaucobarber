@@ -170,6 +170,14 @@ function matchesCustomFilter(customer: CustomerSummary, serviceId: string, follo
   return (now - new Date(matching.completedAt).getTime()) > cutoffMs;
 }
 
+function matchesProductFilter(customer: CustomerSummary, productId: string, followUpDays: number): boolean {
+  const now = Date.now();
+  const cutoffMs = followUpDays * 86_400_000;
+  const matching = (customer.recentProductPurchases ?? []).find((p) => p.productId === productId);
+  if (!matching || !matching.purchasedAt) return false;
+  return (now - new Date(matching.purchasedAt).getTime()) > cutoffMs;
+}
+
 // ── Color presets for custom filters ─────────────────────────
 
 const CUSTOM_COLORS = [
@@ -202,26 +210,34 @@ export function PostSaleClient({ summary, customers, googleReviewUrl, filterConf
       // Default filter
       const defaultDef = FILTER_CONFIG.find((d) => d.key === key);
       if (defaultDef) {
-        return { ...defaultDef, type: "default" as const, serviceId: null, followUpDays: 0 };
+        return { ...defaultDef, type: "default" as const, filterType: "default" as const, serviceId: null, productId: null, followUpDays: 0 };
       }
       // Custom filter
       const customDef = filterConfig.custom.find((c) => c.id === key);
       if (!customDef) return null;
       const colors = CUSTOM_COLORS[idx % CUSTOM_COLORS.length];
+      const isProduct = customDef.type === "product";
+      const label = isProduct ? (customDef as { productName: string }).productName : (customDef as { serviceName: string }).serviceName;
+      const tooltip = isProduct
+        ? `Clientes que compraram "${label}" há mais de ${customDef.followUpDays} dias`
+        : `Clientes cujo último "${label}" foi há mais de ${customDef.followUpDays} dias`;
       return {
         key: customDef.id,
-        label: customDef.serviceName,
-        tooltip: `Clientes cujo último "${customDef.serviceName}" foi há mais de ${customDef.followUpDays} dias`,
+        label,
+        tooltip,
         icon: <Filter className={`h-4 w-4 ${colors.iconClass}`} />,
         ...colors,
         type: "custom" as const,
-        serviceId: customDef.serviceId,
+        filterType: (customDef.type ?? "service") as "service" | "product",
+        serviceId: isProduct ? null : (customDef as { serviceId: string }).serviceId,
+        productId: isProduct ? (customDef as { productId: string }).productId : null,
         followUpDays: customDef.followUpDays,
       };
     }).filter(Boolean) as Array<{
       key: string; label: string; tooltip: string; icon: React.ReactNode;
       cardBorder: string; cardBg: string; numColor: string;
-      type: "default" | "custom"; serviceId: string | null; followUpDays: number;
+      type: "default" | "custom"; filterType: "default" | "service" | "product";
+      serviceId: string | null; productId: string | null; followUpDays: number;
     }>;
   }, [filterConfig]);
 
@@ -229,8 +245,12 @@ export function PostSaleClient({ summary, customers, googleReviewUrl, filterConf
   const customCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const vf of visibleFilters) {
-      if (vf.type === "custom" && vf.serviceId) {
-        counts[vf.key] = customers.filter((c) => matchesCustomFilter(c, vf.serviceId!, vf.followUpDays)).length;
+      if (vf.type === "custom") {
+        if (vf.filterType === "service" && vf.serviceId) {
+          counts[vf.key] = customers.filter((c) => matchesCustomFilter(c, vf.serviceId!, vf.followUpDays)).length;
+        } else if (vf.filterType === "product" && vf.productId) {
+          counts[vf.key] = customers.filter((c) => matchesProductFilter(c, vf.productId!, vf.followUpDays)).length;
+        }
       }
     }
     return counts;
@@ -244,8 +264,12 @@ export function PostSaleClient({ summary, customers, googleReviewUrl, filterConf
       if (activeDef) {
         if (activeDef.type === "default" && VALID_DEFAULT_FILTERS.has(active)) {
           result = customers.filter((c) => c.postSaleStatus === FILTER_STATUS[active as FilterKey]);
-        } else if (activeDef.type === "custom" && activeDef.serviceId) {
-          result = customers.filter((c) => matchesCustomFilter(c, activeDef.serviceId!, activeDef.followUpDays));
+        } else if (activeDef.type === "custom") {
+          if (activeDef.filterType === "service" && activeDef.serviceId) {
+            result = customers.filter((c) => matchesCustomFilter(c, activeDef.serviceId!, activeDef.followUpDays));
+          } else if (activeDef.filterType === "product" && activeDef.productId) {
+            result = customers.filter((c) => matchesProductFilter(c, activeDef.productId!, activeDef.followUpDays));
+          }
         }
       }
     }
