@@ -715,7 +715,7 @@ function EditMessageModal({ msg, onClose, onSaved }: { msg: WaMessage; onClose: 
 
 function MessageRow({
   msg, showActions, isToday, hasAutoSend, whatsappConfigured,
-  onManualSent, onFailed, onDelete, onEdit, onRetry,
+  onManualSent, onFailed, onDelete, onEdit, onRetry, onResend,
 }: {
   msg:                WaMessage;
   showActions?:       boolean;
@@ -727,6 +727,7 @@ function MessageRow({
   onDelete?:          (id: string) => void;
   onEdit?:            (updated: WaMessage) => void;
   onRetry?:           (id: string) => void;
+  onResend?:          (newMsg: WaMessage) => void;
 }) {
   const [loading,    setLoading]    = useState(false);
   const [showEdit,   setShowEdit]   = useState(false);
@@ -798,6 +799,31 @@ function MessageRow({
         body: JSON.stringify({ status: "QUEUED", scheduledFor }),
       });
       if (res.ok) onRetry?.(localMsg.id);
+    } finally { setLoading(false); }
+  }
+
+  async function resend() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/whatsapp/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId:   localMsg.customerId,
+          customerName: localMsg.customerName,
+          phone:        localMsg.phone,
+          message:      localMsg.message,
+          type:         localMsg.type,
+          messageKind:  localMsg.messageKind,
+          sentManually: true,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const phone = localMsg.phone.replace(/\D/g, "");
+        window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(localMsg.message)}`, "_blank");
+        if (data.message) onResend?.(data.message);
+      }
     } finally { setLoading(false); }
   }
 
@@ -896,12 +922,19 @@ function MessageRow({
             )}
           </div>
 
-          {/* SENT: only delete */}
+          {/* SENT: resend + delete */}
           {localMsg.status === "SENT" && (
-            <button onClick={remove} disabled={loading}
-              className="rounded-md border border-border p-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors disabled:opacity-50">
-              <Trash2 className="h-3 w-3" />
-            </button>
+            <div className="flex gap-1.5 shrink-0">
+              <button onClick={resend} disabled={loading}
+                className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/10 px-2 py-1 text-[11px] text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50">
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                Reenviar
+              </button>
+              <button onClick={remove} disabled={loading}
+                className="rounded-md border border-border p-1 text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors disabled:opacity-50">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
           )}
 
           {/* QUEUED actions */}
@@ -1179,7 +1212,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
                       Hoje · {sent.length} mensagem{sent.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  {sent.map((m) => <MessageRow key={m.id} msg={m} isToday onDelete={(id) => setSent((p) => p.filter((x) => x.id !== id))} />)}
+                  {sent.map((m) => <MessageRow key={m.id} msg={m} isToday onDelete={(id) => setSent((p) => p.filter((x) => x.id !== id))} onResend={(newMsg) => setSent((p) => [newMsg, ...p])} />)}
                 </div>
               )}
 
@@ -1187,7 +1220,7 @@ export function WhatsappClient({ sentToday, queueMessages, failedToday, historyM
               {historyByDay.map((group) => (
                 <div key={group.day} className="space-y-2">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide capitalize">{group.day}</p>
-                  {group.msgs.map((m) => <MessageRow key={m.id} msg={m} onDelete={(id) => setHistory((p) => p.filter((x) => x.id !== id))} />)}
+                  {group.msgs.map((m) => <MessageRow key={m.id} msg={m} onDelete={(id) => setHistory((p) => p.filter((x) => x.id !== id))} onResend={(newMsg) => setSent((p) => [newMsg, ...p])} />)}
                 </div>
               ))}
             </>
