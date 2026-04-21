@@ -165,8 +165,24 @@ export async function getMonthlyFinanceiroData(
     }),
   ]);
 
-  const revenue          = Number(thisAgg._sum.price ?? 0);
-  const revenuePrevMonth = Number(prevAgg._sum.price ?? 0);
+  // Visit (product sales) aggregations
+  const [visitThisAgg, visitPrevAgg, visitDailyRaw] = await Promise.all([
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: thisStart, lte: thisEnd } },
+      _sum: { amount: true }, _count: { _all: true },
+    }),
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: prevStart, lte: prevEnd } },
+      _sum: { amount: true }, _count: { _all: true },
+    }),
+    prisma.visit.findMany({
+      where: { barbershopId, visitedAt: { gte: thisStart, lte: thisEnd } },
+      select: { visitedAt: true, amount: true },
+    }),
+  ]);
+
+  const revenue          = Number(thisAgg._sum.price ?? 0) + Number(visitThisAgg._sum.amount ?? 0);
+  const revenuePrevMonth = Number(prevAgg._sum.price ?? 0) + Number(visitPrevAgg._sum.amount ?? 0);
   const completedCount   = thisAgg._count._all;
   const completedPrev    = prevAgg._count._all;
   const avgTicket        = completedCount > 0 ? revenue / completedCount : 0;
@@ -192,11 +208,15 @@ export async function getMonthlyFinanceiroData(
   const byCategory = [...catMap.entries()].map(([category, v]) => ({ category, ...v }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // Daily revenue
+  // Daily revenue (appointments + visits)
   const dailyRevMap: Record<number, number> = {};
   for (const a of dailyRevenueRaw) {
     const d = a.scheduledAt.getDate();
     dailyRevMap[d] = (dailyRevMap[d] ?? 0) + Number(a.price ?? 0);
+  }
+  for (const v of visitDailyRaw) {
+    const d = v.visitedAt.getDate();
+    dailyRevMap[d] = (dailyRevMap[d] ?? 0) + Number(v.amount ?? 0);
   }
   const daysInMonth = eachDayOfInterval({ start: thisStart, end: thisEnd });
   const dailyRevenue = daysInMonth.map((d) => ({ day: d.getDate(), revenue: dailyRevMap[d.getDate()] ?? 0 }));

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { ProductDashboardClient } from "../dashboard/product-dashboard-client";
 import { getSegmentTheme } from "@/lib/core/segment";
-import { format, getDay, startOfWeek, startOfDay, endOfDay, subDays } from "date-fns";
+import { format, getDay, startOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const DAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -21,6 +21,8 @@ export default async function DashboardVendasPage() {
   const yesterdayStart = startOfDay(subDays(now, 1));
   const yesterdayEnd   = endOfDay(subDays(now, 1));
   const weekStart      = startOfWeek(now, { weekStartsOn: 1 });
+  const monthStart     = startOfMonth(now);
+  const monthEnd       = endOfMonth(now);
   const thirtyDaysAgo  = subDays(now, 30);
   const sevenDaysAgo   = startOfDay(subDays(now, 6));
 
@@ -32,6 +34,8 @@ export default async function DashboardVendasPage() {
     todayVisits,
     topProductsRaw,
     topCustomersRaw,
+    goal,
+    monthAgg,
   ] = await Promise.all([
     prisma.visit.aggregate({
       where: { barbershopId, visitedAt: { gte: todayStart, lte: todayEnd } },
@@ -81,6 +85,16 @@ export default async function DashboardVendasPage() {
       ORDER BY visit_count DESC
       LIMIT 5
     `,
+    // Goal for current month
+    prisma.goal.findFirst({
+      where: { barbershopId, month: now.getMonth() + 1, year: now.getFullYear() },
+      select: { revenueTarget: true },
+    }),
+    // Month total (visits + appointments) for goal progress
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: monthStart, lte: monthEnd } },
+      _sum: { amount: true },
+    }),
   ]);
 
   // KPIs
@@ -131,6 +145,15 @@ export default async function DashboardVendasPage() {
 
   const tenantLabel = segmentTheme?.tenantLabel ?? "estabelecimento";
 
+  // Goal progress: include both appointments and visits revenue for the month
+  const appointmentMonthAgg = await prisma.appointment.aggregate({
+    where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: monthStart, lte: monthEnd } },
+    _sum: { price: true },
+  });
+  const revenueMonth = Number(monthAgg._sum.amount ?? 0) + Number(appointmentMonthAgg._sum.price ?? 0);
+  const revenueTarget = goal?.revenueTarget ? Number(goal.revenueTarget) : null;
+  const goalProgress = revenueTarget && revenueTarget > 0 ? Math.min(revenueMonth / revenueTarget, 1) : null;
+
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -145,6 +168,9 @@ export default async function DashboardVendasPage() {
         topCustomers={topCustomers}
         recentSales={recentSales}
         tenantLabel={tenantLabel}
+        goalProgress={goalProgress}
+        revenueTarget={revenueTarget}
+        revenueMonth={revenueMonth}
       />
     </div>
   );

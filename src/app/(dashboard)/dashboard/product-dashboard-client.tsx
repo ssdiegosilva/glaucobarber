@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { formatBRL, formatTime } from "@/lib/utils";
-import { TrendingUp, TrendingDown, ShoppingBag, Users, BarChart3, DollarSign, MessageCircle, User } from "lucide-react";
+import { TrendingUp, TrendingDown, ShoppingBag, Users, BarChart3, DollarSign, MessageCircle, User, Target } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const SalesTrendChart = dynamic(() => import("./charts/sales-trend-chart"), { ssr: false });
@@ -44,10 +44,13 @@ interface RecentSale {
 interface Props {
   kpis:         KPIs;
   chartData:    { day: string; revenue: number }[];
-  topProducts:  TopProduct[];
-  topCustomers: TopCustomer[];
-  recentSales:  RecentSale[];
-  tenantLabel:  string;
+  topProducts:   TopProduct[];
+  topCustomers:  TopCustomer[];
+  recentSales:   RecentSale[];
+  tenantLabel:   string;
+  goalProgress?: number | null;
+  revenueTarget?: number | null;
+  revenueMonth?:  number | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -67,7 +70,7 @@ function waLink(phone: string) {
 
 // ── Component ──────────────────────────────────────────────────
 
-export function ProductDashboardClient({ kpis, chartData, topProducts, topCustomers, recentSales, tenantLabel }: Props) {
+export function ProductDashboardClient({ kpis, chartData, topProducts, topCustomers, recentSales, tenantLabel, goalProgress, revenueTarget, revenueMonth }: Props) {
   const revPct   = pctChange(kpis.revenueToday, kpis.revenueYesterday);
   const visitPct = pctChange(kpis.visitsToday, kpis.visitsYesterday);
 
@@ -123,6 +126,32 @@ export function ProductDashboardClient({ kpis, chartData, topProducts, topCustom
             icon={<TrendingUp className="h-4 w-4" />}
           />
         </div>
+
+        {/* ── Goal Progress ── */}
+        {goalProgress != null && revenueTarget != null && (
+          <section className="rounded-xl border border-border/60 bg-surface-800 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Target className="h-3 w-3" /> Meta do mês
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {formatBRL(revenueMonth ?? 0)} / {formatBRL(revenueTarget)}
+              </span>
+            </div>
+            <div className="w-full h-3 rounded-full bg-surface-900 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.round(goalProgress * 100)}%`,
+                  background: goalProgress >= 1 ? "#22c55e" : "linear-gradient(90deg, #C9A84C, #e6c96a)",
+                }}
+              />
+            </div>
+            <p className="text-right text-xs font-semibold mt-1.5" style={{ color: goalProgress >= 1 ? "#22c55e" : "#C9A84C" }}>
+              {Math.round(goalProgress * 100)}%
+            </p>
+          </section>
+        )}
 
         {/* ── Sales Trend Chart ── */}
         {chartData.length > 0 && (

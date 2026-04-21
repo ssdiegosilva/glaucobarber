@@ -7,7 +7,7 @@ async function getAnnualData(barbershopId: string, year: number) {
   const yearStart = startOfYear(new Date(year, 0, 1));
   const yearEnd   = endOfYear(new Date(year, 0, 1));
 
-  const [appointments, goals, cancelled] = await Promise.all([
+  const [appointments, goals, cancelled, visits] = await Promise.all([
     prisma.appointment.findMany({
       where: { barbershopId, status: "COMPLETED", scheduledAt: { gte: yearStart, lte: yearEnd } },
       select: { scheduledAt: true, price: true },
@@ -21,6 +21,10 @@ async function getAnnualData(barbershopId: string, year: number) {
       where: { barbershopId, status: { in: ["CANCELLED", "NO_SHOW"] }, scheduledAt: { gte: yearStart, lte: yearEnd } },
       _count: { _all: true },
     }),
+    prisma.visit.findMany({
+      where: { barbershopId, visitedAt: { gte: yearStart, lte: yearEnd } },
+      select: { visitedAt: true, amount: true },
+    }),
   ]);
 
   const revenueByMonth   = new Map<number, number>();
@@ -28,6 +32,11 @@ async function getAnnualData(barbershopId: string, year: number) {
   for (const a of appointments) {
     const m = a.scheduledAt.getMonth() + 1;
     revenueByMonth.set(m, (revenueByMonth.get(m) ?? 0) + Number(a.price ?? 0));
+    countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
+  }
+  for (const v of visits) {
+    const m = v.visitedAt.getMonth() + 1;
+    revenueByMonth.set(m, (revenueByMonth.get(m) ?? 0) + Number(v.amount ?? 0));
     countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
   }
 

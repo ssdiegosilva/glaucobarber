@@ -52,6 +52,11 @@ export default async function MetaPage() {
     yearAppointments,
     dailyRevenueRaw,
     dailyScheduledRaw,
+    // Visit (product sales) queries
+    visitMonthAgg,
+    visitTodayAgg,
+    yearVisits,
+    dailyVisitRaw,
   ] = await Promise.all([
     prisma.goal.findFirst({ where: { barbershopId, month, year } }),
     prisma.goal.findMany({ where: { barbershopId, year }, orderBy: { month: "asc" } }),
@@ -75,17 +80,41 @@ export default async function MetaPage() {
       where:  { barbershopId, status: { in: ["SCHEDULED", "CONFIRMED"] }, scheduledAt: { gte: now, lte: thisEnd } },
       select: { scheduledAt: true },
     }),
+    // Visits: month aggregate
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: thisStart, lte: thisEnd } },
+      _sum: { amount: true },
+    }),
+    // Visits: today aggregate
+    prisma.visit.aggregate({
+      where: { barbershopId, visitedAt: { gte: dayStart, lte: dayEnd } },
+      _sum: { amount: true },
+    }),
+    // Visits: year (for annual chart)
+    prisma.visit.findMany({
+      where:  { barbershopId, visitedAt: { gte: yearStart, lte: yearEnd } },
+      select: { visitedAt: true, amount: true },
+    }),
+    // Visits: daily breakdown this month
+    prisma.visit.findMany({
+      where:  { barbershopId, visitedAt: { gte: thisStart, lte: thisEnd } },
+      select: { visitedAt: true, amount: true },
+    }),
   ]);
 
-  // ── Revenue aggregations ─────────────────────────────────────
-  const revenueThisMonth = Number(thisMonthAgg._sum.price ?? 0);
-  const todayRevenue     = Number(todayAgg._sum.price ?? 0);
+  // ── Revenue aggregations (appointments + visits) ─────────────
+  const revenueThisMonth = Number(thisMonthAgg._sum.price ?? 0) + Number(visitMonthAgg._sum.amount ?? 0);
+  const todayRevenue     = Number(todayAgg._sum.price ?? 0) + Number(visitTodayAgg._sum.amount ?? 0);
 
-  // ── Daily revenue map ────────────────────────────────────────
+  // ── Daily revenue map (appointments + visits) ────────────────
   const revenueByDay: Record<number, number> = {};
   for (const a of dailyRevenueRaw) {
     const d = a.scheduledAt.getDate();
     revenueByDay[d] = (revenueByDay[d] ?? 0) + Number(a.price ?? 0);
+  }
+  for (const v of dailyVisitRaw) {
+    const d = v.visitedAt.getDate();
+    revenueByDay[d] = (revenueByDay[d] ?? 0) + Number(v.amount ?? 0);
   }
 
   // ── Upcoming scheduled appointments per day ─────────────────
@@ -95,12 +124,17 @@ export default async function MetaPage() {
     scheduledByDay[d] = (scheduledByDay[d] ?? 0) + 1;
   }
 
-  // ── Annual chart data ────────────────────────────────────────
+  // ── Annual chart data (appointments + visits) ────────────────
   const revenueByMonth = new Map<number, number>();
   const countByMonth   = new Map<number, number>();
   for (const a of yearAppointments) {
     const m = a.scheduledAt.getMonth() + 1;
     revenueByMonth.set(m, (revenueByMonth.get(m) ?? 0) + Number(a.price ?? 0));
+    countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
+  }
+  for (const v of yearVisits) {
+    const m = v.visitedAt.getMonth() + 1;
+    revenueByMonth.set(m, (revenueByMonth.get(m) ?? 0) + Number(v.amount ?? 0));
     countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
   }
   const goalByMonth = new Map(allGoals.map((g) => [g.month, Number(g.revenueTarget ?? 0)]));
