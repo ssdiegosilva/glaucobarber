@@ -16,6 +16,23 @@ import type {
 
 const DEFAULT_BASE_URL = "https://api.trinks.com";
 const DEFAULT_TIMEOUT  = 15_000;
+const MAX_RETRIES      = 5;
+const MAX_BACKOFF_MS   = 30_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Parse Retry-After header: either "<seconds>" or HTTP date.
+// Returns milliseconds to wait, or null if header is missing/unparseable.
+function parseRetryAfter(header: string | null): number | null {
+  if (!header) return null;
+  const asInt = parseInt(header, 10);
+  if (!Number.isNaN(asInt)) return Math.max(0, asInt * 1000);
+  const asDate = Date.parse(header);
+  if (!Number.isNaN(asDate)) return Math.max(0, asDate - Date.now());
+  return null;
+}
 
 export class TrinksClient {
   private readonly baseUrl:            string;
@@ -46,34 +63,53 @@ export class TrinksClient {
       );
     }
 
-    const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController();
+      const timeout    = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
-    try {
-      const res = await fetch(url.toString(), {
-        method,
-        signal: controller.signal,
-        headers: {
-          "Content-Type":    "application/json",
-          "X-Api-Key":       this.apiKey,
-          "estabelecimentoId": this.estabelecimentoId,
-        },
-        body: options?.body ? JSON.stringify(options.body) : undefined,
-      });
+      try {
+        const res = await fetch(url.toString(), {
+          method,
+          signal: controller.signal,
+          headers: {
+            "Content-Type":    "application/json",
+            "X-Api-Key":       this.apiKey,
+            "estabelecimentoId": this.estabelecimentoId,
+          },
+          body: options?.body ? JSON.stringify(options.body) : undefined,
+        });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new TrinksApiError(
-          `Trinks API ${res.status} ${res.statusText}: ${path}`,
-          res.status,
-          text
-        );
+        // Honor rate limiting: 429 (Too Many Requests) and 503 (Service Unavailable) are retriable
+        if ((res.status === 429 || res.status === 503) && attempt < MAX_RETRIES) {
+          const retryAfter = parseRetryAfter(res.headers.get("retry-after"));
+          const backoff    = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** attempt);
+          const waitMs     = retryAfter ?? backoff;
+          console.warn(`[trinks] ${res.status} on ${path}, retrying in ${waitMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await sleep(waitMs);
+          continue;
+        }
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new TrinksApiError(
+            `Trinks API ${res.status} ${res.statusText}: ${path}`,
+            res.status,
+            text
+          );
+        }
+
+        return res.json() as Promise<T>;
+      } finally {
+        clearTimeout(timeout);
       }
-
-      return res.json() as Promise<T>;
-    } finally {
-      clearTimeout(timeout);
     }
+
+    // Exhausted retries on 429/503
+    throw new TrinksApiError(
+      `Trinks API rate limit exhausted after ${MAX_RETRIES} retries: ${path}`,
+      429,
+      ""
+    );
   }
 
   // ── Establishments ───────────────────────────────────────
