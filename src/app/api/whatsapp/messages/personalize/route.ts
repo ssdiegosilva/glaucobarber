@@ -33,7 +33,7 @@ Mensagem base:
 ${preProcessed}`;
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const model  = process.env.AI_MODEL ?? "gpt-4o-mini";
+  const model  = process.env.AI_MODEL ?? "gpt-4.1-mini";
 
   const completion = await client.chat.completions.create({
     model,

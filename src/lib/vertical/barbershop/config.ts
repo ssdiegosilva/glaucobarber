@@ -28,7 +28,7 @@ export const barbershopVertical: VerticalConfig = {
       campaign_image:        10,
       visual_style_generate: 10,
       brand_style_logo:      10,
-      vitrine_caption:       1,  // gpt-4o-mini vision
+      vitrine_caption:       1,  // gpt-4.1-mini vision
       // everything else defaults to 1
     },
     featureLabels: {

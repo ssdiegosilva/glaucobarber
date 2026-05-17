@@ -16,7 +16,7 @@ const AI_CONFIG_KEYS = [
 ] as const;
 
 const AI_CONFIG_DEFAULTS: Record<string, string> = {
-  ai_image_model:              "gpt-image-1",
+  ai_image_model:              "gpt-image-1.5",
   ai_image_quality:            "medium",
   ai_image_credit_cost:        "70",
   ai_image_cost_usd_cents:     "7",

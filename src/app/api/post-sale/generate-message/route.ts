@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
-const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.AI_MODEL ?? "gpt-4.1-mini";
 
 // POST /api/post-sale/generate-message
 // Generates a ready-to-send personalized WhatsApp message for post-sale actions.

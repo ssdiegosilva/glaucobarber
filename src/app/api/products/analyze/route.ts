@@ -47,7 +47,7 @@ Responda APENAS com o JSON, sem markdown, sem código.`;
     }
 
     const completion = await openai.chat.completions.create({
-      model: imageUrl ? "gpt-4o" : "gpt-4o-mini",
+      model: imageUrl ? "gpt-4.1" : "gpt-4.1-mini",
       messages,
       max_tokens: 300,
       response_format: { type: "json_object" },

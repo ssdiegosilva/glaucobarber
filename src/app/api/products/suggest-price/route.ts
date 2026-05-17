@@ -40,7 +40,7 @@ Retorne APENAS um JSON (sem markdown, sem \`\`\`) com:
   try {
     // Use Responses API with web_search tool for real-time pricing
     const response = await openai.responses.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       tools: [{ type: "web_search_preview" }],
       input: prompt,
     });
@@ -74,7 +74,7 @@ Retorne APENAS um JSON (sem markdown, sem \`\`\`) com:
     // Fallback: try without web search
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-mini",
         messages: [{ role: "user", content: prompt + "\n\nSe não tiver dados reais, estime baseado no seu conhecimento." }],
         max_tokens: 300,
         response_format: { type: "json_object" },

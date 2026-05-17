@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { getDaysInMonth } from "date-fns";
 import { checkAiAllowance, consumeAiCredit } from "@/lib/billing";
 
-const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.AI_MODEL ?? "gpt-4.1-mini";
 
 // ── Regional fallback (used only if web search fails) ────────
 // Fonte: SEBRAE "Como montar uma barbearia" 2023, Trinks Relatório do Setor 2023

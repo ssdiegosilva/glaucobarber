@@ -77,7 +77,7 @@ Responda SOMENTE com o JSON, sem markdown, sem explicações adicionais.`;
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const searchModel = process.env.AI_SEARCH_MODEL ?? "gpt-4o-search-preview";
+    const searchModel = process.env.AI_SEARCH_MODEL ?? "gpt-4.1-mini";
     const completion = await openai.chat.completions.create({
       model:    searchModel,
       messages: [{ role: "user", content: prompt }],

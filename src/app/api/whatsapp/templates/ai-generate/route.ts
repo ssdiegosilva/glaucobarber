@@ -50,7 +50,7 @@ ${extraContext ? `\nContexto adicional: ${extraContext}` : ""}
 Retorne JSON no formato: {"label": "Nome curto do template (máximo 5 palavras)", "body": "Corpo completo da mensagem"}`;
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const model  = process.env.AI_MODEL ?? "gpt-4o-mini";
+  const model  = process.env.AI_MODEL ?? "gpt-4.1-mini";
 
   const completion = await client.chat.completions.create({
     model,

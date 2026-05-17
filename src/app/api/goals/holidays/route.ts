@@ -79,7 +79,7 @@ Se não houver feriados neste mês, retorne {"holidays": []}.`;
 
   try {
     const client   = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const MODEL    = process.env.AI_MODEL ?? "gpt-4o-mini";
+    const MODEL    = process.env.AI_MODEL ?? "gpt-4.1-mini";
 
     const response = await (client as any).responses.create({
       model: MODEL,

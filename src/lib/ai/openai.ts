@@ -14,7 +14,7 @@ import type {
   HaircutSuggestion,
 } from "./types";
 
-const MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.AI_MODEL ?? "gpt-4.1-mini";
 const VISION_MODEL = process.env.AI_VISION_MODEL ?? MODEL;
 
 export class OpenAIProvider implements AIProvider {
@@ -130,7 +130,7 @@ Retorne APENAS JSON válido, sem markdown:
     model?: string; size?: string; quality?: string;
   }): Promise<{ url: string } | { b64: string }> {
     const prompt  = `${input.prompt}${input.styleHint ? `\nEstilo: ${input.styleHint}` : ""}`;
-    const model   = input.model   ?? "gpt-image-1";
+    const model   = input.model   ?? "gpt-image-1.5";
     const quality = input.quality ?? "standard";
 
     // Normalize size per model
@@ -326,7 +326,7 @@ Retorne JSON com:
     const prompt = suggestedStyle
       ? `${base}\n\nApply specifically: ${suggestedStyle}`
       : base;
-    const resolvedModel   = model   ?? "gpt-image-1";
+    const resolvedModel   = model   ?? "gpt-image-1.5";
     const resolvedSize    = size    ?? "1024x1024";
     const resolvedQuality = quality ?? "medium";
 

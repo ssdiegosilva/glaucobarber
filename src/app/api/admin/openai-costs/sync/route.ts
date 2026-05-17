@@ -10,10 +10,13 @@ const DEFAULT_PRICES: Record<string, {
   outputPer1M: number;
   imageCents?: number;
 }> = {
-  // GPT-4o mini
+  // GPT-4.1 family (current)
+  "gpt-4.1-mini":            { displayName: "GPT-4.1 mini",         inputPer1M: 0.15, outputPer1M: 0.60 },
+  "gpt-4.1":                 { displayName: "GPT-4.1",              inputPer1M: 2.50, outputPer1M: 10.00 },
+  // GPT-4o mini (legacy — shutdown 2026-10-23)
   "gpt-4o-mini":             { displayName: "GPT-4o mini",          inputPer1M: 0.15, outputPer1M: 0.60 },
   "gpt-4o-mini-2024-07-18":  { displayName: "GPT-4o mini (Jul 24)", inputPer1M: 0.15, outputPer1M: 0.60 },
-  // GPT-4o
+  // GPT-4o (legacy — shutdown 2026-10-23)
   "gpt-4o":                  { displayName: "GPT-4o",               inputPer1M: 2.50, outputPer1M: 10.00 },
   "gpt-4o-2024-08-06":       { displayName: "GPT-4o (Aug 24)",      inputPer1M: 2.50, outputPer1M: 10.00 },
   "gpt-4o-2024-11-20":       { displayName: "GPT-4o (Nov 24)",      inputPer1M: 2.50, outputPer1M: 10.00 },
