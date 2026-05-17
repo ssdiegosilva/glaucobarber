@@ -8,9 +8,9 @@ const config: CapacitorConfig = {
 
   server: {
     // Load the live site inside the native WebView
-    url: "https://glaucobarber.com",
+    url: "https://www.voltaki.com",
     // Allow navigation within the app domain
-    allowNavigation: ["glaucobarber.com", "*.supabase.co"],
+    allowNavigation: ["voltaki.com", "www.voltaki.com", "*.supabase.co"],
     // Clear cookies/cache on app update to avoid stale sessions
     cleartext: false,
   },

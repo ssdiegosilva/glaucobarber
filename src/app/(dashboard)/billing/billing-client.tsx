@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, Fragment } from "react";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -451,9 +451,8 @@ export function BillingClient({
                       const isExpanded = expandedFeature === f.key;
                       const detail = FEATURE_DETAIL[f.key];
                       return (
-                        <>
+                        <Fragment key={f.key}>
                           <tr
-                            key={f.key}
                             onClick={() => setExpandedFeature(isExpanded ? null : f.key)}
                             className={`border-b border-border/20 cursor-pointer transition-colors ${
                               isExpanded
@@ -483,13 +482,13 @@ export function BillingClient({
                             })}
                           </tr>
                           {isExpanded && detail && (
-                            <tr key={`${f.key}-detail`} className="border-b border-border/20 bg-surface-800/60">
+                            <tr className="border-b border-border/20 bg-surface-800/60">
                               <td colSpan={COMPARISON_TIERS.length + 1} className="px-4 py-3">
                                 <p className="text-xs text-muted-foreground leading-relaxed">{detail}</p>
                               </td>
                             </tr>
                           )}
-                        </>
+                        </Fragment>
                       );
                     })}
                 </tbody>
